@@ -1,0 +1,47 @@
+name = "vines"
+main = "src/worker.ts"
+compatibility_date = "2024-12-01"
+preview_urls = false
+workers_dev = false
+
+[[routes]]
+pattern = "test.my.domain"
+custom_domain = true
+zone_name = "my.domain"
+
+# KV Namespace 绑定（需要先创建）
+# wrangler kv namespace create DEVICE_KV
+# wrangler kv namespace create DEVICE_KV --preview
+[[kv_namespaces]]
+binding = "DEVICE_KV"
+id = "kv-xxxxxxxxxxxxxxxxxxxxxx"
+
+[observability]
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+invocation_logs = true
+persist = true
+
+[dev]
+port = 8787
+local_protocol = "http"
+
+# 非敏感变量可以直接配置
+[vars]
+RELAY_GROUP_NAME = "YewRhizome"
+RELAY_NODE_PREFIX = "YewRelay-"
+REPLACE_PROXY_GROUP = "auto"
+DEVICE_NOTIFICATION_ENABLED = "true"
+CONFIG_DISPLAY_NAME = "YewRhizome"
+SELECT_RELAY_NODE_PREFIX = "YewSelect-"
+SELECT_RELAY_DIALER_PROXY="auto"   
+
+# 敏感变量请使用 secret 设置：
+# wrangler secret put SUBSCRIBE_URL
+# wrangler secret put SUBSCRIBE_TOKEN  # 可选，用于 VPS 代理的 token 验证
+# wrangler secret put VPS_NODES_YAML
+# wrangler secret put CUSTOM_RULES_YAML  # 自定义规则集
+# wrangler secret put ACCESS_TOKEN
+# wrangler secret put APPRISE_API_URL      # Apprise API 地址
+# wrangler secret put APPRISE_NOTIFY_URL   # telegram://{bot_token}/{chat_id}

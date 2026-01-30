@@ -1,0 +1,5 @@
+# YewSeal - Decrypted configuration files
+wrangler.toml
+
+# YewSeal - Age private keys
+.age/keys.txt
