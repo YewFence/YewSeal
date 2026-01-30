@@ -1,0 +1,13 @@
+# Decrypted configuration files
+wrangler.toml
+
+# Age private keys
+.age/keys.txt
+
+# Compiled binaries
+*.exe
+
+# Temporary files
+*.tmp
+*.bak
+*~
