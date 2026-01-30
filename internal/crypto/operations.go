@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/YewFence/YewSeal/internal/config"
 	"github.com/YewFence/YewSeal/internal/tools"
 )
 
@@ -54,13 +53,30 @@ func Encrypt(inputFile, outputFile, keyFile, publicKeyParam string, verbose bool
 
 	// Step 2: Encrypt with SOPS
 	// Get Age public key with priority: CLI param > env var > config file > extract from keys.txt
-	publicKey, err := getPublicKey(publicKeyParam, keyFile, verbose)
+	publicKey, err := GetPublicKey(publicKeyParam, keyFile, verbose)
 	if err != nil {
 		return err
 	}
 
-	// Use --age parameter to specify the public key for encryption
-	_, stderr, err := tools.ExecCommand("sops", "--encrypt", "--age", publicKey, "--input-type", "yaml", "--output-type", "yaml", "--output", outputFile, tempFile)
+	// Build SOPS encrypt command
+	// If .sops.yaml exists, use it with --filename-override to match rules against output filename
+	// Otherwise use --config os.DevNull to skip config loading
+	var args []string
+	if _, err := os.Stat(".sops.yaml"); os.IsNotExist(err) {
+		// No .sops.yaml found, explicitly disable config to avoid "no matching creation rules" error
+		if verbose {
+			fmt.Println("📋 No .sops.yaml found, using command-line parameters only")
+		}
+		args = []string{"--config", os.DevNull, "encrypt", "--age", publicKey, "--input-type", "yaml", "--output-type", "yaml", tempFile, "--output", outputFile}
+	} else {
+		// .sops.yaml exists, use --filename-override so SOPS matches rules against outputFile instead of tempFile
+		if verbose {
+			fmt.Println("📋 Using .sops.yaml configuration")
+		}
+		args = []string{"encrypt", "--filename-override", outputFile, "--input-type", "yaml", "--output-type", "yaml", tempFile, "--output", outputFile}
+	}
+
+	_, stderr, err := tools.ExecCommand("sops", args...)
 	if err != nil {
 		return fmt.Errorf("failed to encrypt with SOPS: %w\n%s", err, stderr)
 	}
@@ -158,68 +174,4 @@ func Edit(file, editor, keyFile string) error {
 
 	fmt.Println("✅ File edited successfully")
 	return nil
-}
-
-// getPublicKey returns the Age public key with priority:
-// 1. Command-line parameter (highest)
-// 2. Environment variable SOPS_AGE_RECIPIENTS
-// 3. Config file .yewseal.toml
-// 4. Extract from private key file .age/keys.txt (fallback)
-func getPublicKey(providedKey, keyFile string, verbose bool) (string, error) {
-	// Priority 1: Command-line parameter
-	if providedKey != "" {
-		if verbose {
-			fmt.Println("🔑 Using public key from command-line parameter")
-		}
-		return providedKey, nil
-	}
-
-	// Priority 2: Environment variable
-	if envKey := os.Getenv("SOPS_AGE_RECIPIENTS"); envKey != "" {
-		if verbose {
-			fmt.Println("🔑 Using public key from SOPS_AGE_RECIPIENTS environment variable")
-		}
-		return envKey, nil
-	}
-
-	// Priority 3: Config file
-	cfg, err := config.LoadConfig()
-	if err == nil && cfg.GetPublicKey() != "" {
-		if verbose {
-			fmt.Println("🔑 Using public key from .yewseal.toml")
-		}
-		return cfg.GetPublicKey(), nil
-	}
-
-	// Priority 4: Extract from private key file (fallback)
-	if verbose {
-		fmt.Println("🔑 Attempting to extract public key from private key file...")
-	}
-
-	// Try to get the key file path
-	if keyFile == "" {
-		if cfg != nil {
-			keyFile = cfg.GetKeyFile("")
-		} else {
-			keyFile = ".age/keys.txt"
-		}
-	}
-
-	// Read the private key file
-	keyContent, err := os.ReadFile(keyFile)
-	if err != nil {
-		return "", fmt.Errorf("no public key found. Tried: CLI parameter, SOPS_AGE_RECIPIENTS env, .yewseal.toml config, and extracting from %s (failed: %w). Please run 'yews init' or provide --public-key", keyFile, err)
-	}
-
-	// Extract public key from the key file content
-	publicKey := ExtractPublicKey(string(keyContent))
-	if publicKey == "" {
-		return "", fmt.Errorf("no public key found. Tried: CLI parameter, SOPS_AGE_RECIPIENTS env, .yewseal.toml config, and extracting from %s (no valid public key found). Please run 'yews init' or provide --public-key", keyFile)
-	}
-
-	if verbose {
-		fmt.Printf("✅ Extracted public key from %s: %s\n", keyFile, publicKey)
-	}
-
-	return publicKey, nil
 }
