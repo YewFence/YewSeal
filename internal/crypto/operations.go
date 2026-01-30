@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/yourusername/sops-config-tool/internal/tools"
+	"github.com/yourusername/YewSeal/internal/tools"
 )
 
 // Encrypt converts TOML to YAML and encrypts it with SOPS

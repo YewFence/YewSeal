@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/yourusername/sops-config-tool/internal/tools"
+	"github.com/yourusername/YewSeal/internal/tools"
 )
 
 // InitProject initializes the project with Age keys and SOPS configuration
@@ -108,7 +108,7 @@ wrangler.toml
 	fmt.Println("\n🎉 Initialization complete!")
 	fmt.Println("\nNext steps:")
 	fmt.Println("  1. Review wrangler.example.toml and remove any sensitive values")
-	fmt.Println("  2. Run 'sops-config-tool encrypt' to encrypt your configuration")
+	fmt.Println("  2. Run 'yews encrypt' to encrypt your configuration")
 	fmt.Println("  3. Commit .sops.yaml, .gitignore, wrangler.enc.yaml, and wrangler.example.toml to git")
 	fmt.Println("  4. NEVER commit wrangler.toml or .age/keys.txt!")
 	fmt.Println("\n⚠️  IMPORTANT: Back up your .age/keys.txt file securely!")

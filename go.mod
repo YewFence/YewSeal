@@ -1,4 +1,4 @@
-module github.com/yourusername/sops-config-tool
+module github.com/YewFence/YewSeal
 
 go 1.25.6
 

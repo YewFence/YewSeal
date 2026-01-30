@@ -1,4 +1,4 @@
-# SOPS Config Tool
+# YewSeal
 
 一个用于管理加密配置文件的 CLI 工具，使用 SOPS + Age 加密，专为 Cloudflare Wrangler 配置设计。
 
@@ -41,8 +41,8 @@ brew install sops
 
 ```bash
 git clone <repository>
-cd sops-config-tool
-go build -o sops-config-tool.exe ./cmd
+cd YewSeal
+go build -o yews.exe ./cmd
 ```
 
 ### 直接下载
@@ -56,7 +56,7 @@ go build -o sops-config-tool.exe ./cmd
 首次使用时，在项目根目录运行：
 
 ```bash
-./sops-config-tool init
+./yews init
 ```
 
 这将会：
@@ -72,12 +72,12 @@ go build -o sops-config-tool.exe ./cmd
 将 `wrangler.toml` 加密为 `wrangler.enc.yaml`：
 
 ```bash
-./sops-config-tool encrypt
+./yews encrypt
 ```
 
 支持的选项：
 ```bash
-./sops-config-tool encrypt --input custom.toml --output custom.enc.yaml
+./yews encrypt --input custom.toml --output custom.enc.yaml
 ```
 
 ### 3. 解密配置文件
@@ -85,12 +85,12 @@ go build -o sops-config-tool.exe ./cmd
 从加密文件恢复原始配置：
 
 ```bash
-./sops-config-tool decrypt
+./yews decrypt
 ```
 
 支持的选项：
 ```bash
-./sops-config-tool decrypt --input custom.enc.yaml --output custom.toml
+./yews decrypt --input custom.enc.yaml --output custom.toml
 ```
 
 ### 4. 直接编辑加密文件
@@ -98,13 +98,13 @@ go build -o sops-config-tool.exe ./cmd
 使用默认编辑器编辑加密文件（自动处理加密/解密）：
 
 ```bash
-./sops-config-tool edit
+./yews edit
 ```
 
 指定编辑器：
 ```bash
-./sops-config-tool edit --editor "code -w"
-./sops-config-tool edit --editor vim
+./yews edit --editor "code -w"
+./yews edit --editor vim
 ```
 
 ## 密钥管理
@@ -115,7 +115,7 @@ go build -o sops-config-tool.exe ./cmd
 
 ```bash
 export SOPS_AGE_KEY="AGE-SECRET-KEY-..."
-./sops-config-tool decrypt
+./yews decrypt
 ```
 
 ### 2. 密钥文件（推荐用于本地开发）
@@ -123,7 +123,7 @@ export SOPS_AGE_KEY="AGE-SECRET-KEY-..."
 默认从 `.age/keys.txt` 读取，或指定文件：
 
 ```bash
-./sops-config-tool --key-file /path/to/keys.txt decrypt
+./yews --key-file /path/to/keys.txt decrypt
 ```
 
 ## Git 工作流
@@ -170,7 +170,7 @@ jobs:
         env:
           SOPS_AGE_KEY: ${{ secrets.AGE_KEY }}
         run: |
-          ./sops-config-tool decrypt
+          ./yews decrypt
       
       - name: Deploy
         run: |
@@ -216,7 +216,7 @@ cat .age/keys.txt
 ├── wrangler.toml             # 明文配置（不提交）
 ├── wrangler.enc.yaml         # 加密配置（提交）
 ├── wrangler.example.toml     # 配置模板（提交）
-└── sops-config-tool.exe      # 工具二进制文件
+└── yews.exe                  # 工具二进制文件
 ```
 
 ## 命令参考
@@ -237,7 +237,7 @@ cat .age/keys.txt
 初始化项目，生成密钥和配置文件。
 
 ```bash
-sops-config-tool init [--force]
+yews init [--force]
 ```
 
 选项：
@@ -248,7 +248,7 @@ sops-config-tool init [--force]
 加密 TOML 文件为 YAML 格式。
 
 ```bash
-sops-config-tool encrypt [--input FILE] [--output FILE]
+yews encrypt [--input FILE] [--output FILE]
 ```
 
 选项：
@@ -260,7 +260,7 @@ sops-config-tool encrypt [--input FILE] [--output FILE]
 解密 YAML 文件为 TOML 格式。
 
 ```bash
-sops-config-tool decrypt [--input FILE] [--output FILE]
+yews decrypt [--input FILE] [--output FILE]
 ```
 
 选项：
@@ -272,7 +272,7 @@ sops-config-tool decrypt [--input FILE] [--output FILE]
 使用编辑器编辑加密文件。
 
 ```bash
-sops-config-tool edit [--file FILE] [--editor COMMAND]
+yews edit [--file FILE] [--editor COMMAND]
 ```
 
 选项：

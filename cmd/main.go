@@ -4,16 +4,16 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/yourusername/sops-config-tool/internal/crypto"
-	"github.com/yourusername/sops-config-tool/internal/tools"
+	"github.com/yourusername/YewSeal/internal/crypto"
+	"github.com/yourusername/YewSeal/internal/tools"
 
 	"github.com/urfave/cli/v2"
 )
 
 func main() {
 	app := &cli.App{
-		Name:    "sops-config-tool",
-		Usage:   "Encrypt/decrypt configuration files using SOPS, Age, and yq",
+		Name:    "yews",
+		Usage:   "YewSeal - Encrypt/decrypt configuration files using SOPS, Age, and yq",
 		Version: "1.0.0",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
