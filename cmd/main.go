@@ -44,8 +44,9 @@ func main() {
 				},
 			},
 			{
-				Name:  "encrypt",
-				Usage: "Encrypt wrangler.toml to wrangler.enc.yaml",
+				Name:    "encrypt",
+				Aliases: []string{"e"},
+				Usage:   "Encrypt wrangler.toml to wrangler.enc.yaml",
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:    "input",
@@ -69,8 +70,9 @@ func main() {
 				},
 			},
 			{
-				Name:  "decrypt",
-				Usage: "Decrypt wrangler.enc.yaml to wrangler.toml",
+				Name:    "decrypt",
+				Aliases: []string{"d"},
+				Usage:   "Decrypt wrangler.enc.yaml to wrangler.toml",
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:    "input",
