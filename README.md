@@ -4,11 +4,13 @@
 
 ## 功能特性
 
-- 📦 TOML ↔ YAML 格式转换后加密，沿用 SOPS 已有功能
+- 📦 TOML <-> YAML 格式转换后加密，沿用 SOPS 已有功能
 - 🔑 支持环境变量和文件两种密钥管理方式
 - ✨ 简单易用的命令行界面
 - 💤 简短的命令别名，提高效率
 - 🛠️ 支持配置文件持久化常用设置
+- 🔄 支持同步密钥到秘密管理服务
+- 📝 加密解密后文件结构完全一致，不破坏配置文件格式
 - 🎯 专为 `toml` 配置文件优化
 
 ## 前置要求
@@ -38,6 +40,34 @@ pipx install remarshal
 ### Linux 安装
 
 请参考各工具的官方文档。
+
+## 快速开始
+
+```bash
+# 1. 交互式初始化项目（生成密钥和配置）
+yews init
+# 输入你需要加密的文件名和加密后的输出文件名
+
+# 2. 根据配置文件加密敏感文件
+yews e
+# 或者使用全称
+yews encrypt 
+
+# 3. 解密敏感文件
+yews d
+# 或者使用全称
+yews decrypt 
+```
+
+**不想增加额外的配置文件？** 完全可以只用命令行参数运行：
+
+```bash
+# 所有参数都可以通过命令行指定
+yews encrypt -i config.toml -o config.enc.yaml -k .age/keys.txt -p "age1..."
+yews decrypt -i config.enc.yaml -o config.toml -k .age/keys.txt
+```
+
+> 配置文件 `.yewseal.toml` 是可选的，只是为了避免每次都输入参数。
 
 ## 安装
 
@@ -261,6 +291,22 @@ public_key = "age1..."
 ### 4. 默认位置
 
 默认从 `.age/keys.txt` 读取私钥，从 `.yewseal.toml` 读取公钥。
+
+## 密钥同步
+
+### Infisical 集成
+
+#### 1. 配置 Infisical
+
+```bash
+infisical login
+infisical init
+```
+
+#### 2. 同步 AGE 密钥到 Infisical
+```bash
+yews sync
+```
 
 ## Git 工作流
 
