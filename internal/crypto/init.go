@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/YewFence/YewSeal/internal/tools"
+	"gopkg.in/yaml.v3"
 )
 
 // InitProject initializes the project with Age keys and SOPS configuration
@@ -78,13 +79,6 @@ func InitProject(force bool, inputFile, outputFile, infix string, createExampleF
 		"Create .sops.yaml? (Optional, but convenient for direct sops commands)",
 		true,
 	)
-
-	// Check if .sops.yaml already exists (only check this if we're going to create it)
-	if !force && shouldCreateSopsConfig {
-		if _, err := os.Stat(".sops.yaml"); err == nil {
-			return fmt.Errorf(".sops.yaml already exists. Use --force to overwrite")
-		}
-	}
 
 	var publicKey string
 
@@ -166,21 +160,11 @@ func InitProject(force bool, inputFile, outputFile, infix string, createExampleF
 		fmt.Printf("✅ Public key saved to .age.pub: %s\n", publicKey)
 	}
 
-	// Create .sops.yaml if requested
+	// Create or update .sops.yaml if requested
 	if shouldCreateSopsConfig {
-		// Generate regex pattern that precisely matches the output file
-		// Escape special regex characters in the filename
-		escapedOutput := regexp.QuoteMeta(outputFile)
-		sopsConfig := fmt.Sprintf(`creation_rules:
-  - path_regex: ^%s$
-    age: %s
-`, escapedOutput, publicKey)
-
-		if err := os.WriteFile(".sops.yaml", []byte(sopsConfig), 0644); err != nil {
-			return fmt.Errorf("failed to create .sops.yaml: %w", err)
+		if err := updateSopsYaml(outputFile, publicKey, force); err != nil {
+			return fmt.Errorf("failed to update .sops.yaml: %w", err)
 		}
-
-		fmt.Println("✅ Created .sops.yaml")
 	} else {
 		fmt.Println("⏭️  Skipped creating .sops.yaml")
 	}
@@ -307,4 +291,76 @@ func readKeyFile(path string) (string, error) {
 	}
 
 	return "", fmt.Errorf("no valid Age secret key found in %s", path)
+}
+
+// SopsConfig represents the structure of .sops.yaml
+type SopsConfig struct {
+	CreationRules []CreationRule `yaml:"creation_rules"`
+}
+
+// CreationRule represents a single rule in .sops.yaml
+type CreationRule struct {
+	PathRegex string `yaml:"path_regex"`
+	Age       string `yaml:"age"`
+}
+
+// updateSopsYaml creates or updates .sops.yaml with proper YAML handling
+func updateSopsYaml(outputFile, publicKey string, force bool) error {
+	const sopsYamlPath = ".sops.yaml"
+
+	// Generate regex pattern that precisely matches the output file
+	escapedOutput := regexp.QuoteMeta(outputFile)
+	pathRegex := "^" + escapedOutput + "$"
+
+	var config SopsConfig
+
+	// Try to read existing file
+	if existingData, err := os.ReadFile(sopsYamlPath); err == nil {
+		// Parse existing YAML
+		if err := yaml.Unmarshal(existingData, &config); err != nil {
+			return fmt.Errorf("failed to parse existing .sops.yaml: %w", err)
+		}
+
+		// Check if rule already exists (idempotency)
+		for _, rule := range config.CreationRules {
+			if rule.PathRegex == pathRegex {
+				fmt.Printf("⏭️  .sops.yaml already contains rule for %s\n", outputFile)
+				return nil
+			}
+		}
+
+		if force {
+			// Force mode: replace all rules
+			config.CreationRules = []CreationRule{
+				{PathRegex: pathRegex, Age: publicKey},
+			}
+			fmt.Println("✅ Replaced .sops.yaml (force mode)")
+		} else {
+			// Append new rule
+			config.CreationRules = append(config.CreationRules, CreationRule{
+				PathRegex: pathRegex,
+				Age:       publicKey,
+			})
+			fmt.Printf("✅ Added rule to .sops.yaml for %s\n", outputFile)
+		}
+	} else {
+		// File doesn't exist, create new
+		config.CreationRules = []CreationRule{
+			{PathRegex: pathRegex, Age: publicKey},
+		}
+		fmt.Println("✅ Created .sops.yaml")
+	}
+
+	// Marshal to YAML
+	data, err := yaml.Marshal(&config)
+	if err != nil {
+		return fmt.Errorf("failed to marshal YAML: %w", err)
+	}
+
+	// Write to file
+	if err := os.WriteFile(sopsYamlPath, data, 0644); err != nil {
+		return fmt.Errorf("failed to write .sops.yaml: %w", err)
+	}
+
+	return nil
 }
