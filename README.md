@@ -1,17 +1,17 @@
 # YewSeal
 
-一个用于管理加密 TOML 配置文件的 CLI 工具，使用 SOPS + Age 加密，补充 SOPS 缺失的 TOML 文件加密支持。
+一个用于管理加密配置文件的 CLI 工具，使用 SOPS + Age 加密，支持多种配置格式（TOML/YAML/JSON/ENV/INI）。
 
 ## 功能特性
 
-- 📦 TOML <-> YAML 格式转换后加密，沿用 SOPS 已有功能
-- 🔑 支持环境变量和文件两种密钥管理方式
-- ✨ 简单易用的命令行界面
-- 💤 简短的命令别名，提高效率
-- 🛠️ 支持配置文件持久化常用设置
-- 🔄 支持同步密钥到秘密管理服务
-- 📝 加密解密后文件结构完全一致，不破坏配置文件格式
-- 🎯 专为 `toml` 配置文件优化
+- 📦 多格式支持：TOML、YAML、JSON、ENV、INI
+- 🔄 TOML 格式转换后加密，补充 SOPS 缺失的 TOML 支持
+- 🚀 批量加密解密，支持目录扫描和并行处理
+- 🔑 灵活的密钥管理：环境变量、文件、配置文件
+- ✨ 简单易用的命令行界面，支持命令别名
+- 🛠️ 配置文件持久化常用设置
+- 🔐 密钥同步到密钥管理服务（Infisical）
+- 📝 加密解密后文件结构完全一致
 
 ## 前置要求
 
@@ -148,12 +148,16 @@ yews init --force
 
 ### 2. 加密配置文件
 
-将 TOML 配置文件加密为 YAML 格式：
+支持单文件和批量模式：
 
 ```bash
+# 单文件模式
 yews encrypt
-# 或者使用简写
-yews e
+yews e  # 简写
+
+# 批量模式（扫描目录）
+yews encrypt --dir ./configs --pattern "*.toml"
+yews e --dir ./configs --pattern "*.yaml" --parallel 4  # 并行处理
 ```
 
 支持的选项：
@@ -168,9 +172,13 @@ yews encrypt --verbose  # 显示详细输出
 从加密文件恢复原始配置：
 
 ```bash
+# 单文件模式
 yews decrypt
-# 或者使用简写
-yews d
+yews d  # 简写
+
+# 批量模式
+yews decrypt --dir ./configs --pattern "*.enc.toml.yaml"
+yews d --dir ./configs --parallel 4
 ```
 
 支持的选项：
@@ -306,6 +314,17 @@ infisical init
 #### 2. 同步 AGE 密钥到 Infisical
 ```bash
 yews sync
+yews sync --provider infisical --name AGE_KEY_FILE --path /yewseal
+```
+
+### 检查环境
+
+检查所需外部工具是否已安装：
+
+```bash
+yews check
+# 或
+yews doctor
 ```
 
 ## Git 工作流
@@ -395,6 +414,8 @@ cat .age/keys.txt
 
 ## 命令参考
 
+完整的命令行参考请查看 [CLI.md](CLI.md)。
+
 ### 全局选项
 
 ```
@@ -403,77 +424,30 @@ cat .age/keys.txt
 --version, -v    显示版本信息
 ```
 
-### init
+### 命令列表
 
-初始化项目，生成密钥和配置文件。
-
-```bash
-yews init [选项]
-```
-
-| 选项 | 简写 | 说明 |
+| 命令 | 别名 | 说明 |
 |------|------|------|
-| `--force` | `-f` | 强制覆盖已有配置 |
-| `--input` | `-i` | 原始配置文件名（非交互模式） |
-| `--output` | `-o` | 加密输出文件名（非交互模式） |
-| `--create-example` | | 创建示例文件（非交互模式） |
-| `--skip-sops-config` | | 跳过创建 .sops.yaml（非交互模式） |
-
-### encrypt
-
-加密 TOML 文件为 YAML 格式。
-
-```bash
-yews encrypt [选项]
-yews e [选项]  # 简写
-```
-
-| 选项 | 简写 | 默认值 | 说明 |
-|------|------|--------|------|
-| `--input` | `-i` | `wrangler.toml` | 输入 TOML 文件 |
-| `--output` | `-o` | `wrangler.enc.toml.yaml` | 输出加密 YAML 文件 |
-| `--public-key` | `-p` | | Age 公钥 |
-| `--verbose` | `-v` | | 显示详细输出 |
-
-### decrypt
-
-解密 YAML 文件为 TOML 格式。
-
-```bash
-yews decrypt [选项]
-yews d [选项]  # 简写
-```
-
-| 选项 | 简写 | 默认值 | 说明 |
-|------|------|--------|------|
-| `--input` | `-i` | `wrangler.enc.toml.yaml` | 输入加密 YAML 文件 |
-| `--output` | `-o` | `wrangler.toml` | 输出 TOML 文件 |
-| `--verbose` | `-v` | | 显示详细输出 |
-
-### edit
-
-使用编辑器编辑加密文件。
-
-```bash
-yews edit [选项]
-```
-
-| 选项 | 简写 | 默认值 | 说明 |
-|------|------|--------|------|
-| `--file` | `-f` | `wrangler.enc.toml.yaml` | 要编辑的加密文件 |
-| `--editor` | `-e` | `$EDITOR` | 编辑器命令 |
+| `init` | | 初始化项目，生成密钥和配置 |
+| `encrypt` | `e` | 加密配置文件 |
+| `decrypt` | `d` | 解密配置文件 |
+| `edit` | | 使用编辑器编辑加密文件 |
+| `check` | `doctor` | 检查外部工具是否安装 |
+| `sync` | | 同步密钥到密钥管理服务 |
 
 ## 工作原理
 
 ```
-加密流程: TOML → toml2yaml → YAML → sops encrypt → 加密 YAML
-解密流程: 加密 YAML → sops decrypt → YAML → yaml2toml → TOML
+TOML 加密: TOML → toml2yaml → YAML → sops encrypt → 加密 YAML
+TOML 解密: 加密 YAML → sops decrypt → YAML → yaml2toml → TOML
+
+其他格式: 原文件 → sops encrypt/decrypt → 加密/解密文件
 ```
 
-YewSeal 本身不实现加密算法，而是编排三个成熟的外部工具：
+YewSeal 本身不实现加密算法，而是编排成熟的外部工具：
 - **Age** - 现代化的加密工具
 - **SOPS** - Mozilla 出品的密钥管理工具
-- **Remarshal** - 配置格式转换工具
+- **Remarshal** - 配置格式转换工具（仅 TOML 需要）
 
 ## 许可证
 
