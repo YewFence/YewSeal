@@ -8,7 +8,7 @@ import (
 
 // CheckTools verifies that all required external tools are installed
 func CheckTools() error {
-	required := []string{"age", "sops"}
+	required := []string{"age", "sops", "toml2yaml", "yaml2toml"}
 	missing := []string{}
 
 	for _, tool := range required {
@@ -18,7 +18,7 @@ func CheckTools() error {
 	}
 
 	if len(missing) > 0 {
-		return fmt.Errorf("missing required tools: %s\n\nPlease install:\n- age: https://github.com/FiloSottile/age\n- sops: https://github.com/getsops/sops", strings.Join(missing, ", "))
+		return fmt.Errorf("missing required tools: %s\n\nPlease install:\n- age: https://github.com/FiloSottile/age\n- sops: https://github.com/getsops/sops\n- remarshal (provides toml2yaml/yaml2toml): https://github.com/remarshal-project/remarshal\n  Install with: pipx install remarshal OR uv tool install remarshal", strings.Join(missing, ", "))
 	}
 
 	return nil

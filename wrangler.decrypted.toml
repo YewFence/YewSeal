@@ -1,0 +1,33 @@
+name = "vines"
+main = "src/worker.ts"
+compatibility_date = "2024-12-01"
+preview_urls = false
+workers_dev = false
+
+[[routes]]
+pattern = "test.my.domain"
+custom_domain = true
+zone_name = "my.domain"
+
+[[kv_namespaces]]
+binding = "DEVICE_KV"
+id = "kv-xxxxxxxxxxxxxxxxxxxxxx"
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+invocation_logs = true
+persist = true
+
+[dev]
+port = 8787
+local_protocol = "http"
+
+[vars]
+RELAY_GROUP_NAME = "YewRhizome"
+RELAY_NODE_PREFIX = "YewRelay-"
+REPLACE_PROXY_GROUP = "auto"
+DEVICE_NOTIFICATION_ENABLED = "true"
+CONFIG_DISPLAY_NAME = "YewRhizome"
+SELECT_RELAY_NODE_PREFIX = "YewSelect-"
+SELECT_RELAY_DIALER_PROXY = "auto"
