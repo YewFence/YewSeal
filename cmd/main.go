@@ -88,6 +88,12 @@ func main() {
 						Usage:   "Output encrypted YAML file",
 						EnvVars: []string{"SOPS_OUTPUT_FILE"},
 					},
+					&cli.StringFlag{
+						Name:    "public-key",
+						Aliases: []string{"p"},
+						Usage:   "Age public key for encryption",
+						EnvVars: []string{"SOPS_AGE_RECIPIENTS"},
+					},
 					&cli.BoolFlag{
 						Name:    "verbose",
 						Aliases: []string{"v"},
@@ -99,9 +105,10 @@ func main() {
 					inputFile := cfg.GetEncryptionInput(c.String("input"))
 					outputFile := cfg.GetEncryptionOutput(c.String("output"))
 					keyFile := cfg.GetKeyFile(c.String("key-file"))
+					publicKey := c.String("public-key")
 					verbose := c.Bool("verbose")
 
-					return crypto.Encrypt(inputFile, outputFile, keyFile, verbose)
+					return crypto.Encrypt(inputFile, outputFile, keyFile, publicKey, verbose)
 				},
 			},
 			{

@@ -66,7 +66,7 @@ func InitProject(force bool, inputFile, outputFile string, createExampleFlag, sk
 		if err != nil {
 			return fmt.Errorf("failed to read existing key file: %w", err)
 		}
-		publicKey = extractPublicKey(string(keyContent))
+		publicKey = ExtractPublicKey(string(keyContent))
 		if publicKey == "" {
 			return fmt.Errorf("failed to extract public key from existing key file")
 		}
@@ -96,12 +96,12 @@ func InitProject(force bool, inputFile, outputFile string, createExampleFlag, sk
 
 		// Extract public key from output (age-keygen prints it to stderr)
 		combinedOutput := stderr + stdout
-		publicKey = extractPublicKey(combinedOutput)
+		publicKey = ExtractPublicKey(combinedOutput)
 		if publicKey == "" {
 			// If extraction from output failed, try reading from the key file
 			keyContent, err := os.ReadFile(keyFilePath)
 			if err == nil {
-				publicKey = extractPublicKey(string(keyContent))
+				publicKey = ExtractPublicKey(string(keyContent))
 			}
 		}
 		if publicKey == "" {
@@ -199,8 +199,8 @@ func InitProject(force bool, inputFile, outputFile string, createExampleFlag, sk
 	return nil
 }
 
-// extractPublicKey extracts the public key from age-keygen output
-func extractPublicKey(output string) string {
+// ExtractPublicKey extracts the public key from age-keygen output or key file
+func ExtractPublicKey(output string) string {
 	// age-keygen outputs: "# public key: age1..."
 	lines := strings.Split(output, "\n")
 	for _, line := range lines {

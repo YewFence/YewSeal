@@ -11,7 +11,7 @@ import (
 )
 
 // Encrypt converts TOML to YAML and encrypts it with SOPS
-func Encrypt(inputFile, outputFile, keyFile string, verbose bool) error {
+func Encrypt(inputFile, outputFile, keyFile, publicKeyParam string, verbose bool) error {
 	// Check if input file exists
 	if _, err := os.Stat(inputFile); os.IsNotExist(err) {
 		return fmt.Errorf("input file %s does not exist", inputFile)
@@ -53,14 +53,10 @@ func Encrypt(inputFile, outputFile, keyFile string, verbose bool) error {
 	}
 
 	// Step 2: Encrypt with SOPS
-	// Read Age public key from config file
-	cfg, err := config.LoadConfig()
+	// Get Age public key with priority: CLI param > env var > config file > extract from keys.txt
+	publicKey, err := getPublicKey(publicKeyParam, keyFile, verbose)
 	if err != nil {
-		return fmt.Errorf("failed to load config: %w", err)
-	}
-	publicKey := cfg.GetPublicKey()
-	if publicKey == "" {
-		return fmt.Errorf("no public key found in .yewseal.toml, please run 'yews init' first")
+		return err
 	}
 
 	// Use --age parameter to specify the public key for encryption
@@ -162,4 +158,68 @@ func Edit(file, editor, keyFile string) error {
 
 	fmt.Println("✅ File edited successfully")
 	return nil
+}
+
+// getPublicKey returns the Age public key with priority:
+// 1. Command-line parameter (highest)
+// 2. Environment variable SOPS_AGE_RECIPIENTS
+// 3. Config file .yewseal.toml
+// 4. Extract from private key file .age/keys.txt (fallback)
+func getPublicKey(providedKey, keyFile string, verbose bool) (string, error) {
+	// Priority 1: Command-line parameter
+	if providedKey != "" {
+		if verbose {
+			fmt.Println("🔑 Using public key from command-line parameter")
+		}
+		return providedKey, nil
+	}
+
+	// Priority 2: Environment variable
+	if envKey := os.Getenv("SOPS_AGE_RECIPIENTS"); envKey != "" {
+		if verbose {
+			fmt.Println("🔑 Using public key from SOPS_AGE_RECIPIENTS environment variable")
+		}
+		return envKey, nil
+	}
+
+	// Priority 3: Config file
+	cfg, err := config.LoadConfig()
+	if err == nil && cfg.GetPublicKey() != "" {
+		if verbose {
+			fmt.Println("🔑 Using public key from .yewseal.toml")
+		}
+		return cfg.GetPublicKey(), nil
+	}
+
+	// Priority 4: Extract from private key file (fallback)
+	if verbose {
+		fmt.Println("🔑 Attempting to extract public key from private key file...")
+	}
+
+	// Try to get the key file path
+	if keyFile == "" {
+		if cfg != nil {
+			keyFile = cfg.GetKeyFile("")
+		} else {
+			keyFile = ".age/keys.txt"
+		}
+	}
+
+	// Read the private key file
+	keyContent, err := os.ReadFile(keyFile)
+	if err != nil {
+		return "", fmt.Errorf("no public key found. Tried: CLI parameter, SOPS_AGE_RECIPIENTS env, .yewseal.toml config, and extracting from %s (failed: %w). Please run 'yews init' or provide --public-key", keyFile, err)
+	}
+
+	// Extract public key from the key file content
+	publicKey := ExtractPublicKey(string(keyContent))
+	if publicKey == "" {
+		return "", fmt.Errorf("no public key found. Tried: CLI parameter, SOPS_AGE_RECIPIENTS env, .yewseal.toml config, and extracting from %s (no valid public key found). Please run 'yews init' or provide --public-key", keyFile)
+	}
+
+	if verbose {
+		fmt.Printf("✅ Extracted public key from %s: %s\n", keyFile, publicKey)
+	}
+
+	return publicKey, nil
 }
