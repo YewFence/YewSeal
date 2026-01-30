@@ -12,7 +12,7 @@ import (
 )
 
 // InitProject initializes the project with Age keys and SOPS configuration
-func InitProject(force bool, inputFile, outputFile, infix string, createExampleFlag, skipSopsConfigFlag bool) error {
+func InitProject(force bool, inputFile, outputFile string, createExampleFlag, skipSopsConfigFlag bool) error {
 
 	// Interactive mode: Determine file names
 	// If parameters are empty, use interactive prompts
@@ -24,46 +24,12 @@ func InitProject(force bool, inputFile, outputFile, infix string, createExampleF
 	inputExt := filepath.Ext(inputFile)
 	inputBase := strings.TrimSuffix(filepath.Base(inputFile), inputExt)
 
-	// Determine infix and output file
+	// Determine output file
 	if outputFile == "" {
-		// If output file not specified, ask for infix
-		if infix == "" {
-			infixInput := tools.PromptWithDefault("Enter encryption infix (letters only, e.g., enc)", "enc")
-			// Normalize infix: add dots
-			infix = "." + strings.Trim(infixInput, ".") + "."
-		} else {
-			// Normalize infix from CLI parameter
-			infix = "." + strings.Trim(infix, ".") + "."
-		}
-
-		// Determine output extension
-		var outputExt string
-		if inputExt == ".toml" {
-			outputExt = ".yaml"
-		} else {
-			outputExt = inputExt
-		}
-
-		outputFile = inputBase + infix + strings.TrimPrefix(outputExt, ".")
-	} else {
-		// If output file is specified, extract infix from it
-		if infix == "" {
-			// Try to extract infix from output file name
-			outputBase := strings.TrimSuffix(filepath.Base(outputFile), filepath.Ext(outputFile))
-			if strings.HasPrefix(outputBase, inputBase) {
-				extracted := strings.TrimPrefix(outputBase, inputBase)
-				if extracted != "" {
-					infix = extracted
-				} else {
-					infix = ".enc."
-				}
-			} else {
-				infix = ".enc."
-			}
-		} else {
-			// Normalize infix from CLI parameter
-			infix = "." + strings.Trim(infix, ".") + "."
-		}
+		// Generate default output file name: {base}.enc.{ext}.yaml
+		// For example: wrangler.toml -> wrangler.enc.toml.yaml
+		defaultOutput := inputBase + ".enc" + inputExt + ".yaml"
+		outputFile = tools.PromptWithDefault("Enter encrypted output file name", defaultOutput)
 	}
 
 	// Interactive mode: Ask about creating example file
@@ -220,7 +186,9 @@ func InitProject(force bool, inputFile, outputFile, infix string, createExampleF
 
 	fmt.Println("\n🎉 Initialization complete!")
 	fmt.Println("\nNext steps:")
-	fmt.Printf("  1. Review %s.example%s and remove any sensitive values (if created)\n", inputBase, inputExt)
+	if shouldCreateExample {
+		fmt.Printf("  1. Review %s.example%s and remove any sensitive values\n", inputBase, inputExt)
+	}
 	fmt.Printf("  2. Run 'yews encrypt -i %s -o %s' to encrypt your configuration\n", inputFile, outputFile)
 	if shouldCreateSopsConfig {
 		fmt.Printf("  3. Commit .sops.yaml, .gitignore, %s", outputFile)

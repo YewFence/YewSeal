@@ -41,7 +41,7 @@ func Encrypt(inputFile, outputFile, keyFile string, verbose bool) error {
 	outputExt := filepath.Ext(outputFile)
 	outputBase := strings.TrimSuffix(filepath.Base(outputFile), outputExt)
 	tempFile := "." + outputBase + ".tmp" + outputExt
-	
+
 	if err := os.WriteFile(tempFile, yamlContent, 0644); err != nil {
 		return fmt.Errorf("failed to write temporary YAML file: %w", err)
 	}
@@ -52,16 +52,16 @@ func Encrypt(inputFile, outputFile, keyFile string, verbose bool) error {
 	}
 
 	// Step 2: Encrypt with SOPS
-	key, err := GetAgeKey(keyFile)
+	// Read Age public key from .age.pub file
+	pubKeyPath := ".age.pub"
+	pubKeyContent, err := os.ReadFile(pubKeyPath)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to read Age public key from %s: %w", pubKeyPath, err)
 	}
+	publicKey := strings.TrimSpace(string(pubKeyContent))
 
-	env := map[string]string{
-		"SOPS_AGE_KEY": key,
-	}
-
-	_, stderr, err := tools.ExecCommandWithEnv(env, "sops", "--encrypt", "--input-type", "yaml", "--output-type", "yaml", "--output", outputFile, tempFile)
+	// Use --age parameter to specify the public key for encryption
+	_, stderr, err := tools.ExecCommand("sops", "--encrypt", "--age", publicKey, "--input-type", "yaml", "--output-type", "yaml", "--output", outputFile, tempFile)
 	if err != nil {
 		return fmt.Errorf("failed to encrypt with SOPS: %w\n%s", err, stderr)
 	}

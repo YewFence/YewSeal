@@ -39,7 +39,7 @@ func DefaultConfig() *Config {
 			OutputFile: "wrangler.enc.yaml",
 		},
 		Key: KeyConfig{
-			FilePath: ".age/key.txt",
+			FilePath: ".age/keys.txt",
 		},
 	}
 }

@@ -50,10 +50,6 @@ func main() {
 						Aliases: []string{"o"},
 						Usage:   "Encrypted output file name (non-interactive mode)",
 					},
-					&cli.StringFlag{
-						Name:  "infix",
-						Usage: "Middle identifier for encrypted files (e.g., 'enc' becomes '.enc.', non-interactive mode)",
-					},
 					&cli.BoolFlag{
 						Name:  "create-example",
 						Usage: "Create example file (non-interactive mode)",
@@ -68,7 +64,6 @@ func main() {
 						c.Bool("force"),
 						c.String("input"),
 						c.String("output"),
-						c.String("infix"),
 						c.Bool("create-example"),
 						c.Bool("skip-sops-config"),
 					)
@@ -89,7 +84,7 @@ func main() {
 					&cli.StringFlag{
 						Name:    "output",
 						Aliases: []string{"o"},
-						Value:   "wrangler.enc.yaml",
+						Value:   "wrangler.enc.toml.yaml",
 						Usage:   "Output encrypted YAML file",
 						EnvVars: []string{"SOPS_OUTPUT_FILE"},
 					},
@@ -105,7 +100,7 @@ func main() {
 					outputFile := cfg.GetEncryptionOutput(c.String("output"))
 					keyFile := cfg.GetKeyFile(c.String("key-file"))
 					verbose := c.Bool("verbose")
-					
+
 					return crypto.Encrypt(inputFile, outputFile, keyFile, verbose)
 				},
 			},
@@ -117,7 +112,7 @@ func main() {
 					&cli.StringFlag{
 						Name:    "input",
 						Aliases: []string{"i"},
-						Value:   "wrangler.enc.yaml",
+						Value:   "wrangler.enc.toml.yaml",
 						Usage:   "Input encrypted YAML file",
 						EnvVars: []string{"SOPS_INPUT_FILE"},
 					},
@@ -140,7 +135,7 @@ func main() {
 					outputFile := cfg.GetDecryptionOutput(c.String("output"))
 					keyFile := cfg.GetKeyFile(c.String("key-file"))
 					verbose := c.Bool("verbose")
-					
+
 					return crypto.Decrypt(inputFile, outputFile, keyFile, verbose)
 				},
 			},
@@ -151,7 +146,7 @@ func main() {
 					&cli.StringFlag{
 						Name:    "file",
 						Aliases: []string{"f"},
-						Value:   "wrangler.enc.yaml",
+						Value:   "wrangler.enc.toml.yaml",
 						Usage:   "Encrypted file to edit",
 					},
 					&cli.StringFlag{
