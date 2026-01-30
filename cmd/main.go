@@ -6,6 +6,7 @@ import (
 
 	"github.com/YewFence/YewSeal/internal/config"
 	"github.com/YewFence/YewSeal/internal/crypto"
+	"github.com/YewFence/YewSeal/internal/sync"
 	"github.com/YewFence/YewSeal/internal/tools"
 
 	"github.com/urfave/cli/v2"
@@ -178,10 +179,47 @@ func main() {
 					return nil
 				},
 			},
+			{
+				Name:  "sync",
+				Usage: "Sync sensitive files to secret management service",
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:    "key-file",
+						Aliases: []string{"k"},
+						Value:   ".age/keys.txt",
+						Usage:   "Path to the key file to sync",
+					},
+					&cli.StringFlag{
+						Name:    "name",
+						Aliases: []string{"n"},
+						Value:   "AGE_KEY_FILE",
+						Usage:   "Secret name in the provider",
+					},
+					&cli.StringFlag{
+						Name:  "path",
+						Usage: "Path/folder in the provider (e.g., /yewseal)",
+					},
+					&cli.StringFlag{
+						Name:    "provider",
+						Aliases: []string{"p"},
+						Value:   "infisical",
+						Usage:   "Secret management provider (infisical)",
+					},
+				},
+				Action: func(c *cli.Context) error {
+					return sync.SyncKey(
+						c.String("provider"),
+						c.String("key-file"),
+						c.String("name"),
+						c.String("path"),
+					)
+				},
+			},
 		},
 		Before: func(c *cli.Context) error {
-			// Skip tool check for the check command itself
-			if c.Args().First() == "check" || c.Args().First() == "doctor" {
+			// Skip tool check for commands that don't need them
+			cmd := c.Args().First()
+			if cmd == "check" || cmd == "doctor" || cmd == "sync" {
 				return nil
 			}
 			if err := tools.CheckTools(); err != nil {
