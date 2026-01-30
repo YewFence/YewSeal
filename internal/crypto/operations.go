@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/YewFence/YewSeal/internal/config"
 	"github.com/YewFence/YewSeal/internal/tools"
 )
 
@@ -52,13 +53,15 @@ func Encrypt(inputFile, outputFile, keyFile string, verbose bool) error {
 	}
 
 	// Step 2: Encrypt with SOPS
-	// Read Age public key from .age.pub file
-	pubKeyPath := ".age.pub"
-	pubKeyContent, err := os.ReadFile(pubKeyPath)
+	// Read Age public key from config file
+	cfg, err := config.LoadConfig()
 	if err != nil {
-		return fmt.Errorf("failed to read Age public key from %s: %w", pubKeyPath, err)
+		return fmt.Errorf("failed to load config: %w", err)
 	}
-	publicKey := strings.TrimSpace(string(pubKeyContent))
+	publicKey := cfg.GetPublicKey()
+	if publicKey == "" {
+		return fmt.Errorf("no public key found in .yewseal.toml, please run 'yews init' first")
+	}
 
 	// Use --age parameter to specify the public key for encryption
 	_, stderr, err := tools.ExecCommand("sops", "--encrypt", "--age", publicKey, "--input-type", "yaml", "--output-type", "yaml", "--output", outputFile, tempFile)

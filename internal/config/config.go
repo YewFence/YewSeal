@@ -29,6 +29,8 @@ type KeyConfig struct {
 	// FilePath is the path to Age private key file
 	// Do NOT store the actual key value here to avoid leaking secrets
 	FilePath string `toml:"file_path"`
+	// PublicKey is the Age public key for encryption (safe to commit)
+	PublicKey string `toml:"public_key"`
 }
 
 // DefaultConfig returns a config with default values
@@ -146,4 +148,9 @@ func (c *Config) GetKeyFile(provided string) string {
 		return c.Key.FilePath
 	}
 	return ".age/key.txt"
+}
+
+// GetPublicKey returns the Age public key
+func (c *Config) GetPublicKey() string {
+	return c.Key.PublicKey
 }
