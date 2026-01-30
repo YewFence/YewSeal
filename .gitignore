@@ -6,6 +6,29 @@ wrangler.toml
 
 # Compiled binaries
 *.exe
+build/
+test/*.exe
 
-# AI 
+# Test coverage
+*.out
+coverage.html
+
+# Go build cache
+*.test
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# AI
 .claude/
+
+# Temporary files
+*.tmp
+*.bak
