@@ -283,3 +283,150 @@ func TestGetAgeKey_NoKeyFound(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "no Age key found")
 }
+
+// =============================================
+// GetPublicKey tests
+// =============================================
+
+func TestGetPublicKey_FromParam(t *testing.T) {
+	providedKey := "age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p"
+
+	key, err := GetPublicKey(providedKey, "", false)
+	require.NoError(t, err)
+	assert.Equal(t, providedKey, key)
+}
+
+func TestGetPublicKey_FromEnv(t *testing.T) {
+	// Save and restore env var
+	oldKey := os.Getenv("SOPS_AGE_RECIPIENTS")
+	defer func() {
+		if oldKey != "" {
+			os.Setenv("SOPS_AGE_RECIPIENTS", oldKey)
+		} else {
+			os.Unsetenv("SOPS_AGE_RECIPIENTS")
+		}
+	}()
+
+	expectedKey := "age1envenvenvenvenvenvenvenvenvenvenvenvenvenvenvenvenvenvenvenv"
+	os.Setenv("SOPS_AGE_RECIPIENTS", expectedKey)
+
+	key, err := GetPublicKey("", "", false)
+	require.NoError(t, err)
+	assert.Equal(t, expectedKey, key)
+}
+
+func TestGetPublicKey_FromKeyFile(t *testing.T) {
+	// Save and restore env var
+	oldKey := os.Getenv("SOPS_AGE_RECIPIENTS")
+	defer func() {
+		if oldKey != "" {
+			os.Setenv("SOPS_AGE_RECIPIENTS", oldKey)
+		} else {
+			os.Unsetenv("SOPS_AGE_RECIPIENTS")
+		}
+	}()
+	os.Unsetenv("SOPS_AGE_RECIPIENTS")
+
+	// Change to temp dir to avoid picking up existing config
+	oldWd, _ := os.Getwd()
+	tmpDir := t.TempDir()
+	os.Chdir(tmpDir)
+	defer os.Chdir(oldWd)
+
+	// Create key file with public key in comment
+	keyFile := filepath.Join(tmpDir, "keys.txt")
+	content := `# created: 2024-01-01T00:00:00Z
+# public key: age1filekeyfilekeyfilekeyfilekeyfilekeyfilekeyfilekeyfilekey
+AGE-SECRET-KEY-1TESTTESTTESTTESTTESTTESTTESTTESTTESTTESTTESTTESTTEST`
+
+	err := os.WriteFile(keyFile, []byte(content), 0600)
+	require.NoError(t, err)
+
+	key, err := GetPublicKey("", keyFile, false)
+	require.NoError(t, err)
+	assert.Equal(t, "age1filekeyfilekeyfilekeyfilekeyfilekeyfilekeyfilekeyfilekey", key)
+}
+
+func TestGetPublicKey_Priority_ParamOverEnv(t *testing.T) {
+	// Save and restore env var
+	oldKey := os.Getenv("SOPS_AGE_RECIPIENTS")
+	defer func() {
+		if oldKey != "" {
+			os.Setenv("SOPS_AGE_RECIPIENTS", oldKey)
+		} else {
+			os.Unsetenv("SOPS_AGE_RECIPIENTS")
+		}
+	}()
+
+	// Set env var
+	os.Setenv("SOPS_AGE_RECIPIENTS", "age1envenvenvenvenvenvenvenvenvenvenvenvenvenvenvenvenvenvenvenv")
+
+	// Param should have higher priority
+	providedKey := "age1paramprovided"
+	key, err := GetPublicKey(providedKey, "", false)
+	require.NoError(t, err)
+	assert.Equal(t, providedKey, key)
+}
+
+func TestGetPublicKey_NoKeyFound(t *testing.T) {
+	// Save and restore env var
+	oldKey := os.Getenv("SOPS_AGE_RECIPIENTS")
+	defer func() {
+		if oldKey != "" {
+			os.Setenv("SOPS_AGE_RECIPIENTS", oldKey)
+		} else {
+			os.Unsetenv("SOPS_AGE_RECIPIENTS")
+		}
+	}()
+	os.Unsetenv("SOPS_AGE_RECIPIENTS")
+
+	// Change to temp dir without any config or key files
+	oldWd, _ := os.Getwd()
+	tmpDir := t.TempDir()
+	os.Chdir(tmpDir)
+	defer os.Chdir(oldWd)
+
+	_, err := GetPublicKey("", "", false)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "no public key found")
+}
+
+func TestGetPublicKey_VerboseMode(t *testing.T) {
+	providedKey := "age1verbosetest"
+
+	// Should not error with verbose mode
+	key, err := GetPublicKey(providedKey, "", true)
+	require.NoError(t, err)
+	assert.Equal(t, providedKey, key)
+}
+
+func TestGetPublicKey_InvalidKeyFile(t *testing.T) {
+	// Save and restore env var
+	oldKey := os.Getenv("SOPS_AGE_RECIPIENTS")
+	defer func() {
+		if oldKey != "" {
+			os.Setenv("SOPS_AGE_RECIPIENTS", oldKey)
+		} else {
+			os.Unsetenv("SOPS_AGE_RECIPIENTS")
+		}
+	}()
+	os.Unsetenv("SOPS_AGE_RECIPIENTS")
+
+	// Change to temp dir
+	oldWd, _ := os.Getwd()
+	tmpDir := t.TempDir()
+	os.Chdir(tmpDir)
+	defer os.Chdir(oldWd)
+
+	// Create key file without public key comment
+	keyFile := filepath.Join(tmpDir, "keys.txt")
+	content := `# created: 2024-01-01T00:00:00Z
+AGE-SECRET-KEY-1TESTTESTTESTTESTTESTTESTTESTTESTTESTTESTTESTTESTTEST`
+
+	err := os.WriteFile(keyFile, []byte(content), 0600)
+	require.NoError(t, err)
+
+	_, err = GetPublicKey("", keyFile, false)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "no public key found")
+}
