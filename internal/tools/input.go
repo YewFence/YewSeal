@@ -16,7 +16,7 @@ func PromptWithDefault(prompt, defaultValue string) string {
 	if err != nil {
 		return defaultValue
 	}
-	
+
 	input = strings.TrimSpace(input)
 	if input == "" {
 		return defaultValue
@@ -34,18 +34,28 @@ func PromptYesNo(prompt string, defaultYes bool) bool {
 	} else {
 		suffix = "[y/N]"
 	}
-	
+
 	fmt.Printf("%s %s: ", prompt, suffix)
 	reader := bufio.NewReader(os.Stdin)
 	input, err := reader.ReadString('\n')
 	if err != nil {
 		return defaultYes
 	}
-	
+
 	input = strings.TrimSpace(strings.ToLower(input))
 	if input == "" {
 		return defaultYes
 	}
-	
+
 	return input == "y" || input == "yes"
+}
+
+// PromptYesNoConditional conditionally prompts user based on whether a flag is set
+// If flagSet is true, returns defaultValue without prompting
+// If flagSet is false, prompts the user and returns their answer
+func PromptYesNoConditional(flagSet bool, defaultValue bool, prompt string) bool {
+	if flagSet {
+		return defaultValue
+	}
+	return PromptYesNo(prompt, defaultValue)
 }

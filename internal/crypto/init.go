@@ -67,17 +67,17 @@ func InitProject(force bool, inputFile, outputFile, infix string, createExampleF
 	}
 
 	// Interactive mode: Ask about creating example file
-	shouldCreateExample := createExampleFlag
-	shouldCreateExample = tools.PromptYesNo(
+	shouldCreateExample := tools.PromptYesNoConditional(
+		createExampleFlag,
+		createExampleFlag,
 		"Create example file? (Recommended, as encryption loses comments)",
-		false,
 	)
 
 	// Interactive mode: Ask about creating .sops.yaml
-	shouldCreateSopsConfig := !skipSopsConfigFlag
-	shouldCreateSopsConfig = tools.PromptYesNo(
+	shouldCreateSopsConfig := tools.PromptYesNoConditional(
+		skipSopsConfigFlag,
+		!skipSopsConfigFlag,
 		"Create .sops.yaml? (Optional, but convenient for direct sops commands)",
-		true,
 	)
 
 	var publicKey string
