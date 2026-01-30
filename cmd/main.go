@@ -298,6 +298,31 @@ func main() {
 				},
 			},
 			{
+				Name:   "docs",
+				Usage:  "Generate CLI documentation in Markdown format",
+				Hidden: true,
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:    "output",
+						Aliases: []string{"o"},
+						Value:   "CLI.md",
+						Usage:   "Output file path",
+					},
+				},
+				Action: func(c *cli.Context) error {
+					md, err := c.App.ToMarkdown()
+					if err != nil {
+						return err
+					}
+					outputFile := c.String("output")
+					if err := os.WriteFile(outputFile, []byte(md), 0644); err != nil {
+						return err
+					}
+					fmt.Printf("文档已生成: %s\n", outputFile)
+					return nil
+				},
+			},
+			{
 				Name:  "sync",
 				Usage: "Sync sensitive files to secret management service",
 				Flags: []cli.Flag{
@@ -337,7 +362,7 @@ func main() {
 		Before: func(c *cli.Context) error {
 			// Skip tool check for commands that don't need them
 			cmd := c.Args().First()
-			if cmd == "check" || cmd == "doctor" || cmd == "sync" {
+			if cmd == "check" || cmd == "doctor" || cmd == "sync" || cmd == "docs" {
 				return nil
 			}
 			if err := tools.CheckTools(); err != nil {
