@@ -6,8 +6,3 @@ wrangler.toml
 
 # Compiled binaries
 *.exe
-
-# Temporary files
-*.tmp
-*.bak
-*~

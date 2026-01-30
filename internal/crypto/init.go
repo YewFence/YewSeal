@@ -3,114 +3,255 @@ package crypto
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"regexp"
 	"strings"
 
-	"github.com/yourusername/YewSeal/internal/tools"
+	"github.com/YewFence/YewSeal/internal/tools"
 )
 
 // InitProject initializes the project with Age keys and SOPS configuration
-func InitProject(force bool) error {
-	// Check if files already exist
-	if !force {
-		if _, err := os.Stat(".age"); err == nil {
-			return fmt.Errorf(".age directory already exists. Use --force to overwrite")
+func InitProject(force bool, inputFile, outputFile, infix string, createExampleFlag, skipSopsConfigFlag bool) error {
+
+	// Interactive mode: Determine file names
+	// If parameters are empty, use interactive prompts
+	if inputFile == "" {
+		inputFile = tools.PromptWithDefault("Enter original config file name", "wrangler.toml")
+	}
+
+	// Extract extension from input file
+	inputExt := filepath.Ext(inputFile)
+	inputBase := strings.TrimSuffix(filepath.Base(inputFile), inputExt)
+
+	// Determine infix and output file
+	if outputFile == "" {
+		// If output file not specified, ask for infix
+		if infix == "" {
+			infixInput := tools.PromptWithDefault("Enter encryption infix (letters only, e.g., enc)", "enc")
+			// Normalize infix: add dots
+			infix = "." + strings.Trim(infixInput, ".") + "."
+		} else {
+			// Normalize infix from CLI parameter
+			infix = "." + strings.Trim(infix, ".") + "."
 		}
+
+		// Determine output extension
+		var outputExt string
+		if inputExt == ".toml" {
+			outputExt = ".yaml"
+		} else {
+			outputExt = inputExt
+		}
+
+		outputFile = inputBase + infix + strings.TrimPrefix(outputExt, ".")
+	} else {
+		// If output file is specified, extract infix from it
+		if infix == "" {
+			// Try to extract infix from output file name
+			outputBase := strings.TrimSuffix(filepath.Base(outputFile), filepath.Ext(outputFile))
+			if strings.HasPrefix(outputBase, inputBase) {
+				extracted := strings.TrimPrefix(outputBase, inputBase)
+				if extracted != "" {
+					infix = extracted
+				} else {
+					infix = ".enc."
+				}
+			} else {
+				infix = ".enc."
+			}
+		} else {
+			// Normalize infix from CLI parameter
+			infix = "." + strings.Trim(infix, ".") + "."
+		}
+	}
+
+	// Interactive mode: Ask about creating example file
+	shouldCreateExample := createExampleFlag
+	shouldCreateExample = tools.PromptYesNo(
+		"Create example file? (Recommended, as encryption loses comments)",
+		false,
+	)
+
+	// Interactive mode: Ask about creating .sops.yaml
+	shouldCreateSopsConfig := !skipSopsConfigFlag
+	shouldCreateSopsConfig = tools.PromptYesNo(
+		"Create .sops.yaml? (Optional, but convenient for direct sops commands)",
+		true,
+	)
+
+	// Check if .sops.yaml already exists (only check this if we're going to create it)
+	if !force && shouldCreateSopsConfig {
 		if _, err := os.Stat(".sops.yaml"); err == nil {
 			return fmt.Errorf(".sops.yaml already exists. Use --force to overwrite")
 		}
 	}
 
-	fmt.Println("🔑 Generating Age key pair...")
+	var publicKey string
 
-	// Create .age directory
-	if err := os.MkdirAll(".age", 0700); err != nil {
-		return fmt.Errorf("failed to create .age directory: %w", err)
+	// Check if Age key already exists
+	keyFilePath := ".age/keys.txt"
+	pubKeyPath := ".age.pub"
+	keyExists := false
+
+	if _, err := os.Stat(keyFilePath); err == nil {
+		keyExists = true
 	}
 
-	// Remove existing key file if force mode
-	if force {
-		os.Remove(".age/keys.txt")
-		os.Remove(".age.pub")
-	}
+	if keyExists && !force {
+		// Use existing key
+		fmt.Println("🔑 Found existing Age key, using it...")
 
-	// Generate Age key
-	stdout, stderr, err := tools.ExecCommand("age-keygen", "-o", ".age/keys.txt")
-	if err != nil {
-		return fmt.Errorf("failed to generate Age key: %w\n%s", err, stderr)
-	}
-
-	fmt.Println("✅ Age key generated at .age/keys.txt")
-
-	// Extract public key from output (age-keygen prints it to stderr)
-	combinedOutput := stderr + stdout
-	publicKey := extractPublicKey(combinedOutput)
-	if publicKey == "" {
-		// If extraction from output failed, try reading from the key file
-		keyContent, err := os.ReadFile(".age/keys.txt")
-		if err == nil {
-			publicKey = extractPublicKey(string(keyContent))
-		}
-	}
-	if publicKey == "" {
-		return fmt.Errorf("failed to extract public key from age-keygen output")
-	}
-
-	// Save public key
-	if err := os.WriteFile(".age.pub", []byte(publicKey+"\n"), 0644); err != nil {
-		return fmt.Errorf("failed to save public key: %w", err)
-	}
-
-	fmt.Printf("✅ Public key saved to .age.pub: %s\n", publicKey)
-
-	// Create .sops.yaml
-	sopsConfig := fmt.Sprintf(`creation_rules:
-  - path_regex: .*\.enc\.yaml$
-    age: %s
-`, publicKey)
-
-	if err := os.WriteFile(".sops.yaml", []byte(sopsConfig), 0644); err != nil {
-		return fmt.Errorf("failed to create .sops.yaml: %w", err)
-	}
-
-	fmt.Println("✅ Created .sops.yaml")
-
-	// Create .gitignore
-	gitignoreContent := `# Decrypted configuration files
-wrangler.toml
-
-# Age private keys
-.age/keys.txt
-
-# Temporary files
-*.tmp
-*.bak
-*~
-`
-
-	if err := os.WriteFile(".gitignore", []byte(gitignoreContent), 0644); err != nil {
-		return fmt.Errorf("failed to create .gitignore: %w", err)
-	}
-
-	fmt.Println("✅ Created .gitignore")
-
-	// Create example file if wrangler.toml exists
-	if _, err := os.Stat("wrangler.toml"); err == nil {
-		exampleContent, err := os.ReadFile("wrangler.toml")
-		if err == nil {
-			if err := os.WriteFile("wrangler.example.toml", exampleContent, 0644); err != nil {
-				fmt.Printf("⚠️  Warning: Failed to create wrangler.example.toml: %v\n", err)
-			} else {
-				fmt.Println("✅ Created wrangler.example.toml (remember to remove sensitive values)")
+		// Try to read public key from .age.pub file
+		if pubContent, err := os.ReadFile(pubKeyPath); err == nil {
+			publicKey = strings.TrimSpace(string(pubContent))
+			fmt.Printf("✅ Using existing public key: %s\n", publicKey)
+		} else {
+			// If .age.pub doesn't exist, try to extract from keys.txt
+			keyContent, err := os.ReadFile(keyFilePath)
+			if err != nil {
+				return fmt.Errorf("failed to read existing key file: %w", err)
 			}
+			publicKey = extractPublicKey(string(keyContent))
+			if publicKey == "" {
+				return fmt.Errorf("failed to extract public key from existing key file")
+			}
+			// Save the public key for future use
+			if err := os.WriteFile(pubKeyPath, []byte(publicKey+"\n"), 0644); err != nil {
+				return fmt.Errorf("failed to save public key: %w", err)
+			}
+			fmt.Printf("✅ Extracted and saved public key: %s\n", publicKey)
+		}
+	} else {
+		// Generate new key (either no key exists or force mode)
+		if force && keyExists {
+			fmt.Println("🔑 Force mode: Regenerating Age key pair...")
+			os.Remove(keyFilePath)
+			os.Remove(pubKeyPath)
+		} else {
+			fmt.Println("🔑 Generating Age key pair...")
+		}
+
+		// Create .age directory
+		if err := os.MkdirAll(".age", 0700); err != nil {
+			return fmt.Errorf("failed to create .age directory: %w", err)
+		}
+
+		// Generate Age key
+		stdout, stderr, err := tools.ExecCommand("age-keygen", "-o", keyFilePath)
+		if err != nil {
+			return fmt.Errorf("failed to generate Age key: %w\n%s", err, stderr)
+		}
+
+		fmt.Println("✅ Age key generated at .age/keys.txt")
+
+		// Extract public key from output (age-keygen prints it to stderr)
+		combinedOutput := stderr + stdout
+		publicKey = extractPublicKey(combinedOutput)
+		if publicKey == "" {
+			// If extraction from output failed, try reading from the key file
+			keyContent, err := os.ReadFile(keyFilePath)
+			if err == nil {
+				publicKey = extractPublicKey(string(keyContent))
+			}
+		}
+		if publicKey == "" {
+			return fmt.Errorf("failed to extract public key from age-keygen output")
+		}
+
+		// Save public key
+		if err := os.WriteFile(pubKeyPath, []byte(publicKey+"\n"), 0644); err != nil {
+			return fmt.Errorf("failed to save public key: %w", err)
+		}
+
+		fmt.Printf("✅ Public key saved to .age.pub: %s\n", publicKey)
+	}
+
+	// Create .sops.yaml if requested
+	if shouldCreateSopsConfig {
+		// Generate regex pattern that precisely matches the output file
+		// Escape special regex characters in the filename
+		escapedOutput := regexp.QuoteMeta(outputFile)
+		sopsConfig := fmt.Sprintf(`creation_rules:
+  - path_regex: ^%s$
+    age: %s
+`, escapedOutput, publicKey)
+
+		if err := os.WriteFile(".sops.yaml", []byte(sopsConfig), 0644); err != nil {
+			return fmt.Errorf("failed to create .sops.yaml: %w", err)
+		}
+
+		fmt.Println("✅ Created .sops.yaml")
+	} else {
+		fmt.Println("⏭️  Skipped creating .sops.yaml")
+	}
+
+	// Create or update .gitignore
+	gitignoreAdditions := fmt.Sprintf(`
+# YewSeal - Decrypted configuration files
+%s
+
+# YewSeal - Age private keys
+.age/keys.txt
+`, inputFile)
+
+	// Read existing .gitignore if it exists
+	var existingContent []byte
+	if existingData, err := os.ReadFile(".gitignore"); err == nil {
+		existingContent = existingData
+		// Check if YewSeal section already exists
+		if !strings.Contains(string(existingContent), "# YewSeal") {
+			// Append to existing content
+			gitignoreContent := string(existingContent) + gitignoreAdditions
+			if err := os.WriteFile(".gitignore", []byte(gitignoreContent), 0644); err != nil {
+				return fmt.Errorf("failed to update .gitignore: %w", err)
+			}
+			fmt.Println("✅ Updated .gitignore")
+		} else {
+			fmt.Println("⏭️  .gitignore already contains YewSeal entries")
+		}
+	} else {
+		// Create new .gitignore
+		if err := os.WriteFile(".gitignore", []byte(strings.TrimPrefix(gitignoreAdditions, "\n")), 0644); err != nil {
+			return fmt.Errorf("failed to create .gitignore: %w", err)
+		}
+		fmt.Println("✅ Created .gitignore")
+	}
+
+	// Create example file if requested and input file exists
+	if shouldCreateExample {
+		if _, err := os.Stat(inputFile); err == nil {
+			exampleContent, err := os.ReadFile(inputFile)
+			if err == nil {
+				exampleFile := strings.TrimSuffix(inputFile, filepath.Ext(inputFile)) + ".example" + filepath.Ext(inputFile)
+				if err := os.WriteFile(exampleFile, exampleContent, 0644); err != nil {
+					fmt.Printf("⚠️  Warning: Failed to create %s: %v\n", exampleFile, err)
+				} else {
+					fmt.Printf("✅ Created %s (remember to remove sensitive values)\n", exampleFile)
+				}
+			}
+		} else {
+			fmt.Printf("⚠️  Warning: Input file %s does not exist yet, skipping example creation\n", inputFile)
 		}
 	}
 
 	fmt.Println("\n🎉 Initialization complete!")
 	fmt.Println("\nNext steps:")
-	fmt.Println("  1. Review wrangler.example.toml and remove any sensitive values")
-	fmt.Println("  2. Run 'yews encrypt' to encrypt your configuration")
-	fmt.Println("  3. Commit .sops.yaml, .gitignore, wrangler.enc.yaml, and wrangler.example.toml to git")
-	fmt.Println("  4. NEVER commit wrangler.toml or .age/keys.txt!")
+	fmt.Printf("  1. Review %s.example%s and remove any sensitive values (if created)\n", inputBase, inputExt)
+	fmt.Printf("  2. Run 'yews encrypt -i %s -o %s' to encrypt your configuration\n", inputFile, outputFile)
+	if shouldCreateSopsConfig {
+		fmt.Printf("  3. Commit .sops.yaml, .gitignore, %s", outputFile)
+		if shouldCreateExample {
+			fmt.Printf(", and %s.example%s", inputBase, inputExt)
+		}
+		fmt.Println(" to git")
+	} else {
+		fmt.Printf("  3. Commit .gitignore, %s", outputFile)
+		if shouldCreateExample {
+			fmt.Printf(", and %s.example%s", inputBase, inputExt)
+		}
+		fmt.Println(" to git")
+	}
+	fmt.Printf("  4. NEVER commit %s or .age/keys.txt!\n", inputFile)
 	fmt.Println("\n⚠️  IMPORTANT: Back up your .age/keys.txt file securely!")
 
 	return nil
@@ -127,10 +268,6 @@ func extractPublicKey(output string) string {
 		}
 	}
 	return ""
-}
-
-func splitLines(s string) []string {
-	return strings.Split(s, "\n")
 }
 
 // GetAgeKey returns the Age private key from environment or file

@@ -58,10 +58,50 @@ go build -o yews.exe ./cmd
 ./yews init
 ```
 
-这将会：
-- 生成 Age 密钥对（存储在 `.age/keys.txt` 和 `.age.pub`）
-- 创建 `.sops.yaml` 配置文件（可选但推荐）
-- 在 `.gitignore` 文件中补充需要忽略的文件
+#### 交互式模式（默认）
+
+直接运行 `./yews init` 将进入交互式模式，程序会逐步询问：
+
+1. **原始配置文件名**（默认：`wrangler.toml`）
+   - 输入您需要加密的配置文件名
+   
+2. **加密中间标识**（默认：`enc`）
+   - 仅输入字母部分，程序会自动添加句点
+   - 例如输入 `enc` 生成 `.enc.`，输入 `secret` 生成 `.secret.`
+   
+3. **是否创建示例文件**（默认：否）
+   - 建议创建，因为加密/解密过程会丢失 TOML 注释
+   - 示例文件用于保留配置结构和注释说明
+   
+4. **是否创建 .sops.yaml**（默认：是）
+   - 非必需，但便于直接使用 `sops` 命令
+   - 推荐创建以保持团队协作的一致性
+
+#### 非交互式模式
+
+使用命令行参数跳过交互提示：
+
+```bash
+# 完全自定义配置
+./yews init --input app.toml --output app.secret.yaml --create-example --skip-sops-config
+
+# 仅指定文件名，使用默认的中间标识 (enc)
+./yews init --input myapp.toml --output myapp.enc.yaml
+
+# 使用自定义中间标识
+./yews init --input config.toml --infix secret
+# 将生成 config.secret.yaml
+
+# 强制覆盖已有配置
+./yews init --force
+```
+
+#### 初始化完成后会创建
+
+- Age 密钥对（存储在 `.age/keys.txt` 和 `.age.pub`）
+- `.sops.yaml` 配置文件（如果选择创建）
+- `.gitignore` 文件，自动添加需要忽略的文件
+- 示例配置文件（如果选择创建）
 
 > 📝 **关于 `.sops.yaml`**：虽然 `yews` 工具本身不强制要求此配置文件（通过环境变量传递密钥），但仍**强烈推荐**创建它，原因如下：
 > - 🤝 便于团队协作，确保使用统一的加密配置

@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/yourusername/YewSeal/internal/config"
-	"github.com/yourusername/YewSeal/internal/crypto"
-	"github.com/yourusername/YewSeal/internal/tools"
+	"github.com/YewFence/YewSeal/internal/config"
+	"github.com/YewFence/YewSeal/internal/crypto"
+	"github.com/YewFence/YewSeal/internal/tools"
 
 	"github.com/urfave/cli/v2"
 )
@@ -29,11 +29,6 @@ func main() {
 				Usage:   "Path to Age private key file",
 				EnvVars: []string{"AGE_KEY_FILE"},
 			},
-			&cli.BoolFlag{
-				Name:    "verbose",
-				Aliases: []string{"v"},
-				Usage:   "Enable verbose output",
-			},
 		},
 		Commands: []*cli.Command{
 			{
@@ -45,9 +40,38 @@ func main() {
 						Aliases: []string{"f"},
 						Usage:   "Force overwrite existing configuration",
 					},
+					&cli.StringFlag{
+						Name:    "input",
+						Aliases: []string{"i"},
+						Usage:   "Original configuration file name (non-interactive mode)",
+					},
+					&cli.StringFlag{
+						Name:    "output",
+						Aliases: []string{"o"},
+						Usage:   "Encrypted output file name (non-interactive mode)",
+					},
+					&cli.StringFlag{
+						Name:  "infix",
+						Usage: "Middle identifier for encrypted files (e.g., 'enc' becomes '.enc.', non-interactive mode)",
+					},
+					&cli.BoolFlag{
+						Name:  "create-example",
+						Usage: "Create example file (non-interactive mode)",
+					},
+					&cli.BoolFlag{
+						Name:  "skip-sops-config",
+						Usage: "Skip creating .sops.yaml file (non-interactive mode)",
+					},
 				},
 				Action: func(c *cli.Context) error {
-					return crypto.InitProject(c.Bool("force"))
+					return crypto.InitProject(
+						c.Bool("force"),
+						c.String("input"),
+						c.String("output"),
+						c.String("infix"),
+						c.Bool("create-example"),
+						c.Bool("skip-sops-config"),
+					)
 				},
 			},
 			{
@@ -68,6 +92,11 @@ func main() {
 						Value:   "wrangler.enc.yaml",
 						Usage:   "Output encrypted YAML file",
 						EnvVars: []string{"SOPS_OUTPUT_FILE"},
+					},
+					&cli.BoolFlag{
+						Name:    "verbose",
+						Aliases: []string{"v"},
+						Usage:   "Enable verbose output",
 					},
 				},
 				Action: func(c *cli.Context) error {
@@ -98,6 +127,11 @@ func main() {
 						Value:   "wrangler.toml",
 						Usage:   "Output TOML file",
 						EnvVars: []string{"SOPS_OUTPUT_FILE"},
+					},
+					&cli.BoolFlag{
+						Name:    "verbose",
+						Aliases: []string{"v"},
+						Usage:   "Enable verbose output",
 					},
 				},
 				Action: func(c *cli.Context) error {

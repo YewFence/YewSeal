@@ -3,8 +3,10 @@ package crypto
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 
-	"github.com/yourusername/YewSeal/internal/tools"
+	"github.com/YewFence/YewSeal/internal/tools"
 )
 
 // Encrypt converts TOML to YAML and encrypts it with SOPS
@@ -35,7 +37,11 @@ func Encrypt(inputFile, outputFile, keyFile string, verbose bool) error {
 	}
 
 	// Write to temporary file (must match .sops.yaml pattern for encryption to work)
-	tempFile := ".wrangler.tmp.enc.yaml"
+	// Generate temp file name based on output file to maintain the infix pattern
+	outputExt := filepath.Ext(outputFile)
+	outputBase := strings.TrimSuffix(filepath.Base(outputFile), outputExt)
+	tempFile := "." + outputBase + ".tmp" + outputExt
+	
 	if err := os.WriteFile(tempFile, yamlContent, 0644); err != nil {
 		return fmt.Errorf("failed to write temporary YAML file: %w", err)
 	}
