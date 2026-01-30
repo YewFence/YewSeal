@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/yourusername/YewSeal/internal/config"
 	"github.com/yourusername/YewSeal/internal/crypto"
 	"github.com/yourusername/YewSeal/internal/tools"
 
@@ -11,6 +12,12 @@ import (
 )
 
 func main() {
+	// Load configuration file
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		cfg = config.DefaultConfig()
+	}
+
 	app := &cli.App{
 		Name:    "yews",
 		Usage:   "YewSeal - Encrypt/decrypt configuration files using SOPS, Age, and yq",
@@ -64,9 +71,13 @@ func main() {
 					},
 				},
 				Action: func(c *cli.Context) error {
-					keyFile := c.String("key-file")
+					// Priority: CLI args > env vars > config file > defaults
+					inputFile := cfg.GetEncryptionInput(c.String("input"))
+					outputFile := cfg.GetEncryptionOutput(c.String("output"))
+					keyFile := cfg.GetKeyFile(c.String("key-file"))
 					verbose := c.Bool("verbose")
-					return crypto.Encrypt(c.String("input"), c.String("output"), keyFile, verbose)
+					
+					return crypto.Encrypt(inputFile, outputFile, keyFile, verbose)
 				},
 			},
 			{
@@ -90,9 +101,13 @@ func main() {
 					},
 				},
 				Action: func(c *cli.Context) error {
-					keyFile := c.String("key-file")
+					// Priority: CLI args > env vars > config file > defaults
+					inputFile := cfg.GetDecryptionInput(c.String("input"))
+					outputFile := cfg.GetDecryptionOutput(c.String("output"))
+					keyFile := cfg.GetKeyFile(c.String("key-file"))
 					verbose := c.Bool("verbose")
-					return crypto.Decrypt(c.String("input"), c.String("output"), keyFile, verbose)
+					
+					return crypto.Decrypt(inputFile, outputFile, keyFile, verbose)
 				},
 			},
 			{
