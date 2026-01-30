@@ -79,15 +79,39 @@ func main() {
 						Name:    "input",
 						Aliases: []string{"i"},
 						Value:   "wrangler.toml",
-						Usage:   "Input file to encrypt",
+						Usage:   "Input file to encrypt (single file mode)",
 						EnvVars: []string{"SOPS_INPUT_FILE"},
 					},
 					&cli.StringFlag{
 						Name:    "output",
 						Aliases: []string{"o"},
 						Value:   "wrangler.enc.toml.yaml",
-						Usage:   "Output encrypted file",
+						Usage:   "Output encrypted file (single file mode only)",
 						EnvVars: []string{"SOPS_OUTPUT_FILE"},
+					},
+					&cli.StringFlag{
+						Name:  "dir",
+						Usage: "Directory to scan for files (enables batch mode)",
+					},
+					&cli.StringFlag{
+						Name:  "pattern",
+						Value: "*.toml",
+						Usage: "Glob pattern for matching files in directory",
+					},
+					&cli.StringFlag{
+						Name:  "output-dir",
+						Usage: "Output directory for encrypted files (batch mode)",
+					},
+					&cli.StringFlag{
+						Name:  "output-suffix",
+						Value: ".enc.toml.yaml",
+						Usage: "Suffix for output files (batch mode)",
+					},
+					&cli.IntFlag{
+						Name:    "parallel",
+						Aliases: []string{"P"},
+						Value:   1,
+						Usage:   "Number of parallel workers for batch mode",
 					},
 					&cli.StringFlag{
 						Name:    "public-key",
@@ -102,13 +126,49 @@ func main() {
 					},
 				},
 				Action: func(c *cli.Context) error {
-					// Priority: CLI args > env vars > config file > defaults
-					inputFile := cfg.GetEncryptionInput(c.String("input"))
-					outputFile := cfg.GetEncryptionOutput(c.String("output"))
 					keyFile := cfg.GetKeyFile(c.String("key-file"))
 					publicKey := c.String("public-key")
 					verbose := c.Bool("verbose")
 
+					// 目录扫描批量模式
+					if c.String("dir") != "" {
+						opts := crypto.BatchOptions{
+							InputDir:     c.String("dir"),
+							Pattern:      c.String("pattern"),
+							OutputDir:    c.String("output-dir"),
+							OutputSuffix: c.String("output-suffix"),
+							KeyFile:      keyFile,
+							PublicKey:    publicKey,
+							Parallel:     c.Int("parallel"),
+							Verbose:      verbose,
+						}
+						_, err := crypto.BatchEncrypt(opts)
+						return err
+					}
+
+					// 配置文件批量模式
+					if cfg.HasBatchFiles() {
+						filePairs := make([]crypto.FilePair, 0, len(cfg.GetFiles()))
+						for _, fp := range cfg.GetFiles() {
+							filePairs = append(filePairs, crypto.FilePair{
+								Input:  fp.Input,
+								Output: fp.Output,
+							})
+						}
+						opts := crypto.BatchOptions{
+							FilePairs: filePairs,
+							KeyFile:   keyFile,
+							PublicKey: publicKey,
+							Parallel:  c.Int("parallel"),
+							Verbose:   verbose,
+						}
+						_, err := crypto.BatchEncrypt(opts)
+						return err
+					}
+
+					// 单文件模式
+					inputFile := cfg.GetEncryptionInput(c.String("input"))
+					outputFile := cfg.GetEncryptionOutput(c.String("output"))
 					return crypto.Encrypt(inputFile, outputFile, keyFile, publicKey, verbose)
 				},
 			},
@@ -121,15 +181,39 @@ func main() {
 						Name:    "input",
 						Aliases: []string{"i"},
 						Value:   "wrangler.enc.toml.yaml",
-						Usage:   "Input encrypted file",
+						Usage:   "Input encrypted file (single file mode)",
 						EnvVars: []string{"SOPS_INPUT_FILE"},
 					},
 					&cli.StringFlag{
 						Name:    "output",
 						Aliases: []string{"o"},
 						Value:   "wrangler.toml",
-						Usage:   "Output decrypted file",
+						Usage:   "Output decrypted file (single file mode only)",
 						EnvVars: []string{"SOPS_OUTPUT_FILE"},
+					},
+					&cli.StringFlag{
+						Name:  "dir",
+						Usage: "Directory to scan for encrypted files (enables batch mode)",
+					},
+					&cli.StringFlag{
+						Name:  "pattern",
+						Value: "*.enc.toml.yaml",
+						Usage: "Glob pattern for matching encrypted files",
+					},
+					&cli.StringFlag{
+						Name:  "output-dir",
+						Usage: "Output directory for decrypted files (batch mode)",
+					},
+					&cli.StringFlag{
+						Name:  "output-suffix",
+						Value: ".toml",
+						Usage: "Suffix for output files (batch mode)",
+					},
+					&cli.IntFlag{
+						Name:    "parallel",
+						Aliases: []string{"P"},
+						Value:   1,
+						Usage:   "Number of parallel workers for batch mode",
 					},
 					&cli.BoolFlag{
 						Name:    "verbose",
@@ -138,12 +222,46 @@ func main() {
 					},
 				},
 				Action: func(c *cli.Context) error {
-					// Priority: CLI args > env vars > config file > defaults
-					inputFile := cfg.GetDecryptionInput(c.String("input"))
-					outputFile := cfg.GetDecryptionOutput(c.String("output"))
 					keyFile := cfg.GetKeyFile(c.String("key-file"))
 					verbose := c.Bool("verbose")
 
+					// 目录扫描批量模式
+					if c.String("dir") != "" {
+						opts := crypto.BatchOptions{
+							InputDir:     c.String("dir"),
+							Pattern:      c.String("pattern"),
+							OutputDir:    c.String("output-dir"),
+							OutputSuffix: c.String("output-suffix"),
+							KeyFile:      keyFile,
+							Parallel:     c.Int("parallel"),
+							Verbose:      verbose,
+						}
+						_, err := crypto.BatchDecrypt(opts)
+						return err
+					}
+
+					// 配置文件批量模式
+					if cfg.HasBatchFiles() {
+						filePairs := make([]crypto.FilePair, 0, len(cfg.GetFiles()))
+						for _, fp := range cfg.GetFiles() {
+							filePairs = append(filePairs, crypto.FilePair{
+								Input:  fp.Input,
+								Output: fp.Output,
+							})
+						}
+						opts := crypto.BatchOptions{
+							FilePairs: filePairs,
+							KeyFile:   keyFile,
+							Parallel:  c.Int("parallel"),
+							Verbose:   verbose,
+						}
+						_, err := crypto.BatchDecrypt(opts)
+						return err
+					}
+
+					// 单文件模式
+					inputFile := cfg.GetDecryptionInput(c.String("input"))
+					outputFile := cfg.GetDecryptionOutput(c.String("output"))
 					return crypto.Decrypt(inputFile, outputFile, keyFile, verbose)
 				},
 			},

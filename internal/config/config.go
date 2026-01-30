@@ -22,6 +22,16 @@ type EncryptionConfig struct {
 	InputFile string `toml:"input_file"`
 	// OutputFile is the encrypted output file (default: wrangler.enc.yaml)
 	OutputFile string `toml:"output_file"`
+	// Files is a list of file pairs for batch encryption/decryption
+	Files []FilePair `toml:"files"`
+}
+
+// FilePair defines a pair of input and output files
+type FilePair struct {
+	// Input is the source file (plain text for encryption, encrypted for decryption)
+	Input string `toml:"input"`
+	// Output is the destination file (encrypted for encryption, plain text for decryption)
+	Output string `toml:"output"`
 }
 
 // KeyConfig defines key file location
@@ -153,4 +163,15 @@ func (c *Config) GetKeyFile(provided string) string {
 // GetPublicKey returns the Age public key
 func (c *Config) GetPublicKey() string {
 	return c.Key.PublicKey
+}
+
+// GetFiles returns the list of file pairs for batch operations
+// Returns nil if no files are configured
+func (c *Config) GetFiles() []FilePair {
+	return c.Encryption.Files
+}
+
+// HasBatchFiles returns true if batch files are configured
+func (c *Config) HasBatchFiles() bool {
+	return len(c.Encryption.Files) > 0
 }
