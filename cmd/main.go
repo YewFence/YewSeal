@@ -52,12 +52,14 @@ func main() {
 						Aliases: []string{"i"},
 						Value:   "wrangler.toml",
 						Usage:   "Input TOML file",
+						EnvVars: []string{"SOPS_INPUT_FILE"},
 					},
 					&cli.StringFlag{
 						Name:    "output",
 						Aliases: []string{"o"},
 						Value:   "wrangler.enc.yaml",
 						Usage:   "Output encrypted YAML file",
+						EnvVars: []string{"SOPS_OUTPUT_FILE"},
 					},
 				},
 				Action: func(c *cli.Context) error {
@@ -75,12 +77,14 @@ func main() {
 						Aliases: []string{"i"},
 						Value:   "wrangler.enc.yaml",
 						Usage:   "Input encrypted YAML file",
+						EnvVars: []string{"SOPS_INPUT_FILE"},
 					},
 					&cli.StringFlag{
 						Name:    "output",
 						Aliases: []string{"o"},
 						Value:   "wrangler.toml",
 						Usage:   "Output TOML file",
+						EnvVars: []string{"SOPS_OUTPUT_FILE"},
 					},
 				},
 				Action: func(c *cli.Context) error {
