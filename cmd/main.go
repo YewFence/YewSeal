@@ -23,8 +23,9 @@ func main() {
 				EnvVars: []string{"AGE_KEY_FILE"},
 			},
 			&cli.BoolFlag{
-				Name:  "verbose",
-				Usage: "Enable verbose output",
+				Name:    "verbose",
+				Aliases: []string{"v"},
+				Usage:   "Enable verbose output",
 			},
 		},
 		Commands: []*cli.Command{
@@ -33,8 +34,9 @@ func main() {
 				Usage: "Initialize project with Age keys and SOPS configuration",
 				Flags: []cli.Flag{
 					&cli.BoolFlag{
-						Name:  "force",
-						Usage: "Force overwrite existing configuration",
+						Name:    "force",
+						Aliases: []string{"f"},
+						Usage:   "Force overwrite existing configuration",
 					},
 				},
 				Action: func(c *cli.Context) error {
@@ -46,14 +48,16 @@ func main() {
 				Usage: "Encrypt wrangler.toml to wrangler.enc.yaml",
 				Flags: []cli.Flag{
 					&cli.StringFlag{
-						Name:  "input",
-						Value: "wrangler.toml",
-						Usage: "Input TOML file",
+						Name:    "input",
+						Aliases: []string{"i"},
+						Value:   "wrangler.toml",
+						Usage:   "Input TOML file",
 					},
 					&cli.StringFlag{
-						Name:  "output",
-						Value: "wrangler.enc.yaml",
-						Usage: "Output encrypted YAML file",
+						Name:    "output",
+						Aliases: []string{"o"},
+						Value:   "wrangler.enc.yaml",
+						Usage:   "Output encrypted YAML file",
 					},
 				},
 				Action: func(c *cli.Context) error {
@@ -67,14 +71,16 @@ func main() {
 				Usage: "Decrypt wrangler.enc.yaml to wrangler.toml",
 				Flags: []cli.Flag{
 					&cli.StringFlag{
-						Name:  "input",
-						Value: "wrangler.enc.yaml",
-						Usage: "Input encrypted YAML file",
+						Name:    "input",
+						Aliases: []string{"i"},
+						Value:   "wrangler.enc.yaml",
+						Usage:   "Input encrypted YAML file",
 					},
 					&cli.StringFlag{
-						Name:  "output",
-						Value: "wrangler.toml",
-						Usage: "Output TOML file",
+						Name:    "output",
+						Aliases: []string{"o"},
+						Value:   "wrangler.toml",
+						Usage:   "Output TOML file",
 					},
 				},
 				Action: func(c *cli.Context) error {
@@ -88,13 +94,15 @@ func main() {
 				Usage: "Edit encrypted configuration file using SOPS",
 				Flags: []cli.Flag{
 					&cli.StringFlag{
-						Name:  "file",
-						Value: "wrangler.enc.yaml",
-						Usage: "Encrypted file to edit",
+						Name:    "file",
+						Aliases: []string{"f"},
+						Value:   "wrangler.enc.yaml",
+						Usage:   "Encrypted file to edit",
 					},
 					&cli.StringFlag{
-						Name:  "editor",
-						Usage: "Editor command to use (e.g., 'code -w', 'vim')",
+						Name:    "editor",
+						Aliases: []string{"e"},
+						Usage:   "Editor command to use (e.g., 'code -w', 'vim')",
 					},
 				},
 				Action: func(c *cli.Context) error {
