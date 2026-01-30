@@ -9,13 +9,35 @@ import (
 	"github.com/YewFence/YewSeal/internal/tools"
 )
 
-// Encrypt converts TOML to YAML and encrypts it with SOPS
+// Encrypt encrypts a configuration file using SOPS
+// For TOML files: converts to YAML first, then encrypts
+// For native SOPS formats (YAML, JSON, ENV, INI): encrypts directly
 func Encrypt(inputFile, outputFile, keyFile, publicKeyParam string, verbose bool) error {
 	// Check if input file exists
 	if _, err := os.Stat(inputFile); os.IsNotExist(err) {
 		return fmt.Errorf("input file %s does not exist", inputFile)
 	}
 
+	inputFormat := DetectFormat(inputFile)
+
+	if inputFormat == FormatTOML {
+		// TOML needs conversion: check remarshal is available
+		if err := tools.CheckRemarshal(); err != nil {
+			return err
+		}
+		return encryptTOML(inputFile, outputFile, keyFile, publicKeyParam, verbose)
+	}
+
+	if inputFormat == FormatUnknown {
+		return fmt.Errorf("unsupported file format for %s (supported: .toml, .yaml, .yml, .json, .env, .ini)", inputFile)
+	}
+
+	// Native SOPS format: encrypt directly
+	return encryptNative(inputFile, outputFile, keyFile, publicKeyParam, inputFormat, verbose)
+}
+
+// encryptTOML encrypts a TOML file by converting it to YAML first
+func encryptTOML(inputFile, outputFile, keyFile, publicKeyParam string, verbose bool) error {
 	if verbose {
 		fmt.Printf("📖 Reading %s...\n", inputFile)
 	}
@@ -85,13 +107,73 @@ func Encrypt(inputFile, outputFile, keyFile, publicKeyParam string, verbose bool
 	return nil
 }
 
-// Decrypt decrypts SOPS file and converts it back to TOML
+// encryptNative encrypts a native SOPS format file directly
+func encryptNative(inputFile, outputFile, keyFile, publicKeyParam string, inputFormat FileFormat, verbose bool) error {
+	if verbose {
+		fmt.Printf("📖 Reading %s...\n", inputFile)
+		fmt.Println("🔐 Encrypting with SOPS...")
+	}
+
+	// Get Age public key
+	publicKey, err := GetPublicKey(publicKeyParam, keyFile, verbose)
+	if err != nil {
+		return err
+	}
+
+	sopsType := GetSopsType(inputFormat)
+
+	// Build SOPS encrypt command
+	var args []string
+	if _, err := os.Stat(".sops.yaml"); os.IsNotExist(err) {
+		if verbose {
+			fmt.Println("📋 No .sops.yaml found, using command-line parameters only")
+		}
+		args = []string{"--config", os.DevNull, "encrypt", "--age", publicKey, "--input-type", sopsType, "--output-type", sopsType, inputFile, "--output", outputFile}
+	} else {
+		if verbose {
+			fmt.Println("📋 Using .sops.yaml configuration")
+		}
+		args = []string{"encrypt", "--filename-override", outputFile, "--input-type", sopsType, "--output-type", sopsType, inputFile, "--output", outputFile}
+	}
+
+	_, stderr, err := tools.ExecCommand("sops", args...)
+	if err != nil {
+		return fmt.Errorf("failed to encrypt with SOPS: %w\n%s", err, stderr)
+	}
+
+	fmt.Printf("✅ Encrypted %s → %s\n", inputFile, outputFile)
+	return nil
+}
+
+// Decrypt decrypts a SOPS encrypted file
+// For TOML output: decrypts then converts from YAML
+// For native SOPS formats: decrypts directly
 func Decrypt(inputFile, outputFile, keyFile string, verbose bool) error {
 	// Check if input file exists
 	if _, err := os.Stat(inputFile); os.IsNotExist(err) {
 		return fmt.Errorf("input file %s does not exist", inputFile)
 	}
 
+	outputFormat := DetectFormat(outputFile)
+
+	if outputFormat == FormatTOML {
+		// TOML needs conversion: check remarshal is available
+		if err := tools.CheckRemarshal(); err != nil {
+			return err
+		}
+		return decryptTOML(inputFile, outputFile, keyFile, verbose)
+	}
+
+	if outputFormat == FormatUnknown {
+		return fmt.Errorf("unsupported file format for %s (supported: .toml, .yaml, .yml, .json, .env, .ini)", outputFile)
+	}
+
+	// Native SOPS format: decrypt directly
+	return decryptNative(inputFile, outputFile, keyFile, outputFormat, verbose)
+}
+
+// decryptTOML decrypts a SOPS file and converts it to TOML
+func decryptTOML(inputFile, outputFile, keyFile string, verbose bool) error {
 	if verbose {
 		fmt.Printf("📖 Reading %s...\n", inputFile)
 		fmt.Println("🔓 Decrypting with SOPS...")
@@ -133,6 +215,33 @@ func Decrypt(inputFile, outputFile, keyFile string, verbose bool) error {
 	// Write output
 	if err := os.WriteFile(outputFile, tomlContent, 0644); err != nil {
 		return fmt.Errorf("failed to write output file: %w", err)
+	}
+
+	fmt.Printf("✅ Decrypted %s → %s\n", inputFile, outputFile)
+	return nil
+}
+
+// decryptNative decrypts a native SOPS format file directly
+func decryptNative(inputFile, outputFile, keyFile string, outputFormat FileFormat, verbose bool) error {
+	if verbose {
+		fmt.Printf("📖 Reading %s...\n", inputFile)
+		fmt.Println("🔓 Decrypting with SOPS...")
+	}
+
+	// Get Age key
+	key, err := GetAgeKey(keyFile)
+	if err != nil {
+		return err
+	}
+
+	env := map[string]string{
+		"SOPS_AGE_KEY": key,
+	}
+
+	// Decrypt directly to output file
+	_, stderr, err := tools.ExecCommandWithEnv(env, "sops", "--decrypt", "--output", outputFile, inputFile)
+	if err != nil {
+		return fmt.Errorf("failed to decrypt with SOPS: %w\n%s", err, stderr)
 	}
 
 	fmt.Printf("✅ Decrypted %s → %s\n", inputFile, outputFile)

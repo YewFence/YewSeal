@@ -7,7 +7,10 @@ import (
 )
 
 // RequiredTools 是所有必需的外部工具列表
-var RequiredTools = []string{"age", "sops", "remarshal"}
+var RequiredTools = []string{"age", "sops"}
+
+// OptionalTools 是可选的外部工具列表（仅特定格式需要）
+var OptionalTools = []string{"remarshal"}
 
 // CheckTools verifies that all required external tools are installed
 func CheckTools() error {
@@ -20,9 +23,18 @@ func CheckTools() error {
 	}
 
 	if len(missing) > 0 {
-		return fmt.Errorf("missing required tools: %s\n\nPlease install:\n- age: https://github.com/FiloSottile/age\n- sops: https://github.com/getsops/sops\n- remarshal: pipx install remarshal OR uv tool install remarshal", strings.Join(missing, ", "))
+		return fmt.Errorf("missing required tools: %s\n\nPlease install:\n- age: https://github.com/FiloSottile/age\n- sops: https://github.com/getsops/sops", strings.Join(missing, ", "))
 	}
 
+	return nil
+}
+
+// CheckRemarshal checks if remarshal (toml2yaml/yaml2toml) is installed
+// This is only required for TOML format support
+func CheckRemarshal() error {
+	if !isToolInstalled("remarshal") {
+		return fmt.Errorf("remarshal is required for TOML format support\n\nPlease install: pipx install remarshal OR uv tool install remarshal")
+	}
 	return nil
 }
 
@@ -32,6 +44,7 @@ func CheckToolsVerbose() bool {
 	fmt.Println("Checking required tools...")
 	fmt.Println()
 
+	// Check required tools
 	for _, tool := range RequiredTools {
 		version, err := GetToolVersion(tool)
 		if err != nil {
@@ -45,14 +58,31 @@ func CheckToolsVerbose() bool {
 		}
 	}
 
+	// Check optional tools
+	fmt.Println()
+	fmt.Println("Optional tools (for TOML format):")
+	for _, tool := range OptionalTools {
+		version, err := GetToolVersion(tool)
+		if err != nil {
+			fmt.Printf("  ○ %s: not found (install for TOML support)\n", tool)
+		} else {
+			if idx := strings.Index(version, "\n"); idx != -1 {
+				version = version[:idx]
+			}
+			fmt.Printf("  ✓ %s: %s\n", tool, version)
+		}
+	}
+
 	fmt.Println()
 	if !allOk {
-		fmt.Println("Some tools are missing. Install instructions:")
+		fmt.Println("Some required tools are missing. Install instructions:")
 		fmt.Println("  - age: https://github.com/FiloSottile/age")
 		fmt.Println("  - sops: https://github.com/getsops/sops")
+		fmt.Println()
+		fmt.Println("For TOML format support:")
 		fmt.Println("  - remarshal: pipx install remarshal")
 	} else {
-		fmt.Println("All tools are installed!")
+		fmt.Println("All required tools are installed!")
 	}
 	return allOk
 }

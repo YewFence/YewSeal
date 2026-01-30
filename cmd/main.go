@@ -21,7 +21,7 @@ func main() {
 
 	app := &cli.App{
 		Name:    "yews",
-		Usage:   "YewSeal - Encrypt/decrypt configuration files using SOPS, Age, and yq",
+		Usage:   "YewSeal - Encrypt/decrypt configuration files using SOPS and Age (supports TOML, YAML, JSON, ENV, INI)",
 		Version: "1.0.0",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
@@ -73,20 +73,20 @@ func main() {
 			{
 				Name:    "encrypt",
 				Aliases: []string{"e"},
-				Usage:   "Encrypt wrangler.toml to wrangler.enc.yaml",
+				Usage:   "Encrypt configuration file (supports .toml, .yaml, .yml, .json, .env, .ini)",
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:    "input",
 						Aliases: []string{"i"},
 						Value:   "wrangler.toml",
-						Usage:   "Input TOML file",
+						Usage:   "Input file to encrypt",
 						EnvVars: []string{"SOPS_INPUT_FILE"},
 					},
 					&cli.StringFlag{
 						Name:    "output",
 						Aliases: []string{"o"},
 						Value:   "wrangler.enc.toml.yaml",
-						Usage:   "Output encrypted YAML file",
+						Usage:   "Output encrypted file",
 						EnvVars: []string{"SOPS_OUTPUT_FILE"},
 					},
 					&cli.StringFlag{
@@ -115,20 +115,20 @@ func main() {
 			{
 				Name:    "decrypt",
 				Aliases: []string{"d"},
-				Usage:   "Decrypt wrangler.enc.yaml to wrangler.toml",
+				Usage:   "Decrypt encrypted file (output format determined by extension)",
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:    "input",
 						Aliases: []string{"i"},
 						Value:   "wrangler.enc.toml.yaml",
-						Usage:   "Input encrypted YAML file",
+						Usage:   "Input encrypted file",
 						EnvVars: []string{"SOPS_INPUT_FILE"},
 					},
 					&cli.StringFlag{
 						Name:    "output",
 						Aliases: []string{"o"},
 						Value:   "wrangler.toml",
-						Usage:   "Output TOML file",
+						Usage:   "Output decrypted file",
 						EnvVars: []string{"SOPS_OUTPUT_FILE"},
 					},
 					&cli.BoolFlag{
