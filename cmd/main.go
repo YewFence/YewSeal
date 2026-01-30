@@ -167,9 +167,23 @@ func main() {
 					return crypto.Edit(c.String("file"), c.String("editor"), keyFile)
 				},
 			},
+			{
+				Name:    "check",
+				Aliases: []string{"doctor"},
+				Usage:   "Check if required external tools are installed",
+				Action: func(c *cli.Context) error {
+					if !tools.CheckToolsVerbose() {
+						return cli.Exit("", 1)
+					}
+					return nil
+				},
+			},
 		},
 		Before: func(c *cli.Context) error {
-			// Check if required tools are installed
+			// Skip tool check for the check command itself
+			if c.Args().First() == "check" || c.Args().First() == "doctor" {
+				return nil
+			}
 			if err := tools.CheckTools(); err != nil {
 				return err
 			}
