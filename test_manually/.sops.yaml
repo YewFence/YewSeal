@@ -1,0 +1,3 @@
+creation_rules:
+    - path_regex: ^wrangler\.enc\.toml\.yaml$
+      age: age1eyqz75h6fpp806svdue9h4ntwjmjgldw4a23tfy6hvny6hvz45hs68z6ru
