@@ -304,6 +304,9 @@ public_key = "age1..."
 
 ### Infisical 集成
 
+支持将 Age 密钥同步到 Infisical 密钥管理服务。
+> [Infisical](https://infisical.com/) 是一个开源的，可轻松自托管的秘密管理平台，此处使用它的 [infisical CLI](https://infisical.com/docs/cli/overview)。
+
 #### 1. 配置 Infisical
 
 ```bash
@@ -311,13 +314,17 @@ infisical login
 infisical init
 ```
 
+此时你的项目中会生成一个 `.infisical.json` 配置文件，本工具会检测该配置文件是否存在作为 Infisical 配置完成与否的标志。
+
 #### 2. 同步 AGE 密钥到 Infisical
 ```bash
+# 直接同步到项目根目录的 AGE_KEY_FILE 变量
 yews sync
-yews sync --provider infisical --name AGE_KEY_FILE --path /yewseal
+# 自行指定变量名和路径（需要提前创建）
+yews sync --name AGE_KEY_FILE --path /yewseal
 ```
 
-### 检查环境
+## 检查环境
 
 检查所需外部工具是否已安装：
 
@@ -333,6 +340,7 @@ yews doctor
 
 ```bash
 git add .gitignore .yewseal.toml wrangler.enc.toml.yaml
+# git add .infisical.json  # 如果使用 Infisical
 git add .sops.yaml  # 可选但推荐
 git commit -m "feat: 添加加密配置"
 ```
@@ -341,7 +349,6 @@ git commit -m "feat: 添加加密配置"
 
 - `wrangler.toml` - 明文配置文件
 - `.age/keys.txt` - 私钥文件
-- `*.tmp.*` - 临时文件
 
 ## CI/CD 集成
 
@@ -392,6 +399,7 @@ jobs:
 ```bash
 age --version
 sops --version
+# Remarshal 提供的格式转换工具
 toml2yaml --version
 yaml2toml --version
 ```
@@ -410,7 +418,7 @@ cat .age/keys.txt
 
 ### TOML 格式问题
 
-工具使用 remarshal 进行 TOML/YAML 转换，应该支持所有标准 TOML 特性。如果遇到问题，请提交 Issue。
+工具使用 remarshal 进行 TOML/YAML 转换，应该支持所有标准 TOML 特性，并且声明转换前后的文件会完全一致。如果遇到问题，请提交 Issue。
 
 ## 命令参考
 
@@ -428,12 +436,12 @@ cat .age/keys.txt
 
 | 命令 | 别名 | 说明 |
 |------|------|------|
-| `init` | | 初始化项目，生成密钥和配置 |
+| `init` | - | 初始化项目，生成密钥和配置 |
 | `encrypt` | `e` | 加密配置文件 |
 | `decrypt` | `d` | 解密配置文件 |
-| `edit` | | 使用编辑器编辑加密文件 |
+| `edit` | - | 使用编辑器编辑加密文件 |
 | `check` | `doctor` | 检查外部工具是否安装 |
-| `sync` | | 同步密钥到密钥管理服务 |
+| `sync` | - | 同步密钥到密钥管理服务 |
 
 ## 工作原理
 
@@ -462,4 +470,4 @@ MIT License
 - [Age](https://github.com/FiloSottile/age)
 - [SOPS](https://github.com/getsops/sops)
 - [Remarshal](https://github.com/remarshal-project/remarshal)
-- [Cloudflare Wrangler](https://developers.cloudflare.com/workers/wrangler/)
+- [Infisical](https://infisical.com/)
