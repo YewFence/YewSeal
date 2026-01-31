@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+
+	"github.com/YewFence/YewSeal/internal/config"
 )
 
 // BatchOptions 批量操作的配置选项
@@ -19,13 +21,7 @@ type BatchOptions struct {
 	Parallel     int    // 并行度（1=顺序执行）
 	Verbose      bool   // 详细输出
 	// FilePairs 直接指定的文件对列表（来自配置文件）
-	FilePairs []FilePair
-}
-
-// FilePair 文件对（输入和输出）
-type FilePair struct {
-	Input  string
-	Output string
+	FilePairs []config.FilePair
 }
 
 // BatchResult 单个文件的处理结果
@@ -100,7 +96,7 @@ func GenerateOutputFilename(inputFile, outputDir, outputSuffix, mode string) str
 // BatchEncrypt 批量加密文件
 func BatchEncrypt(opts BatchOptions) (*BatchSummary, error) {
 	// 确定文件列表来源
-	var filePairs []FilePair
+	var filePairs []config.FilePair
 
 	if len(opts.FilePairs) > 0 {
 		// 使用配置文件中的文件对
@@ -116,7 +112,7 @@ func BatchEncrypt(opts BatchOptions) (*BatchSummary, error) {
 
 		// 转换为文件对
 		for _, f := range files {
-			filePairs = append(filePairs, FilePair{
+			filePairs = append(filePairs, config.FilePair{
 				Input:  f,
 				Output: GenerateOutputFilename(f, opts.OutputDir, opts.OutputSuffix, "encrypt"),
 			})
@@ -156,12 +152,12 @@ func BatchEncrypt(opts BatchOptions) (*BatchSummary, error) {
 // BatchDecrypt 批量解密文件
 func BatchDecrypt(opts BatchOptions) (*BatchSummary, error) {
 	// 确定文件列表来源
-	var filePairs []FilePair
+	var filePairs []config.FilePair
 
 	if len(opts.FilePairs) > 0 {
 		// 使用配置文件中的文件对（解密时输入输出互换）
 		for _, fp := range opts.FilePairs {
-			filePairs = append(filePairs, FilePair{
+			filePairs = append(filePairs, config.FilePair{
 				Input:  fp.Output, // 加密后的文件作为输入
 				Output: fp.Input,  // 原文件作为输出
 			})
@@ -177,7 +173,7 @@ func BatchDecrypt(opts BatchOptions) (*BatchSummary, error) {
 
 		// 转换为文件对
 		for _, f := range files {
-			filePairs = append(filePairs, FilePair{
+			filePairs = append(filePairs, config.FilePair{
 				Input:  f,
 				Output: GenerateOutputFilename(f, opts.OutputDir, opts.OutputSuffix, "decrypt"),
 			})
@@ -215,7 +211,7 @@ func BatchDecrypt(opts BatchOptions) (*BatchSummary, error) {
 }
 
 // processFilePairsSequential 顺序处理文件对
-func processFilePairsSequential(pairs []FilePair, opts BatchOptions, processor func(input, output string) error) *BatchSummary {
+func processFilePairsSequential(pairs []config.FilePair, opts BatchOptions, processor func(input, output string) error) *BatchSummary {
 	summary := &BatchSummary{
 		TotalFiles: len(pairs),
 		Results:    make([]BatchResult, 0, len(pairs)),
@@ -248,7 +244,7 @@ func processFilePairsSequential(pairs []FilePair, opts BatchOptions, processor f
 }
 
 // processFilePairsParallel 并行处理文件对
-func processFilePairsParallel(pairs []FilePair, opts BatchOptions, processor func(input, output string) error) *BatchSummary {
+func processFilePairsParallel(pairs []config.FilePair, opts BatchOptions, processor func(input, output string) error) *BatchSummary {
 	summary := &BatchSummary{
 		TotalFiles: len(pairs),
 		Results:    make([]BatchResult, len(pairs)),

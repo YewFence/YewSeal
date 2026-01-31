@@ -20,10 +20,10 @@ func TestDefaultConfig(t *testing.T) {
 
 func TestGetEncryptionInput(t *testing.T) {
 	tests := []struct {
-		name      string
-		config    *Config
-		provided  string
-		expected  string
+		name     string
+		config   *Config
+		provided string
+		expected string
 	}{
 		{
 			name:     "provided non-default value takes priority",
@@ -205,7 +205,7 @@ func TestGetKeyFile(t *testing.T) {
 			name:     "empty config uses default",
 			config:   &Config{Key: KeyConfig{FilePath: ""}},
 			provided: "",
-			expected: ".age/key.txt",
+			expected: ".age/keys.txt",
 		},
 	}
 

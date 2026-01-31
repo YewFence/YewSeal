@@ -157,7 +157,7 @@ func (c *Config) GetKeyFile(provided string) string {
 	if c.Key.FilePath != "" {
 		return c.Key.FilePath
 	}
-	return ".age/key.txt"
+	return ".age/keys.txt"
 }
 
 // GetPublicKey returns the Age public key

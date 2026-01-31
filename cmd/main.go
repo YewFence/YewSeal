@@ -148,15 +148,8 @@ func main() {
 
 					// 配置文件批量模式
 					if cfg.HasBatchFiles() {
-						filePairs := make([]crypto.FilePair, 0, len(cfg.GetFiles()))
-						for _, fp := range cfg.GetFiles() {
-							filePairs = append(filePairs, crypto.FilePair{
-								Input:  fp.Input,
-								Output: fp.Output,
-							})
-						}
 						opts := crypto.BatchOptions{
-							FilePairs: filePairs,
+							FilePairs: cfg.GetFiles(),
 							KeyFile:   keyFile,
 							PublicKey: publicKey,
 							Parallel:  c.Int("parallel"),
@@ -242,15 +235,8 @@ func main() {
 
 					// 配置文件批量模式
 					if cfg.HasBatchFiles() {
-						filePairs := make([]crypto.FilePair, 0, len(cfg.GetFiles()))
-						for _, fp := range cfg.GetFiles() {
-							filePairs = append(filePairs, crypto.FilePair{
-								Input:  fp.Input,
-								Output: fp.Output,
-							})
-						}
 						opts := crypto.BatchOptions{
-							FilePairs: filePairs,
+							FilePairs: cfg.GetFiles(),
 							KeyFile:   keyFile,
 							Parallel:  c.Int("parallel"),
 							Verbose:   verbose,

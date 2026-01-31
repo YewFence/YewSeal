@@ -64,7 +64,7 @@ func encryptTOML(inputFile, outputFile, keyFile, publicKeyParam string, verbose 
 	outputBase := strings.TrimSuffix(filepath.Base(outputFile), outputExt)
 	tempFile := "." + outputBase + ".tmp" + outputExt
 
-	if err := os.WriteFile(tempFile, yamlContent, 0644); err != nil {
+	if err := os.WriteFile(tempFile, yamlContent, 0600); err != nil {
 		return fmt.Errorf("failed to write temporary YAML file: %w", err)
 	}
 	defer os.Remove(tempFile)
