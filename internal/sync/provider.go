@@ -1,8 +1,9 @@
 package sync
 
 import (
-	"fmt"
 	"os"
+
+	"github.com/YewFence/YewSeal/internal/errx"
 )
 
 // Provider 定义密钥同步提供者的接口
@@ -21,7 +22,7 @@ func GetProvider(name string) (Provider, error) {
 	case "infisical":
 		return &InfisicalProvider{}, nil
 	default:
-		return nil, fmt.Errorf("unknown provider: %s (supported: infisical)", name)
+		return nil, &errx.UnknownProviderError{Name: name, Supported: []string{"infisical"}}
 	}
 }
 
@@ -29,7 +30,7 @@ func GetProvider(name string) (Provider, error) {
 func SyncKey(providerName, keyFile, secretName, path string) error {
 	// 通用检查：密钥文件是否存在
 	if _, err := os.Stat(keyFile); os.IsNotExist(err) {
-		return fmt.Errorf("key file not found: %s\nRun 'yews init' first to generate keys", keyFile)
+		return &errx.KeyFileNotFoundError{Path: keyFile}
 	}
 
 	// 获取 Provider

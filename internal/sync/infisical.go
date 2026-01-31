@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 
+	"github.com/YewFence/YewSeal/internal/errx"
 	"github.com/YewFence/YewSeal/internal/tools"
 )
 
@@ -19,12 +20,12 @@ func (p *InfisicalProvider) Name() string {
 func (p *InfisicalProvider) Check() error {
 	// 检查 CLI 是否安装
 	if _, err := exec.LookPath("infisical"); err != nil {
-		return fmt.Errorf("infisical CLI not found\nInstall: https://infisical.com/docs/cli/overview")
+		return &errx.MissingDependencyError{Name: "infisical CLI", InstallHint: "https://infisical.com/docs/cli/overview"}
 	}
 
 	// 检查 .infisical.json 是否存在
 	if _, err := os.Stat(".infisical.json"); os.IsNotExist(err) {
-		return fmt.Errorf(".infisical.json not found\nRun 'infisical init' first to initialize the project")
+		return &errx.MissingProjectConfigError{Path: ".infisical.json", Hint: "Run 'infisical init' first to initialize the project"}
 	}
 
 	return nil
@@ -46,7 +47,7 @@ func (p *InfisicalProvider) Sync(keyFile, secretName, path string) error {
 
 	stdout, stderr, err := tools.ExecCommand("infisical", args...)
 	if err != nil {
-		return fmt.Errorf("failed to sync to Infisical: %w\n%s", err, stderr)
+		return &errx.ExternalCommandError{Op: "failed to sync to Infisical", Cmd: "infisical", Args: args, Stderr: stderr, Err: err}
 	}
 
 	if stdout != "" {

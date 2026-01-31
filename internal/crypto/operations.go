@@ -6,8 +6,31 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/YewFence/YewSeal/internal/errx"
 	"github.com/YewFence/YewSeal/internal/tools"
 )
+
+func hasSopsYaml() bool {
+	_, err := os.Stat(".sops.yaml")
+	return err == nil
+}
+
+func buildSopsEncryptArgs(inputFile, outputFile, inputType, outputType, publicKey string, verbose bool) ([]string, error) {
+	if !hasSopsYaml() {
+		if strings.TrimSpace(publicKey) == "" {
+			return nil, fmt.Errorf("public key is required when .sops.yaml is not present")
+		}
+		if verbose {
+			fmt.Println("📋 No .sops.yaml found, using command-line parameters only")
+		}
+		return []string{"--config", os.DevNull, "encrypt", "--age", publicKey, "--input-type", inputType, "--output-type", outputType, inputFile, "--output", outputFile}, nil
+	}
+
+	if verbose {
+		fmt.Println("📋 Using .sops.yaml configuration")
+	}
+	return []string{"encrypt", "--filename-override", outputFile, "--input-type", inputType, "--output-type", outputType, inputFile, "--output", outputFile}, nil
+}
 
 // Encrypt encrypts a configuration file using SOPS
 // For TOML files: converts to YAML first, then encrypts
@@ -15,7 +38,7 @@ import (
 func Encrypt(inputFile, outputFile, keyFile, publicKeyParam string, verbose bool) error {
 	// Check if input file exists
 	if _, err := os.Stat(inputFile); os.IsNotExist(err) {
-		return fmt.Errorf("input file %s does not exist", inputFile)
+		return &errx.NotFoundError{What: "input file", Path: inputFile}
 	}
 
 	inputFormat := DetectFormat(inputFile)
@@ -29,7 +52,7 @@ func Encrypt(inputFile, outputFile, keyFile, publicKeyParam string, verbose bool
 	}
 
 	if inputFormat == FormatUnknown {
-		return fmt.Errorf("unsupported file format for %s (supported: .toml, .yaml, .yml, .json, .env, .ini)", inputFile)
+		return &errx.UnsupportedFormatError{Path: inputFile, Supported: []string{".toml", ".yaml", ".yml", ".json", ".env", ".ini"}}
 	}
 
 	// Native SOPS format: encrypt directly
@@ -74,33 +97,24 @@ func encryptTOML(inputFile, outputFile, keyFile, publicKeyParam string, verbose 
 	}
 
 	// Step 2: Encrypt with SOPS
-	// Get Age public key with priority: CLI param > env var > config file > extract from keys.txt
-	publicKey, err := GetPublicKey(publicKeyParam, keyFile, verbose)
+	// If .sops.yaml exists, rely on creation_rules; otherwise fall back to command-line recipients.
+	publicKey := ""
+	if !hasSopsYaml() {
+		// Get Age public key with priority: CLI param > env var > config file > extract from keys.txt
+		publicKey, err = GetPublicKey(publicKeyParam, keyFile, verbose)
+		if err != nil {
+			return err
+		}
+	}
+
+	args, err := buildSopsEncryptArgs(tempFile, outputFile, "yaml", "yaml", publicKey, verbose)
 	if err != nil {
 		return err
 	}
 
-	// Build SOPS encrypt command
-	// If .sops.yaml exists, use it with --filename-override to match rules against output filename
-	// Otherwise use --config os.DevNull to skip config loading
-	var args []string
-	if _, err := os.Stat(".sops.yaml"); os.IsNotExist(err) {
-		// No .sops.yaml found, explicitly disable config to avoid "no matching creation rules" error
-		if verbose {
-			fmt.Println("📋 No .sops.yaml found, using command-line parameters only")
-		}
-		args = []string{"--config", os.DevNull, "encrypt", "--age", publicKey, "--input-type", "yaml", "--output-type", "yaml", tempFile, "--output", outputFile}
-	} else {
-		// .sops.yaml exists, use --filename-override so SOPS matches rules against outputFile instead of tempFile
-		if verbose {
-			fmt.Println("📋 Using .sops.yaml configuration")
-		}
-		args = []string{"encrypt", "--filename-override", outputFile, "--input-type", "yaml", "--output-type", "yaml", tempFile, "--output", outputFile}
-	}
-
 	_, stderr, err := tools.ExecCommand("sops", args...)
 	if err != nil {
-		return fmt.Errorf("failed to encrypt with SOPS: %w\n%s", err, stderr)
+		return &errx.ExternalCommandError{Op: "failed to encrypt with SOPS", Cmd: "sops", Args: args, Stderr: stderr, Err: err}
 	}
 
 	fmt.Printf("✅ Encrypted %s → %s\n", inputFile, outputFile)
@@ -114,31 +128,26 @@ func encryptNative(inputFile, outputFile, keyFile, publicKeyParam string, inputF
 		fmt.Println("🔐 Encrypting with SOPS...")
 	}
 
-	// Get Age public key
-	publicKey, err := GetPublicKey(publicKeyParam, keyFile, verbose)
+	sopsType := GetSopsType(inputFormat)
+
+	publicKey := ""
+	var err error
+	if !hasSopsYaml() {
+		// Get Age public key (only needed when we don't have .sops.yaml)
+		publicKey, err = GetPublicKey(publicKeyParam, keyFile, verbose)
+		if err != nil {
+			return err
+		}
+	}
+
+	args, err := buildSopsEncryptArgs(inputFile, outputFile, sopsType, sopsType, publicKey, verbose)
 	if err != nil {
 		return err
 	}
 
-	sopsType := GetSopsType(inputFormat)
-
-	// Build SOPS encrypt command
-	var args []string
-	if _, err := os.Stat(".sops.yaml"); os.IsNotExist(err) {
-		if verbose {
-			fmt.Println("📋 No .sops.yaml found, using command-line parameters only")
-		}
-		args = []string{"--config", os.DevNull, "encrypt", "--age", publicKey, "--input-type", sopsType, "--output-type", sopsType, inputFile, "--output", outputFile}
-	} else {
-		if verbose {
-			fmt.Println("📋 Using .sops.yaml configuration")
-		}
-		args = []string{"encrypt", "--filename-override", outputFile, "--input-type", sopsType, "--output-type", sopsType, inputFile, "--output", outputFile}
-	}
-
 	_, stderr, err := tools.ExecCommand("sops", args...)
 	if err != nil {
-		return fmt.Errorf("failed to encrypt with SOPS: %w\n%s", err, stderr)
+		return &errx.ExternalCommandError{Op: "failed to encrypt with SOPS", Cmd: "sops", Args: args, Stderr: stderr, Err: err}
 	}
 
 	fmt.Printf("✅ Encrypted %s → %s\n", inputFile, outputFile)
@@ -151,7 +160,7 @@ func encryptNative(inputFile, outputFile, keyFile, publicKeyParam string, inputF
 func Decrypt(inputFile, outputFile, keyFile string, verbose bool) error {
 	// Check if input file exists
 	if _, err := os.Stat(inputFile); os.IsNotExist(err) {
-		return fmt.Errorf("input file %s does not exist", inputFile)
+		return &errx.NotFoundError{What: "input file", Path: inputFile}
 	}
 
 	outputFormat := DetectFormat(outputFile)
@@ -165,7 +174,7 @@ func Decrypt(inputFile, outputFile, keyFile string, verbose bool) error {
 	}
 
 	if outputFormat == FormatUnknown {
-		return fmt.Errorf("unsupported file format for %s (supported: .toml, .yaml, .yml, .json, .env, .ini)", outputFile)
+		return &errx.UnsupportedFormatError{Path: outputFile, Supported: []string{".toml", ".yaml", ".yml", ".json", ".env", ".ini"}}
 	}
 
 	// Native SOPS format: decrypt directly
@@ -193,7 +202,7 @@ func decryptTOML(inputFile, outputFile, keyFile string, verbose bool) error {
 	tempFile := outputFile + ".tmp.yaml"
 	_, stderr, err := tools.ExecCommandWithEnv(env, "sops", "--decrypt", "--output", tempFile, inputFile)
 	if err != nil {
-		return fmt.Errorf("failed to decrypt with SOPS: %w\n%s", err, stderr)
+		return &errx.ExternalCommandError{Op: "failed to decrypt with SOPS", Cmd: "sops", Args: []string{"--decrypt", "--output", tempFile, inputFile}, Stderr: stderr, Err: err}
 	}
 	defer os.Remove(tempFile)
 
@@ -241,7 +250,7 @@ func decryptNative(inputFile, outputFile, keyFile string, outputFormat FileForma
 	// Decrypt directly to output file
 	_, stderr, err := tools.ExecCommandWithEnv(env, "sops", "--decrypt", "--output", outputFile, inputFile)
 	if err != nil {
-		return fmt.Errorf("failed to decrypt with SOPS: %w\n%s", err, stderr)
+		return &errx.ExternalCommandError{Op: "failed to decrypt with SOPS", Cmd: "sops", Args: []string{"--decrypt", "--output", outputFile, inputFile}, Stderr: stderr, Err: err}
 	}
 
 	fmt.Printf("✅ Decrypted %s → %s\n", inputFile, outputFile)
@@ -252,7 +261,7 @@ func decryptNative(inputFile, outputFile, keyFile string, outputFormat FileForma
 func Edit(file, editor, keyFile string) error {
 	// Check if file exists
 	if _, err := os.Stat(file); os.IsNotExist(err) {
-		return fmt.Errorf("file %s does not exist", file)
+		return &errx.NotFoundError{What: "file", Path: file}
 	}
 
 	fmt.Printf("✏️  Opening %s in editor...\n", file)

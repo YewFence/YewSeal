@@ -21,7 +21,7 @@
 
 ## 🟡 中优先级
 
-### 4. 重构 SOPS 命令构建逻辑
+### 4. 重构 SOPS 命令构建逻辑(done)
 - **位置**: `internal/crypto/operations.go`
 - **问题**: `encryptTOML()` 和 `encryptNative()` 有大量重复的 SOPS 参数构建代码
 - **修复**: 提取 `buildSopsEncryptArgs()` 辅助函数
@@ -43,7 +43,7 @@
 - **问题**: `GetPublicKey()` 每次调用都重新加载配置文件，批量操作时有性能损耗
 - **修复**: 在 `BatchOptions` 中传递已加载的配置
 
-### 8. 添加结构化错误类型
+### 8. 添加结构化错误类型(done)
 - **位置**: 全局
 - **问题**: 错误使用 `fmt.Errorf` 字符串拼接，难以程序化处理
 - **修复**: 定义自定义错误类型如 `KeyNotFoundError`、`EncryptionError` 等

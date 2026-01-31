@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/YewFence/YewSeal/internal/config"
+	"github.com/YewFence/YewSeal/internal/errx"
 	"github.com/YewFence/YewSeal/internal/tools"
 )
 
@@ -48,7 +49,7 @@ func GetAgeKey(keyFile string) (string, error) {
 	if keyCmd := os.Getenv("SOPS_AGE_KEY_CMD"); keyCmd != "" {
 		stdout, stderr, err := tools.ExecCommand("sh", "-c", keyCmd)
 		if err != nil {
-			return "", fmt.Errorf("failed to execute SOPS_AGE_KEY_CMD: %w\n%s", err, stderr)
+			return "", &errx.ExternalCommandError{Op: "failed to execute SOPS_AGE_KEY_CMD", Cmd: "sh", Args: []string{"-c", keyCmd}, Stderr: stderr, Err: err}
 		}
 		key := strings.TrimSpace(stdout)
 		if key == "" {
@@ -63,7 +64,7 @@ func GetAgeKey(keyFile string) (string, error) {
 		return readKeyFile(defaultPath)
 	}
 
-	return "", fmt.Errorf("no Age key found. Options: --key-file, SOPS_AGE_KEY, SOPS_AGE_KEY_FILE, SOPS_AGE_KEY_CMD, or .age/keys.txt")
+	return "", &errx.AgeKeyNotFoundError{Options: []string{"--key-file", "SOPS_AGE_KEY", "SOPS_AGE_KEY_FILE", "SOPS_AGE_KEY_CMD", "or .age/keys.txt"}}
 }
 
 // GetPublicKey returns the Age public key with priority:
@@ -114,13 +115,13 @@ func GetPublicKey(providedKey, keyFile string, verbose bool) (string, error) {
 	// Read the private key file
 	keyContent, err := os.ReadFile(keyFile)
 	if err != nil {
-		return "", fmt.Errorf("no public key found. Tried: CLI parameter, SOPS_AGE_RECIPIENTS env, .yewseal.toml config, and extracting from %s (failed: %w). Please run 'yews init' or provide --public-key", keyFile, err)
+		return "", &errx.PublicKeyNotFoundError{KeyFile: keyFile, Cause: err, Tried: []string{"CLI parameter", "SOPS_AGE_RECIPIENTS env", ".yewseal.toml config"}}
 	}
 
 	// Extract public key from the key file content
 	publicKey := ExtractPublicKey(string(keyContent))
 	if publicKey == "" {
-		return "", fmt.Errorf("no public key found. Tried: CLI parameter, SOPS_AGE_RECIPIENTS env, .yewseal.toml config, and extracting from %s (no valid public key found). Please run 'yews init' or provide --public-key", keyFile)
+		return "", &errx.PublicKeyNotFoundError{KeyFile: keyFile, Tried: []string{"CLI parameter", "SOPS_AGE_RECIPIENTS env", ".yewseal.toml config"}}
 	}
 
 	if verbose {
@@ -134,7 +135,7 @@ func GetPublicKey(providedKey, keyFile string, verbose bool) (string, error) {
 func readKeyFile(path string) (string, error) {
 	content, err := os.ReadFile(path)
 	if err != nil {
-		return "", fmt.Errorf("failed to read key file %s: %w", path, err)
+		return "", &errx.KeyFileReadError{Path: path, Err: err}
 	}
 
 	// Extract the private key line (starts with AGE-SECRET-KEY-)
@@ -146,5 +147,5 @@ func readKeyFile(path string) (string, error) {
 		}
 	}
 
-	return "", fmt.Errorf("no valid Age secret key found in %s", path)
+	return "", &errx.AgeSecretKeyNotFoundError{Path: path}
 }
