@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 
 	"github.com/YewFence/YewSeal/internal/errx"
 	"github.com/YewFence/YewSeal/internal/tools"
@@ -55,5 +56,36 @@ func (p *InfisicalProvider) Sync(keyFile, secretName, path string) error {
 	}
 
 	fmt.Printf("✅ Successfully synced %s to Infisical\n", secretName)
+	return nil
+}
+
+// Pull 从 Infisical 拉取密钥
+func (p *InfisicalProvider) Pull(keyFile, secretName, path string) error {
+	args := []string{"secrets", "get", secretName, "--plain"}
+
+	// 如果指定了路径，添加 --path 参数
+	if path != "" {
+		args = append(args, "--path="+path)
+	}
+
+	fmt.Printf("🔄 Pulling %s from Infisical to %s...\n", secretName, keyFile)
+
+	stdout, stderr, err := tools.ExecCommand("infisical", args...)
+	if err != nil {
+		return &errx.ExternalCommandError{Op: "failed to pull from Infisical", Cmd: "infisical", Args: args, Stderr: stderr, Err: err}
+	}
+
+	// 确保目录存在
+	dir := filepath.Dir(keyFile)
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		return fmt.Errorf("failed to create directory %s: %w", dir, err)
+	}
+
+	// 写入文件 (权限 0600)
+	if err := os.WriteFile(keyFile, []byte(stdout), 0600); err != nil {
+		return fmt.Errorf("failed to write key file %s: %w", keyFile, err)
+	}
+
+	fmt.Printf("✅ Successfully pulled %s from Infisical\n", secretName)
 	return nil
 }

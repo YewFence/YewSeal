@@ -345,6 +345,44 @@ func main() {
 						c.String("path"),
 					)
 				},
+				Subcommands: []*cli.Command{
+					{
+						Name:  "pull",
+						Usage: "Pull key from secret management service to local file",
+						Flags: []cli.Flag{
+							&cli.StringFlag{
+								Name:    "key-file",
+								Aliases: []string{"k"},
+								Value:   ".age/keys.txt",
+								Usage:   "Local path to save the key file",
+							},
+							&cli.StringFlag{
+								Name:    "name",
+								Aliases: []string{"n"},
+								Value:   "AGE_KEY_FILE",
+								Usage:   "Secret name in the provider",
+							},
+							&cli.StringFlag{
+								Name:  "path",
+								Usage: "Path/folder in the provider (e.g., /yewseal)",
+							},
+							&cli.StringFlag{
+								Name:    "provider",
+								Aliases: []string{"p"},
+								Value:   "infisical",
+								Usage:   "Secret management provider (infisical)",
+							},
+						},
+						Action: func(c *cli.Context) error {
+							return sync.PullKey(
+								c.String("provider"),
+								c.String("key-file"),
+								c.String("name"),
+								c.String("path"),
+							)
+						},
+					},
+				},
 			},
 		},
 		Before: func(c *cli.Context) error {
