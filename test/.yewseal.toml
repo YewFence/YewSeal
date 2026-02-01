@@ -1,0 +1,33 @@
+# YewSeal 配置文件
+#
+# 配置优先级：
+# 1. 命令行参数（最高优先级）
+# 2. 环境变量
+# 3. 此配置文件
+# 4. 默认值（最低优先级）
+
+[encryption]
+# 单文件模式的默认输入/输出（向后兼容）
+input_file = "wrangler.toml"
+output_file = "wrangler.enc.toml.yaml"
+
+# 批量模式：定义多个文件对
+# 运行 `yews encrypt` 或 `yews decrypt` 时会自动处理所有文件
+[[encryption.files]]
+input = "configs/test1.toml"
+output = "configs/test1.enc.toml.yaml"
+
+[[encryption.files]]
+input = "configs/test2.toml"
+output = "configs/test2.enc.toml.yaml"
+
+[[encryption.files]]
+input = "configs/test3.toml"
+output = "configs/test3.enc.toml.yaml"
+
+[key]
+# Age 私钥文件路径
+file_path = ".age/keys.txt"
+
+# Age 公钥（用于加密，可以安全提交到版本控制）
+public_key = "age1umgfa5gydr3xmuhe7xr7xp37pfgqcy0wpkkzmxcwm3ur8pl90s2qq83zaw"
