@@ -12,6 +12,8 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+var Version = "dev"
+
 func main() {
 	// Load configuration file
 	cfg, err := config.LoadConfig()
@@ -22,7 +24,7 @@ func main() {
 	app := &cli.App{
 		Name:    "yews",
 		Usage:   "YewSeal - Encrypt/decrypt configuration files using SOPS and Age (supports TOML, YAML, JSON, ENV, INI)",
-		Version: "1.0.0",
+		Version: Version,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:    "key-file",

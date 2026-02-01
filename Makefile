@@ -15,9 +15,11 @@ GOGET=$(GOCMD) get
 GOMOD=$(GOCMD) mod
 
 # Build flags
-LDFLAGS=-ldflags "-s -w"
+VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+LDFLAGS=-ldflags "-s -w -X main.Version=$(VERSION)"
 
 # Platforms for cross-compilation
+
 PLATFORMS := linux/amd64 linux/arm64 windows/amd64 windows/arm64 darwin/amd64 darwin/arm64
 
 .PHONY: all build dev clean test deps tidy run help \
@@ -41,8 +43,9 @@ build:
 dev:
 	@echo "Building $(BINARY_NAME).exe for development..."
 	@mkdir -p $(DEV_OUTPUT_DIR)
-	$(GOBUILD) -o $(DEV_OUTPUT_DIR)/$(BINARY_NAME).exe $(MAIN_PATH)
+	$(GOBUILD) $(LDFLAGS) -o $(DEV_OUTPUT_DIR)/$(BINARY_NAME).exe $(MAIN_PATH)
 	@echo "Dev build complete: $(DEV_OUTPUT_DIR)/$(BINARY_NAME).exe"
+
 
 # Clean build artifacts
 clean:
