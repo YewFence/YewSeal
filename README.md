@@ -85,6 +85,14 @@ make dev      # 开发构建 → test/yews.exe
 
 从 Releases 页面下载适合你系统的预编译二进制文件。
 
+
+#### Scoop（Windows）
+
+```powershell
+scoop bucket add YewNursery https://github.com/YewFence/YewNursery
+scoop install YewSeal
+```
+
 ## 使用指南
 
 ### 1. 初始化项目
