@@ -272,21 +272,19 @@ func Edit(file, editor, keyFile string) error {
 		return err
 	}
 
-	// Prepare environment - set SOPS_AGE_KEY
-	os.Setenv("SOPS_AGE_KEY", key)
-	defer os.Unsetenv("SOPS_AGE_KEY")
-
-	// Set EDITOR environment variable if provided
+	// Prepare environment for subprocess only
+	env := map[string]string{
+		"SOPS_AGE_KEY": key,
+	}
 	if editor != "" {
-		os.Setenv("EDITOR", editor)
-		defer os.Unsetenv("EDITOR")
+		env["EDITOR"] = editor
 	}
 
 	// Build command
 	args := []string{file}
 
 	// Run SOPS interactively
-	if err := tools.ExecCommandInteractive("sops", args...); err != nil {
+	if err := tools.ExecCommandInteractiveWithEnv(env, "sops", args...); err != nil {
 		return fmt.Errorf("failed to edit file: %w", err)
 	}
 

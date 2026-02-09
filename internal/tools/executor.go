@@ -43,3 +43,18 @@ func ExecCommandInteractive(name string, args ...string) error {
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
 }
+
+// ExecCommandInteractiveWithEnv runs a command with interactive I/O and custom environment variables
+func ExecCommandInteractiveWithEnv(env map[string]string, name string, args ...string) error {
+	cmd := exec.Command(name, args...)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	cmd.Env = os.Environ()
+	for key, value := range env {
+		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", key, value))
+	}
+
+	return cmd.Run()
+}
