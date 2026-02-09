@@ -3,7 +3,6 @@ package crypto
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/YewFence/YewSeal/internal/errx"
@@ -30,6 +29,23 @@ func buildSopsEncryptArgs(inputFile, outputFile, inputType, outputType, publicKe
 		fmt.Println("📋 Using .sops.yaml configuration")
 	}
 	return []string{"encrypt", "--filename-override", outputFile, "--input-type", inputType, "--output-type", outputType, inputFile, "--output", outputFile}, nil
+}
+
+func buildSopsEncryptArgsStdin(outputFile, inputType, outputType, publicKey string, verbose bool) ([]string, error) {
+	if !hasSopsYaml() {
+		if strings.TrimSpace(publicKey) == "" {
+			return nil, fmt.Errorf("public key is required when .sops.yaml is not present")
+		}
+		if verbose {
+			fmt.Println("📋 No .sops.yaml found, using command-line parameters only")
+		}
+		return []string{"--config", os.DevNull, "encrypt", "--age", publicKey, "--input-type", inputType, "--output-type", outputType, "--filename-override", outputFile, "--output", outputFile}, nil
+	}
+
+	if verbose {
+		fmt.Println("📋 Using .sops.yaml configuration")
+	}
+	return []string{"encrypt", "--filename-override", outputFile, "--input-type", inputType, "--output-type", outputType, "--output", outputFile}, nil
 }
 
 // Encrypt encrypts a configuration file using SOPS
@@ -71,7 +87,7 @@ func encryptTOML(inputFile, outputFile, keyFile, publicKeyParam string, verbose 
 		return fmt.Errorf("failed to read input file: %w", err)
 	}
 
-	// Step 1: Convert TOML to YAML
+	// Step 1: Convert TOML to YAML (in-memory via pipe)
 	if verbose {
 		fmt.Println("🔄 Converting TOML to YAML...")
 	}
@@ -81,38 +97,25 @@ func encryptTOML(inputFile, outputFile, keyFile, publicKeyParam string, verbose 
 		return fmt.Errorf("failed to convert TOML to YAML: %w", err)
 	}
 
-	// Write to temporary file (must match .sops.yaml pattern for encryption to work)
-	// Generate temp file name based on output file to maintain the infix pattern
-	outputExt := filepath.Ext(outputFile)
-	outputBase := strings.TrimSuffix(filepath.Base(outputFile), outputExt)
-	tempFile := "." + outputBase + ".tmp" + outputExt
-
-	if err := os.WriteFile(tempFile, yamlContent, 0600); err != nil {
-		return fmt.Errorf("failed to write temporary YAML file: %w", err)
-	}
-	defer os.Remove(tempFile)
-
 	if verbose {
 		fmt.Println("🔐 Encrypting with SOPS...")
 	}
 
-	// Step 2: Encrypt with SOPS
-	// If .sops.yaml exists, rely on creation_rules; otherwise fall back to command-line recipients.
+	// Step 2: Encrypt with SOPS via stdin pipe (no temporary file)
 	publicKey := ""
 	if !hasSopsYaml() {
-		// Get Age public key with priority: CLI param > env var > config file > extract from keys.txt
 		publicKey, err = GetPublicKey(publicKeyParam, keyFile, verbose)
 		if err != nil {
 			return err
 		}
 	}
 
-	args, err := buildSopsEncryptArgs(tempFile, outputFile, "yaml", "yaml", publicKey, verbose)
+	args, err := buildSopsEncryptArgsStdin(outputFile, "yaml", "yaml", publicKey, verbose)
 	if err != nil {
 		return err
 	}
 
-	_, stderr, err := tools.ExecCommand("sops", args...)
+	_, stderr, err := tools.ExecCommandWithStdin(yamlContent, "sops", args...)
 	if err != nil {
 		return &errx.ExternalCommandError{Op: "failed to encrypt with SOPS", Cmd: "sops", Args: args, Stderr: stderr, Err: err}
 	}
@@ -188,7 +191,7 @@ func decryptTOML(inputFile, outputFile, keyFile string, verbose bool) error {
 		fmt.Println("🔓 Decrypting with SOPS...")
 	}
 
-	// Step 1: Decrypt with SOPS
+	// Step 1: Decrypt with SOPS to stdout (no temporary file)
 	key, err := GetAgeKey(keyFile)
 	if err != nil {
 		return err
@@ -198,25 +201,17 @@ func decryptTOML(inputFile, outputFile, keyFile string, verbose bool) error {
 		"SOPS_AGE_KEY": key,
 	}
 
-	// Create temporary file for decrypted YAML
-	tempFile := outputFile + ".tmp.yaml"
-	_, stderr, err := tools.ExecCommandWithEnv(env, "sops", "--decrypt", "--output", tempFile, inputFile)
+	stdout, stderr, err := tools.ExecCommandWithEnv(env, "sops", "--decrypt", inputFile)
 	if err != nil {
-		return &errx.ExternalCommandError{Op: "failed to decrypt with SOPS", Cmd: "sops", Args: []string{"--decrypt", "--output", tempFile, inputFile}, Stderr: stderr, Err: err}
+		return &errx.ExternalCommandError{Op: "failed to decrypt with SOPS", Cmd: "sops", Args: []string{"--decrypt", inputFile}, Stderr: stderr, Err: err}
 	}
-	defer os.Remove(tempFile)
 
 	if verbose {
 		fmt.Println("🔄 Converting YAML to TOML...")
 	}
 
-	// Step 2: Convert YAML to TOML using Go libraries
-	yamlContent, err := os.ReadFile(tempFile)
-	if err != nil {
-		return fmt.Errorf("failed to read decrypted YAML: %w", err)
-	}
-
-	tomlContent, err := YAMLToTOML(yamlContent)
+	// Step 2: Convert YAML to TOML (in-memory via pipe)
+	tomlContent, err := YAMLToTOML([]byte(stdout))
 	if err != nil {
 		return fmt.Errorf("failed to convert YAML to TOML: %w", err)
 	}

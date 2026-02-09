@@ -35,6 +35,18 @@ func ExecCommandWithEnv(env map[string]string, name string, args ...string) (str
 	return stdout.String(), stderr.String(), err
 }
 
+// ExecCommandWithStdin runs a command with data piped to stdin and returns stdout, stderr, and error
+func ExecCommandWithStdin(stdin []byte, name string, args ...string) (string, string, error) {
+	cmd := exec.Command(name, args...)
+	cmd.Stdin = bytes.NewReader(stdin)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
+	return stdout.String(), stderr.String(), err
+}
+
 // ExecCommandInteractive runs a command with interactive I/O (for editors)
 func ExecCommandInteractive(name string, args ...string) error {
 	cmd := exec.Command(name, args...)
