@@ -15,31 +15,32 @@
 
 ## 前置要求
 
-安装以下工具：
+Age 和 SOPS 已内嵌为 Go 库，**无需单独安装**。
 
-- [Age](https://github.com/FiloSottile/age) - 加密工具
-- [SOPS](https://github.com/getsops/sops) - 密钥管理
-- [Remarshal](https://github.com/remarshal-project/remarshal) - TOML/YAML 格式转换工具
+仅在使用 TOML 格式时需要安装格式转换工具：
+
+- [Remarshal](https://github.com/remarshal-project/remarshal) - TOML/YAML 格式转换工具（仅 TOML 格式需要）
 
 ### Windows 安装（Scoop）
 
 ```powershell
-scoop install age
-scoop install sops
+# 仅 TOML 格式需要
 pipx install remarshal
 ```
 
 ### macOS 安装（Homebrew）
 
 ```bash
-brew install age
-brew install sops
+# 仅 TOML 格式需要
 pipx install remarshal
 ```
 
 ### Linux 安装
 
-请参考各工具的官方文档。
+```bash
+# 仅 TOML 格式需要
+pipx install remarshal
+```
 
 ## 快速开始
 
@@ -374,17 +375,7 @@ jobs:
 
       - name: Install tools
         run: |
-          # 安装 age
-          curl -Lo age.tar.gz https://github.com/FiloSottile/age/releases/download/v1.2.0/age-v1.2.0-linux-amd64.tar.gz
-          tar xf age.tar.gz
-          sudo mv age/age /usr/local/bin/
-
-          # 安装 sops
-          curl -Lo sops https://github.com/getsops/sops/releases/download/v3.9.0/sops-v3.9.0.linux.amd64
-          chmod +x sops
-          sudo mv sops /usr/local/bin/
-
-          # 安装 remarshal
+          # 仅 TOML 格式需要 remarshal
           pipx install remarshal
 
       - name: Decrypt configuration
@@ -402,12 +393,10 @@ jobs:
 
 ### 找不到工具
 
-确保 `age`、`sops`、`toml2yaml`、`yaml2toml` 在 PATH 中：
+Age 和 SOPS 已内嵌，无需单独安装。仅 TOML 格式需要 remarshal：
 
 ```bash
-age --version
-sops --version
-# Remarshal 提供的格式转换工具
+# 检查 remarshal（仅 TOML 格式需要）
 toml2yaml --version
 yaml2toml --version
 ```
@@ -460,10 +449,10 @@ TOML 解密: 加密 YAML → sops decrypt → YAML → yaml2toml → TOML
 其他格式: 原文件 → sops encrypt/decrypt → 加密/解密文件
 ```
 
-YewSeal 本身不实现加密算法，而是编排成熟的外部工具：
-- **Age** - 现代化的加密工具
-- **SOPS** - Mozilla 出品的密钥管理工具
-- **Remarshal** - 配置格式转换工具（仅 TOML 需要）
+YewSeal 内嵌了成熟的加密库，仅 TOML 格式转换依赖外部工具：
+- **Age** (`filippo.io/age`) - 现代化的加密库（内嵌）
+- **SOPS** (`github.com/getsops/sops/v3`) - 密钥管理库（内嵌）
+- **Remarshal** - 配置格式转换工具（仅 TOML 需要，外部工具）
 
 ## 许可证
 

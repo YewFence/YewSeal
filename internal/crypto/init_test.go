@@ -2,7 +2,6 @@ package crypto
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -15,10 +14,6 @@ import (
 // ============================================================================
 
 func TestSetupAgeKey_NewKey(t *testing.T) {
-	if _, err := exec.LookPath("age-keygen"); err != nil {
-		t.Skip("Skipping test: age-keygen is not installed")
-	}
-
 	tempDir := t.TempDir()
 	oldWd, _ := os.Getwd()
 	os.Chdir(tempDir)
@@ -39,10 +34,6 @@ func TestSetupAgeKey_NewKey(t *testing.T) {
 }
 
 func TestSetupAgeKey_ExistingKey(t *testing.T) {
-	if _, err := exec.LookPath("age-keygen"); err != nil {
-		t.Skip("Skipping test: age-keygen is not installed")
-	}
-
 	tempDir := t.TempDir()
 	oldWd, _ := os.Getwd()
 	os.Chdir(tempDir)
@@ -60,10 +51,6 @@ func TestSetupAgeKey_ExistingKey(t *testing.T) {
 }
 
 func TestSetupAgeKey_ForceRegenerate(t *testing.T) {
-	if _, err := exec.LookPath("age-keygen"); err != nil {
-		t.Skip("Skipping test: age-keygen is not installed")
-	}
-
 	tempDir := t.TempDir()
 	oldWd, _ := os.Getwd()
 	os.Chdir(tempDir)
@@ -81,10 +68,6 @@ func TestSetupAgeKey_ForceRegenerate(t *testing.T) {
 }
 
 func TestSetupAgeKey_InvalidExistingKey(t *testing.T) {
-	if _, err := exec.LookPath("age-keygen"); err != nil {
-		t.Skip("Skipping test: age-keygen is not installed")
-	}
-
 	tempDir := t.TempDir()
 	oldWd, _ := os.Getwd()
 	os.Chdir(tempDir)

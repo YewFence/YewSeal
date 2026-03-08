@@ -5,7 +5,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
+	"filippo.io/age"
 	"github.com/YewFence/YewSeal/internal/tools"
 )
 
@@ -118,28 +120,24 @@ func setupAgeKey(force bool) (string, error) {
 		return "", fmt.Errorf("failed to create .age directory: %w", err)
 	}
 
-	// Generate Age key
-	stdout, stderr, err := tools.ExecCommand("age-keygen", "-o", keyFilePath)
+	// Generate Age key using filippo.io/age library
+	identity, err := age.GenerateX25519Identity()
 	if err != nil {
-		return "", fmt.Errorf("failed to generate Age key: %w\n%s", err, stderr)
+		return "", fmt.Errorf("failed to generate Age key: %w", err)
 	}
+
+	keyContent := fmt.Sprintf("# created: %s\n# public key: %s\n%s\n",
+		time.Now().UTC().Format(time.RFC3339),
+		identity.Recipient().String(),
+		identity.String())
+
+	if err := os.WriteFile(keyFilePath, []byte(keyContent), 0600); err != nil {
+		return "", fmt.Errorf("failed to write key file: %w", err)
+	}
+
+	publicKey := identity.Recipient().String()
 
 	fmt.Println("✅ Age key generated at .age/keys.txt")
-
-	// Extract public key from output (age-keygen prints it to stderr)
-	combinedOutput := stderr + stdout
-	publicKey := ExtractPublicKey(combinedOutput)
-	if publicKey == "" {
-		// If extraction from output failed, try reading from the key file
-		keyContent, err := os.ReadFile(keyFilePath)
-		if err == nil {
-			publicKey = ExtractPublicKey(string(keyContent))
-		}
-	}
-	if publicKey == "" {
-		return "", fmt.Errorf("failed to extract public key from age-keygen output")
-	}
-
 	fmt.Printf("✅ Public key generated: %s\n", publicKey)
 	return publicKey, nil
 }

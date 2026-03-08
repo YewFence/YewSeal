@@ -6,26 +6,15 @@ import (
 	"strings"
 )
 
-// RequiredTools 是所有必需的外部工具列表
-var RequiredTools = []string{"age", "sops"}
+// RequiredTools is empty — age and sops are now embedded as Go libraries.
+var RequiredTools = []string{}
 
-// OptionalTools 是可选的外部工具列表（仅特定格式需要）
+// OptionalTools are external tools only needed for specific formats.
 var OptionalTools = []string{"remarshal"}
 
-// CheckTools verifies that all required external tools are installed
+// CheckTools verifies that all required external tools are installed.
+// With age/sops embedded, this always returns nil.
 func CheckTools() error {
-	missing := []string{}
-
-	for _, tool := range RequiredTools {
-		if !isToolInstalled(tool) {
-			missing = append(missing, tool)
-		}
-	}
-
-	if len(missing) > 0 {
-		return fmt.Errorf("missing required tools: %s\n\nPlease install:\n- age: https://github.com/FiloSottile/age\n- sops: https://github.com/getsops/sops", strings.Join(missing, ", "))
-	}
-
 	return nil
 }
 
@@ -38,27 +27,12 @@ func CheckRemarshal() error {
 	return nil
 }
 
-// CheckToolsVerbose 检查工具并输出详细信息，返回是否全部安装成功
+// CheckToolsVerbose checks tool status and displays embedded library versions
 func CheckToolsVerbose() bool {
-	allOk := true
-	fmt.Println("Checking required tools...")
-	fmt.Println()
+	fmt.Println("Embedded libraries (no installation needed):")
+	fmt.Println("  ✓ age: filippo.io/age (embedded)")
+	fmt.Println("  ✓ sops: github.com/getsops/sops/v3 (embedded)")
 
-	// Check required tools
-	for _, tool := range RequiredTools {
-		version, err := GetToolVersion(tool)
-		if err != nil {
-			fmt.Printf("  ✗ %s: not found\n", tool)
-			allOk = false
-		} else {
-			if idx := strings.Index(version, "\n"); idx != -1 {
-				version = version[:idx]
-			}
-			fmt.Printf("  ✓ %s: %s\n", tool, version)
-		}
-	}
-
-	// Check optional tools
 	fmt.Println()
 	fmt.Println("Optional tools (for TOML format):")
 	for _, tool := range OptionalTools {
@@ -74,17 +48,8 @@ func CheckToolsVerbose() bool {
 	}
 
 	fmt.Println()
-	if !allOk {
-		fmt.Println("Some required tools are missing. Install instructions:")
-		fmt.Println("  - age: https://github.com/FiloSottile/age")
-		fmt.Println("  - sops: https://github.com/getsops/sops")
-		fmt.Println()
-		fmt.Println("For TOML format support:")
-		fmt.Println("  - remarshal: pipx install remarshal")
-	} else {
-		fmt.Println("All required tools are installed!")
-	}
-	return allOk
+	fmt.Println("All core dependencies are embedded. Only remarshal is needed for TOML format.")
+	return true
 }
 
 // isToolInstalled checks if a tool is available in PATH

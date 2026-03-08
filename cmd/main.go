@@ -391,10 +391,7 @@ func main() {
 			if cmd == "check" || cmd == "doctor" || cmd == "sync" || cmd == "docs" {
 				return nil
 			}
-			if err := tools.CheckTools(); err != nil {
-				return err
-			}
-			return nil
+			return tools.CheckTools()
 		},
 	}
 

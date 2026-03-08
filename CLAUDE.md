@@ -35,10 +35,11 @@ internal/
 │   └── config.go        # 多路径查找 .yewseal.toml，配置优先级合并
 ├── crypto/              # 核心加密模块
 │   ├── operations.go    # Encrypt/Decrypt/Edit 单文件操作
+│   ├── sops_engine.go   # SOPS library 封装层（sopsEncryptData/sopsDecryptData）
 │   ├── batch.go         # BatchEncrypt/BatchDecrypt 批量操作（支持并行）
 │   ├── format.go        # 文件格式检测 (TOML/YAML/JSON/ENV/INI)
 │   ├── converter.go     # TOML ↔ YAML 格式转换 (remarshal)
-│   ├── init.go          # InitProject 项目初始化
+│   ├── init.go          # InitProject 项目初始化（使用 filippo.io/age 生成密钥）
 │   ├── keys.go          # Age 密钥提取
 │   ├── sops_config.go   # .sops.yaml 配置生成
 │   └── yewseal_config.go # .yewseal.toml 配置读写
@@ -46,8 +47,8 @@ internal/
 │   ├── provider.go      # Provider 接口定义
 │   └── infisical.go     # Infisical 密钥管理服务集成
 └── tools/               # 工具函数
-    ├── checker.go       # 外部工具检查 (age/sops/toml2yaml/yaml2toml)
-    ├── executor.go      # 命令执行封装
+    ├── checker.go       # 工具检查（内嵌库版本 + remarshal 可选工具）
+    ├── executor.go      # 命令执行封装（仅保留 ExecCommand）
     └── input.go         # 交互式用户输入
 ```
 
@@ -55,7 +56,9 @@ internal/
 
 **配置优先级**：CLI 参数 > 环境变量 > 配置文件 > 默认值
 
-**外部工具依赖**：`age`、`sops`、`toml2yaml`/`yaml2toml` (remarshal)
+**内嵌库依赖**：`filippo.io/age`（密钥生成）、`github.com/getsops/sops/v3`（加解密引擎）
+
+**外部工具依赖**：仅 `toml2yaml`/`yaml2toml` (remarshal)，且仅 TOML 格式需要
 
 **格式支持**：
 - SOPS 原生格式（YAML/JSON/ENV/INI）：直接加密

@@ -1,7 +1,0 @@
-[encryption]
-input_file = "custom.toml"
-output_file = "custom.enc.yaml"
-
-[key]
-file_path = ".age/keys.txt"
-public_key = "age1testkey"

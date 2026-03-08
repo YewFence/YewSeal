@@ -1,52 +1,16 @@
 package crypto
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"os"
+	"os/exec"
+	"runtime"
 	"strings"
 
 	"github.com/YewFence/YewSeal/internal/errx"
 	"github.com/YewFence/YewSeal/internal/tools"
 )
-
-func hasSopsYaml() bool {
-	_, err := os.Stat(".sops.yaml")
-	return err == nil
-}
-
-func buildSopsEncryptArgs(inputFile, outputFile, inputType, outputType, publicKey string, verbose bool) ([]string, error) {
-	if !hasSopsYaml() {
-		if strings.TrimSpace(publicKey) == "" {
-			return nil, fmt.Errorf("public key is required when .sops.yaml is not present")
-		}
-		if verbose {
-			fmt.Println("📋 No .sops.yaml found, using command-line parameters only")
-		}
-		return []string{"--config", os.DevNull, "encrypt", "--age", publicKey, "--input-type", inputType, "--output-type", outputType, inputFile, "--output", outputFile}, nil
-	}
-
-	if verbose {
-		fmt.Println("📋 Using .sops.yaml configuration")
-	}
-	return []string{"encrypt", "--filename-override", outputFile, "--input-type", inputType, "--output-type", outputType, inputFile, "--output", outputFile}, nil
-}
-
-func buildSopsEncryptArgsStdin(outputFile, inputType, outputType, publicKey string, verbose bool) ([]string, error) {
-	if !hasSopsYaml() {
-		if strings.TrimSpace(publicKey) == "" {
-			return nil, fmt.Errorf("public key is required when .sops.yaml is not present")
-		}
-		if verbose {
-			fmt.Println("📋 No .sops.yaml found, using command-line parameters only")
-		}
-		return []string{"--config", os.DevNull, "encrypt", "--age", publicKey, "--input-type", inputType, "--output-type", outputType, "--filename-override", outputFile, "--output", outputFile}, nil
-	}
-
-	if verbose {
-		fmt.Println("📋 Using .sops.yaml configuration")
-	}
-	return []string{"encrypt", "--filename-override", outputFile, "--input-type", inputType, "--output-type", outputType, "--output", outputFile}, nil
-}
 
 // Encrypt encrypts a configuration file using SOPS
 // For TOML files: converts to YAML first, then encrypts
@@ -81,13 +45,12 @@ func encryptTOML(inputFile, outputFile, keyFile, publicKeyParam string, verbose 
 		fmt.Printf("📖 Reading %s...\n", inputFile)
 	}
 
-	// Read input TOML file
 	tomlContent, err := os.ReadFile(inputFile)
 	if err != nil {
 		return fmt.Errorf("failed to read input file: %w", err)
 	}
 
-	// Step 1: Convert TOML to YAML (in-memory via pipe)
+	// Step 1: Convert TOML to YAML (via remarshal)
 	if verbose {
 		fmt.Println("🔄 Converting TOML to YAML...")
 	}
@@ -101,23 +64,19 @@ func encryptTOML(inputFile, outputFile, keyFile, publicKeyParam string, verbose 
 		fmt.Println("🔐 Encrypting with SOPS...")
 	}
 
-	// Step 2: Encrypt with SOPS via stdin pipe (no temporary file)
-	publicKey := ""
-	if !hasSopsYaml() {
-		publicKey, err = GetPublicKey(publicKeyParam, keyFile, verbose)
-		if err != nil {
-			return err
-		}
-	}
-
-	args, err := buildSopsEncryptArgsStdin(outputFile, "yaml", "yaml", publicKey, verbose)
+	// Step 2: Get public key and encrypt
+	publicKey, err := GetPublicKey(publicKeyParam, keyFile, verbose)
 	if err != nil {
 		return err
 	}
 
-	_, stderr, err := tools.ExecCommandWithStdin(yamlContent, "sops", args...)
+	encData, err := sopsEncryptData(yamlContent, "yaml", publicKey)
 	if err != nil {
-		return &errx.ExternalCommandError{Op: "failed to encrypt with SOPS", Cmd: "sops", Args: args, Stderr: stderr, Err: err}
+		return fmt.Errorf("failed to encrypt: %w", err)
+	}
+
+	if err := os.WriteFile(outputFile, encData, 0644); err != nil {
+		return fmt.Errorf("failed to write output file: %w", err)
 	}
 
 	fmt.Printf("✅ Encrypted %s → %s\n", inputFile, outputFile)
@@ -131,26 +90,24 @@ func encryptNative(inputFile, outputFile, keyFile, publicKeyParam string, inputF
 		fmt.Println("🔐 Encrypting with SOPS...")
 	}
 
-	sopsType := GetSopsType(inputFormat)
-
-	publicKey := ""
-	var err error
-	if !hasSopsYaml() {
-		// Get Age public key (only needed when we don't have .sops.yaml)
-		publicKey, err = GetPublicKey(publicKeyParam, keyFile, verbose)
-		if err != nil {
-			return err
-		}
-	}
-
-	args, err := buildSopsEncryptArgs(inputFile, outputFile, sopsType, sopsType, publicKey, verbose)
+	publicKey, err := GetPublicKey(publicKeyParam, keyFile, verbose)
 	if err != nil {
 		return err
 	}
 
-	_, stderr, err := tools.ExecCommand("sops", args...)
+	plainData, err := os.ReadFile(inputFile)
 	if err != nil {
-		return &errx.ExternalCommandError{Op: "failed to encrypt with SOPS", Cmd: "sops", Args: args, Stderr: stderr, Err: err}
+		return fmt.Errorf("failed to read input file: %w", err)
+	}
+
+	sopsType := GetSopsType(inputFormat)
+	encData, err := sopsEncryptData(plainData, sopsType, publicKey)
+	if err != nil {
+		return fmt.Errorf("failed to encrypt: %w", err)
+	}
+
+	if err := os.WriteFile(outputFile, encData, 0644); err != nil {
+		return fmt.Errorf("failed to write output file: %w", err)
 	}
 
 	fmt.Printf("✅ Encrypted %s → %s\n", inputFile, outputFile)
@@ -191,32 +148,31 @@ func decryptTOML(inputFile, outputFile, keyFile string, verbose bool) error {
 		fmt.Println("🔓 Decrypting with SOPS...")
 	}
 
-	// Step 1: Decrypt with SOPS to stdout (no temporary file)
 	key, err := GetAgeKey(keyFile)
 	if err != nil {
 		return err
 	}
 
-	env := map[string]string{
-		"SOPS_AGE_KEY": key,
+	encData, err := os.ReadFile(inputFile)
+	if err != nil {
+		return fmt.Errorf("failed to read input file: %w", err)
 	}
 
-	stdout, stderr, err := tools.ExecCommandWithEnv(env, "sops", "--decrypt", inputFile)
+	yamlContent, err := sopsDecryptData(encData, "yaml", key)
 	if err != nil {
-		return &errx.ExternalCommandError{Op: "failed to decrypt with SOPS", Cmd: "sops", Args: []string{"--decrypt", inputFile}, Stderr: stderr, Err: err}
+		return fmt.Errorf("failed to decrypt: %w", err)
 	}
 
 	if verbose {
 		fmt.Println("🔄 Converting YAML to TOML...")
 	}
 
-	// Step 2: Convert YAML to TOML (in-memory via pipe)
-	tomlContent, err := YAMLToTOML([]byte(stdout))
+	// Convert YAML to TOML (via remarshal)
+	tomlContent, err := YAMLToTOML(yamlContent)
 	if err != nil {
 		return fmt.Errorf("failed to convert YAML to TOML: %w", err)
 	}
 
-	// Write output
 	if err := os.WriteFile(outputFile, tomlContent, 0644); err != nil {
 		return fmt.Errorf("failed to write output file: %w", err)
 	}
@@ -232,57 +188,148 @@ func decryptNative(inputFile, outputFile, keyFile string, outputFormat FileForma
 		fmt.Println("🔓 Decrypting with SOPS...")
 	}
 
-	// Get Age key
 	key, err := GetAgeKey(keyFile)
 	if err != nil {
 		return err
 	}
 
-	env := map[string]string{
-		"SOPS_AGE_KEY": key,
+	encData, err := os.ReadFile(inputFile)
+	if err != nil {
+		return fmt.Errorf("failed to read input file: %w", err)
 	}
 
-	// Decrypt directly to output file
-	_, stderr, err := tools.ExecCommandWithEnv(env, "sops", "--decrypt", "--output", outputFile, inputFile)
+	sopsType := GetSopsType(outputFormat)
+	plainData, err := sopsDecryptData(encData, sopsType, key)
 	if err != nil {
-		return &errx.ExternalCommandError{Op: "failed to decrypt with SOPS", Cmd: "sops", Args: []string{"--decrypt", "--output", outputFile, inputFile}, Stderr: stderr, Err: err}
+		return fmt.Errorf("failed to decrypt: %w", err)
+	}
+
+	if err := os.WriteFile(outputFile, plainData, 0644); err != nil {
+		return fmt.Errorf("failed to write output file: %w", err)
 	}
 
 	fmt.Printf("✅ Decrypted %s → %s\n", inputFile, outputFile)
 	return nil
 }
 
-// Edit opens the encrypted file in an editor using SOPS
+// Edit decrypts the file to a temp file, opens an editor, and re-encrypts if changed.
 func Edit(file, editor, keyFile string) error {
 	// Check if file exists
 	if _, err := os.Stat(file); os.IsNotExist(err) {
 		return &errx.NotFoundError{What: "file", Path: file}
 	}
 
-	fmt.Printf("✏️  Opening %s in editor...\n", file)
-
-	// Get Age key
+	// Get Age private key
 	key, err := GetAgeKey(keyFile)
 	if err != nil {
 		return err
 	}
 
-	// Prepare environment for subprocess only
-	env := map[string]string{
-		"SOPS_AGE_KEY": key,
-	}
-	if editor != "" {
-		env["EDITOR"] = editor
+	// Read and decrypt
+	encData, err := os.ReadFile(file)
+	if err != nil {
+		return fmt.Errorf("failed to read encrypted file: %w", err)
 	}
 
-	// Build command
-	args := []string{file}
-
-	// Run SOPS interactively
-	if err := tools.ExecCommandInteractiveWithEnv(env, "sops", args...); err != nil {
-		return fmt.Errorf("failed to edit file: %w", err)
+	plainData, err := sopsDecryptData(encData, "yaml", key)
+	if err != nil {
+		return fmt.Errorf("failed to decrypt: %w", err)
 	}
 
-	fmt.Println("✅ File edited successfully")
+	// Write to temp file
+	tmpFile, err := os.CreateTemp("", "yews-edit-*.yaml")
+	if err != nil {
+		return fmt.Errorf("failed to create temp file: %w", err)
+	}
+	tmpPath := tmpFile.Name()
+	defer os.Remove(tmpPath)
+
+	if err := os.WriteFile(tmpPath, plainData, 0600); err != nil {
+		tmpFile.Close()
+		return fmt.Errorf("failed to write temp file: %w", err)
+	}
+	tmpFile.Close()
+
+	// Record original hash for change detection
+	originalHash := sha256.Sum256(plainData)
+
+	// Resolve editor
+	editorCmd := resolveEditor(editor)
+
+	fmt.Printf("✏️  Opening %s in %s...\n", file, editorCmd)
+
+	// Open editor
+	parts := strings.Fields(editorCmd)
+	args := append(parts[1:], tmpPath)
+	cmd := exec.Command(parts[0], args...)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("editor exited with error: %w", err)
+	}
+
+	// Read edited content
+	editedData, err := os.ReadFile(tmpPath)
+	if err != nil {
+		return fmt.Errorf("failed to read edited file: %w", err)
+	}
+
+	// Check for changes
+	editedHash := sha256.Sum256(editedData)
+	if originalHash == editedHash {
+		fmt.Println("⏭️  No changes detected, skipping re-encryption")
+		return nil
+	}
+
+	// Extract public key from original encrypted file
+	store := storeForFormat("yaml")
+	tree, err := store.LoadEncryptedFile(encData)
+	if err != nil {
+		return fmt.Errorf("failed to parse encrypted file metadata: %w", err)
+	}
+
+	publicKey, err := extractAgeRecipientFromTree(tree)
+	if err != nil {
+		return fmt.Errorf("failed to extract public key from encrypted file: %w", err)
+	}
+
+	// Re-encrypt with the same public key
+	newEncData, err := sopsEncryptData(editedData, "yaml", publicKey)
+	if err != nil {
+		return fmt.Errorf("failed to re-encrypt: %w", err)
+	}
+
+	if err := os.WriteFile(file, newEncData, 0644); err != nil {
+		return fmt.Errorf("failed to write encrypted file: %w", err)
+	}
+
+	fmt.Println("✅ File edited and re-encrypted successfully")
 	return nil
+}
+
+// resolveEditor determines the editor command to use.
+// Priority: parameter > $EDITOR > $VISUAL > platform default
+func resolveEditor(editor string) string {
+	if editor != "" {
+		return editor
+	}
+	if e := os.Getenv("EDITOR"); e != "" {
+		return e
+	}
+	if e := os.Getenv("VISUAL"); e != "" {
+		return e
+	}
+	if runtime.GOOS == "windows" {
+		// Check if common editors exist
+		for _, candidate := range []string{"code -w", "notepad"} {
+			name := strings.Fields(candidate)[0]
+			if p, _ := exec.LookPath(name); p != "" {
+				return candidate
+			}
+		}
+		return "notepad"
+	}
+	return "vi"
 }
