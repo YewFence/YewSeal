@@ -72,14 +72,26 @@ yews decrypt -i config.enc.yaml -o config.toml -k .age/keys.txt
 
 ## 安装
 
-### 从源码编译
+### 从源码安装
 
 ```bash
 git clone https://github.com/YewFence/YewSeal
 cd YewSeal
-make build    # 生产构建 → build/yews.exe
-# 或
-make dev      # 开发构建 → test/yews.exe
+
+# 使用 just（推荐）
+just install    # 安装到 $GOPATH/bin，可全局使用
+
+# 或手动安装
+go install -ldflags "-s -w -X main.Version=$(git describe --tags --always --dirty 2>/dev/null || echo dev)" ./cmd/main.go
+```
+
+安装完成后可直接在任意目录使用 `yews` 命令。
+
+如果只需要本地构建而不安装到全局：
+
+```bash
+just build      # 生产构建 → build/yews.exe
+just dev        # 开发构建 → test/yews.exe
 ```
 
 ### 直接下载

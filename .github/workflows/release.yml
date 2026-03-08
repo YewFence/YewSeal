@@ -63,9 +63,10 @@ jobs:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
         run: |
+          VERSION=$(git describe --tags --always --dirty 2>/dev/null || echo "dev")
           mkdir -p dist
           BINARY_NAME="yews-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }}"
-          go build -ldflags "-s -w" -o "dist/${BINARY_NAME}" ./cmd/main.go
+          go build -ldflags "-s -w -X main.Version=${VERSION}" -o "dist/${BINARY_NAME}" ./cmd/main.go
 
       - name: Create archive
         run: |
