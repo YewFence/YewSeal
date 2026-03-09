@@ -1,13 +1,12 @@
 # Justfile for YewSeal
 
-set shell := ["bash", "-cu"]
+set windows-shell := ["pwsh", "-NoLogo", "-NoProfile", "-Command"]
 
 # Variables
 binary_name := "yews"
-main_path   := "./cmd/main.go"
-dev_dir     := "./test"
+main_path   := "./cmd/yews/"
 build_dir   := "./build"
-version     := `git describe --tags --always --dirty 2>/dev/null || echo "dev"`
+version     := `git describe --tags --always --dirty`
 ldflags     := "-s -w -X main.Version=" + version
 
 # Install to $GOPATH/bin (global)
@@ -26,17 +25,10 @@ build:
     go build -ldflags "{{ldflags}}" -o {{build_dir}}/{{binary_name}}.exe {{main_path}}
     @echo "Build complete: {{build_dir}}/{{binary_name}}.exe"
 
-# Build for development (output to test/)
-dev:
-    @echo "Building {{binary_name}}.exe for development..."
-    @mkdir -p {{dev_dir}}
-    go build -ldflags "{{ldflags}}" -o {{dev_dir}}/{{binary_name}}.exe {{main_path}}
-    @echo "Dev build complete: {{dev_dir}}/{{binary_name}}.exe"
-
 # Build and run the application
-run: dev
+run: build
     @echo "Running {{binary_name}}..."
-    @{{dev_dir}}/{{binary_name}}.exe
+    @{{build_dir}}/{{binary_name}}.exe
 
 # Run tests
 test:
@@ -48,7 +40,6 @@ clean:
     @echo "Cleaning build artifacts..."
     go clean
     rm -rf {{build_dir}}
-    rm -f {{dev_dir}}/{{binary_name}}.exe
     @echo "Clean complete"
 
 # Download dependencies

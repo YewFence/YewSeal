@@ -7,7 +7,6 @@ wrangler.toml
 # Compiled binaries
 *.exe
 build/
-test/*.exe
 
 # Test coverage
 *.out
@@ -32,3 +31,4 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.bak
+.gitnexus

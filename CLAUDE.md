@@ -10,8 +10,7 @@ YewSeal 是一个 Go CLI 工具，用于管理加密配置文件。核心功能�
 
 ```bash
 # 构建
-just build          # 生产构建 → build/yews.exe
-just dev            # 开发构建 → test/yews.exe
+just build          # 构建 → build/yews.exe
 just clean          # 清理构建产物
 
 # 测试
@@ -21,15 +20,12 @@ go test -v ./internal/crypto/...  # 运行单个包的测试
 # 跨平台构建
 just build-all      # 构建所有平台 (linux/windows/darwin × amd64/arm64)
 just release        # 构建并打包为发布归档
-
-# 运行（开发）
-cd test && ./yews.exe init|encrypt|decrypt|edit|sync
 ```
 
 ## 架构
 
 ```
-cmd/main.go              # CLI 入口 (urfave/cli/v2)
+cmd/yews/main.go         # CLI 入口 (urfave/cli/v2)
 internal/
 ├── config/              # 配置管理
 │   └── config.go        # 多路径查找 .yewseal.toml，配置优先级合并
@@ -68,6 +64,28 @@ internal/
 
 **密钥同步**：通过 Provider 接口扩展，目前支持 Infisical
 
-## 测试目录
+<!-- gitnexus:start -->
+# GitNexus MCP
 
-`test/` 目录用于开发测试，使用 `cd test && ./yews.exe` 进行本地测试。
+This project is indexed by GitNexus as **yew-seal** (361 symbols, 1015 relationships, 29 execution flows).
+
+## Always Start Here
+
+1. **Read `gitnexus://repo/{name}/context`** — codebase overview + check index freshness
+2. **Match your task to a skill below** and **read that skill file**
+3. **Follow the skill's workflow and checklist**
+
+> If step 1 warns the index is stale, run `npx gitnexus analyze` in the terminal first.
+
+## Skills
+
+| Task | Read this skill file |
+|------|---------------------|
+| Understand architecture / "How does X work?" | `.claude/skills/gitnexus/gitnexus-exploring/SKILL.md` |
+| Blast radius / "What breaks if I change X?" | `.claude/skills/gitnexus/gitnexus-impact-analysis/SKILL.md` |
+| Trace bugs / "Why is X failing?" | `.claude/skills/gitnexus/gitnexus-debugging/SKILL.md` |
+| Rename / extract / split / refactor | `.claude/skills/gitnexus/gitnexus-refactoring/SKILL.md` |
+| Tools, resources, schema reference | `.claude/skills/gitnexus/gitnexus-guide/SKILL.md` |
+| Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |
+
+<!-- gitnexus:end -->
