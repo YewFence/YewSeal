@@ -48,6 +48,7 @@ pipx install remarshal
 # 1. 交互式初始化项目（生成密钥和配置）
 yews init
 # 输入你需要加密的文件名和加密后的输出文件名
+# 如果要批量模式，直接编辑 .yewseal.toml 里的 [[encryption.files]] 模板
 
 # 2. 根据配置文件加密敏感文件
 yews e
@@ -134,6 +135,12 @@ yews init
    - 非必需，但便于直接使用 `sops` 命令
    - 推荐创建以保持团队协作的一致性
 
+初始化结束后，生成的 `.yewseal.toml` 会同时包含：
+- 单文件模式默认值（`input_file` / `output_file`）
+- `[[encryption.files]]` 批量模式注释模板
+
+只要填好 `[[encryption.files]]`，后续直接运行 `yews encrypt` / `yews decrypt` 就会自动进入批量模式。
+
 #### 非交互式模式
 
 使用命令行参数跳过交互提示：
@@ -152,7 +159,7 @@ yews init --force
 #### 初始化完成后会创建
 
 - `.age/keys.txt` - Age 密钥对（私钥 + 公钥）
-- `.yewseal.toml` - YewSeal 配置文件（包含公钥和文件路径）
+- `.yewseal.toml` - YewSeal 配置文件（包含公钥、单文件默认值和批量模板）
 - `.sops.yaml` - SOPS 配置文件（如果选择创建）
 - `.gitignore` - 自动添加需要忽略的文件
 - `*.example.toml` - 示例配置文件（如果选择创建）
@@ -246,10 +253,22 @@ cp .yewseal.example.toml .yewseal.toml
 
 ```toml
 [encryption]
-# 需要加密的文件（TOML 格式）
+# 单文件模式：默认加密/解密文件
 input_file = "wrangler.toml"
 # 加密后的输出文件（YAML 格式）
 output_file = "wrangler.enc.toml.yaml"
+
+# 批量模式：只要配置了一个或多个 [[encryption.files]]
+# yews encrypt / yews decrypt 就会自动切到批量模式
+#
+#[[encryption.files]]
+#input = "app.toml"
+#output = "app.enc.toml.yaml"
+#
+#[[encryption.files]]
+#input = ".dev.vars"
+#output = ".dev.vars.enc.yaml"
+#format = "env"
 
 [key]
 # Age 公钥（用于加密）
@@ -270,7 +289,12 @@ file_path = ".age/keys.txt"
 #### 使用示例
 
 ```bash
-# 使用配置文件中的设置
+# 使用配置文件中的单文件默认设置
+yews encrypt
+yews decrypt
+
+# 如果 .yewseal.toml 中配置了 [[encryption.files]]
+# 同样是这两个命令，但会自动按批量模式处理
 yews encrypt
 yews decrypt
 
@@ -280,6 +304,34 @@ yews encrypt -i custom.toml -o custom.enc.toml.yaml
 # 环境变量也会覆盖配置文件
 export SOPS_INPUT_FILE="custom.toml"
 yews encrypt
+```
+
+#### 批量配置示例
+
+```toml
+[encryption]
+input_file = "wrangler.toml"
+output_file = "wrangler.enc.toml.yaml"
+
+[[encryption.files]]
+input = "app.toml"
+output = "app.enc.toml.yaml"
+
+[[encryption.files]]
+input = ".dev.vars"
+output = ".dev.vars.enc.yaml"
+format = "env"
+
+[key]
+public_key = "age1..."
+file_path = ".age/keys.txt"
+```
+
+配置好以后，直接运行下面两条命令即可批量处理，不需要额外传 `--dir`：
+
+```bash
+yews encrypt
+yews decrypt
 ```
 
 ⚠️ **安全提示**：配置文件只应存储密钥文件的路径，不要存储私钥值本身

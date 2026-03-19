@@ -15,13 +15,17 @@ import (
 // Encrypt encrypts a configuration file using SOPS
 // For TOML files: converts to YAML first, then encrypts
 // For native SOPS formats (YAML, JSON, ENV, INI): encrypts directly
-func Encrypt(inputFile, outputFile, keyFile, publicKeyParam string, verbose bool) error {
+// formatOverride: optional format string (e.g. "env") to bypass extension detection
+func Encrypt(inputFile, outputFile, keyFile, publicKeyParam, formatOverride string, verbose bool) error {
 	// Check if input file exists
 	if _, err := os.Stat(inputFile); os.IsNotExist(err) {
 		return &errx.NotFoundError{What: "input file", Path: inputFile}
 	}
 
 	inputFormat := DetectFormat(inputFile)
+	if override := ParseFormat(formatOverride); override != FormatUnknown {
+		inputFormat = override
+	}
 
 	if inputFormat == FormatTOML {
 		// TOML needs conversion: check remarshal is available
@@ -117,13 +121,17 @@ func encryptNative(inputFile, outputFile, keyFile, publicKeyParam string, inputF
 // Decrypt decrypts a SOPS encrypted file
 // For TOML output: decrypts then converts from YAML
 // For native SOPS formats: decrypts directly
-func Decrypt(inputFile, outputFile, keyFile string, verbose bool) error {
+// formatOverride: optional format string (e.g. "env") to bypass extension detection
+func Decrypt(inputFile, outputFile, keyFile, formatOverride string, verbose bool) error {
 	// Check if input file exists
 	if _, err := os.Stat(inputFile); os.IsNotExist(err) {
 		return &errx.NotFoundError{What: "input file", Path: inputFile}
 	}
 
 	outputFormat := DetectFormat(outputFile)
+	if override := ParseFormat(formatOverride); override != FormatUnknown {
+		outputFormat = override
+	}
 
 	if outputFormat == FormatTOML {
 		// TOML needs conversion: check remarshal is available

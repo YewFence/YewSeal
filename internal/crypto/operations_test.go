@@ -24,7 +24,7 @@ func TestEncrypt_Success(t *testing.T) {
 	require.NoError(t, err)
 
 	// Run encrypt
-	err = Encrypt(inputFile, outputFile, env.keyFile, env.publicKey, false)
+	err = Encrypt(inputFile, outputFile, env.keyFile, env.publicKey, "", false)
 	require.NoError(t, err)
 
 	// Verify output file exists
@@ -57,7 +57,7 @@ func TestEncrypt_WithSopsYaml(t *testing.T) {
 	require.NoError(t, err)
 
 	// Run encrypt (should use .sops.yaml)
-	err = Encrypt(inputFile, outputFile, env.keyFile, "", false)
+	err = Encrypt(inputFile, outputFile, env.keyFile, "", "", false)
 	require.NoError(t, err)
 
 	// Verify output file exists and is encrypted
@@ -80,7 +80,7 @@ func TestEncrypt_WithoutSopsYaml(t *testing.T) {
 	require.NoError(t, err)
 
 	// Run encrypt with explicit public key
-	err = Encrypt(inputFile, outputFile, env.keyFile, env.publicKey, false)
+	err = Encrypt(inputFile, outputFile, env.keyFile, env.publicKey, "", false)
 	require.NoError(t, err)
 
 	// Verify output file exists and is encrypted
@@ -92,7 +92,7 @@ func TestEncrypt_WithoutSopsYaml(t *testing.T) {
 func TestEncrypt_FileNotExist(t *testing.T) {
 	env := setupIntegrationEnv(t)
 
-	err := Encrypt("nonexistent.toml", "output.yaml", env.keyFile, env.publicKey, false)
+	err := Encrypt("nonexistent.toml", "output.yaml", env.keyFile, env.publicKey, "", false)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "does not exist")
 }
@@ -107,7 +107,7 @@ key = "missing bracket"`)
 	err := os.WriteFile("invalid.toml", invalidTOML, 0644)
 	require.NoError(t, err)
 
-	err = Encrypt("invalid.toml", "output.yaml", env.keyFile, env.publicKey, false)
+	err = Encrypt("invalid.toml", "output.yaml", env.keyFile, env.publicKey, "", false)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to convert TOML to YAML")
 }
@@ -129,11 +129,11 @@ func TestDecrypt_Success(t *testing.T) {
 	err := os.WriteFile(inputFile, originalContent, 0644)
 	require.NoError(t, err)
 
-	err = Encrypt(inputFile, encryptedFile, env.keyFile, env.publicKey, false)
+	err = Encrypt(inputFile, encryptedFile, env.keyFile, env.publicKey, "", false)
 	require.NoError(t, err)
 
 	// Now decrypt
-	err = Decrypt(encryptedFile, decryptedFile, env.keyFile, false)
+	err = Decrypt(encryptedFile, decryptedFile, env.keyFile, "", false)
 	require.NoError(t, err)
 
 	// Verify decrypted content contains the original data
@@ -149,7 +149,7 @@ func TestDecrypt_Success(t *testing.T) {
 func TestDecrypt_FileNotExist(t *testing.T) {
 	env := setupIntegrationEnv(t)
 
-	err := Decrypt("nonexistent.yaml", "output.toml", env.keyFile, false)
+	err := Decrypt("nonexistent.yaml", "output.toml", env.keyFile, "", false)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "does not exist")
 }
@@ -166,7 +166,7 @@ func TestDecrypt_InvalidEncryptedFile(t *testing.T) {
 	require.NoError(t, err)
 
 	// Use YAML output to avoid remarshal dependency
-	err = Decrypt("plain.yaml", "output.yaml", env.keyFile, false)
+	err = Decrypt("plain.yaml", "output.yaml", env.keyFile, "", false)
 	assert.Error(t, err)
 }
 
@@ -181,7 +181,7 @@ func TestDecrypt_WrongKey(t *testing.T) {
 	err := os.WriteFile(inputFile, sampleTOML(), 0644)
 	require.NoError(t, err)
 
-	err = Encrypt(inputFile, encryptedFile, env.keyFile, env.publicKey, false)
+	err = Encrypt(inputFile, encryptedFile, env.keyFile, env.publicKey, "", false)
 	require.NoError(t, err)
 
 	// Generate a different key using embedded age library
@@ -198,7 +198,7 @@ func TestDecrypt_WrongKey(t *testing.T) {
 	require.NoError(t, err)
 
 	// Try to decrypt with wrong key
-	err = Decrypt(encryptedFile, "output.toml", wrongKeyFile, false)
+	err = Decrypt(encryptedFile, "output.toml", wrongKeyFile, "", false)
 	assert.Error(t, err)
 }
 
@@ -219,11 +219,11 @@ func TestEncryptDecrypt_RoundTrip(t *testing.T) {
 	require.NoError(t, err)
 
 	// Encrypt
-	err = Encrypt(inputFile, encryptedFile, env.keyFile, env.publicKey, false)
+	err = Encrypt(inputFile, encryptedFile, env.keyFile, env.publicKey, "", false)
 	require.NoError(t, err)
 
 	// Decrypt
-	err = Decrypt(encryptedFile, decryptedFile, env.keyFile, false)
+	err = Decrypt(encryptedFile, decryptedFile, env.keyFile, "", false)
 	require.NoError(t, err)
 
 	// Verify content integrity
@@ -256,11 +256,11 @@ func TestEncryptDecrypt_ComplexTOML(t *testing.T) {
 	require.NoError(t, err)
 
 	// Encrypt
-	err = Encrypt(inputFile, encryptedFile, env.keyFile, env.publicKey, false)
+	err = Encrypt(inputFile, encryptedFile, env.keyFile, env.publicKey, "", false)
 	require.NoError(t, err)
 
 	// Decrypt
-	err = Decrypt(encryptedFile, decryptedFile, env.keyFile, false)
+	err = Decrypt(encryptedFile, decryptedFile, env.keyFile, "", false)
 	require.NoError(t, err)
 
 	// Verify complex structure is preserved
@@ -292,7 +292,7 @@ func TestEncrypt_VerboseMode(t *testing.T) {
 	require.NoError(t, err)
 
 	// Run encrypt with verbose mode (should not error)
-	err = Encrypt(inputFile, outputFile, env.keyFile, env.publicKey, true)
+	err = Encrypt(inputFile, outputFile, env.keyFile, env.publicKey, "", true)
 	require.NoError(t, err)
 
 	// Verify output
@@ -311,10 +311,10 @@ func TestDecrypt_VerboseMode(t *testing.T) {
 	err := os.WriteFile(inputFile, sampleTOML(), 0644)
 	require.NoError(t, err)
 
-	err = Encrypt(inputFile, encryptedFile, env.keyFile, env.publicKey, false)
+	err = Encrypt(inputFile, encryptedFile, env.keyFile, env.publicKey, "", false)
 	require.NoError(t, err)
 
 	// Run decrypt with verbose mode (should not error)
-	err = Decrypt(encryptedFile, decryptedFile, env.keyFile, true)
+	err = Decrypt(encryptedFile, decryptedFile, env.keyFile, "", true)
 	require.NoError(t, err)
 }

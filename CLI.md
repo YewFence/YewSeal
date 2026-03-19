@@ -31,15 +31,15 @@ yews [GLOBAL OPTIONS] command [COMMAND OPTIONS] [ARGUMENTS...]
 
 ## init
 
-Initialize project with Age keys and SOPS configuration
+Initialize project with Age keys and YewSeal config templates (single-file + batch)
 
 **--create-example**: Create example file (non-interactive mode)
 
 **--force, -f**: Force overwrite existing configuration
 
-**--input, -i**="": Original configuration file name (non-interactive mode)
+**--input, -i**="": Default input file for single-file mode (non-interactive mode)
 
-**--output, -o**="": Encrypted output file name (non-interactive mode)
+**--output, -o**="": Default encrypted output file for single-file mode (non-interactive mode)
 
 **--skip-sops-config**: Skip creating .sops.yaml file (non-interactive mode)
 

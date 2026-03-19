@@ -25,7 +25,7 @@ func TestIntegration_TOML_RoundTrip(t *testing.T) {
 	writeTestFile(t, "config.toml", sampleTOML())
 
 	// Encrypt
-	err := Encrypt("config.toml", "config.enc.toml.yaml", env.keyFile, env.publicKey, false)
+	err := Encrypt("config.toml", "config.enc.toml.yaml", env.keyFile, env.publicKey, "", false)
 	require.NoError(t, err)
 
 	// Verify encrypted file contains SOPS metadata and no plaintext
@@ -35,7 +35,7 @@ func TestIntegration_TOML_RoundTrip(t *testing.T) {
 	assert.NotContains(t, string(encContent), "secret123")
 
 	// Decrypt
-	err = Decrypt("config.enc.toml.yaml", "config.dec.toml", env.keyFile, false)
+	err = Decrypt("config.enc.toml.yaml", "config.dec.toml", env.keyFile, "", false)
 	require.NoError(t, err)
 
 	// Verify decrypted content preserves key-values
@@ -54,10 +54,10 @@ func TestIntegration_TOML_ComplexStructure(t *testing.T) {
 
 	writeTestFile(t, "complex.toml", complexTOML())
 
-	err := Encrypt("complex.toml", "complex.enc.toml.yaml", env.keyFile, env.publicKey, false)
+	err := Encrypt("complex.toml", "complex.enc.toml.yaml", env.keyFile, env.publicKey, "", false)
 	require.NoError(t, err)
 
-	err = Decrypt("complex.enc.toml.yaml", "complex.dec.toml", env.keyFile, false)
+	err = Decrypt("complex.enc.toml.yaml", "complex.dec.toml", env.keyFile, "", false)
 	require.NoError(t, err)
 
 	decContent, err := os.ReadFile("complex.dec.toml")
@@ -102,10 +102,10 @@ crons = ["*/5 * * * *"]
 `)
 	writeTestFile(t, "wrangler.toml", wranglerTOML)
 
-	err := Encrypt("wrangler.toml", "wrangler.enc.toml.yaml", env.keyFile, env.publicKey, false)
+	err := Encrypt("wrangler.toml", "wrangler.enc.toml.yaml", env.keyFile, env.publicKey, "", false)
 	require.NoError(t, err)
 
-	err = Decrypt("wrangler.enc.toml.yaml", "wrangler.dec.toml", env.keyFile, false)
+	err = Decrypt("wrangler.enc.toml.yaml", "wrangler.dec.toml", env.keyFile, "", false)
 	require.NoError(t, err)
 
 	decContent, err := os.ReadFile("wrangler.dec.toml")
@@ -125,7 +125,7 @@ func TestIntegration_TOML_EncryptedOutputFormat(t *testing.T) {
 
 	writeTestFile(t, "config.toml", sampleTOML())
 
-	err := Encrypt("config.toml", "config.enc.toml.yaml", env.keyFile, env.publicKey, false)
+	err := Encrypt("config.toml", "config.enc.toml.yaml", env.keyFile, env.publicKey, "", false)
 	require.NoError(t, err)
 
 	encContent, err := os.ReadFile("config.enc.toml.yaml")
@@ -156,10 +156,10 @@ negative = -100
 `)
 	writeTestFile(t, "special.toml", specialTOML)
 
-	err := Encrypt("special.toml", "special.enc.toml.yaml", env.keyFile, env.publicKey, false)
+	err := Encrypt("special.toml", "special.enc.toml.yaml", env.keyFile, env.publicKey, "", false)
 	require.NoError(t, err)
 
-	err = Decrypt("special.enc.toml.yaml", "special.dec.toml", env.keyFile, false)
+	err = Decrypt("special.enc.toml.yaml", "special.dec.toml", env.keyFile, "", false)
 	require.NoError(t, err)
 
 	decContent, err := os.ReadFile("special.dec.toml")
@@ -258,8 +258,8 @@ func TestIntegration_TOML_BatchEncrypt_FilePairs(t *testing.T) {
 	writeTestFile(t, "db.toml", []byte("[database]\nhost = \"db.example.com\"\nport = 3306\n"))
 
 	filePairs := []config.FilePair{
-		{Input: "app.toml", Output: "app.enc.toml.yaml"},
-		{Input: "db.toml", Output: "db.enc.toml.yaml"},
+		{Dec: "app.toml", Enc: "app.enc.toml.yaml"},
+		{Dec: "db.toml", Enc: "db.enc.toml.yaml"},
 	}
 
 	summary, err := BatchEncrypt(BatchOptions{
@@ -273,8 +273,8 @@ func TestIntegration_TOML_BatchEncrypt_FilePairs(t *testing.T) {
 	assert.Equal(t, 2, summary.SuccessCount)
 
 	for _, pair := range filePairs {
-		_, err := os.Stat(pair.Output)
-		assert.NoError(t, err, "%s should exist", pair.Output)
+		_, err := os.Stat(pair.Enc)
+		assert.NoError(t, err, "%s should exist", pair.Enc)
 	}
 }
 
@@ -319,7 +319,7 @@ func TestIntegration_TOML_Edit_NoChange(t *testing.T) {
 
 	writeTestFile(t, "edit.toml", sampleTOML())
 
-	err := Encrypt("edit.toml", "edit.enc.toml.yaml", env.keyFile, env.publicKey, false)
+	err := Encrypt("edit.toml", "edit.enc.toml.yaml", env.keyFile, env.publicKey, "", false)
 	require.NoError(t, err)
 
 	// Record original encrypted content
@@ -345,7 +345,7 @@ func TestIntegration_TOML_Edit_WithChange(t *testing.T) {
 
 	writeTestFile(t, "edit.toml", sampleTOML())
 
-	err := Encrypt("edit.toml", "edit.enc.toml.yaml", env.keyFile, env.publicKey, false)
+	err := Encrypt("edit.toml", "edit.enc.toml.yaml", env.keyFile, env.publicKey, "", false)
 	require.NoError(t, err)
 
 	// Create modify editor
@@ -356,7 +356,7 @@ func TestIntegration_TOML_Edit_WithChange(t *testing.T) {
 	require.NoError(t, err)
 
 	// Decrypt and verify the change
-	err = Decrypt("edit.enc.toml.yaml", "edit.dec.toml", env.keyFile, false)
+	err = Decrypt("edit.enc.toml.yaml", "edit.dec.toml", env.keyFile, "", false)
 	require.NoError(t, err)
 
 	decContent, err := os.ReadFile("edit.dec.toml")
@@ -379,7 +379,9 @@ func TestIntegration_TOML_FullWorkflow(t *testing.T) {
 	// Step 1: setupAgeKey — already done in setupIntegrationEnv
 
 	// Step 2: SavePublicKeyToConfig
-	err := SavePublicKeyToConfig(env.publicKey, inputFile, outputFile)
+	err := SavePublicKeyToConfig(env.publicKey, []config.FilePair{
+		{Dec: inputFile, Enc: outputFile},
+	})
 	require.NoError(t, err)
 	_, err = os.Stat(".yewseal.toml")
 	require.NoError(t, err)
@@ -392,12 +394,12 @@ func TestIntegration_TOML_FullWorkflow(t *testing.T) {
 
 	// Step 4: Encrypt
 	writeTestFile(t, inputFile, sampleTOML())
-	err = Encrypt(inputFile, outputFile, env.keyFile, env.publicKey, false)
+	err = Encrypt(inputFile, outputFile, env.keyFile, env.publicKey, "", false)
 	require.NoError(t, err)
 
 	// Step 5: Decrypt
 	decryptedFile := "wrangler.dec.toml"
-	err = Decrypt(outputFile, decryptedFile, env.keyFile, false)
+	err = Decrypt(outputFile, decryptedFile, env.keyFile, "", false)
 	require.NoError(t, err)
 
 	// Step 6: Verify content integrity
@@ -418,16 +420,14 @@ func TestIntegration_TOML_ConfigDrivenBatch(t *testing.T) {
 
 	// Create .yewseal.toml with file pairs
 	configContent := `[encryption]
-input_file = "app.toml"
-output_file = "app.enc.toml.yaml"
 
 [[encryption.files]]
-input = "app.toml"
-output = "app.enc.toml.yaml"
+dec = "app.toml"
+enc = "app.enc.toml.yaml"
 
 [[encryption.files]]
-input = "db.toml"
-output = "db.enc.toml.yaml"
+dec = "db.toml"
+enc = "db.enc.toml.yaml"
 
 [key]
 file_path = ".age/keys.txt"
@@ -438,7 +438,7 @@ public_key = "` + env.publicKey + `"
 	// Load config and use FilePairs
 	cfg, err := config.LoadConfig()
 	require.NoError(t, err)
-	require.True(t, cfg.HasBatchFiles())
+	require.Len(t, cfg.GetFiles(), 2)
 
 	// Batch encrypt using config-driven file pairs
 	summary, err := BatchEncrypt(BatchOptions{
@@ -477,10 +477,10 @@ func TestIntegration_YAML_RoundTrip(t *testing.T) {
 
 	writeTestFile(t, "config.yaml", sampleYAML())
 
-	err := Encrypt("config.yaml", "config.enc.yaml", env.keyFile, env.publicKey, false)
+	err := Encrypt("config.yaml", "config.enc.yaml", env.keyFile, env.publicKey, "", false)
 	require.NoError(t, err)
 
-	err = Decrypt("config.enc.yaml", "config.dec.yaml", env.keyFile, false)
+	err = Decrypt("config.enc.yaml", "config.dec.yaml", env.keyFile, "", false)
 	require.NoError(t, err)
 
 	decContent, err := os.ReadFile("config.dec.yaml")
@@ -494,10 +494,10 @@ func TestIntegration_JSON_RoundTrip(t *testing.T) {
 
 	writeTestFile(t, "config.json", sampleJSON())
 
-	err := Encrypt("config.json", "config.enc.json", env.keyFile, env.publicKey, false)
+	err := Encrypt("config.json", "config.enc.json", env.keyFile, env.publicKey, "", false)
 	require.NoError(t, err)
 
-	err = Decrypt("config.enc.json", "config.dec.json", env.keyFile, false)
+	err = Decrypt("config.enc.json", "config.dec.json", env.keyFile, "", false)
 	require.NoError(t, err)
 
 	decContent, err := os.ReadFile("config.dec.json")
@@ -511,10 +511,10 @@ func TestIntegration_ENV_RoundTrip(t *testing.T) {
 
 	writeTestFile(t, "config.env", sampleENV())
 
-	err := Encrypt("config.env", "config.enc.env", env.keyFile, env.publicKey, false)
+	err := Encrypt("config.env", "config.enc.env", env.keyFile, env.publicKey, "", false)
 	require.NoError(t, err)
 
-	err = Decrypt("config.enc.env", "config.dec.env", env.keyFile, false)
+	err = Decrypt("config.enc.env", "config.dec.env", env.keyFile, "", false)
 	require.NoError(t, err)
 
 	decContent, err := os.ReadFile("config.dec.env")
@@ -528,10 +528,10 @@ func TestIntegration_INI_RoundTrip(t *testing.T) {
 
 	writeTestFile(t, "config.ini", sampleINI())
 
-	err := Encrypt("config.ini", "config.enc.ini", env.keyFile, env.publicKey, false)
+	err := Encrypt("config.ini", "config.enc.ini", env.keyFile, env.publicKey, "", false)
 	require.NoError(t, err)
 
-	err = Decrypt("config.enc.ini", "config.dec.ini", env.keyFile, false)
+	err = Decrypt("config.enc.ini", "config.dec.ini", env.keyFile, "", false)
 	require.NoError(t, err)
 
 	decContent, err := os.ReadFile("config.dec.ini")
@@ -589,7 +589,7 @@ func TestIntegration_UnsupportedFormat(t *testing.T) {
 
 	writeTestFile(t, "config.xml", []byte("<config><key>value</key></config>"))
 
-	err := Encrypt("config.xml", "config.enc.xml", env.keyFile, env.publicKey, false)
+	err := Encrypt("config.xml", "config.enc.xml", env.keyFile, env.publicKey, "", false)
 	assert.Error(t, err)
 
 	var unsupportedErr *errx.UnsupportedFormatError
@@ -602,7 +602,7 @@ func TestIntegration_WrongKey(t *testing.T) {
 	writeTestFile(t, "config.yaml", sampleYAML())
 
 	// Encrypt with env's key
-	err := Encrypt("config.yaml", "config.enc.yaml", env.keyFile, env.publicKey, false)
+	err := Encrypt("config.yaml", "config.enc.yaml", env.keyFile, env.publicKey, "", false)
 	require.NoError(t, err)
 
 	// Generate a different key pair using embedded age library
@@ -618,7 +618,7 @@ func TestIntegration_WrongKey(t *testing.T) {
 	require.NoError(t, os.WriteFile(wrongKeyFile, []byte(wrongKeyContent), 0600))
 
 	// Try to decrypt with wrong key
-	err = Decrypt("config.enc.yaml", "config.dec.yaml", wrongKeyFile, false)
+	err = Decrypt("config.enc.yaml", "config.dec.yaml", wrongKeyFile, "", false)
 	assert.Error(t, err)
 }
 
@@ -746,4 +746,131 @@ func TestIntegration_InitProject_Artifacts(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, string(gitignoreContent), "wrangler.toml")
 	assert.Contains(t, string(gitignoreContent), ".age/keys.txt")
+}
+
+// ============================================================================
+// Group 8: 格式 Override（非标准扩展名）
+// ============================================================================
+
+// TestIntegration_FormatOverride_ENVRoundTrip 验证 .dev.vars 这类非标准扩展名文件
+// 通过 formatOverride="env" 正确加解密
+func TestIntegration_FormatOverride_ENVRoundTrip(t *testing.T) {
+	env := setupIntegrationEnv(t)
+
+	writeTestFile(t, ".dev.vars", sampleENV())
+
+	// 加密：扩展名是 .vars，SOPS 无法识别，必须手动指定 env
+	err := Encrypt(".dev.vars", ".dev.vars.enc.yaml", env.keyFile, env.publicKey, "env", false)
+	require.NoError(t, err)
+
+	encContent, err := os.ReadFile(".dev.vars.enc.yaml")
+	require.NoError(t, err)
+	assert.Contains(t, string(encContent), "sops_version")
+	assert.NotContains(t, string(encContent), "secret123")
+
+	// 解密：输出文件扩展名同样非标准，指定 env
+	err = Decrypt(".dev.vars.enc.yaml", ".dev.vars.dec", env.keyFile, "env", false)
+	require.NoError(t, err)
+
+	decContent, err := os.ReadFile(".dev.vars.dec")
+	require.NoError(t, err)
+	assert.Contains(t, string(decContent), "DATABASE_HOST=localhost")
+	assert.Contains(t, string(decContent), "DATABASE_PASSWORD=secret123")
+}
+
+// TestIntegration_FormatOverride_DotenvAlias 验证 "dotenv" 别名与 "env" 等价
+func TestIntegration_FormatOverride_DotenvAlias(t *testing.T) {
+	env := setupIntegrationEnv(t)
+
+	writeTestFile(t, "secrets.vars", sampleENV())
+
+	err := Encrypt("secrets.vars", "secrets.vars.enc.yaml", env.keyFile, env.publicKey, "dotenv", false)
+	require.NoError(t, err)
+
+	err = Decrypt("secrets.vars.enc.yaml", "secrets.vars.dec", env.keyFile, "dotenv", false)
+	require.NoError(t, err)
+
+	decContent, err := os.ReadFile("secrets.vars.dec")
+	require.NoError(t, err)
+	assert.Contains(t, string(decContent), "DATABASE_PASSWORD=secret123")
+}
+
+// TestIntegration_FormatOverride_YAMLExtOverride 验证用 override 把 .conf 文件当 yaml 处理
+func TestIntegration_FormatOverride_YAMLExtOverride(t *testing.T) {
+	env := setupIntegrationEnv(t)
+
+	writeTestFile(t, "app.conf", sampleYAML())
+
+	err := Encrypt("app.conf", "app.conf.enc.yaml", env.keyFile, env.publicKey, "yaml", false)
+	require.NoError(t, err)
+
+	err = Decrypt("app.conf.enc.yaml", "app.conf.dec", env.keyFile, "yaml", false)
+	require.NoError(t, err)
+
+	decContent, err := os.ReadFile("app.conf.dec")
+	require.NoError(t, err)
+	assert.Contains(t, string(decContent), "localhost")
+	assert.Contains(t, string(decContent), "secret123")
+}
+
+// TestIntegration_FormatOverride_UnknownOverrideFails 验证传入无效 format 时不影响正常错误路径
+func TestIntegration_FormatOverride_UnknownOverrideFails(t *testing.T) {
+	env := setupIntegrationEnv(t)
+
+	writeTestFile(t, "config.vars", sampleENV())
+
+	// "xml" 不是合法格式，ParseFormat 返回 FormatUnknown，fallback 到扩展名检测
+	// .vars 也是 unknown，所以应该报 UnsupportedFormatError
+	err := Encrypt("config.vars", "config.vars.enc.yaml", env.keyFile, env.publicKey, "xml", false)
+	assert.Error(t, err)
+
+	var unsupportedErr *errx.UnsupportedFormatError
+	assert.ErrorAs(t, err, &unsupportedErr)
+}
+
+// TestIntegration_FormatOverride_Batch 验证批量模式下 FilePair.Format 生效
+func TestIntegration_FormatOverride_Batch(t *testing.T) {
+	env := setupIntegrationEnv(t)
+
+	writeTestFile(t, ".dev.vars", sampleENV())
+	writeTestFile(t, "config.yaml", sampleYAML())
+
+	// 批量加密：两个文件，一个需要 format override
+	_, err := BatchEncrypt(BatchOptions{
+		FilePairs: []config.FilePair{
+			{Dec: ".dev.vars", Enc: ".dev.vars.enc.yaml", Format: "env"},
+			{Dec: "config.yaml", Enc: "config.enc.yaml"},
+		},
+		KeyFile:   env.keyFile,
+		PublicKey: env.publicKey,
+	})
+	require.NoError(t, err)
+
+	// 验证两个文件都被加密
+	enc1, err := os.ReadFile(".dev.vars.enc.yaml")
+	require.NoError(t, err)
+	assert.Contains(t, string(enc1), "sops_version")
+	assert.NotContains(t, string(enc1), "secret123")
+
+	enc2, err := os.ReadFile("config.enc.yaml")
+	require.NoError(t, err)
+	assert.Contains(t, string(enc2), "sops:")
+
+	// 批量解密：FilePair 与加密时相同，BatchDecrypt 内部会自动互换 Input/Output
+	_, err = BatchDecrypt(BatchOptions{
+		FilePairs: []config.FilePair{
+			{Dec: ".dev.vars", Enc: ".dev.vars.enc.yaml", Format: "env"},
+			{Dec: "config.yaml", Enc: "config.enc.yaml"},
+		},
+		KeyFile: env.keyFile,
+	})
+	require.NoError(t, err)
+
+	dec1, err := os.ReadFile(".dev.vars")
+	require.NoError(t, err)
+	assert.Contains(t, string(dec1), "DATABASE_PASSWORD=secret123")
+
+	dec2, err := os.ReadFile("config.yaml")
+	require.NoError(t, err)
+	assert.Contains(t, string(dec2), "secret123")
 }

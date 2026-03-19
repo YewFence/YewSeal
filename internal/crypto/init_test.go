@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/YewFence/YewSeal/internal/config"
+	"github.com/YewFence/YewSeal/internal/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -96,7 +98,9 @@ func TestUpdateGitignore_Create(t *testing.T) {
 	// Ensure no .gitignore exists
 	os.Remove(".gitignore")
 
-	err := updateGitignore("wrangler.toml")
+	err := utils.UpdateGitignore([]config.FilePair{
+		{Dec: "wrangler.toml", Enc: "wrangler.enc.toml.yaml"},
+	})
 	require.NoError(t, err)
 
 	// Verify .gitignore was created
@@ -122,7 +126,10 @@ node_modules/
 	err := os.WriteFile(".gitignore", []byte(existingContent), 0644)
 	require.NoError(t, err)
 
-	err = updateGitignore("config.toml")
+	err = utils.UpdateGitignore([]config.FilePair{
+		{Dec: "config.toml", Enc: "config.enc.toml.yaml"},
+		{Dec: ".dev.vars", Enc: ".dev.vars.enc.yaml"},
+	})
 	require.NoError(t, err)
 
 	// Verify content was appended
@@ -133,6 +140,7 @@ node_modules/
 	assert.Contains(t, string(content), ".env")
 	assert.Contains(t, string(content), "# YewSeal")
 	assert.Contains(t, string(content), "config.toml")
+	assert.Contains(t, string(content), ".dev.vars")
 	assert.Contains(t, string(content), ".age/keys.txt")
 }
 
@@ -155,16 +163,63 @@ wrangler.toml
 	err := os.WriteFile(".gitignore", []byte(existingContent), 0644)
 	require.NoError(t, err)
 
-	err = updateGitignore("different.toml")
+	err = utils.UpdateGitignore([]config.FilePair{
+		{Dec: "wrangler.toml", Enc: "wrangler.enc.toml.yaml"},
+		{Dec: "different.toml", Enc: "different.enc.toml.yaml"},
+	})
 	require.NoError(t, err)
 
-	// Verify content was NOT modified (YewSeal section already exists)
+	// Verify the new plaintext file was appended without losing the old one
 	content, err := os.ReadFile(".gitignore")
 	require.NoError(t, err)
 
-	// Should still have wrangler.toml, not different.toml
 	assert.Contains(t, string(content), "wrangler.toml")
-	assert.NotContains(t, string(content), "different.toml")
+	assert.Contains(t, string(content), "different.toml")
+}
+
+func TestCollectInitFilePairs_NonInteractiveDefaultsEncryptedName(t *testing.T) {
+	filePairs := collectInitFilePairs("app.toml", "")
+
+	require.Len(t, filePairs, 1)
+	assert.Equal(t, "app.toml", filePairs[0].Dec)
+	assert.Equal(t, "app.enc.toml.yaml", filePairs[0].Enc)
+}
+
+func TestConfirmInitOverwrite_NonInteractiveExistingConfig(t *testing.T) {
+	tempDir := t.TempDir()
+	oldWd, _ := os.Getwd()
+	os.Chdir(tempDir)
+	defer os.Chdir(oldWd)
+
+	err := os.WriteFile(".yewseal.toml", []byte("existing = true"), 0644)
+	require.NoError(t, err)
+
+	allowed, err := confirmInitOverwrite(false, false)
+	assert.False(t, allowed)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "--force")
+}
+
+func TestCollectInitFilePairs_InteractiveMultiple(t *testing.T) {
+	oldStdin := os.Stdin
+	inputFile, err := os.CreateTemp(t.TempDir(), "stdin-*")
+	require.NoError(t, err)
+	defer inputFile.Close()
+	defer func() { os.Stdin = oldStdin }()
+
+	_, err = inputFile.WriteString("app.toml\n\nY\n.dev.vars\n.dev.vars.enc.yaml\nn\n")
+	require.NoError(t, err)
+	_, err = inputFile.Seek(0, 0)
+	require.NoError(t, err)
+
+	os.Stdin = inputFile
+
+	filePairs := collectInitFilePairs("", "")
+	require.Len(t, filePairs, 2)
+	assert.Equal(t, "app.toml", filePairs[0].Dec)
+	assert.Equal(t, "app.enc.toml.yaml", filePairs[0].Enc)
+	assert.Equal(t, ".dev.vars", filePairs[1].Dec)
+	assert.Equal(t, ".dev.vars.enc.yaml", filePairs[1].Enc)
 }
 
 // ============================================================================

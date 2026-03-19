@@ -8,78 +8,135 @@ import (
 	"time"
 
 	"filippo.io/age"
+	"github.com/YewFence/YewSeal/internal/config"
 	"github.com/YewFence/YewSeal/internal/tools"
+	"github.com/YewFence/YewSeal/internal/utils"
 )
 
-// InitProject initializes the project with Age keys and SOPS configuration
+// InitProject initializes the project with Age keys and SOPS configuration.
 func InitProject(force bool, inputFile, outputFile string, createExampleFlag, skipSopsConfigFlag bool) error {
+	interactive := inputFile == "" && outputFile == ""
 
-	// Interactive mode: Determine file names
-	// If parameters are empty, use interactive prompts
-	if inputFile == "" {
-		inputFile = tools.PromptWithDefault("Enter original config file name", "wrangler.toml")
+	shouldContinue, err := confirmInitOverwrite(force, interactive)
+	if err != nil {
+		return err
+	}
+	if !shouldContinue {
+		fmt.Println("⏭️  Skipped init because existing config was kept")
+		return nil
 	}
 
-	// Extract extension from input file
-	inputExt := filepath.Ext(inputFile)
-	inputBase := strings.TrimSuffix(filepath.Base(inputFile), inputExt)
+	filePairs := collectInitFilePairs(inputFile, outputFile)
 
-	// Determine output file
-	if outputFile == "" {
-		// Generate default output file name: {base}.enc.{ext}.yaml
-		// For example: wrangler.toml -> wrangler.enc.toml.yaml
-		defaultOutput := inputBase + ".enc" + inputExt + ".yaml"
-		outputFile = tools.PromptWithDefault("Enter encrypted output file name", defaultOutput)
-	}
-
-	// Interactive mode: Ask about creating example file
 	shouldCreateExample := tools.PromptYesNoConditional(
 		createExampleFlag,
 		createExampleFlag,
-		"Create example file? (Recommended, as encryption loses comments)",
+		"Create example files? (recommended if comments matter)",
 	)
 
-	// Interactive mode: Ask about creating .sops.yaml
 	shouldCreateSopsConfig := tools.PromptYesNoConditional(
 		skipSopsConfigFlag,
 		!skipSopsConfigFlag,
-		"Create .sops.yaml? (Optional, but convenient for direct sops commands)",
+		"Create .sops.yaml? (optional, but convenient for direct sops commands)",
 	)
 
-	// Generate or use existing Age key
 	publicKey, err := setupAgeKey(force)
 	if err != nil {
 		return err
 	}
 
-	// Create or update .sops.yaml if requested
 	if shouldCreateSopsConfig {
-		if err := UpdateSopsYaml(outputFile, publicKey, force); err != nil {
-			return fmt.Errorf("failed to update .sops.yaml: %w", err)
+		for i, filePair := range filePairs {
+			if err := UpdateSopsYaml(filePair.Enc, publicKey, force && i == 0); err != nil {
+				return fmt.Errorf("failed to update .sops.yaml: %w", err)
+			}
 		}
 	} else {
 		fmt.Println("⏭️  Skipped creating .sops.yaml")
 	}
 
-	// Create or update .yewseal.toml with public key
-	if err := SavePublicKeyToConfig(publicKey, inputFile, outputFile); err != nil {
+	if err := SavePublicKeyToConfig(publicKey, filePairs); err != nil {
 		return fmt.Errorf("failed to save configuration: %w", err)
 	}
 
-	// Create or update .gitignore
-	if err := updateGitignore(inputFile); err != nil {
+	if err := utils.UpdateGitignore(filePairs); err != nil {
 		return err
 	}
 
-	// Create example file if requested and input file exists
 	if shouldCreateExample {
-		createExampleFile(inputFile)
+		for _, filePair := range filePairs {
+			createExampleFile(filePair.Dec)
+		}
 	}
 
-	// Print completion message
-	printCompletionMessage(inputBase, inputExt, inputFile, outputFile, shouldCreateExample, shouldCreateSopsConfig)
-
+	printCompletionMessage(filePairs, shouldCreateExample, shouldCreateSopsConfig)
 	return nil
+}
+
+func confirmInitOverwrite(force, interactive bool) (bool, error) {
+	if force {
+		return true, nil
+	}
+
+	if _, err := os.Stat(".yewseal.toml"); err != nil {
+		return true, nil
+	}
+
+	if !interactive {
+		return false, fmt.Errorf(".yewseal.toml already exists, use --force to overwrite")
+	}
+
+	return tools.PromptYesNo(".yewseal.toml already exists, overwrite it?", false), nil
+}
+
+func collectInitFilePairs(inputFile, outputFile string) []config.FilePair {
+	if inputFile != "" || outputFile != "" {
+		filePair := config.DefaultFilePair()
+		if inputFile != "" {
+			filePair.Dec = inputFile
+		}
+		if outputFile != "" {
+			filePair.Enc = outputFile
+		} else {
+			filePair.Enc = defaultEncryptedOutputNameForFile(filePair.Dec)
+		}
+		return []config.FilePair{filePair}
+	}
+
+	fmt.Println("ℹ️  Init 会把所有文件统一写进 [[encryption.files]]。")
+	fmt.Println("ℹ️  先录入第一组文件，后面可以继续追加。")
+
+	filePairs := []config.FilePair{promptInitFilePair(true)}
+	for tools.PromptYesNo("Add another file to encrypt?", false) {
+		filePairs = append(filePairs, promptInitFilePair(false))
+	}
+
+	return filePairs
+}
+
+func promptInitFilePair(first bool) config.FilePair {
+	var decFile string
+	if first {
+		decFile = tools.PromptWithDefault("Enter plaintext config file name", config.DefaultFilePair().Dec)
+	} else {
+		decFile = tools.PromptRequired("Enter plaintext config file name")
+	}
+
+	encFile := tools.PromptWithDefault("Enter encrypted file name", defaultEncryptedOutputNameForFile(decFile))
+	return config.FilePair{
+		Dec: decFile,
+		Enc: encFile,
+	}
+}
+
+func defaultEncryptedOutputNameForFile(inputFile string) string {
+	inputExt := filepath.Ext(inputFile)
+	inputBase := strings.TrimSuffix(filepath.Base(inputFile), inputExt)
+	return defaultEncryptedOutputName(inputBase, inputExt)
+}
+
+func defaultEncryptedOutputName(inputBase, inputExt string) string {
+	return inputBase + ".enc" + inputExt + ".yaml"
 }
 
 // setupAgeKey generates or retrieves the Age key pair
@@ -142,40 +199,6 @@ func setupAgeKey(force bool) (string, error) {
 	return publicKey, nil
 }
 
-// updateGitignore creates or updates .gitignore with YewSeal entries
-func updateGitignore(inputFile string) error {
-	gitignoreAdditions := fmt.Sprintf(`
-# YewSeal - Decrypted configuration files
-%s
-
-# YewSeal - Age private keys
-.age/keys.txt
-`, inputFile)
-
-	// Read existing .gitignore if it exists
-	if existingData, err := os.ReadFile(".gitignore"); err == nil {
-		// Check if YewSeal section already exists
-		if !strings.Contains(string(existingData), "# YewSeal") {
-			// Append to existing content
-			gitignoreContent := string(existingData) + gitignoreAdditions
-			if err := os.WriteFile(".gitignore", []byte(gitignoreContent), 0644); err != nil {
-				return fmt.Errorf("failed to update .gitignore: %w", err)
-			}
-			fmt.Println("✅ Updated .gitignore")
-		} else {
-			fmt.Println("⏭️  .gitignore already contains YewSeal entries")
-		}
-	} else {
-		// Create new .gitignore
-		if err := os.WriteFile(".gitignore", []byte(strings.TrimPrefix(gitignoreAdditions, "\n")), 0644); err != nil {
-			return fmt.Errorf("failed to create .gitignore: %w", err)
-		}
-		fmt.Println("✅ Created .gitignore")
-	}
-
-	return nil
-}
-
 // createExampleFile creates an example file from the input file
 func createExampleFile(inputFile string) {
 	if _, err := os.Stat(inputFile); err == nil {
@@ -194,26 +217,29 @@ func createExampleFile(inputFile string) {
 }
 
 // printCompletionMessage prints the initialization completion message
-func printCompletionMessage(inputBase, inputExt, inputFile, outputFile string, shouldCreateExample, shouldCreateSopsConfig bool) {
+func printCompletionMessage(filePairs []config.FilePair, shouldCreateExample, shouldCreateSopsConfig bool) {
 	fmt.Println("\n🎉 Initialization complete!")
 	fmt.Println("\nNext steps:")
+	step := 1
 	if shouldCreateExample {
-		fmt.Printf("  1. Review %s.example%s and remove any sensitive values\n", inputBase, inputExt)
+		fmt.Printf("  %d. Review the generated .example files and remove any sensitive values\n", step)
+		step++
 	}
-	fmt.Printf("  2. Run 'yews encrypt -i %s -o %s' to encrypt your configuration\n", inputFile, outputFile)
+	fmt.Printf("  %d. Run 'yews encrypt' to encrypt the %d configured file(s)\n", step, len(filePairs))
+	step++
+	fmt.Printf("  %d. Run 'yews decrypt' whenever you need the plaintext back\n", step)
+	step++
+	fmt.Printf("  %d. After encrypting, commit .yewseal.toml, .gitignore", step)
 	if shouldCreateSopsConfig {
-		fmt.Printf("  3. Commit .sops.yaml, .gitignore, %s", outputFile)
-		if shouldCreateExample {
-			fmt.Printf(", and %s.example%s", inputBase, inputExt)
-		}
-		fmt.Println(" to git")
-	} else {
-		fmt.Printf("  3. Commit .gitignore, %s", outputFile)
-		if shouldCreateExample {
-			fmt.Printf(", and %s.example%s", inputBase, inputExt)
-		}
-		fmt.Println(" to git")
+		fmt.Print(", .sops.yaml")
 	}
-	fmt.Printf("  4. NEVER commit %s or .age/keys.txt!\n", inputFile)
+	if len(filePairs) == 1 {
+		fmt.Printf(", and %s", filePairs[0].Enc)
+	} else {
+		fmt.Print(", and the encrypted files")
+	}
+	fmt.Println(" to git")
+	step++
+	fmt.Printf("  %d. NEVER commit the plaintext files listed in .gitignore or .age/keys.txt!\n", step)
 	fmt.Println("\n⚠️  IMPORTANT: Back up your .age/keys.txt file securely!")
 }

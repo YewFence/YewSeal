@@ -36,7 +36,7 @@ func main() {
 		Commands: []*cli.Command{
 			{
 				Name:  "init",
-				Usage: "Initialize project with Age keys and SOPS configuration",
+				Usage: "Initialize project with Age keys and YewSeal config templates (single-file + batch)",
 				Flags: []cli.Flag{
 					&cli.BoolFlag{
 						Name:    "force",
@@ -46,12 +46,12 @@ func main() {
 					&cli.StringFlag{
 						Name:    "input",
 						Aliases: []string{"i"},
-						Usage:   "Original configuration file name (non-interactive mode)",
+						Usage:   "Default input file for single-file mode (non-interactive mode)",
 					},
 					&cli.StringFlag{
 						Name:    "output",
 						Aliases: []string{"o"},
-						Usage:   "Encrypted output file name (non-interactive mode)",
+						Usage:   "Default encrypted output file for single-file mode (non-interactive mode)",
 					},
 					&cli.BoolFlag{
 						Name:  "create-example",
@@ -131,6 +131,7 @@ func main() {
 					keyFile := cfg.GetKeyFile(c.String("key-file"))
 					publicKey := c.String("public-key")
 					verbose := c.Bool("verbose")
+					hasSingleFileOverride := c.IsSet("input") || c.IsSet("output")
 
 					// 目录扫描批量模式
 					if c.String("dir") != "" {
@@ -148,23 +149,26 @@ func main() {
 						return err
 					}
 
-					// 配置文件批量模式
-					if cfg.HasBatchFiles() {
-						opts := crypto.BatchOptions{
-							FilePairs: cfg.GetFiles(),
-							KeyFile:   keyFile,
-							PublicKey: publicKey,
-							Parallel:  c.Int("parallel"),
-							Verbose:   verbose,
+					if hasSingleFileOverride {
+						filePair := cfg.GetPrimaryFilePair()
+						if c.IsSet("input") {
+							filePair.Dec = c.String("input")
 						}
-						_, err := crypto.BatchEncrypt(opts)
-						return err
+						if c.IsSet("output") {
+							filePair.Enc = c.String("output")
+						}
+						return crypto.Encrypt(filePair.Dec, filePair.Enc, keyFile, publicKey, "", verbose)
 					}
 
-					// 单文件模式
-					inputFile := cfg.GetEncryptionInput(c.String("input"))
-					outputFile := cfg.GetEncryptionOutput(c.String("output"))
-					return crypto.Encrypt(inputFile, outputFile, keyFile, publicKey, verbose)
+					opts := crypto.BatchOptions{
+						FilePairs: cfg.GetFiles(),
+						KeyFile:   keyFile,
+						PublicKey: publicKey,
+						Parallel:  c.Int("parallel"),
+						Verbose:   verbose,
+					}
+					_, err := crypto.BatchEncrypt(opts)
+					return err
 				},
 			},
 			{
@@ -219,6 +223,7 @@ func main() {
 				Action: func(c *cli.Context) error {
 					keyFile := cfg.GetKeyFile(c.String("key-file"))
 					verbose := c.Bool("verbose")
+					hasSingleFileOverride := c.IsSet("input") || c.IsSet("output")
 
 					// 目录扫描批量模式
 					if c.String("dir") != "" {
@@ -235,22 +240,25 @@ func main() {
 						return err
 					}
 
-					// 配置文件批量模式
-					if cfg.HasBatchFiles() {
-						opts := crypto.BatchOptions{
-							FilePairs: cfg.GetFiles(),
-							KeyFile:   keyFile,
-							Parallel:  c.Int("parallel"),
-							Verbose:   verbose,
+					if hasSingleFileOverride {
+						filePair := cfg.GetPrimaryFilePair()
+						if c.IsSet("input") {
+							filePair.Enc = c.String("input")
 						}
-						_, err := crypto.BatchDecrypt(opts)
-						return err
+						if c.IsSet("output") {
+							filePair.Dec = c.String("output")
+						}
+						return crypto.Decrypt(filePair.Enc, filePair.Dec, keyFile, "", verbose)
 					}
 
-					// 单文件模式
-					inputFile := cfg.GetDecryptionInput(c.String("input"))
-					outputFile := cfg.GetDecryptionOutput(c.String("output"))
-					return crypto.Decrypt(inputFile, outputFile, keyFile, verbose)
+					opts := crypto.BatchOptions{
+						FilePairs: cfg.GetFiles(),
+						KeyFile:   keyFile,
+						Parallel:  c.Int("parallel"),
+						Verbose:   verbose,
+					}
+					_, err := crypto.BatchDecrypt(opts)
+					return err
 				},
 			},
 			{
