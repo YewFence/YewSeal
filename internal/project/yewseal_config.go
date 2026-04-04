@@ -1,4 +1,4 @@
-package crypto
+package project
 
 import (
 	"bytes"
@@ -33,8 +33,8 @@ func SavePublicKeyToConfig(publicKey string, filePairs []config.FilePair) error 
 # 4. 默认值（最低优先级）
 #
 # 所有敏感文件都统一写在 [[encryption.files]] 里：
-# - dec 表示明文文件
-# - enc 表示加密文件
+# - plaintext 表示明文文件
+# - encrypted 表示加密文件
 
 `)
 

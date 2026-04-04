@@ -6,9 +6,9 @@ import (
 
 	"github.com/YewFence/YewSeal/internal/config"
 	"github.com/YewFence/YewSeal/internal/crypto"
+	tools "github.com/YewFence/YewSeal/internal/doctor"
+	"github.com/YewFence/YewSeal/internal/project"
 	"github.com/YewFence/YewSeal/internal/sync"
-	"github.com/YewFence/YewSeal/internal/tools"
-	"github.com/YewFence/YewSeal/internal/utils"
 
 	"github.com/urfave/cli/v2"
 )
@@ -64,7 +64,7 @@ func main() {
 					},
 				},
 				Action: func(c *cli.Context) error {
-					return crypto.InitProject(
+					return project.InitProject(
 						c.Bool("force"),
 						c.String("input"),
 						c.String("output"),
@@ -153,16 +153,16 @@ func main() {
 					if hasSingleFileOverride {
 						filePair := cfg.GetPrimaryFilePair()
 						if c.IsSet("input") {
-							filePair.Dec = c.String("input")
+							filePair.PlaintextPath = c.String("input")
 						}
 						if c.IsSet("output") {
-							filePair.Enc = c.String("output")
+							filePair.EncryptedPath = c.String("output")
 						}
-						return crypto.Encrypt(filePair.Dec, filePair.Enc, keyFile, publicKey, "", verbose)
+						return crypto.Encrypt(filePair.PlaintextPath, filePair.EncryptedPath, keyFile, publicKey, "", verbose)
 					}
 
 					filePairs := cfg.GetFiles()
-					if err := utils.UpdateGitignore(filePairs); err != nil {
+					if err := project.UpdateGitignore(filePairs); err != nil {
 						return err
 					}
 
@@ -170,7 +170,7 @@ func main() {
 					if err != nil {
 						return err
 					}
-					if err := crypto.SyncSopsYaml(filePairs, resolvedPublicKey); err != nil {
+					if err := project.SyncSopsYaml(filePairs, resolvedPublicKey); err != nil {
 						return err
 					}
 
@@ -257,16 +257,16 @@ func main() {
 					if hasSingleFileOverride {
 						filePair := cfg.GetPrimaryFilePair()
 						if c.IsSet("input") {
-							filePair.Enc = c.String("input")
+							filePair.EncryptedPath = c.String("input")
 						}
 						if c.IsSet("output") {
-							filePair.Dec = c.String("output")
+							filePair.PlaintextPath = c.String("output")
 						}
-						return crypto.Decrypt(filePair.Enc, filePair.Dec, keyFile, "", verbose)
+						return crypto.Decrypt(filePair.EncryptedPath, filePair.PlaintextPath, keyFile, "", verbose)
 					}
 
 					filePairs := cfg.GetFiles()
-					if err := utils.UpdateGitignore(filePairs); err != nil {
+					if err := project.UpdateGitignore(filePairs); err != nil {
 						return err
 					}
 

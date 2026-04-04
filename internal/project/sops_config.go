@@ -1,4 +1,4 @@
-package crypto
+package project
 
 import (
 	"fmt"
@@ -67,11 +67,11 @@ func SyncSopsYaml(filePairs []config.FilePair, publicKey string) error {
 	seen := make(map[string]struct{}, len(filePairs))
 
 	for _, filePair := range filePairs {
-		if filePair.Enc == "" {
+		if filePair.EncryptedPath == "" {
 			continue
 		}
 
-		pathRegex := buildPathRegex(filePair.Enc)
+		pathRegex := buildPathRegex(filePair.EncryptedPath)
 		if _, ok := seen[pathRegex]; ok {
 			continue
 		}

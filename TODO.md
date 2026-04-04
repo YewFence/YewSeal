@@ -1,0 +1,3 @@
+- [ ] 更清晰的 init 流程，包括批量文件加密
+- [ ] 更清晰的配置字段名称 enc / dec
+- [ ] encrypt 时自动根据 toml 文件中的配置项更新 .sops.toml

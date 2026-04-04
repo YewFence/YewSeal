@@ -8,8 +8,8 @@ import (
 	"runtime"
 	"strings"
 
+	tools "github.com/YewFence/YewSeal/internal/doctor"
 	"github.com/YewFence/YewSeal/internal/errx"
-	"github.com/YewFence/YewSeal/internal/tools"
 )
 
 // Encrypt encrypts a configuration file using SOPS

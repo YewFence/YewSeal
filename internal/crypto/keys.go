@@ -7,7 +7,7 @@ import (
 
 	"github.com/YewFence/YewSeal/internal/config"
 	"github.com/YewFence/YewSeal/internal/errx"
-	"github.com/YewFence/YewSeal/internal/tools"
+	tools "github.com/YewFence/YewSeal/internal/execx"
 )
 
 // ExtractPublicKey extracts the public key from age-keygen output or key file

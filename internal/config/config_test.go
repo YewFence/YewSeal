@@ -13,8 +13,8 @@ func TestDefaultConfig(t *testing.T) {
 	cfg := DefaultConfig()
 
 	require.Len(t, cfg.GetFiles(), 1)
-	assert.Equal(t, defaultDecryptedFile, cfg.GetFiles()[0].Dec)
-	assert.Equal(t, defaultEncryptedFile, cfg.GetFiles()[0].Enc)
+	assert.Equal(t, defaultDecryptedFile, cfg.GetFiles()[0].PlaintextPath)
+	assert.Equal(t, defaultEncryptedFile, cfg.GetFiles()[0].EncryptedPath)
 	assert.Equal(t, defaultKeyFile, cfg.Key.FilePath)
 	assert.Empty(t, cfg.Key.PublicKey)
 }
@@ -24,23 +24,23 @@ func TestGetFilesFallsBackToDefault(t *testing.T) {
 
 	files := cfg.GetFiles()
 	require.Len(t, files, 1)
-	assert.Equal(t, defaultDecryptedFile, files[0].Dec)
-	assert.Equal(t, defaultEncryptedFile, files[0].Enc)
+	assert.Equal(t, defaultDecryptedFile, files[0].PlaintextPath)
+	assert.Equal(t, defaultEncryptedFile, files[0].EncryptedPath)
 }
 
 func TestGetPrimaryFilePair(t *testing.T) {
 	cfg := &Config{
 		Encryption: EncryptionConfig{
 			Files: []FilePair{
-				{Dec: "app.toml", Enc: "app.enc.toml.yaml"},
-				{Dec: "db.toml", Enc: "db.enc.toml.yaml"},
+				{PlaintextPath: "app.toml", EncryptedPath: "app.enc.toml.yaml"},
+				{PlaintextPath: "db.toml", EncryptedPath: "db.enc.toml.yaml"},
 			},
 		},
 	}
 
 	pair := cfg.GetPrimaryFilePair()
-	assert.Equal(t, "app.toml", pair.Dec)
-	assert.Equal(t, "app.enc.toml.yaml", pair.Enc)
+	assert.Equal(t, "app.toml", pair.PlaintextPath)
+	assert.Equal(t, "app.enc.toml.yaml", pair.EncryptedPath)
 }
 
 func TestGetKeyFile(t *testing.T) {
@@ -98,8 +98,8 @@ func TestLoadConfig_NoFile(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, cfg.GetFiles(), 1)
 
-	assert.Equal(t, defaultDecryptedFile, cfg.GetFiles()[0].Dec)
-	assert.Equal(t, defaultEncryptedFile, cfg.GetFiles()[0].Enc)
+	assert.Equal(t, defaultDecryptedFile, cfg.GetFiles()[0].PlaintextPath)
+	assert.Equal(t, defaultEncryptedFile, cfg.GetFiles()[0].EncryptedPath)
 	assert.Equal(t, defaultKeyFile, cfg.Key.FilePath)
 }
 
@@ -111,12 +111,12 @@ func TestLoadConfig_WithFile(t *testing.T) {
 	configContent := `[encryption]
 
 [[encryption.files]]
-dec = "custom.toml"
-enc = "custom.enc.yaml"
+plaintext = "custom.toml"
+encrypted = "custom.enc.yaml"
 
 [[encryption.files]]
-dec = ".dev.vars"
-enc = ".dev.vars.enc.yaml"
+plaintext = ".dev.vars"
+encrypted = ".dev.vars.enc.yaml"
 format = "env"
 
 [key]
@@ -133,10 +133,10 @@ public_key = "age1customkey"
 	require.NoError(t, err)
 	require.Len(t, cfg.GetFiles(), 2)
 
-	assert.Equal(t, "custom.toml", cfg.GetFiles()[0].Dec)
-	assert.Equal(t, "custom.enc.yaml", cfg.GetFiles()[0].Enc)
-	assert.Equal(t, ".dev.vars", cfg.GetFiles()[1].Dec)
-	assert.Equal(t, ".dev.vars.enc.yaml", cfg.GetFiles()[1].Enc)
+	assert.Equal(t, "custom.toml", cfg.GetFiles()[0].PlaintextPath)
+	assert.Equal(t, "custom.enc.yaml", cfg.GetFiles()[0].EncryptedPath)
+	assert.Equal(t, ".dev.vars", cfg.GetFiles()[1].PlaintextPath)
+	assert.Equal(t, ".dev.vars.enc.yaml", cfg.GetFiles()[1].EncryptedPath)
 	assert.Equal(t, "env", cfg.GetFiles()[1].Format)
 	assert.Equal(t, "custom/keys.txt", cfg.Key.FilePath)
 	assert.Equal(t, "age1customkey", cfg.Key.PublicKey)
@@ -171,8 +171,8 @@ func TestLoadConfig_MultipleLocations(t *testing.T) {
 	highPriorityConfig := `[encryption]
 
 [[encryption.files]]
-dec = "high-priority.toml"
-enc = "high-priority.enc.toml.yaml"
+plaintext = "high-priority.toml"
+encrypted = "high-priority.enc.toml.yaml"
 `
 	err = os.WriteFile(filepath.Join(yewsealDir, ".yewseal.toml"), []byte(highPriorityConfig), 0644)
 	require.NoError(t, err)
@@ -180,8 +180,8 @@ enc = "high-priority.enc.toml.yaml"
 	lowPriorityConfig := `[encryption]
 
 [[encryption.files]]
-dec = "low-priority.toml"
-enc = "low-priority.enc.toml.yaml"
+plaintext = "low-priority.toml"
+encrypted = "low-priority.enc.toml.yaml"
 `
 	err = os.WriteFile(filepath.Join(tmpDir, ".yewseal.toml"), []byte(lowPriorityConfig), 0644)
 	require.NoError(t, err)
@@ -192,6 +192,6 @@ enc = "low-priority.enc.toml.yaml"
 	cfg, err := LoadConfig()
 	require.NoError(t, err)
 
-	assert.Equal(t, "high-priority.toml", cfg.GetFiles()[0].Dec)
-	assert.Equal(t, "high-priority.enc.toml.yaml", cfg.GetFiles()[0].Enc)
+	assert.Equal(t, "high-priority.toml", cfg.GetFiles()[0].PlaintextPath)
+	assert.Equal(t, "high-priority.enc.toml.yaml", cfg.GetFiles()[0].EncryptedPath)
 }

@@ -136,7 +136,7 @@ yews init
    - 推荐创建以保持团队协作的一致性
 
 初始化结束后，生成的 `.yewseal.toml` 会统一使用 `[[encryption.files]]` 数组配置。
-每一项都用 `dec` 表示明文文件、`enc` 表示加密文件，不再区分“单文件配置字段”和“批量配置字段”。
+每一项都用 `plaintext` 表示明文文件、`encrypted` 表示加密文件，不再区分“单文件配置字段”和“批量配置字段”。
 
 如果配置文件中有多项 `[[encryption.files]]`，后续直接运行 `yews encrypt` / `yews decrypt` 就会按整组配置处理。
 
@@ -256,14 +256,14 @@ cp .yewseal.example.toml .yewseal.toml
 [encryption]
 
 [[encryption.files]]
-# dec = 明文文件
-# enc = 加密文件
-dec = "wrangler.toml"
-enc = "wrangler.enc.toml.yaml"
+# plaintext = 明文文件
+# encrypted = 加密文件
+plaintext = "wrangler.toml"
+encrypted = "wrangler.enc.toml.yaml"
 
 [[encryption.files]]
-dec = ".dev.vars"
-enc = ".dev.vars.enc.yaml"
+plaintext = ".dev.vars"
+encrypted = ".dev.vars.enc.yaml"
 format = "env"
 
 [key]
@@ -298,7 +298,7 @@ export SOPS_INPUT_FILE="custom.toml"
 yews encrypt
 ```
 
-通过配置文件驱动时，`yews encrypt` / `yews decrypt` 还会自动确认所有 `dec` 明文文件都在 `.gitignore` 里；其中 `yews encrypt` 还会顺便重建 `.sops.yaml`。
+通过配置文件驱动时，`yews encrypt` / `yews decrypt` 还会自动确认所有 `plaintext` 明文文件都在 `.gitignore` 里；其中 `yews encrypt` 还会顺便重建 `.sops.yaml`。
 
 #### 批量配置示例
 
@@ -306,12 +306,12 @@ yews encrypt
 [encryption]
 
 [[encryption.files]]
-dec = "app.toml"
-enc = "app.enc.toml.yaml"
+plaintext = "app.toml"
+encrypted = "app.enc.toml.yaml"
 
 [[encryption.files]]
-dec = ".dev.vars"
-enc = ".dev.vars.enc.yaml"
+plaintext = ".dev.vars"
+encrypted = ".dev.vars.enc.yaml"
 format = "env"
 
 [key]

@@ -27,10 +27,10 @@ type EncryptionConfig struct {
 
 // FilePair defines one plaintext/encrypted file mapping.
 type FilePair struct {
-	// Dec is the plaintext file path used by encrypt input and decrypt output.
-	Dec string `toml:"dec"`
-	// Enc is the encrypted file path used by encrypt output and decrypt input.
-	Enc string `toml:"enc"`
+	// PlaintextPath is the plaintext file path used by encrypt input and decrypt output.
+	PlaintextPath string `toml:"plaintext"`
+	// EncryptedPath is the encrypted file path used by encrypt output and decrypt input.
+	EncryptedPath string `toml:"encrypted"`
 	// Format overrides the file format detection (toml/yaml/json/env/ini).
 	// Useful for files with non-standard extensions like .dev.vars.
 	Format string `toml:"format,omitempty"`
@@ -48,8 +48,8 @@ type KeyConfig struct {
 // DefaultFilePair returns the default plaintext/encrypted mapping.
 func DefaultFilePair() FilePair {
 	return FilePair{
-		Dec: defaultDecryptedFile,
-		Enc: defaultEncryptedFile,
+		PlaintextPath: defaultDecryptedFile,
+		EncryptedPath: defaultEncryptedFile,
 	}
 }
 

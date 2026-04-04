@@ -12,6 +12,7 @@ import (
 
 	"github.com/YewFence/YewSeal/internal/config"
 	"github.com/YewFence/YewSeal/internal/errx"
+	"github.com/YewFence/YewSeal/internal/project"
 )
 
 // ============================================================================
@@ -258,8 +259,8 @@ func TestIntegration_TOML_BatchEncrypt_FilePairs(t *testing.T) {
 	writeTestFile(t, "db.toml", []byte("[database]\nhost = \"db.example.com\"\nport = 3306\n"))
 
 	filePairs := []config.FilePair{
-		{Dec: "app.toml", Enc: "app.enc.toml.yaml"},
-		{Dec: "db.toml", Enc: "db.enc.toml.yaml"},
+		{PlaintextPath: "app.toml", EncryptedPath: "app.enc.toml.yaml"},
+		{PlaintextPath: "db.toml", EncryptedPath: "db.enc.toml.yaml"},
 	}
 
 	summary, err := BatchEncrypt(BatchOptions{
@@ -273,8 +274,8 @@ func TestIntegration_TOML_BatchEncrypt_FilePairs(t *testing.T) {
 	assert.Equal(t, 2, summary.SuccessCount)
 
 	for _, pair := range filePairs {
-		_, err := os.Stat(pair.Enc)
-		assert.NoError(t, err, "%s should exist", pair.Enc)
+		_, err := os.Stat(pair.EncryptedPath)
+		assert.NoError(t, err, "%s should exist", pair.EncryptedPath)
 	}
 }
 
@@ -379,15 +380,15 @@ func TestIntegration_TOML_FullWorkflow(t *testing.T) {
 	// Step 1: setupAgeKey — already done in setupIntegrationEnv
 
 	// Step 2: SavePublicKeyToConfig
-	err := SavePublicKeyToConfig(env.publicKey, []config.FilePair{
-		{Dec: inputFile, Enc: outputFile},
+	err := project.SavePublicKeyToConfig(env.publicKey, []config.FilePair{
+		{PlaintextPath: inputFile, EncryptedPath: outputFile},
 	})
 	require.NoError(t, err)
 	_, err = os.Stat(".yewseal.toml")
 	require.NoError(t, err)
 
 	// Step 3: UpdateSopsYaml
-	err = UpdateSopsYaml(outputFile, env.publicKey, false)
+	err = project.UpdateSopsYaml(outputFile, env.publicKey, false)
 	require.NoError(t, err)
 	_, err = os.Stat(".sops.yaml")
 	require.NoError(t, err)
@@ -422,12 +423,12 @@ func TestIntegration_TOML_ConfigDrivenBatch(t *testing.T) {
 	configContent := `[encryption]
 
 [[encryption.files]]
-dec = "app.toml"
-enc = "app.enc.toml.yaml"
+plaintext = "app.toml"
+encrypted = "app.enc.toml.yaml"
 
 [[encryption.files]]
-dec = "db.toml"
-enc = "db.enc.toml.yaml"
+plaintext = "db.toml"
+encrypted = "db.enc.toml.yaml"
 
 [key]
 file_path = ".age/keys.txt"
@@ -725,7 +726,7 @@ func TestIntegration_InitProject_Artifacts(t *testing.T) {
 	// Run InitProject in non-interactive mode
 	// createExampleFlag=true (flagSet=true, skips prompt, returns true — but file doesn't exist so just warns)
 	// skipSopsConfigFlag=true (flagSet=true, returns false — skips sops config creation)
-	err = InitProject(false, "wrangler.toml", "wrangler.enc.toml.yaml", true, true)
+	err = project.InitProject(false, "wrangler.toml", "wrangler.enc.toml.yaml", true, true)
 	require.NoError(t, err)
 
 	// Verify .age/keys.txt was created with valid content
@@ -838,8 +839,8 @@ func TestIntegration_FormatOverride_Batch(t *testing.T) {
 	// 批量加密：两个文件，一个需要 format override
 	_, err := BatchEncrypt(BatchOptions{
 		FilePairs: []config.FilePair{
-			{Dec: ".dev.vars", Enc: ".dev.vars.enc.yaml", Format: "env"},
-			{Dec: "config.yaml", Enc: "config.enc.yaml"},
+			{PlaintextPath: ".dev.vars", EncryptedPath: ".dev.vars.enc.yaml", Format: "env"},
+			{PlaintextPath: "config.yaml", EncryptedPath: "config.enc.yaml"},
 		},
 		KeyFile:   env.keyFile,
 		PublicKey: env.publicKey,
@@ -859,8 +860,8 @@ func TestIntegration_FormatOverride_Batch(t *testing.T) {
 	// 批量解密：FilePair 与加密时相同，BatchDecrypt 内部会自动互换 Input/Output
 	_, err = BatchDecrypt(BatchOptions{
 		FilePairs: []config.FilePair{
-			{Dec: ".dev.vars", Enc: ".dev.vars.enc.yaml", Format: "env"},
-			{Dec: "config.yaml", Enc: "config.enc.yaml"},
+			{PlaintextPath: ".dev.vars", EncryptedPath: ".dev.vars.enc.yaml", Format: "env"},
+			{PlaintextPath: "config.yaml", EncryptedPath: "config.enc.yaml"},
 		},
 		KeyFile: env.keyFile,
 	})

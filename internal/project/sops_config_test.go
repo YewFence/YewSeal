@@ -1,4 +1,4 @@
-package crypto
+package project
 
 import (
 	"os"
@@ -171,8 +171,8 @@ func TestSyncSopsYaml_ReplacesWithConfiguredRules(t *testing.T) {
 	require.NoError(t, err)
 
 	err = SyncSopsYaml([]config.FilePair{
-		{Dec: "app.toml", Enc: "app.enc.toml.yaml"},
-		{Dec: ".dev.vars", Enc: ".dev.vars.enc.yaml"},
+		{PlaintextPath: "app.toml", EncryptedPath: "app.enc.toml.yaml"},
+		{PlaintextPath: ".dev.vars", EncryptedPath: ".dev.vars.enc.yaml"},
 	}, "age1test")
 	require.NoError(t, err)
 
@@ -192,8 +192,8 @@ func TestSyncSopsYaml_DeduplicatesEncryptedFiles(t *testing.T) {
 	defer os.Chdir(oldWd)
 
 	err := SyncSopsYaml([]config.FilePair{
-		{Dec: "app.toml", Enc: "shared.enc.yaml"},
-		{Dec: "db.toml", Enc: "shared.enc.yaml"},
+		{PlaintextPath: "app.toml", EncryptedPath: "shared.enc.yaml"},
+		{PlaintextPath: "db.toml", EncryptedPath: "shared.enc.yaml"},
 	}, "age1test")
 	require.NoError(t, err)
 

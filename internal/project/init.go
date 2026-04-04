@@ -1,4 +1,4 @@
-package crypto
+package project
 
 import (
 	"fmt"
@@ -9,8 +9,7 @@ import (
 
 	"filippo.io/age"
 	"github.com/YewFence/YewSeal/internal/config"
-	"github.com/YewFence/YewSeal/internal/tools"
-	"github.com/YewFence/YewSeal/internal/utils"
+	tools "github.com/YewFence/YewSeal/internal/prompt"
 )
 
 // InitProject initializes the project with Age keys and SOPS configuration.
@@ -57,13 +56,13 @@ func InitProject(force bool, inputFile, outputFile string, createExampleFlag, sk
 		return fmt.Errorf("failed to save configuration: %w", err)
 	}
 
-	if err := utils.UpdateGitignore(filePairs); err != nil {
+	if err := UpdateGitignore(filePairs); err != nil {
 		return err
 	}
 
 	if shouldCreateExample {
 		for _, filePair := range filePairs {
-			createExampleFile(filePair.Dec)
+			createExampleFile(filePair.PlaintextPath)
 		}
 	}
 
@@ -91,12 +90,12 @@ func collectInitFilePairs(inputFile, outputFile string) []config.FilePair {
 	if inputFile != "" || outputFile != "" {
 		filePair := config.DefaultFilePair()
 		if inputFile != "" {
-			filePair.Dec = inputFile
+			filePair.PlaintextPath = inputFile
 		}
 		if outputFile != "" {
-			filePair.Enc = outputFile
+			filePair.EncryptedPath = outputFile
 		} else {
-			filePair.Enc = defaultEncryptedOutputNameForFile(filePair.Dec)
+			filePair.EncryptedPath = defaultEncryptedOutputNameForFile(filePair.PlaintextPath)
 		}
 		return []config.FilePair{filePair}
 	}
@@ -113,17 +112,17 @@ func collectInitFilePairs(inputFile, outputFile string) []config.FilePair {
 }
 
 func promptInitFilePair(first bool) config.FilePair {
-	var decFile string
+	var plaintextFile string
 	if first {
-		decFile = tools.PromptWithDefault("Enter plaintext config file name", config.DefaultFilePair().Dec)
+		plaintextFile = tools.PromptWithDefault("Enter plaintext config file name", config.DefaultFilePair().PlaintextPath)
 	} else {
-		decFile = tools.PromptRequired("Enter plaintext config file name")
+		plaintextFile = tools.PromptRequired("Enter plaintext config file name")
 	}
 
-	encFile := tools.PromptWithDefault("Enter encrypted file name", defaultEncryptedOutputNameForFile(decFile))
+	encryptedFile := tools.PromptWithDefault("Enter encrypted file name", defaultEncryptedOutputNameForFile(plaintextFile))
 	return config.FilePair{
-		Dec: decFile,
-		Enc: encFile,
+		PlaintextPath: plaintextFile,
+		EncryptedPath: encryptedFile,
 	}
 }
 
@@ -135,6 +134,17 @@ func defaultEncryptedOutputNameForFile(inputFile string) string {
 
 func defaultEncryptedOutputName(inputBase, inputExt string) string {
 	return inputBase + ".enc" + inputExt + ".yaml"
+}
+
+func extractPublicKey(output string) string {
+	lines := strings.Split(output, "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "# public key: ") {
+			return strings.TrimPrefix(line, "# public key: ")
+		}
+	}
+	return ""
 }
 
 // setupAgeKey generates or retrieves the Age key pair
@@ -154,7 +164,7 @@ func setupAgeKey(force bool) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("failed to read existing key file: %w", err)
 		}
-		publicKey := ExtractPublicKey(string(keyContent))
+		publicKey := extractPublicKey(string(keyContent))
 		if publicKey == "" {
 			return "", fmt.Errorf("failed to extract public key from existing key file")
 		}
@@ -232,7 +242,7 @@ func printCompletionMessage(filePairs []config.FilePair, shouldCreateExample, sh
 		fmt.Print(", .sops.yaml")
 	}
 	if len(filePairs) == 1 {
-		fmt.Printf(", and %s", filePairs[0].Enc)
+		fmt.Printf(", and %s", filePairs[0].EncryptedPath)
 	} else {
 		fmt.Print(", and the encrypted files")
 	}

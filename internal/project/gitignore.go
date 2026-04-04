@@ -1,4 +1,4 @@
-package utils
+package project
 
 import (
 	"fmt"
@@ -98,7 +98,7 @@ func uniquePlaintextFiles(filePairs []config.FilePair) []string {
 	files := make([]string, 0, len(filePairs))
 
 	for _, filePair := range filePairs {
-		plaintextFile := strings.TrimSpace(filePair.Dec)
+		plaintextFile := strings.TrimSpace(filePair.PlaintextPath)
 		if plaintextFile == "" {
 			continue
 		}

@@ -113,8 +113,8 @@ func BatchEncrypt(opts BatchOptions) (*BatchSummary, error) {
 		// 转换为文件对
 		for _, f := range files {
 			filePairs = append(filePairs, config.FilePair{
-				Dec: f,
-				Enc: GenerateOutputFilename(f, opts.OutputDir, opts.OutputSuffix, "encrypt"),
+				PlaintextPath: f,
+				EncryptedPath: GenerateOutputFilename(f, opts.OutputDir, opts.OutputSuffix, "encrypt"),
 			})
 		}
 	}
@@ -128,10 +128,10 @@ func BatchEncrypt(opts BatchOptions) (*BatchSummary, error) {
 
 	// 定义处理器函数
 	processor := func(pair config.FilePair) error {
-		return Encrypt(pair.Dec, pair.Enc, opts.KeyFile, opts.PublicKey, pair.Format, opts.Verbose)
+		return Encrypt(pair.PlaintextPath, pair.EncryptedPath, opts.KeyFile, opts.PublicKey, pair.Format, opts.Verbose)
 	}
 	describe := func(pair config.FilePair) (string, string) {
-		return pair.Dec, pair.Enc
+		return pair.PlaintextPath, pair.EncryptedPath
 	}
 
 	// 根据并行度选择处理方式
@@ -172,8 +172,8 @@ func BatchDecrypt(opts BatchOptions) (*BatchSummary, error) {
 		// 转换为文件对
 		for _, f := range files {
 			filePairs = append(filePairs, config.FilePair{
-				Dec: GenerateOutputFilename(f, opts.OutputDir, opts.OutputSuffix, "decrypt"),
-				Enc: f,
+				PlaintextPath: GenerateOutputFilename(f, opts.OutputDir, opts.OutputSuffix, "decrypt"),
+				EncryptedPath: f,
 			})
 		}
 	}
@@ -187,10 +187,10 @@ func BatchDecrypt(opts BatchOptions) (*BatchSummary, error) {
 
 	// 定义处理器函数
 	processor := func(pair config.FilePair) error {
-		return Decrypt(pair.Enc, pair.Dec, opts.KeyFile, pair.Format, opts.Verbose)
+		return Decrypt(pair.EncryptedPath, pair.PlaintextPath, opts.KeyFile, pair.Format, opts.Verbose)
 	}
 	describe := func(pair config.FilePair) (string, string) {
-		return pair.Enc, pair.Dec
+		return pair.EncryptedPath, pair.PlaintextPath
 	}
 
 	// 根据并行度选择处理方式

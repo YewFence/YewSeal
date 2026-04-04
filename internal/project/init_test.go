@@ -1,4 +1,4 @@
-package crypto
+package project
 
 import (
 	"os"
@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/YewFence/YewSeal/internal/config"
-	"github.com/YewFence/YewSeal/internal/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -98,8 +97,8 @@ func TestUpdateGitignore_Create(t *testing.T) {
 	// Ensure no .gitignore exists
 	os.Remove(".gitignore")
 
-	err := utils.UpdateGitignore([]config.FilePair{
-		{Dec: "wrangler.toml", Enc: "wrangler.enc.toml.yaml"},
+	err := UpdateGitignore([]config.FilePair{
+		{PlaintextPath: "wrangler.toml", EncryptedPath: "wrangler.enc.toml.yaml"},
 	})
 	require.NoError(t, err)
 
@@ -126,9 +125,9 @@ node_modules/
 	err := os.WriteFile(".gitignore", []byte(existingContent), 0644)
 	require.NoError(t, err)
 
-	err = utils.UpdateGitignore([]config.FilePair{
-		{Dec: "config.toml", Enc: "config.enc.toml.yaml"},
-		{Dec: ".dev.vars", Enc: ".dev.vars.enc.yaml"},
+	err = UpdateGitignore([]config.FilePair{
+		{PlaintextPath: "config.toml", EncryptedPath: "config.enc.toml.yaml"},
+		{PlaintextPath: ".dev.vars", EncryptedPath: ".dev.vars.enc.yaml"},
 	})
 	require.NoError(t, err)
 
@@ -163,9 +162,9 @@ wrangler.toml
 	err := os.WriteFile(".gitignore", []byte(existingContent), 0644)
 	require.NoError(t, err)
 
-	err = utils.UpdateGitignore([]config.FilePair{
-		{Dec: "wrangler.toml", Enc: "wrangler.enc.toml.yaml"},
-		{Dec: "different.toml", Enc: "different.enc.toml.yaml"},
+	err = UpdateGitignore([]config.FilePair{
+		{PlaintextPath: "wrangler.toml", EncryptedPath: "wrangler.enc.toml.yaml"},
+		{PlaintextPath: "different.toml", EncryptedPath: "different.enc.toml.yaml"},
 	})
 	require.NoError(t, err)
 
@@ -181,8 +180,8 @@ func TestCollectInitFilePairs_NonInteractiveDefaultsEncryptedName(t *testing.T) 
 	filePairs := collectInitFilePairs("app.toml", "")
 
 	require.Len(t, filePairs, 1)
-	assert.Equal(t, "app.toml", filePairs[0].Dec)
-	assert.Equal(t, "app.enc.toml.yaml", filePairs[0].Enc)
+	assert.Equal(t, "app.toml", filePairs[0].PlaintextPath)
+	assert.Equal(t, "app.enc.toml.yaml", filePairs[0].EncryptedPath)
 }
 
 func TestConfirmInitOverwrite_NonInteractiveExistingConfig(t *testing.T) {
@@ -216,10 +215,10 @@ func TestCollectInitFilePairs_InteractiveMultiple(t *testing.T) {
 
 	filePairs := collectInitFilePairs("", "")
 	require.Len(t, filePairs, 2)
-	assert.Equal(t, "app.toml", filePairs[0].Dec)
-	assert.Equal(t, "app.enc.toml.yaml", filePairs[0].Enc)
-	assert.Equal(t, ".dev.vars", filePairs[1].Dec)
-	assert.Equal(t, ".dev.vars.enc.yaml", filePairs[1].Enc)
+	assert.Equal(t, "app.toml", filePairs[0].PlaintextPath)
+	assert.Equal(t, "app.enc.toml.yaml", filePairs[0].EncryptedPath)
+	assert.Equal(t, ".dev.vars", filePairs[1].PlaintextPath)
+	assert.Equal(t, ".dev.vars.enc.yaml", filePairs[1].EncryptedPath)
 }
 
 // ============================================================================
