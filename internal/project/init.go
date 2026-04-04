@@ -18,7 +18,7 @@ type initSelections struct {
 }
 
 // InitProject initializes the project with Age keys and SOPS configuration.
-func InitProject(force bool, inputFile, outputFile string, createExampleFlag, skipSopsConfigFlag bool) error {
+func InitProject(force bool, inputFile, outputFile, formatOverride string, createExampleFlag, skipSopsConfigFlag bool) error {
 	interactive := inputFile == "" && outputFile == ""
 
 	shouldContinue, err := confirmInitOverwrite(force, interactive)
@@ -30,7 +30,10 @@ func InitProject(force bool, inputFile, outputFile string, createExampleFlag, sk
 		return nil
 	}
 
-	selections := collectInitSelections(inputFile, outputFile, createExampleFlag)
+	selections, err := collectInitSelections(inputFile, outputFile, formatOverride, createExampleFlag)
+	if err != nil {
+		return err
+	}
 	filePairs := selections.FilePairs
 
 	shouldCreateSopsConfig := tools.PromptYesNoConditional(
@@ -84,18 +87,13 @@ func confirmInitOverwrite(force, interactive bool) (bool, error) {
 	return tools.PromptYesNo(".yewseal.toml already exists, overwrite it?", false), nil
 }
 
-func collectInitFilePairs(inputFile, outputFile string) []config.FilePair {
+func collectInitFilePairs(inputFile, outputFile, formatOverride string) ([]config.FilePair, error) {
 	if inputFile != "" || outputFile != "" {
-		filePair := config.DefaultFilePair()
-		if inputFile != "" {
-			filePair.PlaintextPath = inputFile
+		filePair, err := newInitFilePair(inputFile, outputFile, formatOverride, false)
+		if err != nil {
+			return nil, err
 		}
-		if outputFile != "" {
-			filePair.EncryptedPath = outputFile
-		} else {
-			filePair.EncryptedPath = defaultEncryptedOutputNameForFile(filePair.PlaintextPath)
-		}
-		return []config.FilePair{filePair}
+		return []config.FilePair{filePair}, nil
 	}
 
 	fmt.Println("ℹ️  Init 会把所有文件统一写进 [[encryption.files]]。")
@@ -106,17 +104,20 @@ func collectInitFilePairs(inputFile, outputFile string) []config.FilePair {
 		filePairs = append(filePairs, promptInitFilePair(false))
 	}
 
-	return filePairs
+	return filePairs, nil
 }
 
-func collectInitSelections(inputFile, outputFile string, createExampleFlag bool) initSelections {
+func collectInitSelections(inputFile, outputFile, formatOverride string, createExampleFlag bool) (initSelections, error) {
 	if inputFile != "" || outputFile != "" {
-		filePairs := collectInitFilePairs(inputFile, outputFile)
+		filePairs, err := collectInitFilePairs(inputFile, outputFile, formatOverride)
+		if err != nil {
+			return initSelections{}, err
+		}
 		selections := initSelections{FilePairs: filePairs}
 		if createExampleFlag {
 			selections.ExampleFiles = append(selections.ExampleFiles, filePairs[0].PlaintextPath)
 		}
-		return selections
+		return selections, nil
 	}
 
 	fmt.Println("ℹ️  Init 会把所有文件统一写进 [[encryption.files]]。")
@@ -137,7 +138,7 @@ func collectInitSelections(inputFile, outputFile string, createExampleFlag bool)
 		}
 	}
 
-	return selections
+	return selections, nil
 }
 
 func promptInitFilePair(first bool) config.FilePair {
@@ -149,9 +150,15 @@ func promptInitFilePair(first bool) config.FilePair {
 	}
 
 	encryptedFile := tools.PromptWithDefault("Enter encrypted file name", defaultEncryptedOutputNameForFile(plaintextFile))
+	formatOverride, err := resolveInitFormatOverride(plaintextFile, "", true)
+	if err != nil {
+		fmt.Printf("⚠️  Warning: %v\n", err)
+	}
+
 	return config.FilePair{
 		PlaintextPath: plaintextFile,
 		EncryptedPath: encryptedFile,
+		Format:        formatOverride,
 	}
 }
 
@@ -179,6 +186,96 @@ func defaultEncryptedOutputName(inputBase, inputExt string) string {
 		return inputBase + ".enc" + inputExt + ".yaml"
 	}
 	return inputBase + ".enc" + inputExt
+}
+
+func newInitFilePair(inputFile, outputFile, formatOverride string, interactive bool) (config.FilePair, error) {
+	filePair := config.DefaultFilePair()
+	if inputFile != "" {
+		filePair.PlaintextPath = inputFile
+	}
+	if outputFile != "" {
+		filePair.EncryptedPath = outputFile
+	} else {
+		filePair.EncryptedPath = defaultEncryptedOutputNameForFile(filePair.PlaintextPath)
+	}
+
+	resolvedFormat, err := resolveInitFormatOverride(filePair.PlaintextPath, formatOverride, interactive)
+	if err != nil {
+		return config.FilePair{}, err
+	}
+	filePair.Format = resolvedFormat
+	return filePair, nil
+}
+
+func resolveInitFormatOverride(plaintextFile, providedFormat string, interactive bool) (string, error) {
+	if normalizedFormat, ok := normalizeInitFormat(providedFormat); ok {
+		return normalizedFormat, nil
+	}
+	if strings.TrimSpace(providedFormat) != "" {
+		return "", fmt.Errorf("unsupported format override %q (supported: toml, yaml, json, env, ini)", providedFormat)
+	}
+
+	if detectInitFormat(plaintextFile) != "" {
+		return "", nil
+	}
+
+	if !interactive {
+		return "", fmt.Errorf("could not detect format for %s, please pass --format (toml, yaml, json, env, ini)", plaintextFile)
+	}
+
+	return promptInitFormatOverride(plaintextFile), nil
+}
+
+func promptInitFormatOverride(plaintextFile string) string {
+	fmt.Printf("ℹ️  Could not detect format from %s.\n", plaintextFile)
+	fmt.Println("ℹ️  Supported overrides: toml, yaml, json, env, ini")
+
+	for {
+		input := tools.PromptOptional("Enter format override (optional)")
+		if input == "" {
+			return ""
+		}
+
+		if normalizedFormat, ok := normalizeInitFormat(input); ok {
+			return normalizedFormat
+		}
+
+		fmt.Println("⚠️  Unsupported format. Use one of: toml, yaml, json, env, ini")
+	}
+}
+
+func detectInitFormat(filename string) string {
+	switch strings.ToLower(filepath.Ext(filename)) {
+	case ".toml":
+		return "toml"
+	case ".yaml", ".yml":
+		return "yaml"
+	case ".json":
+		return "json"
+	case ".env":
+		return "env"
+	case ".ini":
+		return "ini"
+	default:
+		return ""
+	}
+}
+
+func normalizeInitFormat(format string) (string, bool) {
+	switch strings.ToLower(strings.TrimSpace(format)) {
+	case "toml":
+		return "toml", true
+	case "yaml", "yml":
+		return "yaml", true
+	case "json":
+		return "json", true
+	case "env", "dotenv":
+		return "env", true
+	case "ini":
+		return "ini", true
+	default:
+		return "", false
+	}
 }
 
 func extractPublicKey(output string) string {

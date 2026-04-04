@@ -726,7 +726,7 @@ func TestIntegration_InitProject_Artifacts(t *testing.T) {
 	// Run InitProject in non-interactive mode
 	// createExampleFlag=true (flagSet=true, skips prompt, returns true — but file doesn't exist so just warns)
 	// skipSopsConfigFlag=true (flagSet=true, returns false — skips sops config creation)
-	err = project.InitProject(false, "wrangler.toml", "wrangler.enc.toml.yaml", true, true)
+	err = project.InitProject(false, "wrangler.toml", "wrangler.enc.toml.yaml", "", true, true)
 	require.NoError(t, err)
 
 	// Verify .age/keys.txt was created with valid content

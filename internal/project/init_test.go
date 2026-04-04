@@ -177,11 +177,28 @@ wrangler.toml
 }
 
 func TestCollectInitFilePairs_NonInteractiveDefaultsEncryptedName(t *testing.T) {
-	filePairs := collectInitFilePairs("app.toml", "")
+	filePairs, err := collectInitFilePairs("app.toml", "", "")
+	require.NoError(t, err)
 
 	require.Len(t, filePairs, 1)
 	assert.Equal(t, "app.toml", filePairs[0].PlaintextPath)
 	assert.Equal(t, "app.enc.toml.yaml", filePairs[0].EncryptedPath)
+}
+
+func TestCollectInitFilePairs_NonInteractiveWithFormatOverride(t *testing.T) {
+	filePairs, err := collectInitFilePairs(".dev.vars", ".dev.vars.enc.yaml", "dotenv")
+	require.NoError(t, err)
+
+	require.Len(t, filePairs, 1)
+	assert.Equal(t, ".dev.vars", filePairs[0].PlaintextPath)
+	assert.Equal(t, ".dev.vars.enc.yaml", filePairs[0].EncryptedPath)
+	assert.Equal(t, "env", filePairs[0].Format)
+}
+
+func TestCollectInitFilePairs_NonInteractiveAmbiguousFormatRequiresOverride(t *testing.T) {
+	_, err := collectInitFilePairs(".dev.vars", ".dev.vars.enc.yaml", "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "please pass --format")
 }
 
 func TestDefaultEncryptedOutputNameForFile(t *testing.T) {
@@ -246,19 +263,21 @@ func TestCollectInitFilePairs_InteractiveMultiple(t *testing.T) {
 	defer inputFile.Close()
 	defer func() { os.Stdin = oldStdin }()
 
-	_, err = inputFile.WriteString("app.toml\n\nY\n.dev.vars\n.dev.vars.enc.yaml\nn\n")
+	_, err = inputFile.WriteString("app.toml\n\nY\n.dev.vars\n.dev.vars.enc.yaml\nenv\nn\n")
 	require.NoError(t, err)
 	_, err = inputFile.Seek(0, 0)
 	require.NoError(t, err)
 
 	os.Stdin = inputFile
 
-	filePairs := collectInitFilePairs("", "")
+	filePairs, err := collectInitFilePairs("", "", "")
+	require.NoError(t, err)
 	require.Len(t, filePairs, 2)
 	assert.Equal(t, "app.toml", filePairs[0].PlaintextPath)
 	assert.Equal(t, "app.enc.toml.yaml", filePairs[0].EncryptedPath)
 	assert.Equal(t, ".dev.vars", filePairs[1].PlaintextPath)
 	assert.Equal(t, ".dev.vars.enc.yaml", filePairs[1].EncryptedPath)
+	assert.Equal(t, "env", filePairs[1].Format)
 }
 
 func TestCollectInitSelections_InteractiveExamplePerFile(t *testing.T) {
@@ -268,24 +287,27 @@ func TestCollectInitSelections_InteractiveExamplePerFile(t *testing.T) {
 	defer inputFile.Close()
 	defer func() { os.Stdin = oldStdin }()
 
-	_, err = inputFile.WriteString("app.toml\n\ny\ny\n.dev.vars\n.dev.vars.enc.yaml\nn\nn\n")
+	_, err = inputFile.WriteString("app.toml\n\ny\ny\n.dev.vars\n.dev.vars.enc.yaml\nenv\nn\nn\n")
 	require.NoError(t, err)
 	_, err = inputFile.Seek(0, 0)
 	require.NoError(t, err)
 
 	os.Stdin = inputFile
 
-	selections := collectInitSelections("", "", false)
+	selections, err := collectInitSelections("", "", "", false)
+	require.NoError(t, err)
 	require.Len(t, selections.FilePairs, 2)
 	assert.Equal(t, "app.toml", selections.FilePairs[0].PlaintextPath)
 	assert.Equal(t, "app.enc.toml.yaml", selections.FilePairs[0].EncryptedPath)
 	assert.Equal(t, ".dev.vars", selections.FilePairs[1].PlaintextPath)
 	assert.Equal(t, ".dev.vars.enc.yaml", selections.FilePairs[1].EncryptedPath)
+	assert.Equal(t, "env", selections.FilePairs[1].Format)
 	assert.Equal(t, []string{"app.toml"}, selections.ExampleFiles)
 }
 
 func TestCollectInitSelections_NonInteractiveCreateExampleFlag(t *testing.T) {
-	selections := collectInitSelections("app.toml", "", true)
+	selections, err := collectInitSelections("app.toml", "", "", true)
+	require.NoError(t, err)
 
 	require.Len(t, selections.FilePairs, 1)
 	assert.Equal(t, "app.toml", selections.FilePairs[0].PlaintextPath)

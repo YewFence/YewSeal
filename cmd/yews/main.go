@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/YewFence/YewSeal/internal/config"
 	"github.com/YewFence/YewSeal/internal/crypto"
@@ -14,6 +15,30 @@ import (
 )
 
 var Version = "dev"
+
+func validateCLIFormatOverride(format string) (string, error) {
+	if strings.TrimSpace(format) == "" {
+		return "", nil
+	}
+
+	parsed := crypto.ParseFormat(format)
+	if parsed == crypto.FormatUnknown {
+		return "", fmt.Errorf("unsupported format %q (supported: toml, yaml, json, env, ini)", format)
+	}
+
+	return string(parsed), nil
+}
+
+func resolveFormatOverride(cliFormat string, filePair config.FilePair) (string, error) {
+	validatedFormat, err := validateCLIFormatOverride(cliFormat)
+	if err != nil {
+		return "", err
+	}
+	if validatedFormat != "" {
+		return validatedFormat, nil
+	}
+	return filePair.Format, nil
+}
 
 func main() {
 	// Load configuration file
@@ -54,6 +79,10 @@ func main() {
 						Aliases: []string{"o"},
 						Usage:   "Encrypted file for the first config entry (non-interactive mode)",
 					},
+					&cli.StringFlag{
+						Name:  "format",
+						Usage: "Format override for the first config entry (toml/yaml/json/env/ini)",
+					},
 					&cli.BoolFlag{
 						Name:  "create-example",
 						Usage: "Create example file (non-interactive mode)",
@@ -68,6 +97,7 @@ func main() {
 						c.Bool("force"),
 						c.String("input"),
 						c.String("output"),
+						c.String("format"),
 						c.Bool("create-example"),
 						c.Bool("skip-sops-config"),
 					)
@@ -91,6 +121,10 @@ func main() {
 						Value:   "wrangler.enc.toml.yaml",
 						Usage:   "Output encrypted file (single file mode only)",
 						EnvVars: []string{"SOPS_OUTPUT_FILE"},
+					},
+					&cli.StringFlag{
+						Name:  "format",
+						Usage: "Format override for single-file mode (toml/yaml/json/env/ini)",
 					},
 					&cli.StringFlag{
 						Name:  "dir",
@@ -133,9 +167,16 @@ func main() {
 					publicKey := c.String("public-key")
 					verbose := c.Bool("verbose")
 					hasSingleFileOverride := c.IsSet("input") || c.IsSet("output")
+					cliFormat, err := validateCLIFormatOverride(c.String("format"))
+					if err != nil {
+						return err
+					}
 
 					// 目录扫描批量模式
 					if c.String("dir") != "" {
+						if cliFormat != "" {
+							return fmt.Errorf("--format is only supported in single-file mode")
+						}
 						opts := crypto.BatchOptions{
 							InputDir:     c.String("dir"),
 							Pattern:      c.String("pattern"),
@@ -158,7 +199,15 @@ func main() {
 						if c.IsSet("output") {
 							filePair.EncryptedPath = c.String("output")
 						}
-						return crypto.Encrypt(filePair.PlaintextPath, filePair.EncryptedPath, keyFile, publicKey, "", verbose)
+						formatOverride, err := resolveFormatOverride(cliFormat, filePair)
+						if err != nil {
+							return err
+						}
+						return crypto.Encrypt(filePair.PlaintextPath, filePair.EncryptedPath, keyFile, publicKey, formatOverride, verbose)
+					}
+
+					if cliFormat != "" {
+						return fmt.Errorf("--format is only supported in single-file mode")
 					}
 
 					filePairs := cfg.GetFiles()
@@ -205,6 +254,10 @@ func main() {
 						EnvVars: []string{"SOPS_OUTPUT_FILE"},
 					},
 					&cli.StringFlag{
+						Name:  "format",
+						Usage: "Format override for single-file mode (toml/yaml/json/env/ini)",
+					},
+					&cli.StringFlag{
 						Name:  "dir",
 						Usage: "Directory to scan for encrypted files (enables batch mode)",
 					},
@@ -238,9 +291,16 @@ func main() {
 					keyFile := cfg.GetKeyFile(c.String("key-file"))
 					verbose := c.Bool("verbose")
 					hasSingleFileOverride := c.IsSet("input") || c.IsSet("output")
+					cliFormat, err := validateCLIFormatOverride(c.String("format"))
+					if err != nil {
+						return err
+					}
 
 					// 目录扫描批量模式
 					if c.String("dir") != "" {
+						if cliFormat != "" {
+							return fmt.Errorf("--format is only supported in single-file mode")
+						}
 						opts := crypto.BatchOptions{
 							InputDir:     c.String("dir"),
 							Pattern:      c.String("pattern"),
@@ -262,7 +322,15 @@ func main() {
 						if c.IsSet("output") {
 							filePair.PlaintextPath = c.String("output")
 						}
-						return crypto.Decrypt(filePair.EncryptedPath, filePair.PlaintextPath, keyFile, "", verbose)
+						formatOverride, err := resolveFormatOverride(cliFormat, filePair)
+						if err != nil {
+							return err
+						}
+						return crypto.Decrypt(filePair.EncryptedPath, filePair.PlaintextPath, keyFile, formatOverride, verbose)
+					}
+
+					if cliFormat != "" {
+						return fmt.Errorf("--format is only supported in single-file mode")
 					}
 
 					filePairs := cfg.GetFiles()
@@ -276,7 +344,7 @@ func main() {
 						Parallel:  c.Int("parallel"),
 						Verbose:   verbose,
 					}
-					_, err := crypto.BatchDecrypt(opts)
+					_, err = crypto.BatchDecrypt(opts)
 					return err
 				},
 			},

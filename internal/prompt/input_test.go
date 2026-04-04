@@ -48,6 +48,22 @@ func TestPromptWithDefault_WhitespaceInput(t *testing.T) {
 	assert.Equal(t, "default", result)
 }
 
+func TestPromptOptional_UserInput(t *testing.T) {
+	restore := mockStdin(" custom_value \n")
+	defer restore()
+
+	result := PromptOptional("Enter value")
+	assert.Equal(t, "custom_value", result)
+}
+
+func TestPromptOptional_EmptyInput(t *testing.T) {
+	restore := mockStdin("\n")
+	defer restore()
+
+	result := PromptOptional("Enter value")
+	assert.Equal(t, "", result)
+}
+
 func TestPromptYesNo_Yes(t *testing.T) {
 	tests := []struct {
 		input    string

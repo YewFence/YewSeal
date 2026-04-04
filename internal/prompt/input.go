@@ -54,6 +54,18 @@ func PromptRequired(prompt string) string {
 	}
 }
 
+// PromptOptional prompts user once and returns trimmed input.
+// Empty input is allowed and returned as an empty string.
+func PromptOptional(prompt string) string {
+	fmt.Printf("%s: ", prompt)
+	input, err := stdinReader().ReadString('\n')
+	if err != nil {
+		return ""
+	}
+
+	return strings.TrimSpace(input)
+}
+
 // PromptYesNo prompts user for a yes/no confirmation
 // defaultYes controls the default behavior when user presses Enter
 // Returns true for yes, false for no
