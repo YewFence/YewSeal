@@ -46,10 +46,8 @@ func InitProject(force bool, inputFile, outputFile string, createExampleFlag, sk
 	}
 
 	if shouldCreateSopsConfig {
-		for i, filePair := range filePairs {
-			if err := UpdateSopsYaml(filePair.Enc, publicKey, force && i == 0); err != nil {
-				return fmt.Errorf("failed to update .sops.yaml: %w", err)
-			}
+		if err := SyncSopsYaml(filePairs, publicKey); err != nil {
+			return fmt.Errorf("failed to update .sops.yaml: %w", err)
 		}
 	} else {
 		fmt.Println("⏭️  Skipped creating .sops.yaml")

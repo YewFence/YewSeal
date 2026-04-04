@@ -8,6 +8,7 @@ import (
 	"github.com/YewFence/YewSeal/internal/crypto"
 	"github.com/YewFence/YewSeal/internal/sync"
 	"github.com/YewFence/YewSeal/internal/tools"
+	"github.com/YewFence/YewSeal/internal/utils"
 
 	"github.com/urfave/cli/v2"
 )
@@ -36,7 +37,7 @@ func main() {
 		Commands: []*cli.Command{
 			{
 				Name:  "init",
-				Usage: "Initialize project with Age keys and YewSeal config templates (single-file + batch)",
+				Usage: "Initialize project with Age keys and YewSeal config entries",
 				Flags: []cli.Flag{
 					&cli.BoolFlag{
 						Name:    "force",
@@ -46,12 +47,12 @@ func main() {
 					&cli.StringFlag{
 						Name:    "input",
 						Aliases: []string{"i"},
-						Usage:   "Default input file for single-file mode (non-interactive mode)",
+						Usage:   "Plaintext file for the first config entry (non-interactive mode)",
 					},
 					&cli.StringFlag{
 						Name:    "output",
 						Aliases: []string{"o"},
-						Usage:   "Default encrypted output file for single-file mode (non-interactive mode)",
+						Usage:   "Encrypted file for the first config entry (non-interactive mode)",
 					},
 					&cli.BoolFlag{
 						Name:  "create-example",
@@ -160,14 +161,27 @@ func main() {
 						return crypto.Encrypt(filePair.Dec, filePair.Enc, keyFile, publicKey, "", verbose)
 					}
 
+					filePairs := cfg.GetFiles()
+					if err := utils.UpdateGitignore(filePairs); err != nil {
+						return err
+					}
+
+					resolvedPublicKey, err := crypto.GetPublicKey(publicKey, keyFile, verbose)
+					if err != nil {
+						return err
+					}
+					if err := crypto.SyncSopsYaml(filePairs, resolvedPublicKey); err != nil {
+						return err
+					}
+
 					opts := crypto.BatchOptions{
-						FilePairs: cfg.GetFiles(),
+						FilePairs: filePairs,
 						KeyFile:   keyFile,
-						PublicKey: publicKey,
+						PublicKey: resolvedPublicKey,
 						Parallel:  c.Int("parallel"),
 						Verbose:   verbose,
 					}
-					_, err := crypto.BatchEncrypt(opts)
+					_, err = crypto.BatchEncrypt(opts)
 					return err
 				},
 			},
@@ -251,8 +265,13 @@ func main() {
 						return crypto.Decrypt(filePair.Enc, filePair.Dec, keyFile, "", verbose)
 					}
 
+					filePairs := cfg.GetFiles()
+					if err := utils.UpdateGitignore(filePairs); err != nil {
+						return err
+					}
+
 					opts := crypto.BatchOptions{
-						FilePairs: cfg.GetFiles(),
+						FilePairs: filePairs,
 						KeyFile:   keyFile,
 						Parallel:  c.Int("parallel"),
 						Verbose:   verbose,

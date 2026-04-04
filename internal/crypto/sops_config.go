@@ -5,8 +5,11 @@ import (
 	"os"
 	"regexp"
 
+	"github.com/YewFence/YewSeal/internal/config"
 	"gopkg.in/yaml.v3"
 )
+
+const sopsYamlPath = ".sops.yaml"
 
 // SopsConfig represents the structure of .sops.yaml
 type SopsConfig struct {
@@ -19,63 +22,105 @@ type CreationRule struct {
 	Age       string `yaml:"age"`
 }
 
-// UpdateSopsYaml creates or updates .sops.yaml with proper YAML handling
+// UpdateSopsYaml creates or updates .sops.yaml with proper YAML handling.
 func UpdateSopsYaml(outputFile, publicKey string, force bool) error {
-	const sopsYamlPath = ".sops.yaml"
+	pathRegex := buildPathRegex(outputFile)
 
-	// Generate regex pattern that precisely matches the output file
-	escapedOutput := regexp.QuoteMeta(outputFile)
-	pathRegex := "^" + escapedOutput + "$"
-
-	var config SopsConfig
-
-	// Try to read existing file
-	if existingData, err := os.ReadFile(sopsYamlPath); err == nil {
-		// Parse existing YAML
-		if err := yaml.Unmarshal(existingData, &config); err != nil {
-			return fmt.Errorf("failed to parse existing .sops.yaml: %w", err)
-		}
-
-		// Check if rule already exists (idempotency)
-		for _, rule := range config.CreationRules {
-			if rule.PathRegex == pathRegex {
-				fmt.Printf("⏭️  .sops.yaml already contains rule for %s\n", outputFile)
-				return nil
-			}
-		}
-
-		if force {
-			// Force mode: replace all rules
-			config.CreationRules = []CreationRule{
-				{PathRegex: pathRegex, Age: publicKey},
-			}
-			fmt.Println("✅ Replaced .sops.yaml (force mode)")
-		} else {
-			// Append new rule
-			config.CreationRules = append(config.CreationRules, CreationRule{
-				PathRegex: pathRegex,
-				Age:       publicKey,
-			})
-			fmt.Printf("✅ Added rule to .sops.yaml for %s\n", outputFile)
-		}
-	} else {
-		// File doesn't exist, create new
-		config.CreationRules = []CreationRule{
-			{PathRegex: pathRegex, Age: publicKey},
-		}
-		fmt.Println("✅ Created .sops.yaml")
+	currentConfig, err := loadSopsConfig()
+	if err != nil {
+		return err
+	}
+	if currentConfig == nil {
+		currentConfig = &SopsConfig{}
 	}
 
-	// Marshal to YAML
+	for _, rule := range currentConfig.CreationRules {
+		if rule.PathRegex == pathRegex {
+			fmt.Printf("⏭️  .sops.yaml already contains rule for %s\n", outputFile)
+			return nil
+		}
+	}
+
+	if force {
+		currentConfig.CreationRules = []CreationRule{
+			{PathRegex: pathRegex, Age: publicKey},
+		}
+		fmt.Println("✅ Replaced .sops.yaml (force mode)")
+	} else {
+		currentConfig.CreationRules = append(currentConfig.CreationRules, CreationRule{
+			PathRegex: pathRegex,
+			Age:       publicKey,
+		})
+		if len(currentConfig.CreationRules) == 1 {
+			fmt.Println("✅ Created .sops.yaml")
+		} else {
+			fmt.Printf("✅ Added rule to .sops.yaml for %s\n", outputFile)
+		}
+	}
+
+	return writeSopsConfig(*currentConfig)
+}
+
+// SyncSopsYaml rewrites .sops.yaml from configured encrypted files.
+func SyncSopsYaml(filePairs []config.FilePair, publicKey string) error {
+	creationRules := make([]CreationRule, 0, len(filePairs))
+	seen := make(map[string]struct{}, len(filePairs))
+
+	for _, filePair := range filePairs {
+		if filePair.Enc == "" {
+			continue
+		}
+
+		pathRegex := buildPathRegex(filePair.Enc)
+		if _, ok := seen[pathRegex]; ok {
+			continue
+		}
+		seen[pathRegex] = struct{}{}
+		creationRules = append(creationRules, CreationRule{
+			PathRegex: pathRegex,
+			Age:       publicKey,
+		})
+	}
+
+	if err := writeSopsConfig(SopsConfig{CreationRules: creationRules}); err != nil {
+		return err
+	}
+
+	fmt.Printf("✅ Synced .sops.yaml with %d rule(s)\n", len(creationRules))
+	return nil
+}
+
+func loadSopsConfig() (*SopsConfig, error) {
+	existingData, err := os.ReadFile(sopsYamlPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to read existing .sops.yaml: %w", err)
+	}
+
+	var currentConfig SopsConfig
+	if err := yaml.Unmarshal(existingData, &currentConfig); err != nil {
+		return nil, fmt.Errorf("failed to parse existing .sops.yaml: %w", err)
+	}
+
+	return &currentConfig, nil
+}
+
+func writeSopsConfig(config SopsConfig) error {
 	data, err := yaml.Marshal(&config)
 	if err != nil {
 		return fmt.Errorf("failed to marshal YAML: %w", err)
 	}
 
-	// Write to file
 	if err := os.WriteFile(sopsYamlPath, data, 0644); err != nil {
 		return fmt.Errorf("failed to write .sops.yaml: %w", err)
 	}
 
 	return nil
+}
+
+func buildPathRegex(outputFile string) string {
+	escapedOutput := regexp.QuoteMeta(outputFile)
+	return "^" + escapedOutput + "$"
 }

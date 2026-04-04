@@ -31,15 +31,15 @@ yews [GLOBAL OPTIONS] command [COMMAND OPTIONS] [ARGUMENTS...]
 
 ## init
 
-Initialize project with Age keys and YewSeal config templates (single-file + batch)
+Initialize project with Age keys and YewSeal config entries
 
 **--create-example**: Create example file (non-interactive mode)
 
 **--force, -f**: Force overwrite existing configuration
 
-**--input, -i**="": Default input file for single-file mode (non-interactive mode)
+**--input, -i**="": Plaintext file for the first config entry (non-interactive mode)
 
-**--output, -o**="": Default encrypted output file for single-file mode (non-interactive mode)
+**--output, -o**="": Encrypted file for the first config entry (non-interactive mode)
 
 **--skip-sops-config**: Skip creating .sops.yaml file (non-interactive mode)
 
@@ -102,6 +102,18 @@ Check if required external tools are installed
 Sync sensitive files to secret management service
 
 **--key-file, -k**="": Path to the key file to sync (default: ".age/keys.txt")
+
+**--name, -n**="": Secret name in the provider (default: "AGE_KEY_FILE")
+
+**--path**="": Path/folder in the provider (e.g., /yewseal)
+
+**--provider, -p**="": Secret management provider (infisical) (default: "infisical")
+
+### pull
+
+Pull key from secret management service to local file
+
+**--key-file, -k**="": Local path to save the key file (default: ".age/keys.txt")
 
 **--name, -n**="": Secret name in the provider (default: "AGE_KEY_FILE")
 

@@ -48,7 +48,7 @@ pipx install remarshal
 # 1. 交互式初始化项目（生成密钥和配置）
 yews init
 # 输入你需要加密的文件名和加密后的输出文件名
-# 如果要批量模式，直接编辑 .yewseal.toml 里的 [[encryption.files]] 模板
+# 如果要继续加文件，直接在 init 里一路追加，或者手动编辑 [[encryption.files]]
 
 # 2. 根据配置文件加密敏感文件
 yews e
@@ -135,11 +135,10 @@ yews init
    - 非必需，但便于直接使用 `sops` 命令
    - 推荐创建以保持团队协作的一致性
 
-初始化结束后，生成的 `.yewseal.toml` 会同时包含：
-- 单文件模式默认值（`input_file` / `output_file`）
-- `[[encryption.files]]` 批量模式注释模板
+初始化结束后，生成的 `.yewseal.toml` 会统一使用 `[[encryption.files]]` 数组配置。
+每一项都用 `dec` 表示明文文件、`enc` 表示加密文件，不再区分“单文件配置字段”和“批量配置字段”。
 
-只要填好 `[[encryption.files]]`，后续直接运行 `yews encrypt` / `yews decrypt` 就会自动进入批量模式。
+如果配置文件中有多项 `[[encryption.files]]`，后续直接运行 `yews encrypt` / `yews decrypt` 就会按整组配置处理。
 
 #### 非交互式模式
 
@@ -159,7 +158,7 @@ yews init --force
 #### 初始化完成后会创建
 
 - `.age/keys.txt` - Age 密钥对（私钥 + 公钥）
-- `.yewseal.toml` - YewSeal 配置文件（包含公钥、单文件默认值和批量模板）
+- `.yewseal.toml` - YewSeal 配置文件（包含公钥和 `[[encryption.files]]` 数组）
 - `.sops.yaml` - SOPS 配置文件（如果选择创建）
 - `.gitignore` - 自动添加需要忽略的文件
 - `*.example.toml` - 示例配置文件（如果选择创建）
@@ -171,6 +170,8 @@ yews init --force
 > - 🔧 支持直接使用原生 `sops` 命令操作加密文件
 > - 📋 符合 SOPS 官方最佳实践
 > - 🎯 明确定义哪些文件应该被加密
+>
+> 现在如果你是通过 `.yewseal.toml` 里的 `[[encryption.files]]` 运行 `yews encrypt`，工具会在加密前自动把 `.sops.yaml` 同步成当前配置对应的规则。
 
 ⚠️ **重要提示**：请妥善保管 `.age/keys.txt` 私钥文件，丢失后无法恢复！
 
@@ -253,22 +254,17 @@ cp .yewseal.example.toml .yewseal.toml
 
 ```toml
 [encryption]
-# 单文件模式：默认加密/解密文件
-input_file = "wrangler.toml"
-# 加密后的输出文件（YAML 格式）
-output_file = "wrangler.enc.toml.yaml"
 
-# 批量模式：只要配置了一个或多个 [[encryption.files]]
-# yews encrypt / yews decrypt 就会自动切到批量模式
-#
-#[[encryption.files]]
-#input = "app.toml"
-#output = "app.enc.toml.yaml"
-#
-#[[encryption.files]]
-#input = ".dev.vars"
-#output = ".dev.vars.enc.yaml"
-#format = "env"
+[[encryption.files]]
+# dec = 明文文件
+# enc = 加密文件
+dec = "wrangler.toml"
+enc = "wrangler.enc.toml.yaml"
+
+[[encryption.files]]
+dec = ".dev.vars"
+enc = ".dev.vars.enc.yaml"
+format = "env"
 
 [key]
 # Age 公钥（用于加密）
@@ -289,12 +285,8 @@ file_path = ".age/keys.txt"
 #### 使用示例
 
 ```bash
-# 使用配置文件中的单文件默认设置
-yews encrypt
-yews decrypt
-
-# 如果 .yewseal.toml 中配置了 [[encryption.files]]
-# 同样是这两个命令，但会自动按批量模式处理
+# 使用配置文件中的 [[encryption.files]]
+# 配了 1 项就处理 1 项，配了多项就按整组处理
 yews encrypt
 yews decrypt
 
@@ -306,20 +298,20 @@ export SOPS_INPUT_FILE="custom.toml"
 yews encrypt
 ```
 
+通过配置文件驱动时，`yews encrypt` / `yews decrypt` 还会自动确认所有 `dec` 明文文件都在 `.gitignore` 里；其中 `yews encrypt` 还会顺便重建 `.sops.yaml`。
+
 #### 批量配置示例
 
 ```toml
 [encryption]
-input_file = "wrangler.toml"
-output_file = "wrangler.enc.toml.yaml"
 
 [[encryption.files]]
-input = "app.toml"
-output = "app.enc.toml.yaml"
+dec = "app.toml"
+enc = "app.enc.toml.yaml"
 
 [[encryption.files]]
-input = ".dev.vars"
-output = ".dev.vars.enc.yaml"
+dec = ".dev.vars"
+enc = ".dev.vars.enc.yaml"
 format = "env"
 
 [key]

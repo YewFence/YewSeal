@@ -3,8 +3,10 @@ package crypto
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
+	"github.com/YewFence/YewSeal/internal/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -157,4 +159,46 @@ func TestUpdateSopsYaml_SubdirectoryPath(t *testing.T) {
 
 	// Path should be properly escaped
 	assert.Contains(t, string(content), "age1test")
+}
+
+func TestSyncSopsYaml_ReplacesWithConfiguredRules(t *testing.T) {
+	oldWd, _ := os.Getwd()
+	tmpDir := t.TempDir()
+	os.Chdir(tmpDir)
+	defer os.Chdir(oldWd)
+
+	err := UpdateSopsYaml("legacy.enc.yaml", "age1legacy", false)
+	require.NoError(t, err)
+
+	err = SyncSopsYaml([]config.FilePair{
+		{Dec: "app.toml", Enc: "app.enc.toml.yaml"},
+		{Dec: ".dev.vars", Enc: ".dev.vars.enc.yaml"},
+	}, "age1test")
+	require.NoError(t, err)
+
+	content, err := os.ReadFile(".sops.yaml")
+	require.NoError(t, err)
+
+	assert.NotContains(t, string(content), "legacy\\.enc\\.yaml")
+	assert.Contains(t, string(content), "app\\.enc\\.toml\\.yaml")
+	assert.Contains(t, string(content), "\\.dev\\.vars\\.enc\\.yaml")
+	assert.Contains(t, string(content), "age1test")
+}
+
+func TestSyncSopsYaml_DeduplicatesEncryptedFiles(t *testing.T) {
+	oldWd, _ := os.Getwd()
+	tmpDir := t.TempDir()
+	os.Chdir(tmpDir)
+	defer os.Chdir(oldWd)
+
+	err := SyncSopsYaml([]config.FilePair{
+		{Dec: "app.toml", Enc: "shared.enc.yaml"},
+		{Dec: "db.toml", Enc: "shared.enc.yaml"},
+	}, "age1test")
+	require.NoError(t, err)
+
+	content, err := os.ReadFile(".sops.yaml")
+	require.NoError(t, err)
+
+	assert.Equal(t, 1, strings.Count(string(content), "shared\\.enc\\.yaml"))
 }
