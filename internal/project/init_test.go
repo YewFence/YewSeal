@@ -184,6 +184,46 @@ func TestCollectInitFilePairs_NonInteractiveDefaultsEncryptedName(t *testing.T) 
 	assert.Equal(t, "app.enc.toml.yaml", filePairs[0].EncryptedPath)
 }
 
+func TestDefaultEncryptedOutputNameForFile(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "toml_adds_yaml_suffix",
+			input:    "app.toml",
+			expected: "app.enc.toml.yaml",
+		},
+		{
+			name:     "yaml_keeps_native_extension",
+			input:    "config.yaml",
+			expected: "config.enc.yaml",
+		},
+		{
+			name:     "json_keeps_native_extension",
+			input:    "config.json",
+			expected: "config.enc.json",
+		},
+		{
+			name:     "unknown_extension_keeps_original_extension",
+			input:    ".dev.vars",
+			expected: ".dev.enc.vars",
+		},
+		{
+			name:     "no_extension_appends_enc",
+			input:    "secrets",
+			expected: "secrets.enc",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, defaultEncryptedOutputNameForFile(tt.input))
+		})
+	}
+}
+
 func TestConfirmInitOverwrite_NonInteractiveExistingConfig(t *testing.T) {
 	tempDir := t.TempDir()
 	oldWd, _ := os.Getwd()
@@ -219,6 +259,38 @@ func TestCollectInitFilePairs_InteractiveMultiple(t *testing.T) {
 	assert.Equal(t, "app.enc.toml.yaml", filePairs[0].EncryptedPath)
 	assert.Equal(t, ".dev.vars", filePairs[1].PlaintextPath)
 	assert.Equal(t, ".dev.vars.enc.yaml", filePairs[1].EncryptedPath)
+}
+
+func TestCollectInitSelections_InteractiveExamplePerFile(t *testing.T) {
+	oldStdin := os.Stdin
+	inputFile, err := os.CreateTemp(t.TempDir(), "stdin-*")
+	require.NoError(t, err)
+	defer inputFile.Close()
+	defer func() { os.Stdin = oldStdin }()
+
+	_, err = inputFile.WriteString("app.toml\n\ny\ny\n.dev.vars\n.dev.vars.enc.yaml\nn\nn\n")
+	require.NoError(t, err)
+	_, err = inputFile.Seek(0, 0)
+	require.NoError(t, err)
+
+	os.Stdin = inputFile
+
+	selections := collectInitSelections("", "", false)
+	require.Len(t, selections.FilePairs, 2)
+	assert.Equal(t, "app.toml", selections.FilePairs[0].PlaintextPath)
+	assert.Equal(t, "app.enc.toml.yaml", selections.FilePairs[0].EncryptedPath)
+	assert.Equal(t, ".dev.vars", selections.FilePairs[1].PlaintextPath)
+	assert.Equal(t, ".dev.vars.enc.yaml", selections.FilePairs[1].EncryptedPath)
+	assert.Equal(t, []string{"app.toml"}, selections.ExampleFiles)
+}
+
+func TestCollectInitSelections_NonInteractiveCreateExampleFlag(t *testing.T) {
+	selections := collectInitSelections("app.toml", "", true)
+
+	require.Len(t, selections.FilePairs, 1)
+	assert.Equal(t, "app.toml", selections.FilePairs[0].PlaintextPath)
+	assert.Equal(t, "app.enc.toml.yaml", selections.FilePairs[0].EncryptedPath)
+	assert.Equal(t, []string{"app.toml"}, selections.ExampleFiles)
 }
 
 // ============================================================================

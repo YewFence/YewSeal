@@ -12,6 +12,11 @@ import (
 	tools "github.com/YewFence/YewSeal/internal/prompt"
 )
 
+type initSelections struct {
+	FilePairs    []config.FilePair
+	ExampleFiles []string
+}
+
 // InitProject initializes the project with Age keys and SOPS configuration.
 func InitProject(force bool, inputFile, outputFile string, createExampleFlag, skipSopsConfigFlag bool) error {
 	interactive := inputFile == "" && outputFile == ""
@@ -25,13 +30,8 @@ func InitProject(force bool, inputFile, outputFile string, createExampleFlag, sk
 		return nil
 	}
 
-	filePairs := collectInitFilePairs(inputFile, outputFile)
-
-	shouldCreateExample := tools.PromptYesNoConditional(
-		createExampleFlag,
-		createExampleFlag,
-		"Create example files? (recommended if comments matter)",
-	)
+	selections := collectInitSelections(inputFile, outputFile, createExampleFlag)
+	filePairs := selections.FilePairs
 
 	shouldCreateSopsConfig := tools.PromptYesNoConditional(
 		skipSopsConfigFlag,
@@ -60,13 +60,11 @@ func InitProject(force bool, inputFile, outputFile string, createExampleFlag, sk
 		return err
 	}
 
-	if shouldCreateExample {
-		for _, filePair := range filePairs {
-			createExampleFile(filePair.PlaintextPath)
-		}
+	for _, exampleFile := range selections.ExampleFiles {
+		createExampleFile(exampleFile)
 	}
 
-	printCompletionMessage(filePairs, shouldCreateExample, shouldCreateSopsConfig)
+	printCompletionMessage(filePairs, len(selections.ExampleFiles) > 0, shouldCreateSopsConfig)
 	return nil
 }
 
@@ -111,6 +109,37 @@ func collectInitFilePairs(inputFile, outputFile string) []config.FilePair {
 	return filePairs
 }
 
+func collectInitSelections(inputFile, outputFile string, createExampleFlag bool) initSelections {
+	if inputFile != "" || outputFile != "" {
+		filePairs := collectInitFilePairs(inputFile, outputFile)
+		selections := initSelections{FilePairs: filePairs}
+		if createExampleFlag {
+			selections.ExampleFiles = append(selections.ExampleFiles, filePairs[0].PlaintextPath)
+		}
+		return selections
+	}
+
+	fmt.Println("ℹ️  Init 会把所有文件统一写进 [[encryption.files]]。")
+	fmt.Println("ℹ️  先录入第一组文件，后面可以继续追加。")
+
+	selections := initSelections{}
+	filePair, shouldCreateExample := promptInteractiveInitFilePair(true, createExampleFlag)
+	selections.FilePairs = append(selections.FilePairs, filePair)
+	if shouldCreateExample {
+		selections.ExampleFiles = append(selections.ExampleFiles, filePair.PlaintextPath)
+	}
+
+	for tools.PromptYesNo("Add another file to encrypt?", false) {
+		filePair, shouldCreateExample = promptInteractiveInitFilePair(false, createExampleFlag)
+		selections.FilePairs = append(selections.FilePairs, filePair)
+		if shouldCreateExample {
+			selections.ExampleFiles = append(selections.ExampleFiles, filePair.PlaintextPath)
+		}
+	}
+
+	return selections
+}
+
 func promptInitFilePair(first bool) config.FilePair {
 	var plaintextFile string
 	if first {
@@ -126,6 +155,19 @@ func promptInitFilePair(first bool) config.FilePair {
 	}
 }
 
+func promptInteractiveInitFilePair(first bool, createExampleFlag bool) (config.FilePair, bool) {
+	filePair := promptInitFilePair(first)
+	if createExampleFlag {
+		return filePair, true
+	}
+
+	shouldCreateExample := tools.PromptYesNo(
+		fmt.Sprintf("Create example file for %s?", filePair.PlaintextPath),
+		false,
+	)
+	return filePair, shouldCreateExample
+}
+
 func defaultEncryptedOutputNameForFile(inputFile string) string {
 	inputExt := filepath.Ext(inputFile)
 	inputBase := strings.TrimSuffix(filepath.Base(inputFile), inputExt)
@@ -133,7 +175,10 @@ func defaultEncryptedOutputNameForFile(inputFile string) string {
 }
 
 func defaultEncryptedOutputName(inputBase, inputExt string) string {
-	return inputBase + ".enc" + inputExt + ".yaml"
+	if strings.EqualFold(inputExt, ".toml") {
+		return inputBase + ".enc" + inputExt + ".yaml"
+	}
+	return inputBase + ".enc" + inputExt
 }
 
 func extractPublicKey(output string) string {
