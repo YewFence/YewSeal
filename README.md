@@ -21,24 +21,7 @@ Age 和 SOPS 已内嵌为 Go 库，**无需单独安装**。
 
 - [Remarshal](https://github.com/remarshal-project/remarshal) - TOML/YAML 格式转换工具（仅 TOML 格式需要）
 
-### Windows 安装（Scoop）
-
-```powershell
-# 仅 TOML 格式需要
-pipx install remarshal
-```
-
-### macOS 安装（Homebrew）
-
 ```bash
-# 仅 TOML 格式需要
-pipx install remarshal
-```
-
-### Linux 安装
-
-```bash
-# 仅 TOML 格式需要
 pipx install remarshal
 ```
 
@@ -73,6 +56,16 @@ yews decrypt -i config.enc.yaml -o config.toml -k .age/keys.txt
 
 ## 安装
 
+### go install（推荐）
+
+无需克隆仓库，直接安装最新版本：
+
+```bash
+go install github.com/YewFence/YewSeal/cmd/yews@latest
+```
+
+安装完成后可直接在任意目录使用 `yews` 命令（需要 `$GOPATH/bin` 在 `$PATH` 中）。
+
 ### 从源码安装
 
 ```bash
@@ -99,8 +92,7 @@ just dev        # 开发构建 → test/yews.exe
 
 从 Releases 页面下载适合你系统的预编译二进制文件。
 
-
-#### Scoop（Windows）
+### Scoop（Windows）
 
 ```powershell
 scoop bucket add YewNursery https://github.com/YewFence/YewNursery
@@ -138,12 +130,9 @@ yews init
 
 5. **是否创建 .sops.yaml**（默认：是）
    - 非必需，但便于直接使用 `sops` 命令
-   - 推荐创建以保持团队协作的一致性
 
 初始化结束后，生成的 `.yewseal.toml` 会统一使用 `[[encryption.files]]` 数组配置。
-每一项都用 `plaintext` 表示明文文件、`encrypted` 表示加密文件，不再区分“单文件配置字段”和“批量配置字段”。
-
-如果配置文件中有多项 `[[encryption.files]]`，后续直接运行 `yews encrypt` / `yews decrypt` 就会按整组配置处理。
+每一项都用 `plaintext` 表示明文文件、`encrypted` 表示加密文件。
 
 #### 非交互式模式
 
@@ -434,6 +423,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - name: Install YewSeal
+        run: go install github.com/YewFence/YewSeal/cmd/yews@latest
+
       - name: Install tools
         run: |
           # 仅 TOML 格式需要 remarshal
@@ -442,12 +439,10 @@ jobs:
       - name: Decrypt configuration
         env:
           SOPS_AGE_KEY: ${{ secrets.AGE_KEY }}
-        run: |
-          ./yews decrypt
+        run: yews decrypt
 
       - name: Deploy
-        run: |
-          npx wrangler deploy
+        run: npx wrangler deploy
 ```
 
 ## 故障排查
