@@ -92,6 +92,52 @@ just dev        # 开发构建 → test/yews（Windows 下为 .exe）
 
 从 Releases 页面下载适合你系统的预编译二进制文件。
 
+### Docker
+
+如果你的环境里已经有 Docker，但不想额外安装 `yews`，可以直接跑容器镜像：
+
+#### 初始化
+
+```bash
+docker run --rm -it \
+  -v "$PWD:/work" \
+  -w /work \
+  ghcr.io/yewfence/yew-seal:latest init
+```
+
+##### 权限问题
+
+Linux/macOS `init` 时建议显式传入宿主用户 ID 以避免文件权限问题：
+
+```bash
+docker run --rm -it \
+  --user "$(id -u):$(id -g)" \
+  -v "$PWD:/work" \
+  ghcr.io/yewfence/yewseal:latest init
+```
+
+#### 加密/解密
+
+```bash
+# 加密
+docker run --rm \
+  -v "$PWD:/work" \
+  ghcr.io/yewfence/yewseal:latest encrypt
+# 解密
+docker run --rm \
+  -v "$PWD:/work" \
+  ghcr.io/yewfence/yewseal:latest decrypt
+```
+
+说明：
+
+- 镜像内已经包含 `remarshal`，所以 TOML 加密解密也能直接用
+- 如果 `.age/keys.txt` 就在项目目录里，挂载当前目录到 `/work` 一次通常就够了
+- 如果私钥不在项目里，推荐通过 `SOPS_AGE_KEY` 或 `SOPS_AGE_KEY_FILE` 传进去
+- `init` 交互模式请带 `-it`
+- Linux/macOS 如果直接用 `docker run`，新生成的文件可能归 `root` 所有；需要避免这个问题时，请在命令里加上 `--user "$(id -u):$(id -g)"`
+- `edit` 和 `sync` 更适合本机直接运行：前者依赖宿主编辑器，后者通常依赖宿主上的 `infisical` CLI 和登录状态
+
 ### Scoop（Windows）
 
 ```powershell
@@ -190,6 +236,15 @@ yews encrypt -i custom.toml -o custom.enc.toml.yaml --public-key "age1..."
 yews encrypt --verbose  # 显示详细输出
 ```
 
+如果你想直接用 Docker 跑：
+
+```bash
+docker run --rm -it \
+  -v "$PWD:/work" \
+  -w /work \
+  ghcr.io/yewfence/yew-seal encrypt
+```
+
 ### 3. 解密配置文件
 
 从加密文件恢复原始配置：
@@ -208,6 +263,16 @@ yews d --dir ./configs --parallel 4
 ```bash
 yews decrypt --input custom.enc.toml.yaml --output custom.toml
 yews decrypt -i custom.enc.toml.yaml -o custom.toml --verbose
+```
+
+如果私钥通过环境变量注入，Docker 用法类似这样：
+
+```bash
+docker run --rm \
+  -e SOPS_AGE_KEY="$SOPS_AGE_KEY" \
+  -v "$PWD:/work" \
+  -w /work \
+  ghcr.io/yewfence/yew-seal decrypt
 ```
 
 ### 4. 直接编辑加密文件
