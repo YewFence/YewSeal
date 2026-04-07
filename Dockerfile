@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-FROM golang:1.25.6-bookworm AS builder
+FROM --platform=$BUILDPLATFORM golang:1.25.6-bookworm AS yews-builder
 
 WORKDIR /src
 
@@ -9,29 +9,56 @@ RUN go mod download
 
 COPY . .
 
+ARG TARGETOS
+ARG TARGETARCH
 ARG VERSION=dev
 ENV CGO_ENABLED=0
 
-RUN go build \
+RUN GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build \
     -trimpath \
     -ldflags="-s -w -X main.Version=${VERSION}" \
     -o /out/yews \
     ./cmd/yews
 
-FROM python:3.13-slim-bookworm
+FROM alpine:3.22 AS remarshal-builder
 
-ENV PIP_NO_CACHE_DIR=1 \
+RUN apk add --no-cache python3 py3-pip
+
+RUN python3 -m venv /opt/remarshal-env
+
+ENV PATH=/opt/remarshal-env/bin:$PATH \
+    PIP_NO_CACHE_DIR=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+RUN pip install --no-cache-dir remarshal
+
+FROM alpine:3.22 AS full
+
+RUN apk add --no-cache ca-certificates python3
+
+ENV PATH=/opt/remarshal-env/bin:$PATH \
     PYTHONDONTWRITEBYTECODE=1
 
 WORKDIR /work
 
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates \
-    && rm -rf /var/lib/apt/lists/* \
-    && python -m pip install --no-cache-dir remarshal
-
-COPY --from=builder /out/yews /usr/local/bin/yews
+COPY --from=remarshal-builder /opt/remarshal-env /opt/remarshal-env
+COPY --from=yews-builder /out/yews /usr/local/bin/yews
 
 ENTRYPOINT ["yews"]
 CMD ["--help"]
 
+FROM alpine:3.22 AS certs
+
+RUN apk add --no-cache ca-certificates
+
+FROM scratch AS lite
+
+ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+
+WORKDIR /work
+
+COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+COPY --from=yews-builder /out/yews /yews
+
+ENTRYPOINT ["/yews"]
+CMD ["--help"]
