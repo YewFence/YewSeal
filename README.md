@@ -94,26 +94,36 @@ just dev        # 开发构建 → test/yews（Windows 下为 .exe）
 
 ### Docker
 
-如果你的环境里已经有 Docker，但不想额外安装 `yews`，可以直接跑容器镜像：
+如果你的环境里已经有 Docker，但不想额外安装 `yews`，可以直接跑容器镜像。
+
+镜像现在分成两个变体：
+
+- `ghcr.io/yewfence/yew-seal:latest`：完整镜像，内置 `remarshal` 与它依赖的 Python 环境，体积更大，支持 TOML 和其他格式的加密解密
+- `ghcr.io/yewfence/yew-seal:lite`：精简镜像，不带 Python 和 `remarshal`，体积更小，不支持 TOML 格式
+
+可以根据需要自行替换下方示例命令的镜像标签
+
+> 如果需要指定镜像版本号 
+> - 完整镜像： `ghcr.io/yewfence/yew-seal:v1.0.0`
+> - 精简镜像： `ghcr.io/yewfence/yew-seal:lite-v1.0.0`
 
 #### 初始化
 
 ```bash
 docker run --rm -it \
   -v "$PWD:/work" \
-  -w /work \
   ghcr.io/yewfence/yew-seal:latest init
 ```
 
-##### 权限问题
+##### 文件权限问题
 
-Linux/macOS `init` 时建议显式传入宿主用户 ID 以避免文件权限问题：
+Linux/macOS `init` 时建议显式传入宿主用户 ID 以避免生成的文件属于 `root` 导致的权限问题：
 
 ```bash
 docker run --rm -it \
   --user "$(id -u):$(id -g)" \
   -v "$PWD:/work" \
-  ghcr.io/yewfence/yewseal:latest init
+  ghcr.io/yewfence/yew-seal:latest init
 ```
 
 #### 加密/解密
@@ -122,21 +132,30 @@ docker run --rm -it \
 # 加密
 docker run --rm \
   -v "$PWD:/work" \
-  ghcr.io/yewfence/yewseal:latest encrypt
+  ghcr.io/yewfence/yew-seal:latest encrypt
 # 解密
 docker run --rm \
   -v "$PWD:/work" \
-  ghcr.io/yewfence/yewseal:latest decrypt
+  ghcr.io/yewfence/yew-seal:latest decrypt
 ```
 
-说明：
+#### 补充说明
 
-- 镜像内已经包含 `remarshal`，所以 TOML 加密解密也能直接用
-- 如果 `.age/keys.txt` 就在项目目录里，挂载当前目录到 `/work` 一次通常就够了
-- 如果私钥不在项目里，推荐通过 `SOPS_AGE_KEY` 或 `SOPS_AGE_KEY_FILE` 传进去
-- `init` 交互模式请带 `-it`
-- Linux/macOS 如果直接用 `docker run`，新生成的文件可能归 `root` 所有；需要避免这个问题时，请在命令里加上 `--user "$(id -u):$(id -g)"`
-- `edit` 和 `sync` 更适合本机直接运行：前者依赖宿主编辑器，后者通常依赖宿主上的 `infisical` CLI 和登录状态
+手动使用 infisical cli 导出私钥至本地的参考命令如下
+```bash
+mkdir .age && infisical secrets get AGE_KEY_FILE --plain  > ./.age/keys.txt
+```
+
+或者直接设置 `SOPS_AGE_KEY` 环境变量：
+
+```bash
+export SOPS_AGE_KEY="$(infisical secrets get AGE_KEY_FILE --plain)" | \
+    docker run --rm \
+        -v "$PWD:/work" \
+        ghcr.io/yewfence/yew-seal:latest decrypt
+```
+
+> `edit` 和 `sync` 更适合本机直接运行：前者依赖宿主编辑器，后者依赖宿主机上的 `infisical` CLI 和登录状态
 
 ### Scoop（Windows）
 
