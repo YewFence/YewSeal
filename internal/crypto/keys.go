@@ -3,11 +3,12 @@ package crypto
 import (
 	"fmt"
 	"os"
+	"runtime"
 	"strings"
 
 	"github.com/YewFence/YewSeal/internal/config"
 	"github.com/YewFence/YewSeal/internal/errx"
-	"github.com/YewFence/YewSeal/internal/tools"
+	"github.com/YewFence/YewSeal/internal/execx"
 )
 
 // ExtractPublicKey extracts the public key from age-keygen output or key file
@@ -47,9 +48,16 @@ func GetAgeKey(keyFile string) (string, error) {
 
 	// Priority 4: SOPS_AGE_KEY_CMD environment variable (command to output key)
 	if keyCmd := os.Getenv("SOPS_AGE_KEY_CMD"); keyCmd != "" {
-		stdout, stderr, err := tools.ExecCommand("sh", "-c", keyCmd)
+		shell := "sh"
+		args := []string{"-c", keyCmd}
+		if runtime.GOOS == "windows" {
+			shell = "cmd"
+			args = []string{"/c", keyCmd}
+		}
+
+		stdout, stderr, err := execx.ExecCommand(shell, args...)
 		if err != nil {
-			return "", &errx.ExternalCommandError{Op: "failed to execute SOPS_AGE_KEY_CMD", Cmd: "sh", Args: []string{"-c", keyCmd}, Stderr: stderr, Err: err}
+			return "", &errx.ExternalCommandError{Op: "failed to execute SOPS_AGE_KEY_CMD", Cmd: shell, Args: args, Stderr: stderr, Err: err}
 		}
 		key := strings.TrimSpace(stdout)
 		if key == "" {
@@ -91,7 +99,10 @@ func GetPublicKey(providedKey, keyFile string, verbose bool) (string, error) {
 
 	// Priority 3: Config file
 	cfg, err := config.LoadConfig()
-	if err == nil && cfg.GetPublicKey() != "" {
+	if err != nil {
+		return "", fmt.Errorf("failed to load config: %w", err)
+	}
+	if cfg.GetPublicKey() != "" {
 		if verbose {
 			fmt.Println("🔑 Using public key from .yewseal.toml")
 		}
@@ -105,11 +116,7 @@ func GetPublicKey(providedKey, keyFile string, verbose bool) (string, error) {
 
 	// Try to get the key file path
 	if keyFile == "" {
-		if cfg != nil {
-			keyFile = cfg.GetKeyFile("")
-		} else {
-			keyFile = ".age/keys.txt"
-		}
+		keyFile = cfg.GetKeyFile("")
 	}
 
 	// Read the private key file

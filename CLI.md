@@ -31,15 +31,17 @@ yews [GLOBAL OPTIONS] command [COMMAND OPTIONS] [ARGUMENTS...]
 
 ## init
 
-Initialize project with Age keys and SOPS configuration
+Initialize project with Age keys and YewSeal config entries
 
 **--create-example**: Create example file (non-interactive mode)
 
 **--force, -f**: Force overwrite existing configuration
 
-**--input, -i**="": Original configuration file name (non-interactive mode)
+**--input, -i**="": Plaintext file for the first config entry (non-interactive mode)
 
-**--output, -o**="": Encrypted output file name (non-interactive mode)
+**--output, -o**="": Encrypted file for the first config entry (non-interactive mode)
+
+**--format**="": Format override for the first config entry (toml/yaml/json/env/ini, default: auto-detect by file extension)
 
 **--skip-sops-config**: Skip creating .sops.yaml file (non-interactive mode)
 
@@ -53,6 +55,8 @@ Encrypt configuration file (supports .toml, .yaml, .yml, .json, .env, .ini)
 
 **--output, -o**="": Output encrypted file (single file mode only) (default: "wrangler.enc.toml.yaml")
 
+**--format**="": Format override for single-file mode (toml/yaml/json/env/ini, default: auto-detect; no short alias)
+
 **--output-dir**="": Output directory for encrypted files (batch mode)
 
 **--output-suffix**="": Suffix for output files (batch mode) (default: ".enc.toml.yaml")
@@ -65,6 +69,8 @@ Encrypt configuration file (supports .toml, .yaml, .yml, .json, .env, .ini)
 
 **--verbose, -v**: Enable verbose output
 
+Example: `yews encrypt -i .dev.vars -o .dev.vars.enc.yaml --format env`
+
 ## decrypt, d
 
 Decrypt encrypted file (output format determined by extension)
@@ -75,6 +81,8 @@ Decrypt encrypted file (output format determined by extension)
 
 **--output, -o**="": Output decrypted file (single file mode only) (default: "wrangler.toml")
 
+**--format**="": Format override for single-file mode (toml/yaml/json/env/ini, default: auto-detect; no short alias)
+
 **--output-dir**="": Output directory for decrypted files (batch mode)
 
 **--output-suffix**="": Suffix for output files (batch mode) (default: ".toml")
@@ -84,6 +92,8 @@ Decrypt encrypted file (output format determined by extension)
 **--pattern**="": Glob pattern for matching encrypted files (default: "*.enc.toml.yaml")
 
 **--verbose, -v**: Enable verbose output
+
+Example: `yews decrypt -i .dev.vars.enc.yaml -o .dev.vars --format env`
 
 ## edit
 
@@ -102,6 +112,18 @@ Check if required external tools are installed
 Sync sensitive files to secret management service
 
 **--key-file, -k**="": Path to the key file to sync (default: ".age/keys.txt")
+
+**--name, -n**="": Secret name in the provider (default: "AGE_KEY_FILE")
+
+**--path**="": Path/folder in the provider (e.g., /yewseal)
+
+**--provider, -p**="": Secret management provider (infisical) (default: "infisical")
+
+### pull
+
+Pull key from secret management service to local file
+
+**--key-file, -k**="": Local path to save the key file (default: ".age/keys.txt")
 
 **--name, -n**="": Secret name in the provider (default: "AGE_KEY_FILE")
 

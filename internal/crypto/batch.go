@@ -26,8 +26,8 @@ type BatchOptions struct {
 
 // BatchResult 单个文件的处理结果
 type BatchResult struct {
-	InputFile  string // 输入文件路径
-	OutputFile string // 输出文件路径
+	SourceFile string // 源文件路径
+	TargetFile string // 目标文件路径
 	Success    bool   // 是否成功
 	Error      error  // 错误信息（如果失败）
 }
@@ -113,8 +113,8 @@ func BatchEncrypt(opts BatchOptions) (*BatchSummary, error) {
 		// 转换为文件对
 		for _, f := range files {
 			filePairs = append(filePairs, config.FilePair{
-				Input:  f,
-				Output: GenerateOutputFilename(f, opts.OutputDir, opts.OutputSuffix, "encrypt"),
+				PlaintextPath: f,
+				EncryptedPath: GenerateOutputFilename(f, opts.OutputDir, opts.OutputSuffix, "encrypt"),
 			})
 		}
 	}
@@ -127,16 +127,19 @@ func BatchEncrypt(opts BatchOptions) (*BatchSummary, error) {
 	}
 
 	// 定义处理器函数
-	processor := func(input, output string) error {
-		return Encrypt(input, output, opts.KeyFile, opts.PublicKey, opts.Verbose)
+	processor := func(pair config.FilePair) error {
+		return Encrypt(pair.PlaintextPath, pair.EncryptedPath, opts.KeyFile, opts.PublicKey, pair.Format, opts.Verbose)
+	}
+	describe := func(pair config.FilePair) (string, string) {
+		return pair.PlaintextPath, pair.EncryptedPath
 	}
 
 	// 根据并行度选择处理方式
 	var summary *BatchSummary
 	if opts.Parallel > 1 {
-		summary = processFilePairsParallel(filePairs, opts, processor)
+		summary = processFilePairsParallel(filePairs, opts, describe, processor)
 	} else {
-		summary = processFilePairsSequential(filePairs, opts, processor)
+		summary = processFilePairsSequential(filePairs, opts, describe, processor)
 	}
 
 	// 打印汇总
@@ -155,13 +158,8 @@ func BatchDecrypt(opts BatchOptions) (*BatchSummary, error) {
 	var filePairs []config.FilePair
 
 	if len(opts.FilePairs) > 0 {
-		// 使用配置文件中的文件对（解密时输入输出互换）
-		for _, fp := range opts.FilePairs {
-			filePairs = append(filePairs, config.FilePair{
-				Input:  fp.Output, // 加密后的文件作为输入
-				Output: fp.Input,  // 原文件作为输出
-			})
-		}
+		// 使用配置文件中的文件对
+		filePairs = opts.FilePairs
 		fmt.Printf("Decrypting %d files from config...\n", len(filePairs))
 	} else {
 		// 使用目录扫描
@@ -174,8 +172,8 @@ func BatchDecrypt(opts BatchOptions) (*BatchSummary, error) {
 		// 转换为文件对
 		for _, f := range files {
 			filePairs = append(filePairs, config.FilePair{
-				Input:  f,
-				Output: GenerateOutputFilename(f, opts.OutputDir, opts.OutputSuffix, "decrypt"),
+				PlaintextPath: GenerateOutputFilename(f, opts.OutputDir, opts.OutputSuffix, "decrypt"),
+				EncryptedPath: f,
 			})
 		}
 	}
@@ -188,16 +186,19 @@ func BatchDecrypt(opts BatchOptions) (*BatchSummary, error) {
 	}
 
 	// 定义处理器函数
-	processor := func(input, output string) error {
-		return Decrypt(input, output, opts.KeyFile, opts.Verbose)
+	processor := func(pair config.FilePair) error {
+		return Decrypt(pair.EncryptedPath, pair.PlaintextPath, opts.KeyFile, pair.Format, opts.Verbose)
+	}
+	describe := func(pair config.FilePair) (string, string) {
+		return pair.EncryptedPath, pair.PlaintextPath
 	}
 
 	// 根据并行度选择处理方式
 	var summary *BatchSummary
 	if opts.Parallel > 1 {
-		summary = processFilePairsParallel(filePairs, opts, processor)
+		summary = processFilePairsParallel(filePairs, opts, describe, processor)
 	} else {
-		summary = processFilePairsSequential(filePairs, opts, processor)
+		summary = processFilePairsSequential(filePairs, opts, describe, processor)
 	}
 
 	// 打印汇总
@@ -211,21 +212,27 @@ func BatchDecrypt(opts BatchOptions) (*BatchSummary, error) {
 }
 
 // processFilePairsSequential 顺序处理文件对
-func processFilePairsSequential(pairs []config.FilePair, opts BatchOptions, processor func(input, output string) error) *BatchSummary {
+func processFilePairsSequential(
+	pairs []config.FilePair,
+	opts BatchOptions,
+	describe func(config.FilePair) (string, string),
+	processor func(config.FilePair) error,
+) *BatchSummary {
 	summary := &BatchSummary{
 		TotalFiles: len(pairs),
 		Results:    make([]BatchResult, 0, len(pairs)),
 	}
 
 	for i, pair := range pairs {
+		source, target := describe(pair)
 		// 打印进度
-		fmt.Printf("  [%d/%d] %s -> %s ... ", i+1, summary.TotalFiles, filepath.Base(pair.Input), filepath.Base(pair.Output))
+		fmt.Printf("  [%d/%d] %s -> %s ... ", i+1, summary.TotalFiles, filepath.Base(source), filepath.Base(target))
 
-		err := processor(pair.Input, pair.Output)
+		err := processor(pair)
 
 		result := BatchResult{
-			InputFile:  pair.Input,
-			OutputFile: pair.Output,
+			SourceFile: source,
+			TargetFile: target,
 			Success:    err == nil,
 			Error:      err,
 		}
@@ -244,7 +251,12 @@ func processFilePairsSequential(pairs []config.FilePair, opts BatchOptions, proc
 }
 
 // processFilePairsParallel 并行处理文件对
-func processFilePairsParallel(pairs []config.FilePair, opts BatchOptions, processor func(input, output string) error) *BatchSummary {
+func processFilePairsParallel(
+	pairs []config.FilePair,
+	opts BatchOptions,
+	describe func(config.FilePair) (string, string),
+	processor func(config.FilePair) error,
+) *BatchSummary {
 	summary := &BatchSummary{
 		TotalFiles: len(pairs),
 		Results:    make([]BatchResult, len(pairs)),
@@ -262,12 +274,13 @@ func processFilePairsParallel(pairs []config.FilePair, opts BatchOptions, proces
 			defer wg.Done()
 			for idx := range jobs {
 				pair := pairs[idx]
+				source, target := describe(pair)
 
-				err := processor(pair.Input, pair.Output)
+				err := processor(pair)
 
 				summary.Results[idx] = BatchResult{
-					InputFile:  pair.Input,
-					OutputFile: pair.Output,
+					SourceFile: source,
+					TargetFile: target,
 					Success:    err == nil,
 					Error:      err,
 				}
@@ -280,9 +293,9 @@ func processFilePairsParallel(pairs []config.FilePair, opts BatchOptions, proces
 
 				// 打印进度
 				if err == nil {
-					fmt.Printf("  [%d/%d] %s -> %s ... OK\n", current, summary.TotalFiles, filepath.Base(pair.Input), filepath.Base(pair.Output))
+					fmt.Printf("  [%d/%d] %s -> %s ... OK\n", current, summary.TotalFiles, filepath.Base(source), filepath.Base(target))
 				} else {
-					fmt.Printf("  [%d/%d] %s -> %s ... FAILED\n        Error: %v\n", current, summary.TotalFiles, filepath.Base(pair.Input), filepath.Base(pair.Output), err)
+					fmt.Printf("  [%d/%d] %s -> %s ... FAILED\n        Error: %v\n", current, summary.TotalFiles, filepath.Base(source), filepath.Base(target), err)
 				}
 			}
 		}()
@@ -318,7 +331,7 @@ func printSummary(summary *BatchSummary, action string) {
 		fmt.Println("\nFailed files:")
 		for _, r := range summary.Results {
 			if !r.Success {
-				fmt.Printf("  - %s: %v\n", filepath.Base(r.InputFile), r.Error)
+				fmt.Printf("  - %s: %v\n", filepath.Base(r.SourceFile), r.Error)
 			}
 		}
 	}

@@ -15,31 +15,15 @@
 
 ## 前置要求
 
-安装以下工具：
+Age 和 SOPS 已内嵌为 Go 库，**无需单独安装**。
 
-- [Age](https://github.com/FiloSottile/age) - 加密工具
-- [SOPS](https://github.com/getsops/sops) - 密钥管理
-- [Remarshal](https://github.com/remarshal-project/remarshal) - TOML/YAML 格式转换工具
+仅在使用 TOML 格式时需要安装格式转换工具：
 
-### Windows 安装（Scoop）
-
-```powershell
-scoop install age
-scoop install sops
-pipx install remarshal
-```
-
-### macOS 安装（Homebrew）
+- [Remarshal](https://github.com/remarshal-project/remarshal) - TOML/YAML 格式转换工具（仅 TOML 格式需要）
 
 ```bash
-brew install age
-brew install sops
 pipx install remarshal
 ```
-
-### Linux 安装
-
-请参考各工具的官方文档。
 
 ## 快速开始
 
@@ -47,6 +31,7 @@ pipx install remarshal
 # 1. 交互式初始化项目（生成密钥和配置）
 yews init
 # 输入你需要加密的文件名和加密后的输出文件名
+# 如果要继续加文件，直接在 init 里一路追加，或者手动编辑 [[encryption.files]]
 
 # 2. 根据配置文件加密敏感文件
 yews e
@@ -71,22 +56,43 @@ yews decrypt -i config.enc.yaml -o config.toml -k .age/keys.txt
 
 ## 安装
 
-### 从源码编译
+### go install（推荐）
+
+无需克隆仓库，直接安装最新版本：
+
+```bash
+go install github.com/YewFence/YewSeal/cmd/yews@latest
+```
+
+安装完成后可直接在任意目录使用 `yews` 命令（需要 `$GOPATH/bin` 在 `$PATH` 中）。
+
+### 从源码安装
 
 ```bash
 git clone https://github.com/YewFence/YewSeal
 cd YewSeal
-make build    # 生产构建 → build/yews.exe
-# 或
-make dev      # 开发构建 → test/yews.exe
+
+# 使用 just（推荐）
+just install    # 安装到 $GOPATH/bin，可全局使用
+
+# 或手动安装
+go install -ldflags "-s -w -X main.Version=$(git describe --tags --always --dirty 2>/dev/null || echo dev)" ./cmd/yews
+```
+
+安装完成后可直接在任意目录使用 `yews` 命令。
+
+如果只需要本地构建而不安装到全局：
+
+```bash
+just build      # 生产构建 → build/yews（Windows 下为 .exe）
+just dev        # 开发构建 → test/yews（Windows 下为 .exe）
 ```
 
 ### 直接下载
 
 从 Releases 页面下载适合你系统的预编译二进制文件。
 
-
-#### Scoop（Windows）
+### Scoop（Windows）
 
 ```powershell
 scoop bucket add YewNursery https://github.com/YewFence/YewNursery
@@ -110,16 +116,23 @@ yews init
 1. **原始配置文件名**（默认：`wrangler.toml`）
    - 输入您需要加密的配置文件名
 
-2. **加密文件名**（默认：`wrangler.enc.toml.yaml`）
-   - 输入加密后生成的文件名
+2. **加密文件名**
+   - TOML 默认：`wrangler.enc.toml.yaml`
+   - 其他格式默认：在原扩展名前插入 `.enc`
+   - 直接回车即可使用按文件类型推断出的默认值
 
-3. **是否创建示例文件**（默认：否）
-   - 建议创建，因为加密/解密过程会丢失 TOML 注释
-   - 示例文件用于保留配置结构和注释说明
+3. **是否为当前文件创建示例文件**（默认：否）
+   - 每录入一个文件都会单独询问一次
+   - 建议只给需要保留结构说明或注释的配置文件创建 example
 
-4. **是否创建 .sops.yaml**（默认：是）
+4. **是否继续添加下一个文件**
+   - 可以连续录入多组 `plaintext` / `encrypted` 文件映射
+
+5. **是否创建 .sops.yaml**（默认：是）
    - 非必需，但便于直接使用 `sops` 命令
-   - 推荐创建以保持团队协作的一致性
+
+初始化结束后，生成的 `.yewseal.toml` 会统一使用 `[[encryption.files]]` 数组配置。
+每一项都用 `plaintext` 表示明文文件、`encrypted` 表示加密文件。
 
 #### 非交互式模式
 
@@ -139,7 +152,7 @@ yews init --force
 #### 初始化完成后会创建
 
 - `.age/keys.txt` - Age 密钥对（私钥 + 公钥）
-- `.yewseal.toml` - YewSeal 配置文件（包含公钥和文件路径）
+- `.yewseal.toml` - YewSeal 配置文件（包含公钥和 `[[encryption.files]]` 数组）
 - `.sops.yaml` - SOPS 配置文件（如果选择创建）
 - `.gitignore` - 自动添加需要忽略的文件
 - `*.example.toml` - 示例配置文件（如果选择创建）
@@ -151,6 +164,8 @@ yews init --force
 > - 🔧 支持直接使用原生 `sops` 命令操作加密文件
 > - 📋 符合 SOPS 官方最佳实践
 > - 🎯 明确定义哪些文件应该被加密
+>
+> 现在如果你是通过 `.yewseal.toml` 里的 `[[encryption.files]]` 运行 `yews encrypt`，工具会在加密前自动把 `.sops.yaml` 同步成当前配置对应的规则。
 
 ⚠️ **重要提示**：请妥善保管 `.age/keys.txt` 私钥文件，丢失后无法恢复！
 
@@ -233,10 +248,17 @@ cp .yewseal.example.toml .yewseal.toml
 
 ```toml
 [encryption]
-# 需要加密的文件（TOML 格式）
-input_file = "wrangler.toml"
-# 加密后的输出文件（YAML 格式）
-output_file = "wrangler.enc.toml.yaml"
+
+[[encryption.files]]
+# plaintext = 明文文件
+# encrypted = 加密文件
+plaintext = "wrangler.toml"
+encrypted = "wrangler.enc.toml.yaml"
+
+[[encryption.files]]
+plaintext = ".dev.vars"
+encrypted = ".dev.vars.enc.yaml"
+format = "env"
 
 [key]
 # Age 公钥（用于加密）
@@ -257,7 +279,8 @@ file_path = ".age/keys.txt"
 #### 使用示例
 
 ```bash
-# 使用配置文件中的设置
+# 使用配置文件中的 [[encryption.files]]
+# 配了 1 项就处理 1 项，配了多项就按整组处理
 yews encrypt
 yews decrypt
 
@@ -267,6 +290,34 @@ yews encrypt -i custom.toml -o custom.enc.toml.yaml
 # 环境变量也会覆盖配置文件
 export SOPS_INPUT_FILE="custom.toml"
 yews encrypt
+```
+
+通过配置文件驱动时，`yews encrypt` / `yews decrypt` 还会自动确认所有 `plaintext` 明文文件都在 `.gitignore` 里；其中 `yews encrypt` 还会顺便重建 `.sops.yaml`。
+
+#### 批量配置示例
+
+```toml
+[encryption]
+
+[[encryption.files]]
+plaintext = "app.toml"
+encrypted = "app.enc.toml.yaml"
+
+[[encryption.files]]
+plaintext = ".dev.vars"
+encrypted = ".dev.vars.enc.yaml"
+format = "env"
+
+[key]
+public_key = "age1..."
+file_path = ".age/keys.txt"
+```
+
+配置好以后，直接运行下面两条命令即可批量处理，不需要额外传 `--dir`：
+
+```bash
+yews encrypt
+yews decrypt
 ```
 
 ⚠️ **安全提示**：配置文件只应存储密钥文件的路径，不要存储私钥值本身
@@ -372,42 +423,36 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - name: Install YewSeal
+        run: go install github.com/YewFence/YewSeal/cmd/yews@latest
+
       - name: Install tools
         run: |
-          # 安装 age
-          curl -Lo age.tar.gz https://github.com/FiloSottile/age/releases/download/v1.2.0/age-v1.2.0-linux-amd64.tar.gz
-          tar xf age.tar.gz
-          sudo mv age/age /usr/local/bin/
-
-          # 安装 sops
-          curl -Lo sops https://github.com/getsops/sops/releases/download/v3.9.0/sops-v3.9.0.linux.amd64
-          chmod +x sops
-          sudo mv sops /usr/local/bin/
-
-          # 安装 remarshal
+          # 仅 TOML 格式需要 remarshal
           pipx install remarshal
 
       - name: Decrypt configuration
         env:
           SOPS_AGE_KEY: ${{ secrets.AGE_KEY }}
-        run: |
-          ./yews decrypt
+        run: yews decrypt
 
       - name: Deploy
-        run: |
-          npx wrangler deploy
+        run: npx wrangler deploy
 ```
 
 ## 故障排查
 
 ### 找不到工具
 
-确保 `age`、`sops`、`toml2yaml`、`yaml2toml` 在 PATH 中：
+Age 和 SOPS 已内嵌，无需单独安装。仅 TOML 格式需要 remarshal：
 
 ```bash
-age --version
-sops --version
-# Remarshal 提供的格式转换工具
+# 检查 remarshal（仅 TOML 格式需要）
 toml2yaml --version
 yaml2toml --version
 ```
@@ -460,10 +505,10 @@ TOML 解密: 加密 YAML → sops decrypt → YAML → yaml2toml → TOML
 其他格式: 原文件 → sops encrypt/decrypt → 加密/解密文件
 ```
 
-YewSeal 本身不实现加密算法，而是编排成熟的外部工具：
-- **Age** - 现代化的加密工具
-- **SOPS** - Mozilla 出品的密钥管理工具
-- **Remarshal** - 配置格式转换工具（仅 TOML 需要）
+YewSeal 内嵌了成熟的加密库，仅 TOML 格式转换依赖外部工具：
+- **Age** (`filippo.io/age`) - 现代化的加密库（内嵌）
+- **SOPS** (`github.com/getsops/sops/v3`) - 密钥管理库（内嵌）
+- **Remarshal** - 配置格式转换工具（仅 TOML 需要，外部工具）
 
 ## 许可证
 

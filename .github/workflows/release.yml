@@ -51,6 +51,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ inputs.tag || github.ref }}
+          fetch-depth: 0
 
       - name: Setup Go
         uses: actions/setup-go@v5
@@ -63,9 +64,10 @@ jobs:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
         run: |
+          VERSION=$(git describe --tags --always --dirty 2>/dev/null || echo "dev")
           mkdir -p dist
           BINARY_NAME="yews-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }}"
-          go build -ldflags "-s -w" -o "dist/${BINARY_NAME}" ./cmd/main.go
+          go build -ldflags "-s -w -X main.Version=${VERSION}" -o "dist/${BINARY_NAME}" ./cmd/yews/
 
       - name: Create archive
         run: |

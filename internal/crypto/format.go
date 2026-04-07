@@ -5,6 +5,7 @@ import (
 	"strings"
 )
 
+
 // FileFormat represents the configuration file format
 type FileFormat string
 
@@ -67,5 +68,24 @@ func IsSopsNativeFormat(format FileFormat) bool {
 		return true
 	default:
 		return false
+	}
+}
+
+// ParseFormat converts a user-provided format string to FileFormat.
+// Returns FormatUnknown if the string is empty or unrecognized.
+func ParseFormat(s string) FileFormat {
+	switch strings.ToLower(strings.TrimSpace(s)) {
+	case "toml":
+		return FormatTOML
+	case "yaml", "yml":
+		return FormatYAML
+	case "json":
+		return FormatJSON
+	case "env", "dotenv":
+		return FormatENV
+	case "ini":
+		return FormatINI
+	default:
+		return FormatUnknown
 	}
 }

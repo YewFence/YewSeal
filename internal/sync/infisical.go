@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/YewFence/YewSeal/internal/errx"
-	"github.com/YewFence/YewSeal/internal/tools"
+	tools "github.com/YewFence/YewSeal/internal/execx"
 )
 
 // InfisicalProvider 实现 Infisical 的同步逻辑

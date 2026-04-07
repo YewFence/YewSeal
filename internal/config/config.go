@@ -4,72 +4,80 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/BurntSushi/toml"
 )
 
-// Config represents the YewSeal configuration
+const (
+	defaultDecryptedFile = "wrangler.toml"
+	defaultEncryptedFile = "wrangler.enc.toml.yaml"
+	defaultKeyFile       = ".age/keys.txt"
+)
+
+// Config represents the YewSeal configuration.
 type Config struct {
-	// Encryption settings
 	Encryption EncryptionConfig `toml:"encryption"`
-	// Key settings
-	Key KeyConfig `toml:"key"`
+	Key        KeyConfig        `toml:"key"`
 }
 
-// EncryptionConfig defines encryption file settings
+// EncryptionConfig defines encrypted file mappings.
 type EncryptionConfig struct {
-	// InputFile is the file to be encrypted (default: wrangler.toml)
-	InputFile string `toml:"input_file"`
-	// OutputFile is the encrypted output file (default: wrangler.enc.yaml)
-	OutputFile string `toml:"output_file"`
-	// Files is a list of file pairs for batch encryption/decryption
 	Files []FilePair `toml:"files"`
 }
 
-// FilePair defines a pair of input and output files
+// FilePair defines one plaintext/encrypted file mapping.
 type FilePair struct {
-	// Input is the source file (plain text for encryption, encrypted for decryption)
-	Input string `toml:"input"`
-	// Output is the destination file (encrypted for encryption, plain text for decryption)
-	Output string `toml:"output"`
+	// PlaintextPath is the plaintext file path used by encrypt input and decrypt output.
+	PlaintextPath string `toml:"plaintext"`
+	// EncryptedPath is the encrypted file path used by encrypt output and decrypt input.
+	EncryptedPath string `toml:"encrypted"`
+	// Format overrides the file format detection (toml/yaml/json/env/ini).
+	// Useful for files with non-standard extensions like .dev.vars.
+	Format string `toml:"format,omitempty"`
 }
 
-// KeyConfig defines key file location
+// KeyConfig defines key file location.
 type KeyConfig struct {
-	// FilePath is the path to Age private key file
-	// Do NOT store the actual key value here to avoid leaking secrets
+	// FilePath is the path to Age private key file.
+	// Do NOT store the actual key value here to avoid leaking secrets.
 	FilePath string `toml:"file_path"`
-	// PublicKey is the Age public key for encryption (safe to commit)
+	// PublicKey is the Age public key for encryption (safe to commit).
 	PublicKey string `toml:"public_key"`
 }
 
-// DefaultConfig returns a config with default values
+// DefaultFilePair returns the default plaintext/encrypted mapping.
+func DefaultFilePair() FilePair {
+	return FilePair{
+		PlaintextPath: defaultDecryptedFile,
+		EncryptedPath: defaultEncryptedFile,
+	}
+}
+
+// DefaultConfig returns a config with default values.
 func DefaultConfig() *Config {
 	return &Config{
 		Encryption: EncryptionConfig{
-			InputFile:  "wrangler.toml",
-			OutputFile: "wrangler.enc.yaml",
+			Files: []FilePair{DefaultFilePair()},
 		},
 		Key: KeyConfig{
-			FilePath: ".age/keys.txt",
+			FilePath: defaultKeyFile,
 		},
 	}
 }
 
-// LoadConfig loads configuration from .yewseal.toml
+// LoadConfig loads configuration from .yewseal.toml.
 // Searches in the following locations (in order):
-// 1. .yewseal/.config/.yewseal.toml
-// 2. .yewseal/.yewseal.toml
+// 1. .yewseal/.yewseal.toml
+// 2. .config/.yewseal.toml
 // 3. .yewseal.toml
-// Returns default config if file doesn't exist
+// Returns default config if file doesn't exist.
 func LoadConfig() (*Config, error) {
-	// Get current working directory
 	cwd, err := os.Getwd()
 	if err != nil {
-		return DefaultConfig(), nil
+		return nil, fmt.Errorf("failed to get working directory: %w", err)
 	}
 
-	// Try to find config file in multiple locations
 	configPaths := []string{
 		filepath.Join(cwd, ".yewseal", ".yewseal.toml"),
 		filepath.Join(cwd, ".config", ".yewseal.toml"),
@@ -81,75 +89,37 @@ func LoadConfig() (*Config, error) {
 		if _, err := os.Stat(path); err == nil {
 			configPath = path
 			break
+		} else if !os.IsNotExist(err) {
+			return nil, fmt.Errorf("failed to stat config file %s: %w", path, err)
 		}
 	}
 
-	// If config file doesn't exist in any location, return default config
 	if configPath == "" {
 		return DefaultConfig(), nil
 	}
 
-	// Read and parse config file
 	config := DefaultConfig()
 	if _, err := toml.DecodeFile(configPath, config); err != nil {
 		return nil, fmt.Errorf("failed to parse config file %s: %w", configPath, err)
 	}
 
+	if len(config.Encryption.Files) == 0 {
+		config.Encryption.Files = []FilePair{DefaultFilePair()}
+	}
+	for i, filePair := range config.Encryption.Files {
+		if strings.TrimSpace(filePair.PlaintextPath) == "" {
+			return nil, fmt.Errorf("invalid encryption.files[%d]: plaintext is required", i)
+		}
+		if strings.TrimSpace(filePair.EncryptedPath) == "" {
+			return nil, fmt.Errorf("invalid encryption.files[%d]: encrypted is required", i)
+		}
+	}
+
 	return config, nil
 }
 
-// GetEncryptionInput returns the input file for encryption
-// Priority: provided value > config file > default
-func (c *Config) GetEncryptionInput(provided string) string {
-	if provided != "" && provided != "wrangler.toml" {
-		return provided
-	}
-	if c.Encryption.InputFile != "" {
-		return c.Encryption.InputFile
-	}
-	return "wrangler.toml"
-}
-
-// GetEncryptionOutput returns the output file for encryption
-// Priority: provided value > config file > default
-func (c *Config) GetEncryptionOutput(provided string) string {
-	if provided != "" && provided != "wrangler.enc.yaml" {
-		return provided
-	}
-	if c.Encryption.OutputFile != "" {
-		return c.Encryption.OutputFile
-	}
-	return "wrangler.enc.yaml"
-}
-
-// GetDecryptionInput returns the input file for decryption
-// Priority: provided value > config file > default (encrypted file)
-func (c *Config) GetDecryptionInput(provided string) string {
-	if provided != "" && provided != "wrangler.enc.yaml" {
-		return provided
-	}
-	// For decryption, input is the encrypted output
-	if c.Encryption.OutputFile != "" {
-		return c.Encryption.OutputFile
-	}
-	return "wrangler.enc.yaml"
-}
-
-// GetDecryptionOutput returns the output file for decryption
-// Priority: provided value > config file > default (original file)
-func (c *Config) GetDecryptionOutput(provided string) string {
-	if provided != "" && provided != "wrangler.toml" {
-		return provided
-	}
-	// For decryption, output is the original input
-	if c.Encryption.InputFile != "" {
-		return c.Encryption.InputFile
-	}
-	return "wrangler.toml"
-}
-
-// GetKeyFile returns the key file path
-// Priority: provided value > config file > default
+// GetKeyFile returns the key file path.
+// Priority: provided value > config file > default.
 func (c *Config) GetKeyFile(provided string) string {
 	if provided != "" {
 		return provided
@@ -157,21 +127,26 @@ func (c *Config) GetKeyFile(provided string) string {
 	if c.Key.FilePath != "" {
 		return c.Key.FilePath
 	}
-	return ".age/keys.txt"
+	return defaultKeyFile
 }
 
-// GetPublicKey returns the Age public key
+// GetPublicKey returns the Age public key.
 func (c *Config) GetPublicKey() string {
 	return c.Key.PublicKey
 }
 
-// GetFiles returns the list of file pairs for batch operations
-// Returns nil if no files are configured
+// GetFiles returns configured file mappings.
 func (c *Config) GetFiles() []FilePair {
-	return c.Encryption.Files
+	if len(c.Encryption.Files) == 0 {
+		return []FilePair{DefaultFilePair()}
+	}
+	files := make([]FilePair, len(c.Encryption.Files))
+	copy(files, c.Encryption.Files)
+	return files
 }
 
-// HasBatchFiles returns true if batch files are configured
-func (c *Config) HasBatchFiles() bool {
-	return len(c.Encryption.Files) > 0
+// GetPrimaryFilePair returns the first configured file mapping.
+func (c *Config) GetPrimaryFilePair() FilePair {
+	files := c.GetFiles()
+	return files[0]
 }

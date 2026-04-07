@@ -16,6 +16,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Go
         uses: actions/setup-go@v5
@@ -67,8 +69,9 @@ jobs:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
         run: |
+          VERSION=$(git describe --tags --always --dirty 2>/dev/null || echo "dev")
           mkdir -p build
-          go build -ldflags "-s -w" -o build/yews-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }} ./cmd/main.go
+          go build -ldflags "-s -w -X main.Version=${VERSION}" -o build/yews-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }} ./cmd/yews/
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
