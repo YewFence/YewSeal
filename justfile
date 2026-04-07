@@ -1,12 +1,12 @@
 # Justfile for YewSeal
 
-set windows-shell := ["pwsh", "-NoLogo", "-NoProfile", "-Command"]
-
 # Variables
 binary_name := "yews"
 main_path   := "./cmd/yews/"
 build_dir   := "./build"
-version     := `git describe --tags --always --dirty`
+dev_dir     := "./test"
+bin_ext     := if os_family() == "windows" { ".exe" } else { "" }
+version     := `git describe --tags --always --dirty 2>/dev/null || echo "dev"`
 ldflags     := "-s -w -X main.Version=" + version
 
 # Install to $GOPATH/bin (global)
@@ -18,17 +18,24 @@ install:
 # Default: build for production
 default: build
 
-# Build for production (Windows)
+# Build for production
 build:
-    @echo "Building {{binary_name}}.exe for production..."
-    @mkdir -p {{build_dir}}
-    go build -ldflags "{{ldflags}}" -o {{build_dir}}/{{binary_name}}.exe {{main_path}}
-    @echo "Build complete: {{build_dir}}/{{binary_name}}.exe"
+    @echo "Building {{binary_name}}{{bin_ext}} for production..."
+    mkdir -p {{build_dir}}
+    go build -ldflags "{{ldflags}}" -o {{build_dir}}/{{binary_name}}{{bin_ext}} {{main_path}}
+    @echo "Build complete: {{build_dir}}/{{binary_name}}{{bin_ext}}"
+
+# Build for development
+dev:
+    @echo "Building {{binary_name}}{{bin_ext}} for development..."
+    mkdir -p {{dev_dir}}
+    go build -ldflags "{{ldflags}}" -o {{dev_dir}}/{{binary_name}}{{bin_ext}} {{main_path}}
+    @echo "Dev build complete: {{dev_dir}}/{{binary_name}}{{bin_ext}}"
 
 # Build and run the application
 run: build
     @echo "Running {{binary_name}}..."
-    @{{build_dir}}/{{binary_name}}.exe
+    @{{build_dir}}/{{binary_name}}{{bin_ext}}
 
 # Run tests
 test:
@@ -40,6 +47,7 @@ clean:
     @echo "Cleaning build artifacts..."
     go clean
     rm -rf {{build_dir}}
+    rm -f {{dev_dir}}/{{binary_name}}{{bin_ext}}
     @echo "Clean complete"
 
 # Download dependencies
@@ -58,7 +66,7 @@ tidy:
 [private]
 _build os arch ext="":
     @echo "Building for {{os}}/{{arch}}..."
-    @mkdir -p {{build_dir}}
+    mkdir -p {{build_dir}}
     GOOS={{os}} GOARCH={{arch}} go build -ldflags "{{ldflags}}" \
         -o {{build_dir}}/{{binary_name}}-{{os}}-{{arch}}{{ext}} {{main_path}}
 

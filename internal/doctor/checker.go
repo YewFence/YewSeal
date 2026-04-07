@@ -40,9 +40,6 @@ func CheckToolsVerbose() bool {
 		if err != nil {
 			fmt.Printf("  ○ %s: not found (install for TOML support)\n", tool)
 		} else {
-			if idx := strings.Index(version, "\n"); idx != -1 {
-				version = version[:idx]
-			}
 			fmt.Printf("  ✓ %s: %s\n", tool, version)
 		}
 	}
@@ -65,5 +62,9 @@ func GetToolVersion(tool string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return strings.TrimSpace(string(output)), nil
+	version := strings.TrimSpace(string(output))
+	if idx := strings.Index(version, "\n"); idx != -1 {
+		version = version[:idx]
+	}
+	return version, nil
 }

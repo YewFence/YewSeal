@@ -76,7 +76,7 @@ cd YewSeal
 just install    # 安装到 $GOPATH/bin，可全局使用
 
 # 或手动安装
-go install -ldflags "-s -w -X main.Version=$(git describe --tags --always --dirty 2>/dev/null || echo dev)" ./cmd/main.go
+go install -ldflags "-s -w -X main.Version=$(git describe --tags --always --dirty 2>/dev/null || echo dev)" ./cmd/yews
 ```
 
 安装完成后可直接在任意目录使用 `yews` 命令。
@@ -84,8 +84,8 @@ go install -ldflags "-s -w -X main.Version=$(git describe --tags --always --dirt
 如果只需要本地构建而不安装到全局：
 
 ```bash
-just build      # 生产构建 → build/yews.exe
-just dev        # 开发构建 → test/yews.exe
+just build      # 生产构建 → build/yews（Windows 下为 .exe）
+just dev        # 开发构建 → test/yews（Windows 下为 .exe）
 ```
 
 ### 直接下载

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/BurntSushi/toml"
 	"github.com/YewFence/YewSeal/internal/config"
@@ -42,8 +43,38 @@ func SavePublicKeyToConfig(publicKey string, filePairs []config.FilePair) error 
 		return fmt.Errorf("failed to encode config: %w", err)
 	}
 
-	if err := os.WriteFile(configPath, buffer.Bytes(), 0644); err != nil {
-		return fmt.Errorf("failed to write config: %w", err)
+	tempFile, err := os.CreateTemp(filepath.Dir(configPath), ".yewseal.toml.*")
+	if err != nil {
+		return fmt.Errorf("failed to create temp config: %w", err)
+	}
+	tempPath := tempFile.Name()
+	defer func() {
+		_ = os.Remove(tempPath)
+	}()
+
+	if _, err := tempFile.Write(buffer.Bytes()); err != nil {
+		_ = tempFile.Close()
+		return fmt.Errorf("failed to write temp config: %w", err)
+	}
+	if err := tempFile.Chmod(0644); err != nil {
+		_ = tempFile.Close()
+		return fmt.Errorf("failed to set temp config permissions: %w", err)
+	}
+	if err := tempFile.Sync(); err != nil {
+		_ = tempFile.Close()
+		return fmt.Errorf("failed to sync temp config: %w", err)
+	}
+	if err := tempFile.Close(); err != nil {
+		return fmt.Errorf("failed to close temp config: %w", err)
+	}
+
+	if err := os.Rename(tempPath, configPath); err != nil {
+		if removeErr := os.Remove(configPath); removeErr != nil && !os.IsNotExist(removeErr) {
+			return fmt.Errorf("failed to replace config: %w", err)
+		}
+		if retryErr := os.Rename(tempPath, configPath); retryErr != nil {
+			return fmt.Errorf("failed to replace config: %w", retryErr)
+		}
 	}
 
 	fmt.Println("✅ Wrote .yewseal.toml")

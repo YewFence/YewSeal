@@ -29,6 +29,10 @@ func mockPromptInput(t *testing.T, input string) {
 
 	r, w, err := os.Pipe()
 	require.NoError(t, err)
+	t.Cleanup(func() {
+		_ = r.Close()
+		_ = w.Close()
+	})
 	setPromptStdin(t, r)
 
 	go func() {
@@ -79,8 +83,17 @@ func TestStdinReader_CachesPerStdin(t *testing.T) {
 func TestPromptRequired_RePromptsUntilValue(t *testing.T) {
 	mockPromptInput(t, "   \nactual-value\n")
 
-	result := PromptRequired("Enter value")
+	result, err := PromptRequired("Enter value")
+	require.NoError(t, err)
 	assert.Equal(t, "actual-value", result)
+}
+
+func TestPromptRequired_ReadErrorReturnsError(t *testing.T) {
+	setEmptyPromptInput(t)
+
+	result, err := PromptRequired("Enter value")
+	assert.Empty(t, result)
+	assert.Error(t, err)
 }
 
 func TestPromptWithDefault_ReadErrorReturnsDefault(t *testing.T) {

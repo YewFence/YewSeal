@@ -21,7 +21,11 @@ func UpdateGitignore(filePairs []config.FilePair) error {
 		return nil
 	}
 
-	if existingData, err := os.ReadFile(".gitignore"); err == nil {
+	existingData, err := os.ReadFile(".gitignore")
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("failed to read .gitignore: %w", err)
+	}
+	if err == nil {
 		updatedContent, changed := mergeGitignoreEntries(string(existingData), plaintextFiles)
 		if !changed {
 			fmt.Println("⏭️  .gitignore already contains YewSeal entries")

@@ -44,7 +44,8 @@ func main() {
 	// Load configuration file
 	cfg, err := config.LoadConfig()
 	if err != nil {
-		cfg = config.DefaultConfig()
+		fmt.Fprintf(os.Stderr, "Error: failed to load config: %v\n", err)
+		os.Exit(1)
 	}
 
 	app := &cli.App{

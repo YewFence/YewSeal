@@ -99,9 +99,17 @@ func collectInitFilePairs(inputFile, outputFile, formatOverride string) ([]confi
 	fmt.Println("ℹ️  Init 会把所有文件统一写进 [[encryption.files]]。")
 	fmt.Println("ℹ️  先录入第一组文件，后面可以继续追加。")
 
-	filePairs := []config.FilePair{promptInitFilePair(true)}
+	firstFilePair, err := promptInitFilePair(true)
+	if err != nil {
+		return nil, err
+	}
+	filePairs := []config.FilePair{firstFilePair}
 	for tools.PromptYesNo("Add another file to encrypt?", false) {
-		filePairs = append(filePairs, promptInitFilePair(false))
+		filePair, err := promptInitFilePair(false)
+		if err != nil {
+			return nil, err
+		}
+		filePairs = append(filePairs, filePair)
 	}
 
 	return filePairs, nil
@@ -124,14 +132,20 @@ func collectInitSelections(inputFile, outputFile, formatOverride string, createE
 	fmt.Println("ℹ️  先录入第一组文件，后面可以继续追加。")
 
 	selections := initSelections{}
-	filePair, shouldCreateExample := promptInteractiveInitFilePair(true, createExampleFlag)
+	filePair, shouldCreateExample, err := promptInteractiveInitFilePair(true, createExampleFlag)
+	if err != nil {
+		return initSelections{}, err
+	}
 	selections.FilePairs = append(selections.FilePairs, filePair)
 	if shouldCreateExample {
 		selections.ExampleFiles = append(selections.ExampleFiles, filePair.PlaintextPath)
 	}
 
 	for tools.PromptYesNo("Add another file to encrypt?", false) {
-		filePair, shouldCreateExample = promptInteractiveInitFilePair(false, createExampleFlag)
+		filePair, shouldCreateExample, err = promptInteractiveInitFilePair(false, createExampleFlag)
+		if err != nil {
+			return initSelections{}, err
+		}
 		selections.FilePairs = append(selections.FilePairs, filePair)
 		if shouldCreateExample {
 			selections.ExampleFiles = append(selections.ExampleFiles, filePair.PlaintextPath)
@@ -141,12 +155,16 @@ func collectInitSelections(inputFile, outputFile, formatOverride string, createE
 	return selections, nil
 }
 
-func promptInitFilePair(first bool) config.FilePair {
+func promptInitFilePair(first bool) (config.FilePair, error) {
 	var plaintextFile string
 	if first {
 		plaintextFile = tools.PromptWithDefault("Enter plaintext config file name", config.DefaultFilePair().PlaintextPath)
 	} else {
-		plaintextFile = tools.PromptRequired("Enter plaintext config file name")
+		var err error
+		plaintextFile, err = tools.PromptRequired("Enter plaintext config file name")
+		if err != nil {
+			return config.FilePair{}, fmt.Errorf("failed to read plaintext config file name: %w", err)
+		}
 	}
 
 	encryptedFile := tools.PromptWithDefault("Enter encrypted file name", defaultEncryptedOutputNameForFile(plaintextFile))
@@ -159,20 +177,23 @@ func promptInitFilePair(first bool) config.FilePair {
 		PlaintextPath: plaintextFile,
 		EncryptedPath: encryptedFile,
 		Format:        formatOverride,
-	}
+	}, nil
 }
 
-func promptInteractiveInitFilePair(first bool, createExampleFlag bool) (config.FilePair, bool) {
-	filePair := promptInitFilePair(first)
+func promptInteractiveInitFilePair(first bool, createExampleFlag bool) (config.FilePair, bool, error) {
+	filePair, err := promptInitFilePair(first)
+	if err != nil {
+		return config.FilePair{}, false, err
+	}
 	if createExampleFlag {
-		return filePair, true
+		return filePair, true, nil
 	}
 
 	shouldCreateExample := tools.PromptYesNo(
 		fmt.Sprintf("Create example file for %s?", filePair.PlaintextPath),
 		false,
 	)
-	return filePair, shouldCreateExample
+	return filePair, shouldCreateExample, nil
 }
 
 func defaultEncryptedOutputNameForFile(inputFile string) string {

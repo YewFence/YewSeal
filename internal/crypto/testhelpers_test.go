@@ -34,7 +34,9 @@ func setupIntegrationEnv(t *testing.T) *testEnvironment {
 	err = os.Chdir(tempDir)
 	require.NoError(t, err)
 	t.Cleanup(func() {
-		os.Chdir(oldWd)
+		if err := os.Chdir(oldWd); err != nil {
+			t.Logf("Warning: failed to restore working directory %s: %v", oldWd, err)
+		}
 	})
 
 	// Create .age directory
@@ -214,7 +216,7 @@ func mockEditorScript(t *testing.T, mode string) string {
 		case "noop":
 			scriptContent = "#!/bin/sh\nexit 0"
 		case "modify":
-			scriptContent = "#!/bin/sh\nsed -i 's/secret123/modified_value/' \"$1\""
+			scriptContent = "#!/bin/sh\ntmp=$(mktemp)\nsed 's/secret123/modified_value/' \"$1\" > \"$tmp\" && mv \"$tmp\" \"$1\""
 		default:
 			t.Fatalf("unknown editor mode: %s", mode)
 		}

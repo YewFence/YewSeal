@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/BurntSushi/toml"
 )
@@ -74,7 +75,7 @@ func DefaultConfig() *Config {
 func LoadConfig() (*Config, error) {
 	cwd, err := os.Getwd()
 	if err != nil {
-		return DefaultConfig(), nil
+		return nil, fmt.Errorf("failed to get working directory: %w", err)
 	}
 
 	configPaths := []string{
@@ -88,6 +89,8 @@ func LoadConfig() (*Config, error) {
 		if _, err := os.Stat(path); err == nil {
 			configPath = path
 			break
+		} else if !os.IsNotExist(err) {
+			return nil, fmt.Errorf("failed to stat config file %s: %w", path, err)
 		}
 	}
 
@@ -102,6 +105,14 @@ func LoadConfig() (*Config, error) {
 
 	if len(config.Encryption.Files) == 0 {
 		config.Encryption.Files = []FilePair{DefaultFilePair()}
+	}
+	for i, filePair := range config.Encryption.Files {
+		if strings.TrimSpace(filePair.PlaintextPath) == "" {
+			return nil, fmt.Errorf("invalid encryption.files[%d]: plaintext is required", i)
+		}
+		if strings.TrimSpace(filePair.EncryptedPath) == "" {
+			return nil, fmt.Errorf("invalid encryption.files[%d]: encrypted is required", i)
+		}
 	}
 
 	return config, nil
@@ -129,7 +140,9 @@ func (c *Config) GetFiles() []FilePair {
 	if len(c.Encryption.Files) == 0 {
 		return []FilePair{DefaultFilePair()}
 	}
-	return c.Encryption.Files
+	files := make([]FilePair, len(c.Encryption.Files))
+	copy(files, c.Encryption.Files)
+	return files
 }
 
 // GetPrimaryFilePair returns the first configured file mapping.

@@ -227,6 +227,12 @@ func Edit(file, editor, keyFile string) error {
 		return &errx.NotFoundError{What: "file", Path: file}
 	}
 
+	editFormat := DetectFormat(file)
+	if editFormat == FormatUnknown {
+		editFormat = FormatYAML
+	}
+	sopsType := GetSopsType(editFormat)
+
 	// Get Age private key
 	key, err := GetAgeKey(keyFile)
 	if err != nil {
@@ -239,24 +245,26 @@ func Edit(file, editor, keyFile string) error {
 		return fmt.Errorf("failed to read encrypted file: %w", err)
 	}
 
-	plainData, err := sopsDecryptData(encData, "yaml", key)
+	plainData, err := sopsDecryptData(encData, sopsType, key)
 	if err != nil {
 		return fmt.Errorf("failed to decrypt: %w", err)
 	}
 
 	// Write to temp file
-	tmpFile, err := os.CreateTemp("", "yews-edit-*.yaml")
+	tmpFile, err := os.CreateTemp("", "yews-edit-*."+string(editFormat))
 	if err != nil {
 		return fmt.Errorf("failed to create temp file: %w", err)
 	}
 	tmpPath := tmpFile.Name()
 	defer os.Remove(tmpPath)
 
-	if err := os.WriteFile(tmpPath, plainData, 0600); err != nil {
-		tmpFile.Close()
+	if _, err := tmpFile.Write(plainData); err != nil {
+		_ = tmpFile.Close()
 		return fmt.Errorf("failed to write temp file: %w", err)
 	}
-	tmpFile.Close()
+	if err := tmpFile.Close(); err != nil {
+		return fmt.Errorf("failed to close temp file: %w", err)
+	}
 
 	// Record original hash for change detection
 	originalHash := sha256.Sum256(plainData)
@@ -292,7 +300,7 @@ func Edit(file, editor, keyFile string) error {
 	}
 
 	// Extract public key from original encrypted file
-	store := storeForFormat("yaml")
+	store := storeForFormat(sopsType)
 	tree, err := store.LoadEncryptedFile(encData)
 	if err != nil {
 		return fmt.Errorf("failed to parse encrypted file metadata: %w", err)
@@ -304,7 +312,7 @@ func Edit(file, editor, keyFile string) error {
 	}
 
 	// Re-encrypt with the same public key
-	newEncData, err := sopsEncryptData(editedData, "yaml", publicKey)
+	newEncData, err := sopsEncryptData(editedData, sopsType, publicKey)
 	if err != nil {
 		return fmt.Errorf("failed to re-encrypt: %w", err)
 	}

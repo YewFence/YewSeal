@@ -2,7 +2,9 @@ package prompt
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 )
@@ -37,17 +39,20 @@ func PromptWithDefault(prompt, defaultValue string) string {
 }
 
 // PromptRequired prompts user until a non-empty value is entered.
-func PromptRequired(prompt string) string {
+func PromptRequired(prompt string) (string, error) {
 	for {
 		fmt.Printf("%s: ", prompt)
 		input, err := stdinReader().ReadString('\n')
-		if err != nil {
-			continue
-		}
-
 		input = strings.TrimSpace(input)
 		if input != "" {
-			return input
+			return input, nil
+		}
+
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				fmt.Println()
+			}
+			return "", fmt.Errorf("failed to read input: %w", err)
 		}
 
 		fmt.Println("⚠️  Value cannot be empty.")
