@@ -10,6 +10,11 @@ on:
         description: "要发布的版本 tag"
         required: true
         type: string
+      update_stable_tags:
+        description: "是否覆盖 latest / lite 稳定标签"
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -165,6 +170,7 @@ jobs:
           image="ghcr.io/yewfence/yew-seal"
           suffix="${{ matrix.suffix }}"
           stable_tag="${{ matrix.stable_tag }}"
+          should_update_stable="false"
 
           if [[ -z "${raw_tag}" ]]; then
             echo "tag 不能为空"
@@ -173,7 +179,6 @@ jobs:
 
           tags=(
             "${image}:${raw_tag}${suffix}"
-            "${image}:${stable_tag}"
           )
 
           version="${raw_tag#v}"
@@ -185,8 +190,29 @@ jobs:
             )
           fi
 
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            if [[ "${{ inputs.update_stable_tags }}" == "true" ]]; then
+              should_update_stable="true"
+            fi
+          elif [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            latest_stable_tag="$(
+              git tag --list 'v*' --sort=-version:refname \
+                | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' \
+                | head -n 1 \
+                || true
+            )"
+            if [[ -n "${latest_stable_tag}" && "${latest_stable_tag}" == "${raw_tag}" ]]; then
+              should_update_stable="true"
+            fi
+          fi
+
+          if [[ "${should_update_stable}" == "true" ]]; then
+            tags+=("${image}:${stable_tag}")
+          fi
+
           {
-            echo "version=${version}"
+            echo "version=${raw_tag}"
+            echo "should_update_stable=${should_update_stable}"
             echo "tags<<EOF"
             printf '%s\n' "${tags[@]}"
             echo "EOF"

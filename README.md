@@ -103,9 +103,13 @@ just dev        # 开发构建 → test/yews（Windows 下为 .exe）
 
 可以根据需要自行替换下方示例命令的镜像标签
 
-> 如果需要指定镜像版本号 
-> - 完整镜像： `ghcr.io/yewfence/yew-seal:v1.0.0`
-> - 精简镜像： `ghcr.io/yewfence/yew-seal:lite-v1.0.0`
+> 稳定标签说明
+> - `latest`：当前最新稳定版的完整镜像
+> - `lite`：当前最新稳定版的精简镜像
+>
+> 如果需要指定镜像版本号：
+> - 完整镜像：`ghcr.io/yewfence/yew-seal:v1.0.0`（也会同步发布 `:1.0.0`）
+> - 精简镜像：`ghcr.io/yewfence/yew-seal:v1.0.0-lite`（也会同步发布 `:1.0.0-lite`）
 
 #### 初始化
 
@@ -143,16 +147,17 @@ docker run --rm \
 
 手动使用 infisical cli 导出私钥至本地的参考命令如下
 ```bash
-mkdir .age && infisical secrets get AGE_KEY_FILE --plain  > ./.age/keys.txt
+mkdir .age && infisical secrets get AGE_KEY_FILE --plain > ./.age/keys.txt
 ```
 
 或者直接设置 `SOPS_AGE_KEY` 环境变量：
 
 ```bash
-export SOPS_AGE_KEY="$(infisical secrets get AGE_KEY_FILE --plain)" | \
-    docker run --rm \
-        -v "$PWD:/work" \
-        ghcr.io/yewfence/yew-seal:latest decrypt
+docker run --rm \
+  -e SOPS_AGE_KEY="$(infisical secrets get AGE_KEY_FILE --plain)" \
+  -v "$PWD:/work" \
+  -w /work \
+  ghcr.io/yewfence/yew-seal:latest decrypt
 ```
 
 > `edit` 和 `sync` 更适合本机直接运行：前者依赖宿主编辑器，后者依赖宿主机上的 `infisical` CLI 和登录状态
