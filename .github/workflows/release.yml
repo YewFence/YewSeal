@@ -171,11 +171,17 @@ jobs:
       - name: Compute Docker tags
         id: docker_meta
         shell: bash
+        env:
+          RAW_TAG: ${{ inputs.tag || github.ref_name }}
+          UPDATE_STABLE_TAGS: ${{ inputs.update_stable_tags }}
+          IMAGE: ghcr.io/yewfence/yew-seal
+          SUFFIX: ${{ matrix.suffix }}
+          STABLE_TAG: ${{ matrix.stable_tag }}
         run: |
-          raw_tag="${{ inputs.tag || github.ref_name }}"
-          image="ghcr.io/yewfence/yew-seal"
-          suffix="${{ matrix.suffix }}"
-          stable_tag="${{ matrix.stable_tag }}"
+          raw_tag="${RAW_TAG}"
+          image="${IMAGE}"
+          suffix="${SUFFIX}"
+          stable_tag="${STABLE_TAG}"
           should_update_stable="false"
 
           if [[ -z "${raw_tag}" ]]; then
@@ -204,8 +210,8 @@ jobs:
             tags+=("${image}:${version}${suffix}")
           fi
 
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            if [[ "${{ inputs.update_stable_tags }}" == "true" ]]; then
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            if [[ "${UPDATE_STABLE_TAGS}" == "true" ]]; then
               should_update_stable="true"
             fi
           elif [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
