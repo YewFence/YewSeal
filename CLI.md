@@ -49,6 +49,11 @@ Initialize project with Age keys and YewSeal config entries
 
 Encrypt configuration file (supports .toml, .yaml, .yml, .json, .env, .ini)
 
+    yews encrypt [command options]
+
+    示例:
+      yews encrypt -i .dev.vars -o .dev.vars.enc.yaml --format env
+
 **--dir**="": Directory to scan for files (enables batch mode)
 
 **--format**="": Format override for single-file mode (toml/yaml/json/env/ini)
@@ -72,6 +77,11 @@ Encrypt configuration file (supports .toml, .yaml, .yml, .json, .env, .ini)
 ## decrypt, d
 
 Decrypt encrypted file (output format determined by extension)
+
+    yews decrypt [command options]
+
+    示例:
+      yews decrypt -i .dev.vars.enc.yaml -o .dev.vars --format env
 
 **--dir**="": Directory to scan for encrypted files (enables batch mode)
 

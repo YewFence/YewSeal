@@ -182,12 +182,20 @@ jobs:
           )
 
           version="${raw_tag#v}"
-          if [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+([-.].*)?$ ]]; then
+          if [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             major_minor="$(cut -d. -f1-2 <<< "${version}")"
-            tags+=(
-              "${image}:${version}${suffix}"
-              "${image}:${major_minor}${suffix}"
-            )
+            latest_minor_tag="$(
+              git tag --list "v${major_minor}.*" --sort=-version:refname \
+                | grep -E "^v${major_minor//./\\.}\.[0-9]+$" \
+                | head -n 1 \
+                || true
+            )"
+            tags+=("${image}:${version}${suffix}")
+            if [[ "${latest_minor_tag}" == "${raw_tag}" ]]; then
+              tags+=("${image}:${major_minor}${suffix}")
+            fi
+          elif [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+[-.].*$ ]]; then
+            tags+=("${image}:${version}${suffix}")
           fi
 
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then

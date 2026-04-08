@@ -105,3 +105,25 @@ func TestSavePublicKeyToConfig_ConfigCanBeLoaded(t *testing.T) {
 	assert.Equal(t, "output.yaml", cfg.GetFiles()[0].EncryptedPath)
 	assert.Equal(t, "age1testkey", cfg.GetPublicKey())
 }
+
+func TestSavePublicKeyToConfig_WritesWithoutIndentation(t *testing.T) {
+	oldWd, _ := os.Getwd()
+	tmpDir := t.TempDir()
+	os.Chdir(tmpDir)
+	defer os.Chdir(oldWd)
+
+	err := SavePublicKeyToConfig("age1test", []config.FilePair{
+		{PlaintextPath: "app.toml", EncryptedPath: "app.enc.toml.yaml"},
+	})
+	require.NoError(t, err)
+
+	content, err := os.ReadFile(".yewseal.toml")
+	require.NoError(t, err)
+
+	assert.Contains(t, string(content), "plaintext = \"app.toml\"")
+	assert.Contains(t, string(content), "encrypted = \"app.enc.toml.yaml\"")
+	assert.NotContains(t, string(content), "\n  plaintext =")
+	assert.NotContains(t, string(content), "\n  encrypted =")
+	assert.NotContains(t, string(content), "\n  file_path =")
+	assert.NotContains(t, string(content), "\n  public_key =")
+}

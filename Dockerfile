@@ -26,11 +26,13 @@ RUN apk add --no-cache python3 py3-pip
 
 RUN python3 -m venv /opt/remarshal-env
 
+ARG REMARSHAL_VERSION=1.3.0
+
 ENV PATH=/opt/remarshal-env/bin:$PATH \
     PIP_NO_CACHE_DIR=1 \
     PYTHONDONTWRITEBYTECODE=1
 
-RUN pip install --no-cache-dir remarshal
+RUN pip install --no-cache-dir "remarshal==${REMARSHAL_VERSION}"
 
 FROM alpine:3.22 AS full
 

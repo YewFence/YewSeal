@@ -109,6 +109,7 @@ release: build-all
     @echo "Creating release archives..."
     @cd {{ build_dir }} && \
         for f in {{ binary_name }}-linux-* {{ binary_name }}-darwin-*; do \
+            case "$f" in *.tar.gz|*.zip) continue ;; esac; \
             [ -f "$f" ] && tar -czf "$f.tar.gz" "$f" && rm "$f"; \
         done; \
         for f in {{ binary_name }}-windows-*.exe; do \

@@ -115,13 +115,14 @@ just dev        # 开发构建 → test/yews（Windows 下为 .exe）
 
 ```bash
 docker run --rm -it \
+  --user "$(id -u):$(id -g)" \
   -v "$PWD:/work" \
   ghcr.io/yewfence/yew-seal:latest init
 ```
 
 ##### 文件权限问题
 
-Linux/macOS `init` 时建议显式传入宿主用户 ID 以避免生成的文件属于 `root` 导致的权限问题：
+Linux/macOS 下，所有会写入挂载目录 `/work` 的命令（例如 `init`、`encrypt`、`decrypt`）都建议显式传入宿主用户 ID，避免生成的文件属于 `root`。Windows 一般可以省略 `--user`：
 
 ```bash
 docker run --rm -it \
@@ -135,10 +136,12 @@ docker run --rm -it \
 ```bash
 # 加密
 docker run --rm \
+  --user "$(id -u):$(id -g)" \
   -v "$PWD:/work" \
   ghcr.io/yewfence/yew-seal:latest encrypt
 # 解密
 docker run --rm \
+  --user "$(id -u):$(id -g)" \
   -v "$PWD:/work" \
   ghcr.io/yewfence/yew-seal:latest decrypt
 ```
@@ -155,6 +158,7 @@ mkdir .age && infisical secrets get AGE_KEY_FILE --plain > ./.age/keys.txt
 ```bash
 docker run --rm \
   -e SOPS_AGE_KEY="$(infisical secrets get AGE_KEY_FILE --plain)" \
+  --user "$(id -u):$(id -g)" \
   -v "$PWD:/work" \
   -w /work \
   ghcr.io/yewfence/yew-seal:latest decrypt
@@ -264,6 +268,7 @@ yews encrypt --verbose  # 显示详细输出
 
 ```bash
 docker run --rm -it \
+  --user "$(id -u):$(id -g)" \
   -v "$PWD:/work" \
   -w /work \
   ghcr.io/yewfence/yew-seal encrypt
@@ -294,6 +299,7 @@ yews decrypt -i custom.enc.toml.yaml -o custom.toml --verbose
 ```bash
 docker run --rm \
   -e SOPS_AGE_KEY="$SOPS_AGE_KEY" \
+  --user "$(id -u):$(id -g)" \
   -v "$PWD:/work" \
   -w /work \
   ghcr.io/yewfence/yew-seal decrypt
