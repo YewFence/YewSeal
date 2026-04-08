@@ -66,6 +66,19 @@ go install github.com/YewFence/YewSeal/cmd/yews@latest
 
 安装完成后可直接在任意目录使用 `yews` 命令（需要 `$GOPATH/bin` 在 `$PATH` 中）。
 
+### mise
+
+通过 [mise](https://mise.jdx.dev/) 的 [github backend](https://mise.jdx.dev/dev-tools/backends/github.html) 直接下载 release 中的预构建可执行文件并安装：
+
+> 需要 [mise activate](https://mise.jdx.dev/cli/activate.html) 才可以使用
+
+```bash
+mise use -g github:YewFence/YewSeal
+yews --version
+```
+
+发布包里的可执行文件名固定为 `yews`（Windows 下为 `yews.exe`），所以安装后直接使用 `yews` 即可。
+
 ### 从源码安装
 
 ```bash

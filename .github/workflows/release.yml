@@ -72,24 +72,27 @@ jobs:
         run: |
           VERSION=$(git describe --tags --always --dirty 2>/dev/null || echo "dev")
           mkdir -p dist
-          BINARY_NAME="yews-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }}"
+          BINARY_NAME="yews${{ matrix.ext }}"
           go build -ldflags "-s -w -X main.Version=${VERSION}" -o "dist/${BINARY_NAME}" ./cmd/yews/
 
       - name: Create archive
         run: |
           cd dist
-          BINARY_NAME="yews-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }}"
+          BINARY_NAME="yews${{ matrix.ext }}"
+          ARCHIVE_NAME="yews-${{ matrix.goos }}-${{ matrix.goarch }}"
           if [[ "${{ matrix.goos }}" == "windows" ]]; then
-            zip "yews-${{ matrix.goos }}-${{ matrix.goarch }}.zip" "${BINARY_NAME}"
+            zip "${ARCHIVE_NAME}.zip" "${BINARY_NAME}"
           else
-            tar -czf "yews-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz" "${BINARY_NAME}"
+            tar -czf "${ARCHIVE_NAME}.tar.gz" "${BINARY_NAME}"
           fi
 
       - name: Upload artifact
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: yews-${{ matrix.goos }}-${{ matrix.goarch }}
-          path: dist/yews-${{ matrix.goos }}-${{ matrix.goarch }}.*
+          path: |
+            dist/yews-${{ matrix.goos }}-${{ matrix.goarch }}.zip
+            dist/yews-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz
           retention-days: 1
 
   release:
