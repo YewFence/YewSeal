@@ -105,9 +105,10 @@ func main() {
 				},
 			},
 			{
-				Name:    "encrypt",
-				Aliases: []string{"e"},
-				Usage:   "Encrypt configuration file (supports .toml, .yaml, .yml, .json, .env, .ini)",
+				Name:      "encrypt",
+				Aliases:   []string{"e"},
+				Usage:     "Encrypt configuration file (supports .toml, .yaml, .yml, .json, .env, .ini)",
+				UsageText: `yews encrypt [command options]`,
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:    "input",
@@ -236,9 +237,10 @@ func main() {
 				},
 			},
 			{
-				Name:    "decrypt",
-				Aliases: []string{"d"},
-				Usage:   "Decrypt encrypted file (output format determined by extension)",
+				Name:      "decrypt",
+				Aliases:   []string{"d"},
+				Usage:     "Decrypt encrypted file (output format determined by extension)",
+				UsageText: `yews decrypt [command options]`,
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:    "input",

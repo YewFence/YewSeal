@@ -37,11 +37,11 @@ Initialize project with Age keys and YewSeal config entries
 
 **--force, -f**: Force overwrite existing configuration
 
+**--format**="": Format override for the first config entry (toml/yaml/json/env/ini)
+
 **--input, -i**="": Plaintext file for the first config entry (non-interactive mode)
 
 **--output, -o**="": Encrypted file for the first config entry (non-interactive mode)
-
-**--format**="": Format override for the first config entry (toml/yaml/json/env/ini, default: auto-detect by file extension)
 
 **--skip-sops-config**: Skip creating .sops.yaml file (non-interactive mode)
 
@@ -49,13 +49,15 @@ Initialize project with Age keys and YewSeal config entries
 
 Encrypt configuration file (supports .toml, .yaml, .yml, .json, .env, .ini)
 
+>yews encrypt [command options]
+
 **--dir**="": Directory to scan for files (enables batch mode)
+
+**--format**="": Format override for single-file mode (toml/yaml/json/env/ini)
 
 **--input, -i**="": Input file to encrypt (single file mode) (default: "wrangler.toml")
 
 **--output, -o**="": Output encrypted file (single file mode only) (default: "wrangler.enc.toml.yaml")
-
-**--format**="": Format override for single-file mode (toml/yaml/json/env/ini, default: auto-detect; no short alias)
 
 **--output-dir**="": Output directory for encrypted files (batch mode)
 
@@ -69,19 +71,19 @@ Encrypt configuration file (supports .toml, .yaml, .yml, .json, .env, .ini)
 
 **--verbose, -v**: Enable verbose output
 
-Example: `yews encrypt -i .dev.vars -o .dev.vars.enc.yaml --format env`
-
 ## decrypt, d
 
 Decrypt encrypted file (output format determined by extension)
 
+>yews decrypt [command options]
+
 **--dir**="": Directory to scan for encrypted files (enables batch mode)
+
+**--format**="": Format override for single-file mode (toml/yaml/json/env/ini)
 
 **--input, -i**="": Input encrypted file (single file mode) (default: "wrangler.enc.toml.yaml")
 
 **--output, -o**="": Output decrypted file (single file mode only) (default: "wrangler.toml")
-
-**--format**="": Format override for single-file mode (toml/yaml/json/env/ini, default: auto-detect; no short alias)
 
 **--output-dir**="": Output directory for decrypted files (batch mode)
 
@@ -92,8 +94,6 @@ Decrypt encrypted file (output format determined by extension)
 **--pattern**="": Glob pattern for matching encrypted files (default: "*.enc.toml.yaml")
 
 **--verbose, -v**: Enable verbose output
-
-Example: `yews decrypt -i .dev.vars.enc.yaml -o .dev.vars --format env`
 
 ## edit
 

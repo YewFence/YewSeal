@@ -39,7 +39,9 @@ func SavePublicKeyToConfig(publicKey string, filePairs []config.FilePair) error 
 
 `)
 
-	if err := toml.NewEncoder(&buffer).Encode(cfg); err != nil {
+	encoder := toml.NewEncoder(&buffer)
+	encoder.Indent = ""
+	if err := encoder.Encode(cfg); err != nil {
 		return fmt.Errorf("failed to encode config: %w", err)
 	}
 

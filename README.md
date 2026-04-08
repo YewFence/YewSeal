@@ -66,6 +66,19 @@ go install github.com/YewFence/YewSeal/cmd/yews@latest
 
 安装完成后可直接在任意目录使用 `yews` 命令（需要 `$GOPATH/bin` 在 `$PATH` 中）。
 
+### mise
+
+通过 [mise](https://mise.jdx.dev/) 的 [github backend](https://mise.jdx.dev/dev-tools/backends/github.html) 直接下载 release 中的预构建可执行文件并安装：
+
+> 需要 [mise activate](https://mise.jdx.dev/cli/activate.html) 才可以使用
+
+```bash
+mise use -g github:YewFence/YewSeal
+yews --version
+```
+
+发布包里的可执行文件名固定为 `yews`（Windows 下为 `yews.exe`），所以安装后直接使用 `yews` 即可。
+
 ### 从源码安装
 
 ```bash
@@ -91,6 +104,80 @@ just dev        # 开发构建 → test/yews（Windows 下为 .exe）
 ### 直接下载
 
 从 Releases 页面下载适合你系统的预编译二进制文件。
+
+### Docker
+
+如果你的环境里已经有 Docker，但不想额外安装 `yews`，可以直接跑容器镜像。
+
+镜像现在分成两个变体：
+
+- `ghcr.io/yewfence/yew-seal:latest`：完整镜像，内置 `remarshal` 与它依赖的 Python 环境，体积更大，支持 TOML 和其他格式的加密解密
+- `ghcr.io/yewfence/yew-seal:lite`：精简镜像，不带 Python 和 `remarshal`，体积更小，不支持 TOML 格式
+
+可以根据需要自行替换下方示例命令的镜像标签
+
+> 稳定标签说明
+> - `latest`：当前最新稳定版的完整镜像
+> - `lite`：当前最新稳定版的精简镜像
+>
+> 如果需要指定镜像版本号：
+> - 完整镜像：`ghcr.io/yewfence/yew-seal:v1.0.0`（也会同步发布 `:1.0.0`）
+> - 精简镜像：`ghcr.io/yewfence/yew-seal:v1.0.0-lite`（也会同步发布 `:1.0.0-lite`）
+
+#### 初始化
+
+```bash
+docker run --rm -it \
+  --user "$(id -u):$(id -g)" \
+  -v "$PWD:/work" \
+  ghcr.io/yewfence/yew-seal:latest init
+```
+
+##### 文件权限问题
+
+Linux/macOS 下，所有会写入挂载目录 `/work` 的命令（例如 `init`、`encrypt`、`decrypt`）都建议显式传入宿主用户 ID，避免生成的文件属于 `root`。Windows 一般可以省略 `--user`：
+
+```bash
+docker run --rm -it \
+  --user "$(id -u):$(id -g)" \
+  -v "$PWD:/work" \
+  ghcr.io/yewfence/yew-seal:latest init
+```
+
+#### 加密/解密
+
+```bash
+# 加密
+docker run --rm \
+  --user "$(id -u):$(id -g)" \
+  -v "$PWD:/work" \
+  ghcr.io/yewfence/yew-seal:latest encrypt
+# 解密
+docker run --rm \
+  --user "$(id -u):$(id -g)" \
+  -v "$PWD:/work" \
+  ghcr.io/yewfence/yew-seal:latest decrypt
+```
+
+#### 补充说明
+
+手动使用 infisical cli 导出私钥至本地的参考命令如下
+```bash
+mkdir .age && infisical secrets get AGE_KEY_FILE --plain > ./.age/keys.txt
+```
+
+或者直接设置 `SOPS_AGE_KEY` 环境变量：
+
+```bash
+docker run --rm \
+  -e SOPS_AGE_KEY="$(infisical secrets get AGE_KEY_FILE --plain)" \
+  --user "$(id -u):$(id -g)" \
+  -v "$PWD:/work" \
+  -w /work \
+  ghcr.io/yewfence/yew-seal:latest decrypt
+```
+
+> `edit` 和 `sync` 更适合本机直接运行：前者依赖宿主编辑器，后者依赖宿主机上的 `infisical` CLI 和登录状态
 
 ### Scoop（Windows）
 
@@ -190,6 +277,16 @@ yews encrypt -i custom.toml -o custom.enc.toml.yaml --public-key "age1..."
 yews encrypt --verbose  # 显示详细输出
 ```
 
+如果你想直接用 Docker 跑：
+
+```bash
+docker run --rm -it \
+  --user "$(id -u):$(id -g)" \
+  -v "$PWD:/work" \
+  -w /work \
+  ghcr.io/yewfence/yew-seal encrypt
+```
+
 ### 3. 解密配置文件
 
 从加密文件恢复原始配置：
@@ -208,6 +305,17 @@ yews d --dir ./configs --parallel 4
 ```bash
 yews decrypt --input custom.enc.toml.yaml --output custom.toml
 yews decrypt -i custom.enc.toml.yaml -o custom.toml --verbose
+```
+
+如果私钥通过环境变量注入，Docker 用法类似这样：
+
+```bash
+docker run --rm \
+  -e SOPS_AGE_KEY="$SOPS_AGE_KEY" \
+  --user "$(id -u):$(id -g)" \
+  -v "$PWD:/work" \
+  -w /work \
+  ghcr.io/yewfence/yew-seal decrypt
 ```
 
 ### 4. 直接编辑加密文件
