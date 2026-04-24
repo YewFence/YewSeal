@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+binary_name="${BINARY_NAME:-yews}"
+build_dir="${BUILD_DIR:-./build}"
+
+echo "Creating release archives..."
+(
+  cd "${build_dir}"
+  for artifact in "${binary_name}"-linux-* "${binary_name}"-darwin-*; do
+    case "${artifact}" in
+      *.tar.gz | *.zip) continue ;;
+    esac
+    if [[ -f "${artifact}" ]]; then
+      tar -czf "${artifact}.tar.gz" "${artifact}"
+      rm "${artifact}"
+    fi
+  done
+
+  for artifact in "${binary_name}"-windows-*.exe; do
+    if [[ -f "${artifact}" ]]; then
+      zip -q "${artifact%.exe}.zip" "${artifact}"
+      rm "${artifact}"
+    fi
+  done
+)
+echo "Release archives created in ${build_dir}/"

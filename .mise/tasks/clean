@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+binary_name="${BINARY_NAME:-yews}"
+build_dir="${BUILD_DIR:-./build}"
+dev_dir="${DEV_DIR:-./test}"
+bin_ext=""
+if [[ "${OS:-}" == "Windows_NT" ]]; then
+  bin_ext=".exe"
+fi
+
+echo "Cleaning build artifacts..."
+go clean
+rm -rf "${build_dir}"
+rm -f "${dev_dir}/${binary_name}${bin_ext}"
+echo "Clean complete"

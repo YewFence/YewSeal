@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+binary_name="${BINARY_NAME:-yews}"
+main_path="${MAIN_PATH:-./cmd/yews/}"
+version="$(git describe --tags --always --dirty 2>/dev/null || echo "dev")"
+ldflags="-s -w -X main.Version=${version}"
+
+echo "Installing ${binary_name} to GOPATH/bin..."
+go install -ldflags "${ldflags}" "${main_path}"
+echo "Installed! Run 'yews --version' to verify."

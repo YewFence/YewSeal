@@ -10,16 +10,16 @@ YewSeal 是一个 Go CLI 工具，用于管理加密配置文件。核心功能�
 
 ```bash
 # 构建
-just build          # 构建 → build/yews.exe
-just clean          # 清理构建产物
+mise run build      # 构建 → build/yews
+mise run clean      # 清理构建产物
 
 # 测试
-just test           # 运行所有测试 (go test -v ./...)
+mise run test       # 运行所有测试 (go test -v ./...)
 go test -v ./internal/crypto/...  # 运行单个包的测试
 
 # 跨平台构建
-just build-all      # 构建所有平台 (linux/windows/darwin × amd64/arm64)
-just release        # 构建并打包为发布归档
+mise run build-all  # 构建所有平台 (linux/windows/darwin × amd64/arm64)
+mise run release    # 构建并打包为发布归档
 ```
 
 ## 架构

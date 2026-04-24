@@ -1,0 +1,97 @@
+[tools]
+go = "latest"
+
+[env]
+BINARY_NAME = "yews"
+MAIN_PATH = "./cmd/yews/"
+BUILD_DIR = "./build"
+DEV_DIR = "./test"
+
+[tasks.default]
+depends = ["build"]
+
+[tasks.install]
+description = "Install to GOPATH/bin"
+file = ".mise/tasks/install"
+
+[tasks.build]
+description = "Build for production"
+file = ".mise/tasks/build"
+
+[tasks.dev]
+description = "Build for development"
+file = ".mise/tasks/dev"
+
+[tasks.run]
+depends = ["build"]
+description = "Build and run the application"
+file = ".mise/tasks/run"
+
+[tasks.test]
+description = "Run tests"
+run = "go test -v ./..."
+
+[tasks.clean]
+description = "Clean build artifacts"
+file = ".mise/tasks/clean"
+
+[tasks.deps]
+description = "Download dependencies"
+run = "go get -v ./..."
+
+[tasks.tidy]
+description = "Tidy dependencies"
+run = "go mod tidy"
+
+[tasks.docs]
+description = "Generate docs"
+run = "go run ./cmd/yews docs"
+
+[tasks.build-all]
+depends = ["build-linux", "build-windows", "build-darwin"]
+description = "Build for all platforms"
+run = "echo \"All platforms built successfully!\""
+
+[tasks.build-linux]
+depends = ["build-linux-amd64", "build-linux-arm64"]
+description = "Build for all Linux platforms"
+run = "echo \"Linux builds complete\""
+
+[tasks.build-windows]
+depends = ["build-windows-amd64", "build-windows-arm64"]
+description = "Build for all Windows platforms"
+run = "echo \"Windows builds complete\""
+
+[tasks.build-darwin]
+depends = ["build-darwin-amd64", "build-darwin-arm64"]
+description = "Build for all macOS platforms"
+run = "echo \"Darwin builds complete\""
+
+[tasks.build-linux-amd64]
+description = "Build linux/amd64"
+run = "GOOS=linux GOARCH=amd64 .mise/scripts/build-platform linux amd64"
+
+[tasks.build-linux-arm64]
+description = "Build linux/arm64"
+run = "GOOS=linux GOARCH=arm64 .mise/scripts/build-platform linux arm64"
+
+[tasks.build-windows-amd64]
+description = "Build windows/amd64"
+run = "GOOS=windows GOARCH=amd64 .mise/scripts/build-platform windows amd64 .exe"
+
+[tasks.build-windows-arm64]
+description = "Build windows/arm64"
+run = "GOOS=windows GOARCH=arm64 .mise/scripts/build-platform windows arm64 .exe"
+
+[tasks.build-darwin-amd64]
+description = "Build darwin/amd64"
+run = "GOOS=darwin GOARCH=amd64 .mise/scripts/build-platform darwin amd64"
+
+[tasks.build-darwin-arm64]
+description = "Build darwin/arm64"
+run = "GOOS=darwin GOARCH=arm64 .mise/scripts/build-platform darwin arm64"
+
+[tasks.release]
+depends = ["build-all"]
+description = "Build all platforms and create release archives"
+file = ".mise/tasks/release"
