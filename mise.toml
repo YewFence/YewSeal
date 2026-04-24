@@ -1,5 +1,6 @@
 [tools]
-go = "latest"
+go = "1.25.6"
+"pipx:remarshal" = "latest"
 
 [env]
 BINARY_NAME = "yews"

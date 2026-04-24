@@ -8,4 +8,4 @@ ldflags="-s -w -X main.Version=${version}"
 
 echo "Installing ${binary_name} to GOPATH/bin..."
 go install -ldflags "${ldflags}" "${main_path}"
-echo "Installed! Run 'yews --version' to verify."
+echo "Installed! Run '${binary_name} --version' to verify."

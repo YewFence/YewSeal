@@ -17,4 +17,4 @@ ldflags="-s -w -X main.Version=${version}"
 
 echo "Building for ${target_os}/${target_arch}..."
 mkdir -p "${build_dir}"
-go build -ldflags "${ldflags}" -o "${build_dir}/${binary_name}-${target_os}-${target_arch}${target_ext}" "${main_path}"
+GOOS="${target_os}" GOARCH="${target_arch}" go build -ldflags "${ldflags}" -o "${build_dir}/${binary_name}-${target_os}-${target_arch}${target_ext}" "${main_path}"

@@ -377,6 +377,8 @@ public_key = "age1..."
 file_path = ".age/keys.txt"
 
 [sync]
+# Infisical 项目 ID（可选；未设置时使用 infisical init 生成的本地项目配置）
+project_id = "your-infisical-project-id"
 # Age 私钥同步到密钥管理服务时使用的远端路径和环境名称
 path = "/yewseal"
 environment = "prod"
@@ -428,6 +430,7 @@ public_key = "age1..."
 file_path = ".age/keys.txt"
 
 [sync]
+project_id = "your-infisical-project-id"
 path = "/yewseal"
 environment = "prod"
 ```
@@ -498,14 +501,15 @@ infisical init
 ```bash
 # 直接同步到项目根目录的 AGE_KEY_FILE 变量
 yews sync
-# 自行指定变量名和路径（需要提前创建）
-yews sync --name AGE_KEY_FILE --path /yewseal --env prod
+# 自行指定项目、变量名、路径和环境（需要提前创建）
+yews sync --project-id your-infisical-project-id --name AGE_KEY_FILE --path /yewseal --env prod
 ```
 
-也可以在 `.yewseal.toml` 中固定同步位置，这样 `yews sync` 和 `yews sync pull` 会自动使用配置里的远端路径和环境名称。
+也可以在 `.yewseal.toml` 中固定同步位置，这样 `yews sync` 和 `yews sync pull` 会自动使用配置里的项目、远端路径和环境名称；如果没有设置 `project_id`，就会沿用 `infisical init` 生成的 `.infisical.json` 本地项目配置。
 
 ```toml
 [sync]
+project_id = "your-infisical-project-id"
 path = "/yewseal"
 environment = "prod"
 ```

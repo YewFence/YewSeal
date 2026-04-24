@@ -88,7 +88,18 @@ func TestInfisicalProviderCheck_MissingBinary(t *testing.T) {
 	assert.Equal(t, "infisical CLI", depErr.Name)
 }
 
-func TestInfisicalProviderCheck_MissingProjectID(t *testing.T) {
+func TestInfisicalProviderCheck_UsesInfisicalConfigWhenProjectIDMissing(t *testing.T) {
+	tempDir := t.TempDir()
+	withWorkingDir(t, tempDir)
+	writeFakeExecutable(t, tempDir, "infisical")
+	require.NoError(t, os.WriteFile(filepath.Join(tempDir, ".infisical.json"), []byte("{}"), 0o600))
+	t.Setenv("PATH", tempDir)
+
+	provider := &InfisicalProvider{}
+	require.NoError(t, provider.Check(""))
+}
+
+func TestInfisicalProviderCheck_MissingInfisicalConfig(t *testing.T) {
 	tempDir := t.TempDir()
 	withWorkingDir(t, tempDir)
 	writeFakeExecutable(t, tempDir, "infisical")
@@ -99,8 +110,8 @@ func TestInfisicalProviderCheck_MissingProjectID(t *testing.T) {
 
 	var configErr *errx.MissingProjectConfigError
 	require.ErrorAs(t, err, &configErr)
-	assert.Equal(t, "sync.project_id", configErr.Path)
-	assert.Equal(t, "Set project_id under [sync] in .yewseal.toml", configErr.Hint)
+	assert.Equal(t, ".infisical.json", configErr.Path)
+	assert.Equal(t, "Run 'infisical init' first to initialize the project", configErr.Hint)
 }
 
 func TestSyncKey_PropagatesProviderCheckError(t *testing.T) {
@@ -140,7 +151,7 @@ func TestInfisicalSyncArgs_WithPathAndEnvironment(t *testing.T) {
 
 	assert.Equal(t, []string{
 		"secrets",
-		"--projectId=project-123",
+		"--project-id=project-123",
 		"set",
 		"AGE_KEY_FILE=@.age/keys.txt",
 		"--path=/yewseal",
@@ -153,7 +164,32 @@ func TestInfisicalPullArgs_WithPathAndEnvironment(t *testing.T) {
 
 	assert.Equal(t, []string{
 		"secrets",
-		"--projectId=project-123",
+		"--project-id=project-123",
+		"get",
+		"AGE_KEY_FILE",
+		"--plain",
+		"--path=/yewseal",
+		"--env=prod",
+	}, args)
+}
+
+func TestInfisicalSyncArgs_WithoutProjectID(t *testing.T) {
+	args := infisicalSyncArgs(".age/keys.txt", "AGE_KEY_FILE", "", "/yewseal", "prod")
+
+	assert.Equal(t, []string{
+		"secrets",
+		"set",
+		"AGE_KEY_FILE=@.age/keys.txt",
+		"--path=/yewseal",
+		"--env=prod",
+	}, args)
+}
+
+func TestInfisicalPullArgs_WithoutProjectID(t *testing.T) {
+	args := infisicalPullArgs("AGE_KEY_FILE", "", "/yewseal", "prod")
+
+	assert.Equal(t, []string{
+		"secrets",
 		"get",
 		"AGE_KEY_FILE",
 		"--plain",

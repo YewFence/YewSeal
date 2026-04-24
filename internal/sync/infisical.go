@@ -26,7 +26,9 @@ func (p *InfisicalProvider) Check(projectID string) error {
 	}
 
 	if strings.TrimSpace(projectID) == "" {
-		return &errx.MissingProjectConfigError{Path: "sync.project_id", Hint: "Set project_id under [sync] in .yewseal.toml"}
+		if _, err := os.Stat(".infisical.json"); os.IsNotExist(err) {
+			return &errx.MissingProjectConfigError{Path: ".infisical.json", Hint: "Run 'infisical init' first to initialize the project"}
+		}
 	}
 
 	return nil
@@ -36,7 +38,11 @@ func infisicalSyncArgs(keyFile, secretName, projectID, path, environment string)
 	// 构建 secret 设置参数: SECRET_NAME=@filepath
 	secretArg := fmt.Sprintf("%s=@%s", secretName, keyFile)
 
-	args := []string{"secrets", "--projectId=" + projectID, "set", secretArg}
+	args := []string{"secrets"}
+	if projectID != "" {
+		args = append(args, "--project-id="+projectID)
+	}
+	args = append(args, "set", secretArg)
 
 	// 如果指定了路径，添加 --path 参数
 	if path != "" {
@@ -51,7 +57,11 @@ func infisicalSyncArgs(keyFile, secretName, projectID, path, environment string)
 }
 
 func infisicalPullArgs(secretName, projectID, path, environment string) []string {
-	args := []string{"secrets", "--projectId=" + projectID, "get", secretName, "--plain"}
+	args := []string{"secrets"}
+	if projectID != "" {
+		args = append(args, "--project-id="+projectID)
+	}
+	args = append(args, "get", secretName, "--plain")
 
 	// 如果指定了路径，添加 --path 参数
 	if path != "" {
