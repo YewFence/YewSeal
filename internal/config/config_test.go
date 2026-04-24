@@ -125,6 +125,7 @@ public_key = "age1customkey"
 
 [sync]
 provider = "infisical"
+project_id = "project-123"
 secret_name = "CUSTOM_AGE_KEY"
 path = "/apps/yewseal"
 environment = "prod"
@@ -147,6 +148,7 @@ environment = "prod"
 	assert.Equal(t, "custom/keys.txt", cfg.Key.FilePath)
 	assert.Equal(t, "age1customkey", cfg.Key.PublicKey)
 	assert.Equal(t, "infisical", cfg.Sync.Provider)
+	assert.Equal(t, "project-123", cfg.Sync.ProjectID)
 	assert.Equal(t, "CUSTOM_AGE_KEY", cfg.Sync.SecretName)
 	assert.Equal(t, "/apps/yewseal", cfg.Sync.Path)
 	assert.Equal(t, "prod", cfg.Sync.Environment)
@@ -156,6 +158,7 @@ func TestGetSyncConfig(t *testing.T) {
 	cfg := &Config{
 		Sync: SyncConfig{
 			Provider:    "infisical",
+			ProjectID:   "project-config",
 			SecretName:  "CONFIG_AGE_KEY",
 			Path:        "/config-path",
 			Environment: "staging",
@@ -164,6 +167,8 @@ func TestGetSyncConfig(t *testing.T) {
 
 	assert.Equal(t, "vault", cfg.GetSyncProvider("vault"))
 	assert.Equal(t, "infisical", cfg.GetSyncProvider(""))
+	assert.Equal(t, "project-cli", cfg.GetSyncProjectID("project-cli"))
+	assert.Equal(t, "project-config", cfg.GetSyncProjectID(""))
 	assert.Equal(t, "cli-secret", cfg.GetSyncSecretName("cli-secret"))
 	assert.Equal(t, "CONFIG_AGE_KEY", cfg.GetSyncSecretName(""))
 	assert.Equal(t, "/cli-path", cfg.GetSyncPath("/cli-path"))
@@ -173,6 +178,7 @@ func TestGetSyncConfig(t *testing.T) {
 
 	emptyCfg := &Config{}
 	assert.Equal(t, "infisical", emptyCfg.GetSyncProvider(""))
+	assert.Empty(t, emptyCfg.GetSyncProjectID(""))
 	assert.Equal(t, "AGE_KEY_FILE", emptyCfg.GetSyncSecretName(""))
 	assert.Empty(t, emptyCfg.GetSyncPath(""))
 	assert.Empty(t, emptyCfg.GetSyncEnvironment(""))

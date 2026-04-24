@@ -62,7 +62,7 @@ func TestGetProvider(t *testing.T) {
 }
 
 func TestSyncKey_MissingKeyFile(t *testing.T) {
-	err := SyncKey("infisical", filepath.Join(t.TempDir(), "missing-key.txt"), "secret", "", "")
+	err := SyncKey("infisical", filepath.Join(t.TempDir(), "missing-key.txt"), "secret", "project-123", "", "")
 
 	var keyErr *errx.KeyFileNotFoundError
 	require.ErrorAs(t, err, &keyErr)
@@ -70,7 +70,7 @@ func TestSyncKey_MissingKeyFile(t *testing.T) {
 }
 
 func TestPullKey_UnknownProvider(t *testing.T) {
-	err := PullKey("vault", "ignored.txt", "secret", "", "")
+	err := PullKey("vault", "ignored.txt", "secret", "project-123", "", "")
 
 	var providerErr *errx.UnknownProviderError
 	require.ErrorAs(t, err, &providerErr)
@@ -81,26 +81,26 @@ func TestInfisicalProviderCheck_MissingBinary(t *testing.T) {
 	t.Setenv("PATH", t.TempDir())
 
 	provider := &InfisicalProvider{}
-	err := provider.Check()
+	err := provider.Check("project-123")
 
 	var depErr *errx.MissingDependencyError
 	require.ErrorAs(t, err, &depErr)
 	assert.Equal(t, "infisical CLI", depErr.Name)
 }
 
-func TestInfisicalProviderCheck_MissingProjectConfig(t *testing.T) {
+func TestInfisicalProviderCheck_MissingProjectID(t *testing.T) {
 	tempDir := t.TempDir()
 	withWorkingDir(t, tempDir)
 	writeFakeExecutable(t, tempDir, "infisical")
 	t.Setenv("PATH", tempDir)
 
 	provider := &InfisicalProvider{}
-	err := provider.Check()
+	err := provider.Check("")
 
 	var configErr *errx.MissingProjectConfigError
 	require.ErrorAs(t, err, &configErr)
-	assert.Equal(t, ".infisical.json", configErr.Path)
-	assert.Equal(t, "Run 'infisical init' first to initialize the project", configErr.Hint)
+	assert.Equal(t, "sync.project_id", configErr.Path)
+	assert.Equal(t, "Set project_id under [sync] in .yewseal.toml", configErr.Hint)
 }
 
 func TestSyncKey_PropagatesProviderCheckError(t *testing.T) {
@@ -112,7 +112,7 @@ func TestSyncKey_PropagatesProviderCheckError(t *testing.T) {
 	keyFile := filepath.Join(tempDir, "keys.txt")
 	require.NoError(t, os.WriteFile(keyFile, []byte("AGE-SECRET-KEY-1TEST"), 0o600))
 
-	err := SyncKey("infisical", keyFile, "secret", "", "")
+	err := SyncKey("infisical", keyFile, "secret", "", "", "")
 
 	var configErr *errx.MissingProjectConfigError
 	require.ErrorAs(t, err, &configErr)
@@ -124,22 +124,23 @@ func TestPullKey_PropagatesProviderCheckError(t *testing.T) {
 	writeFakeExecutable(t, tempDir, "infisical")
 	t.Setenv("PATH", tempDir)
 
-	err := PullKey("infisical", filepath.Join(tempDir, "keys.txt"), "secret", "", "")
+	err := PullKey("infisical", filepath.Join(tempDir, "keys.txt"), "secret", "", "", "")
 
 	var configErr *errx.MissingProjectConfigError
 	require.ErrorAs(t, err, &configErr)
 }
 
 func TestSyncKey_ErrorTypeStaysStable(t *testing.T) {
-	err := SyncKey("infisical", filepath.Join(t.TempDir(), "missing.txt"), "secret", "", "")
+	err := SyncKey("infisical", filepath.Join(t.TempDir(), "missing.txt"), "secret", "project-123", "", "")
 	assert.True(t, errors.As(err, new(*errx.KeyFileNotFoundError)))
 }
 
 func TestInfisicalSyncArgs_WithPathAndEnvironment(t *testing.T) {
-	args := infisicalSyncArgs(".age/keys.txt", "AGE_KEY_FILE", "/yewseal", "prod")
+	args := infisicalSyncArgs(".age/keys.txt", "AGE_KEY_FILE", "project-123", "/yewseal", "prod")
 
 	assert.Equal(t, []string{
 		"secrets",
+		"--projectId=project-123",
 		"set",
 		"AGE_KEY_FILE=@.age/keys.txt",
 		"--path=/yewseal",
@@ -148,10 +149,11 @@ func TestInfisicalSyncArgs_WithPathAndEnvironment(t *testing.T) {
 }
 
 func TestInfisicalPullArgs_WithPathAndEnvironment(t *testing.T) {
-	args := infisicalPullArgs("AGE_KEY_FILE", "/yewseal", "prod")
+	args := infisicalPullArgs("AGE_KEY_FILE", "project-123", "/yewseal", "prod")
 
 	assert.Equal(t, []string{
 		"secrets",
+		"--projectId=project-123",
 		"get",
 		"AGE_KEY_FILE",
 		"--plain",

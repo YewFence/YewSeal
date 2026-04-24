@@ -51,6 +51,8 @@ type KeyConfig struct {
 type SyncConfig struct {
 	// Provider is the secret management provider name.
 	Provider string `toml:"provider,omitempty"`
+	// ProjectID is the provider project identifier used by sync commands.
+	ProjectID string `toml:"project_id,omitempty"`
 	// SecretName is the remote secret name for the Age key file.
 	SecretName string `toml:"secret_name,omitempty"`
 	// Path is the remote path/folder in the provider.
@@ -170,6 +172,15 @@ func (c *Config) GetSyncSecretName(provided string) string {
 		return c.Sync.SecretName
 	}
 	return "AGE_KEY_FILE"
+}
+
+// GetSyncProjectID returns the key sync project identifier.
+// Priority: provided value > config file > default.
+func (c *Config) GetSyncProjectID(provided string) string {
+	if provided != "" {
+		return provided
+	}
+	return c.Sync.ProjectID
 }
 
 // GetSyncPath returns the key sync remote path.

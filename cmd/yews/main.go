@@ -61,6 +61,13 @@ func resolveSyncSecretName(c *cli.Context, cfg *config.Config) string {
 	return cfg.GetSyncSecretName("")
 }
 
+func resolveSyncProjectID(c *cli.Context, cfg *config.Config) string {
+	if c.IsSet("project-id") {
+		return cfg.GetSyncProjectID(c.String("project-id"))
+	}
+	return cfg.GetSyncProjectID("")
+}
+
 func resolveSyncPath(c *cli.Context, cfg *config.Config) string {
 	if c.IsSet("path") {
 		return cfg.GetSyncPath(c.String("path"))
@@ -460,6 +467,10 @@ func main() {
 						Usage:   "Secret name in the provider",
 					},
 					&cli.StringFlag{
+						Name:  "project-id",
+						Usage: "Infisical project ID",
+					},
+					&cli.StringFlag{
 						Name:  "path",
 						Usage: "Path/folder in the provider (e.g., /yewseal)",
 					},
@@ -480,6 +491,7 @@ func main() {
 						resolveSyncProvider(c, cfg),
 						resolveSyncKeyFile(c, cfg),
 						resolveSyncSecretName(c, cfg),
+						resolveSyncProjectID(c, cfg),
 						resolveSyncPath(c, cfg),
 						resolveSyncEnvironment(c, cfg),
 					)
@@ -502,6 +514,10 @@ func main() {
 								Usage:   "Secret name in the provider",
 							},
 							&cli.StringFlag{
+								Name:  "project-id",
+								Usage: "Infisical project ID",
+							},
+							&cli.StringFlag{
 								Name:  "path",
 								Usage: "Path/folder in the provider (e.g., /yewseal)",
 							},
@@ -522,6 +538,7 @@ func main() {
 								resolveSyncProvider(c, cfg),
 								resolveSyncKeyFile(c, cfg),
 								resolveSyncSecretName(c, cfg),
+								resolveSyncProjectID(c, cfg),
 								resolveSyncPath(c, cfg),
 								resolveSyncEnvironment(c, cfg),
 							)
