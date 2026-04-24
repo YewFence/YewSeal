@@ -111,11 +111,15 @@ Check if required external tools are installed
 
 Sync sensitive files to secret management service
 
+**--env, --environment**="": Environment name in the provider
+
 **--key-file, -k**="": Path to the key file to sync (default: ".age/keys.txt")
 
 **--name, -n**="": Secret name in the provider (default: "AGE_KEY_FILE")
 
 **--path**="": Path/folder in the provider (e.g., /yewseal)
+
+**--project-id**="": Infisical project ID
 
 **--provider, -p**="": Secret management provider (infisical) (default: "infisical")
 
@@ -123,11 +127,15 @@ Sync sensitive files to secret management service
 
 Pull key from secret management service to local file
 
+**--env, --environment**="": Environment name in the provider
+
 **--key-file, -k**="": Local path to save the key file (default: ".age/keys.txt")
 
 **--name, -n**="": Secret name in the provider (default: "AGE_KEY_FILE")
 
 **--path**="": Path/folder in the provider (e.g., /yewseal)
+
+**--project-id**="": Infisical project ID
 
 **--provider, -p**="": Secret management provider (infisical) (default: "infisical")
 
