@@ -375,6 +375,11 @@ format = "env"
 public_key = "age1..."
 # Age 私钥文件路径（只存储路径，不存储密钥值）
 file_path = ".age/keys.txt"
+
+[sync]
+# Age 私钥同步到密钥管理服务时使用的远端路径和环境名称
+path = "/yewseal"
+environment = "prod"
 ```
 
 #### 配置优先级
@@ -421,6 +426,10 @@ format = "env"
 [key]
 public_key = "age1..."
 file_path = ".age/keys.txt"
+
+[sync]
+path = "/yewseal"
+environment = "prod"
 ```
 
 配置好以后，直接运行下面两条命令即可批量处理，不需要额外传 `--dir`：
@@ -490,7 +499,15 @@ infisical init
 # 直接同步到项目根目录的 AGE_KEY_FILE 变量
 yews sync
 # 自行指定变量名和路径（需要提前创建）
-yews sync --name AGE_KEY_FILE --path /yewseal
+yews sync --name AGE_KEY_FILE --path /yewseal --env prod
+```
+
+也可以在 `.yewseal.toml` 中固定同步位置，这样 `yews sync` 和 `yews sync pull` 会自动使用配置里的远端路径和环境名称。
+
+```toml
+[sync]
+path = "/yewseal"
+environment = "prod"
 ```
 
 ## 检查环境

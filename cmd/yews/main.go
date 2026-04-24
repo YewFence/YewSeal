@@ -40,6 +40,41 @@ func resolveFormatOverride(cliFormat string, filePair config.FilePair) (string, 
 	return filePair.Format, nil
 }
 
+func resolveSyncKeyFile(c *cli.Context, cfg *config.Config) string {
+	if c.IsSet("key-file") {
+		return cfg.GetKeyFile(c.String("key-file"))
+	}
+	return cfg.GetKeyFile("")
+}
+
+func resolveSyncProvider(c *cli.Context, cfg *config.Config) string {
+	if c.IsSet("provider") {
+		return cfg.GetSyncProvider(c.String("provider"))
+	}
+	return cfg.GetSyncProvider("")
+}
+
+func resolveSyncSecretName(c *cli.Context, cfg *config.Config) string {
+	if c.IsSet("name") {
+		return cfg.GetSyncSecretName(c.String("name"))
+	}
+	return cfg.GetSyncSecretName("")
+}
+
+func resolveSyncPath(c *cli.Context, cfg *config.Config) string {
+	if c.IsSet("path") {
+		return cfg.GetSyncPath(c.String("path"))
+	}
+	return cfg.GetSyncPath("")
+}
+
+func resolveSyncEnvironment(c *cli.Context, cfg *config.Config) string {
+	if c.IsSet("env") {
+		return cfg.GetSyncEnvironment(c.String("env"))
+	}
+	return cfg.GetSyncEnvironment("")
+}
+
 func main() {
 	// Load configuration file
 	cfg, err := config.LoadConfig()
@@ -429,6 +464,11 @@ func main() {
 						Usage: "Path/folder in the provider (e.g., /yewseal)",
 					},
 					&cli.StringFlag{
+						Name:    "env",
+						Aliases: []string{"environment"},
+						Usage:   "Environment name in the provider",
+					},
+					&cli.StringFlag{
 						Name:    "provider",
 						Aliases: []string{"p"},
 						Value:   "infisical",
@@ -437,10 +477,11 @@ func main() {
 				},
 				Action: func(c *cli.Context) error {
 					return sync.SyncKey(
-						c.String("provider"),
-						c.String("key-file"),
-						c.String("name"),
-						c.String("path"),
+						resolveSyncProvider(c, cfg),
+						resolveSyncKeyFile(c, cfg),
+						resolveSyncSecretName(c, cfg),
+						resolveSyncPath(c, cfg),
+						resolveSyncEnvironment(c, cfg),
 					)
 				},
 				Subcommands: []*cli.Command{
@@ -465,6 +506,11 @@ func main() {
 								Usage: "Path/folder in the provider (e.g., /yewseal)",
 							},
 							&cli.StringFlag{
+								Name:    "env",
+								Aliases: []string{"environment"},
+								Usage:   "Environment name in the provider",
+							},
+							&cli.StringFlag{
 								Name:    "provider",
 								Aliases: []string{"p"},
 								Value:   "infisical",
@@ -473,10 +519,11 @@ func main() {
 						},
 						Action: func(c *cli.Context) error {
 							return sync.PullKey(
-								c.String("provider"),
-								c.String("key-file"),
-								c.String("name"),
-								c.String("path"),
+								resolveSyncProvider(c, cfg),
+								resolveSyncKeyFile(c, cfg),
+								resolveSyncSecretName(c, cfg),
+								resolveSyncPath(c, cfg),
+								resolveSyncEnvironment(c, cfg),
 							)
 						},
 					},
