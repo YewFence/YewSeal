@@ -100,6 +100,8 @@ go install -ldflags "-s -w -X main.Version=$(git describe --tags --always --dirt
 
 ```bash
 mise run build      # 生产构建 → build/yews（Windows 下为 .exe）
+mise run build -- --all  # 构建 linux/windows/darwin × amd64/arm64
+mise run build -- --target linux/amd64  # 构建指定平台
 mise run dev        # 开发构建 → test/yews（Windows 下为 .exe）
 ```
 
