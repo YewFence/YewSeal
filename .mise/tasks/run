@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+binary_name="${BINARY_NAME:-yews}"
+build_dir="${BUILD_DIR:-./build}"
+bin_ext=""
+if [[ "${OS:-}" == "Windows_NT" ]]; then
+  bin_ext=".exe"
+fi
+
+echo "Running ${binary_name}..."
+"${build_dir}/${binary_name}${bin_ext}"

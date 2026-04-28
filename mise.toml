@@ -1,0 +1,53 @@
+[tools]
+go = "1.25.6"
+"pipx:remarshal" = "latest"
+
+[env]
+BINARY_NAME = "yews"
+MAIN_PATH = "./cmd/yews/"
+BUILD_DIR = "./build"
+DEV_DIR = "./test"
+
+[tasks.default]
+depends = ["build"]
+
+[tasks.install]
+description = "Install to GOPATH/bin"
+file = ".mise/tasks/install"
+
+[tasks.build]
+description = "Build for production"
+file = ".mise/tasks/build"
+
+[tasks.dev]
+description = "Build for development"
+file = ".mise/tasks/dev"
+
+[tasks.run]
+depends = ["build"]
+description = "Build and run the application"
+file = ".mise/tasks/run"
+
+[tasks.test]
+description = "Run tests"
+run = "go test -v ./..."
+
+[tasks.clean]
+description = "Clean build artifacts"
+file = ".mise/tasks/clean"
+
+[tasks.deps]
+description = "Download dependencies"
+run = "go get -v ./..."
+
+[tasks.tidy]
+description = "Tidy dependencies"
+run = "go mod tidy"
+
+[tasks.docs]
+description = "Generate docs"
+run = "go run ./cmd/yews docs"
+
+[tasks.release]
+description = "Build all platforms and create release archives"
+file = ".mise/tasks/release"

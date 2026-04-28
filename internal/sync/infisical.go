@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/YewFence/YewSeal/internal/errx"
 	tools "github.com/YewFence/YewSeal/internal/execx"
@@ -18,31 +19,65 @@ func (p *InfisicalProvider) Name() string {
 }
 
 // Check 检查 Infisical 是否可用
-func (p *InfisicalProvider) Check() error {
+func (p *InfisicalProvider) Check(projectID string) error {
 	// 检查 CLI 是否安装
 	if _, err := exec.LookPath("infisical"); err != nil {
 		return &errx.MissingDependencyError{Name: "infisical CLI", InstallHint: "https://infisical.com/docs/cli/overview"}
 	}
 
-	// 检查 .infisical.json 是否存在
-	if _, err := os.Stat(".infisical.json"); os.IsNotExist(err) {
-		return &errx.MissingProjectConfigError{Path: ".infisical.json", Hint: "Run 'infisical init' first to initialize the project"}
+	if strings.TrimSpace(projectID) == "" {
+		if _, err := os.Stat(".infisical.json"); os.IsNotExist(err) {
+			return &errx.MissingProjectConfigError{Path: ".infisical.json", Hint: "Run 'infisical init' first to initialize the project"}
+		}
 	}
 
 	return nil
 }
 
-// Sync 将密钥同步到 Infisical
-func (p *InfisicalProvider) Sync(keyFile, secretName, path string) error {
+func infisicalSyncArgs(keyFile, secretName, projectID, path, environment string) []string {
 	// 构建 secret 设置参数: SECRET_NAME=@filepath
 	secretArg := fmt.Sprintf("%s=@%s", secretName, keyFile)
 
-	args := []string{"secrets", "set", secretArg}
+	args := []string{"secrets"}
+	if projectID != "" {
+		args = append(args, "--project-id="+projectID)
+	}
+	args = append(args, "set", secretArg)
 
 	// 如果指定了路径，添加 --path 参数
 	if path != "" {
 		args = append(args, "--path="+path)
 	}
+
+	if environment != "" {
+		args = append(args, "--env="+environment)
+	}
+
+	return args
+}
+
+func infisicalPullArgs(secretName, projectID, path, environment string) []string {
+	args := []string{"secrets"}
+	if projectID != "" {
+		args = append(args, "--project-id="+projectID)
+	}
+	args = append(args, "get", secretName, "--plain")
+
+	// 如果指定了路径，添加 --path 参数
+	if path != "" {
+		args = append(args, "--path="+path)
+	}
+
+	if environment != "" {
+		args = append(args, "--env="+environment)
+	}
+
+	return args
+}
+
+// Sync 将密钥同步到 Infisical
+func (p *InfisicalProvider) Sync(keyFile, secretName, projectID, path, environment string) error {
+	args := infisicalSyncArgs(keyFile, secretName, projectID, path, environment)
 
 	fmt.Printf("🔄 Syncing %s to Infisical as %s...\n", keyFile, secretName)
 
@@ -60,13 +95,8 @@ func (p *InfisicalProvider) Sync(keyFile, secretName, path string) error {
 }
 
 // Pull 从 Infisical 拉取密钥
-func (p *InfisicalProvider) Pull(keyFile, secretName, path string) error {
-	args := []string{"secrets", "get", secretName, "--plain"}
-
-	// 如果指定了路径，添加 --path 参数
-	if path != "" {
-		args = append(args, "--path="+path)
-	}
+func (p *InfisicalProvider) Pull(keyFile, secretName, projectID, path, environment string) error {
+	args := infisicalPullArgs(secretName, projectID, path, environment)
 
 	fmt.Printf("🔄 Pulling %s from Infisical to %s...\n", secretName, keyFile)
 

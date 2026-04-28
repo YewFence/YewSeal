@@ -1,17 +1,21 @@
 # YewSeal
 
-一个用于管理加密配置文件的 CLI 工具，使用 SOPS + Age 加密，支持多种配置格式（TOML/YAML/JSON/ENV/INI）。
+YewSeal 是一个围绕 **SOPS + age** 构建的 CLI 工具，用清晰的配置文件定义批量加密/解密工作流。
+
+它不重复造加密轮子，而是把项目初始化、文件映射登记、批量加密/解密和 age 私钥管理整合进一个友好的 CLI。
+
+> 由于 TOML 需要先转换为 YAML 再交给 SOPS 处理，因此 **TOML 注释不会被保留**。如果需要保留说明性内容，建议搭配 `*.example.toml` 使用。
 
 ## 功能特性
 
-- 📦 多格式支持：TOML、YAML、JSON、ENV、INI
-- 🔄 TOML 格式转换后加密，补充 SOPS 缺失的 TOML 支持
-- 🚀 批量加密解密，支持目录扫描和并行处理
-- 🔑 灵活的密钥管理：环境变量、文件、配置文件
-- ✨ 简单易用的命令行界面，支持命令别名
-- 🛠️ 配置文件持久化常用设置
-- 🔐 密钥同步到密钥管理服务（Infisical）
-- 📝 加密解密后文件结构完全一致
+- 🔐 基于 SOPS + age，兼容原生 `.sops.yaml` 和 age 密钥工作流
+- 🗂️ 使用直观的 TOML 配置文件，统一管理项目中的 `plaintext` / `encrypted` 文件映射
+- 🚀 `init` 快速初始化，自动生成密钥、配置和推荐的项目文件
+- 🔄 提供简洁的 `yews e` / `yews d` 别名，可按配置处理所有文件，并支持目录扫描与并行处理
+- 📦 支持 TOML、YAML、JSON、ENV、INI；其中 TOML 通过格式转换接入 SOPS 工作流
+- 🔑 支持从环境变量、文件或配置文件读取密钥
+- 🔐 可选将私钥同步到密钥管理服务（Infisical）
+- 📝 加密/解密后保持原始数据结构
 
 ## 前置要求
 
@@ -28,21 +32,22 @@ pipx install remarshal
 ## 快速开始
 
 ```bash
-# 1. 交互式初始化项目（生成密钥和配置）
+# 使用 mise 引入工具
+mise use github:YewFence/YewSeal
+
+# 交互式初始化项目
+# 生成 age 密钥、.yewseal.toml，并登记需要处理的文件
 yews init
-# 输入你需要加密的文件名和加密后的输出文件名
-# 如果要继续加文件，直接在 init 里一路追加，或者手动编辑 [[encryption.files]]
+# 之后也可以手动编辑 [[encryption.files]]
 
-# 2. 根据配置文件加密敏感文件
+# 按配置批量加密所有登记过的文件
 yews e
-# 或者使用全称
-yews encrypt 
 
-# 3. 解密敏感文件
+# 按同一份配置批量解密
 yews d
-# 或者使用全称
-yews decrypt 
 ```
+
+初始化完成后，建议将加密后的文件提交到版本控制，并妥善备份 `.age/keys.txt`。它包含 age 密钥对，一旦丢失就无法解密文件。
 
 **不想增加额外的配置文件？** 完全可以只用命令行参数运行：
 
@@ -52,13 +57,9 @@ yews encrypt -i config.toml -o config.enc.yaml -k .age/keys.txt -p "age1..."
 yews decrypt -i config.enc.yaml -o config.toml -k .age/keys.txt
 ```
 
-> 配置文件 `.yewseal.toml` 是可选的，只是为了避免每次都输入参数。
-
 ## 安装
 
-### go install（推荐）
-
-无需克隆仓库，直接安装最新版本：
+### go install
 
 ```bash
 go install github.com/YewFence/YewSeal/cmd/yews@latest
@@ -73,7 +74,8 @@ go install github.com/YewFence/YewSeal/cmd/yews@latest
 > 需要 [mise activate](https://mise.jdx.dev/cli/activate.html) 才可以使用
 
 ```bash
-mise use -g github:YewFence/YewSeal
+mise use github:YewFence/YewSeal
+# 也可以使用 -g 参数安装到全局
 yews --version
 ```
 
@@ -85,8 +87,8 @@ yews --version
 git clone https://github.com/YewFence/YewSeal
 cd YewSeal
 
-# 使用 just（推荐）
-just install    # 安装到 $GOPATH/bin，可全局使用
+# 使用 mise task（推荐）
+mise run install    # 安装到 $GOPATH/bin，可全局使用
 
 # 或手动安装
 go install -ldflags "-s -w -X main.Version=$(git describe --tags --always --dirty 2>/dev/null || echo dev)" ./cmd/yews
@@ -97,8 +99,10 @@ go install -ldflags "-s -w -X main.Version=$(git describe --tags --always --dirt
 如果只需要本地构建而不安装到全局：
 
 ```bash
-just build      # 生产构建 → build/yews（Windows 下为 .exe）
-just dev        # 开发构建 → test/yews（Windows 下为 .exe）
+mise run build      # 生产构建 → build/yews（Windows 下为 .exe）
+mise run build -- --all  # 构建 linux/windows/darwin × amd64/arm64
+mise run build -- --target linux/amd64  # 构建指定平台
+mise run dev        # 开发构建 → test/yews（Windows 下为 .exe）
 ```
 
 ### 直接下载
@@ -373,6 +377,13 @@ format = "env"
 public_key = "age1..."
 # Age 私钥文件路径（只存储路径，不存储密钥值）
 file_path = ".age/keys.txt"
+
+[sync]
+# Infisical 项目 ID（可选；未设置时使用 infisical init 生成的本地项目配置）
+project_id = "your-infisical-project-id"
+# Age 私钥同步到密钥管理服务时使用的远端路径和环境名称
+path = "/yewseal"
+environment = "prod"
 ```
 
 #### 配置优先级
@@ -419,6 +430,11 @@ format = "env"
 [key]
 public_key = "age1..."
 file_path = ".age/keys.txt"
+
+[sync]
+project_id = "your-infisical-project-id"
+path = "/yewseal"
+environment = "prod"
 ```
 
 配置好以后，直接运行下面两条命令即可批量处理，不需要额外传 `--dir`：
@@ -487,8 +503,17 @@ infisical init
 ```bash
 # 直接同步到项目根目录的 AGE_KEY_FILE 变量
 yews sync
-# 自行指定变量名和路径（需要提前创建）
-yews sync --name AGE_KEY_FILE --path /yewseal
+# 自行指定项目、变量名、路径和环境（需要提前创建）
+yews sync --project-id your-infisical-project-id --name AGE_KEY_FILE --path /yewseal --env prod
+```
+
+也可以在 `.yewseal.toml` 中固定同步位置，这样 `yews sync` 和 `yews sync pull` 会自动使用配置里的项目、远端路径和环境名称；如果没有设置 `project_id`，就会沿用 `infisical init` 生成的 `.infisical.json` 本地项目配置。
+
+```toml
+[sync]
+project_id = "your-infisical-project-id"
+path = "/yewseal"
+environment = "prod"
 ```
 
 ## 检查环境

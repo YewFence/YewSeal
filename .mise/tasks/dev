@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+binary_name="${BINARY_NAME:-yews}"
+main_path="${MAIN_PATH:-./cmd/yews/}"
+dev_dir="${DEV_DIR:-./test}"
+bin_ext=""
+if [[ "${OS:-}" == "Windows_NT" ]]; then
+  bin_ext=".exe"
+fi
+version="$(git describe --tags --always --dirty 2>/dev/null || echo "dev")"
+ldflags="-s -w -X main.Version=${version}"
+
+echo "Building ${binary_name}${bin_ext} for development..."
+mkdir -p "${dev_dir}"
+go build -ldflags "${ldflags}" -o "${dev_dir}/${binary_name}${bin_ext}" "${main_path}"
+echo "Dev build complete: ${dev_dir}/${binary_name}${bin_ext}"

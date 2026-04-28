@@ -19,6 +19,7 @@ const (
 type Config struct {
 	Encryption EncryptionConfig `toml:"encryption"`
 	Key        KeyConfig        `toml:"key"`
+	Sync       SyncConfig       `toml:"sync"`
 }
 
 // EncryptionConfig defines encrypted file mappings.
@@ -44,6 +45,20 @@ type KeyConfig struct {
 	FilePath string `toml:"file_path"`
 	// PublicKey is the Age public key for encryption (safe to commit).
 	PublicKey string `toml:"public_key"`
+}
+
+// SyncConfig defines Age key synchronization settings.
+type SyncConfig struct {
+	// Provider is the secret management provider name.
+	Provider string `toml:"provider,omitempty"`
+	// ProjectID is the provider project identifier used by sync commands.
+	ProjectID string `toml:"project_id,omitempty"`
+	// SecretName is the remote secret name for the Age key file.
+	SecretName string `toml:"secret_name,omitempty"`
+	// Path is the remote path/folder in the provider.
+	Path string `toml:"path,omitempty"`
+	// Environment is the remote environment name in the provider.
+	Environment string `toml:"environment,omitempty"`
 }
 
 // DefaultFilePair returns the default plaintext/encrypted mapping.
@@ -133,6 +148,57 @@ func (c *Config) GetKeyFile(provided string) string {
 // GetPublicKey returns the Age public key.
 func (c *Config) GetPublicKey() string {
 	return c.Key.PublicKey
+}
+
+// GetSyncProvider returns the key sync provider.
+// Priority: provided value > config file > default.
+func (c *Config) GetSyncProvider(provided string) string {
+	if provided != "" {
+		return provided
+	}
+	if c.Sync.Provider != "" {
+		return c.Sync.Provider
+	}
+	return "infisical"
+}
+
+// GetSyncSecretName returns the key sync secret name.
+// Priority: provided value > config file > default.
+func (c *Config) GetSyncSecretName(provided string) string {
+	if provided != "" {
+		return provided
+	}
+	if c.Sync.SecretName != "" {
+		return c.Sync.SecretName
+	}
+	return "AGE_KEY_FILE"
+}
+
+// GetSyncProjectID returns the key sync project identifier.
+// Priority: provided value > config file > default.
+func (c *Config) GetSyncProjectID(provided string) string {
+	if provided != "" {
+		return provided
+	}
+	return c.Sync.ProjectID
+}
+
+// GetSyncPath returns the key sync remote path.
+// Priority: provided value > config file > default.
+func (c *Config) GetSyncPath(provided string) string {
+	if provided != "" {
+		return provided
+	}
+	return c.Sync.Path
+}
+
+// GetSyncEnvironment returns the key sync remote environment.
+// Priority: provided value > config file > default.
+func (c *Config) GetSyncEnvironment(provided string) string {
+	if provided != "" {
+		return provided
+	}
+	return c.Sync.Environment
 }
 
 // GetFiles returns configured file mappings.
