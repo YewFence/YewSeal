@@ -27,6 +27,7 @@ Thumbs.db
 
 # AI
 .claude/
+.codex
 
 # Temporary files
 *.tmp
