@@ -151,7 +151,7 @@ func TestInfisicalSyncArgs_WithPathAndEnvironment(t *testing.T) {
 
 	assert.Equal(t, []string{
 		"secrets",
-		"--project-id=project-123",
+		"--projectId=project-123",
 		"set",
 		"AGE_KEY_FILE=@.age/keys.txt",
 		"--path=/yewseal",
@@ -164,7 +164,7 @@ func TestInfisicalPullArgs_WithPathAndEnvironment(t *testing.T) {
 
 	assert.Equal(t, []string{
 		"secrets",
-		"--project-id=project-123",
+		"--projectId=project-123",
 		"get",
 		"AGE_KEY_FILE",
 		"--plain",

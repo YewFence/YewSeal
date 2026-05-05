@@ -40,7 +40,7 @@ func infisicalSyncArgs(keyFile, secretName, projectID, path, environment string)
 
 	args := []string{"secrets"}
 	if projectID != "" {
-		args = append(args, "--project-id="+projectID)
+		args = append(args, "--projectId="+projectID)
 	}
 	args = append(args, "set", secretArg)
 
@@ -59,7 +59,7 @@ func infisicalSyncArgs(keyFile, secretName, projectID, path, environment string)
 func infisicalPullArgs(secretName, projectID, path, environment string) []string {
 	args := []string{"secrets"}
 	if projectID != "" {
-		args = append(args, "--project-id="+projectID)
+		args = append(args, "--projectId="+projectID)
 	}
 	args = append(args, "get", secretName, "--plain")
 
