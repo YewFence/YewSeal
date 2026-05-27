@@ -8,9 +8,9 @@ import (
 
 	yewsapp "github.com/YewFence/YewSeal/internal/app"
 	"github.com/YewFence/YewSeal/internal/config"
-	"github.com/YewFence/YewSeal/internal/crypto"
 	tools "github.com/YewFence/YewSeal/internal/doctor"
 	"github.com/YewFence/YewSeal/internal/project"
+	"github.com/YewFence/YewSeal/internal/seal"
 	"github.com/YewFence/YewSeal/internal/sync"
 
 	"github.com/urfave/cli/v2"
@@ -257,7 +257,11 @@ func main() {
 				},
 				Action: func(c *cli.Context) error {
 					keyFile := c.String("key-file")
-					return crypto.Edit(c.String("file"), c.String("editor"), keyFile)
+					return seal.Edit(seal.EditOptions{
+						File:    c.String("file"),
+						Editor:  c.String("editor"),
+						KeyFile: keyFile,
+					})
 				},
 			},
 			{

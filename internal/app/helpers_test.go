@@ -10,7 +10,7 @@ import (
 
 	"filippo.io/age"
 	"github.com/YewFence/YewSeal/internal/config"
-	"github.com/YewFence/YewSeal/internal/crypto"
+	"github.com/YewFence/YewSeal/internal/seal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -138,7 +138,13 @@ func TestWriteViewedTarget_WritesPlaintextToWriterOnly(t *testing.T) {
 	plaintext := []byte("database:\n  host: localhost\n  password: secret123\n")
 
 	require.NoError(t, os.WriteFile(plaintextFile, plaintext, 0644))
-	require.NoError(t, crypto.Encrypt(plaintextFile, encryptedFile, keyFile, publicKey, "yaml", false))
+	require.NoError(t, seal.Encrypt(seal.EncryptOptions{
+		InputFile:      plaintextFile,
+		OutputFile:     encryptedFile,
+		KeyFile:        keyFile,
+		PublicKey:      publicKey,
+		FormatOverride: "yaml",
+	}))
 	require.NoError(t, os.Remove(plaintextFile))
 
 	cfg := &config.Config{

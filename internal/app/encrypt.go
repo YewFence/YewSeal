@@ -3,9 +3,11 @@ package app
 import (
 	"fmt"
 
+	"github.com/YewFence/YewSeal/internal/agekey"
+	"github.com/YewFence/YewSeal/internal/batch"
 	"github.com/YewFence/YewSeal/internal/config"
-	"github.com/YewFence/YewSeal/internal/crypto"
 	"github.com/YewFence/YewSeal/internal/project"
+	"github.com/YewFence/YewSeal/internal/seal"
 )
 
 type EncryptRequest struct {
@@ -35,7 +37,7 @@ func EncryptFiles(cfg *config.Config, req EncryptRequest) error {
 		if cliFormat != "" {
 			return fmt.Errorf("--format is only supported in single-file mode")
 		}
-		opts := crypto.BatchOptions{
+		opts := batch.Options{
 			InputDir:     req.Dir,
 			Pattern:      req.Pattern,
 			OutputDir:    req.OutputDir,
@@ -45,7 +47,7 @@ func EncryptFiles(cfg *config.Config, req EncryptRequest) error {
 			Parallel:     req.Parallel,
 			Verbose:      req.Verbose,
 		}
-		_, err := crypto.BatchEncrypt(opts)
+		_, err := batch.Encrypt(opts)
 		return err
 	}
 
@@ -61,7 +63,14 @@ func EncryptFiles(cfg *config.Config, req EncryptRequest) error {
 		if err != nil {
 			return err
 		}
-		return crypto.Encrypt(filePair.PlaintextPath, filePair.EncryptedPath, req.KeyFile, req.PublicKey, formatOverride, req.Verbose)
+		return seal.Encrypt(seal.EncryptOptions{
+			InputFile:      filePair.PlaintextPath,
+			OutputFile:     filePair.EncryptedPath,
+			KeyFile:        req.KeyFile,
+			PublicKey:      req.PublicKey,
+			FormatOverride: formatOverride,
+			Verbose:        req.Verbose,
+		})
 	}
 
 	if cliFormat != "" {
@@ -75,7 +84,7 @@ func EncryptFiles(cfg *config.Config, req EncryptRequest) error {
 		}
 	}
 
-	resolvedPublicKey, err := crypto.GetPublicKey(req.PublicKey, req.KeyFile, req.Verbose)
+	resolvedPublicKey, err := agekey.GetPublicKey(req.PublicKey, req.KeyFile, req.Verbose)
 	if err != nil {
 		return err
 	}
@@ -85,13 +94,13 @@ func EncryptFiles(cfg *config.Config, req EncryptRequest) error {
 		}
 	}
 
-	opts := crypto.BatchOptions{
-		FilePairs: filePairs,
+	opts := batch.Options{
+		FilePairs: configFilePairsToBatch(filePairs),
 		KeyFile:   req.KeyFile,
 		PublicKey: resolvedPublicKey,
 		Parallel:  req.Parallel,
 		Verbose:   req.Verbose,
 	}
-	_, err = crypto.BatchEncrypt(opts)
+	_, err = batch.Encrypt(opts)
 	return err
 }

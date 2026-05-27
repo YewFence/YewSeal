@@ -5,8 +5,10 @@ import (
 	"io"
 	"strings"
 
+	"github.com/YewFence/YewSeal/internal/batch"
 	"github.com/YewFence/YewSeal/internal/config"
-	"github.com/YewFence/YewSeal/internal/crypto"
+	"github.com/YewFence/YewSeal/internal/fileformat"
+	"github.com/YewFence/YewSeal/internal/seal"
 	"github.com/urfave/cli/v2"
 )
 
@@ -15,8 +17,8 @@ func ValidateCLIFormatOverride(format string) (string, error) {
 		return "", nil
 	}
 
-	parsed := crypto.ParseFormat(format)
-	if parsed == crypto.FormatUnknown {
+	parsed := fileformat.Parse(format)
+	if parsed == fileformat.Unknown {
 		return "", fmt.Errorf("unsupported format %q (supported: toml, yaml, json, env, ini)", format)
 	}
 
@@ -32,6 +34,18 @@ func ResolveFormatOverride(cliFormat string, filePair config.FilePair) (string, 
 		return validatedFormat, nil
 	}
 	return filePair.Format, nil
+}
+
+func configFilePairsToBatch(filePairs []config.FilePair) []batch.FilePair {
+	pairs := make([]batch.FilePair, 0, len(filePairs))
+	for _, filePair := range filePairs {
+		pairs = append(pairs, batch.FilePair{
+			PlaintextPath: filePair.PlaintextPath,
+			EncryptedPath: filePair.EncryptedPath,
+			Format:        filePair.Format,
+		})
+	}
+	return pairs
 }
 
 func ResolveTargetFilePairs(cfg *config.Config, target string) ([]config.FilePair, error) {
@@ -77,13 +91,13 @@ func WriteViewedTarget(w io.Writer, cfg *config.Config, target, keyFile, cliForm
 		return err
 	}
 
-	plainData, err := crypto.DecryptToBytes(
-		filePair.EncryptedPath,
-		filePair.PlaintextPath,
-		keyFile,
-		formatOverride,
-		verbose,
-	)
+	plainData, err := seal.DecryptToBytes(seal.DecryptBytesOptions{
+		InputFile:      filePair.EncryptedPath,
+		OutputFile:     filePair.PlaintextPath,
+		KeyFile:        keyFile,
+		FormatOverride: formatOverride,
+		Verbose:        verbose,
+	})
 	if err != nil {
 		return err
 	}

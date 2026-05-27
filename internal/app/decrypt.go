@@ -3,9 +3,10 @@ package app
 import (
 	"fmt"
 
+	"github.com/YewFence/YewSeal/internal/batch"
 	"github.com/YewFence/YewSeal/internal/config"
-	"github.com/YewFence/YewSeal/internal/crypto"
 	"github.com/YewFence/YewSeal/internal/project"
+	"github.com/YewFence/YewSeal/internal/seal"
 )
 
 type DecryptRequest struct {
@@ -35,7 +36,7 @@ func DecryptFiles(cfg *config.Config, req DecryptRequest) error {
 		if cliFormat != "" {
 			return fmt.Errorf("--format is only supported in single-file mode")
 		}
-		opts := crypto.BatchOptions{
+		opts := batch.Options{
 			InputDir:     req.Dir,
 			Pattern:      req.Pattern,
 			OutputDir:    req.OutputDir,
@@ -45,7 +46,7 @@ func DecryptFiles(cfg *config.Config, req DecryptRequest) error {
 			Verbose:      req.Verbose,
 			Force:        req.Force,
 		}
-		_, err := crypto.BatchDecrypt(opts)
+		_, err := batch.Decrypt(opts)
 		return err
 	}
 
@@ -61,14 +62,14 @@ func DecryptFiles(cfg *config.Config, req DecryptRequest) error {
 		if err != nil {
 			return err
 		}
-		return crypto.DecryptWithOptions(
-			filePair.EncryptedPath,
-			filePair.PlaintextPath,
-			req.KeyFile,
-			formatOverride,
-			req.Verbose,
-			crypto.DecryptOptions{Force: req.Force},
-		)
+		return seal.Decrypt(seal.DecryptOptions{
+			InputFile:      filePair.EncryptedPath,
+			OutputFile:     filePair.PlaintextPath,
+			KeyFile:        req.KeyFile,
+			FormatOverride: formatOverride,
+			Verbose:        req.Verbose,
+			Force:          req.Force,
+		})
 	}
 
 	if cliFormat != "" {
@@ -82,13 +83,13 @@ func DecryptFiles(cfg *config.Config, req DecryptRequest) error {
 		}
 	}
 
-	opts := crypto.BatchOptions{
-		FilePairs: filePairs,
+	opts := batch.Options{
+		FilePairs: configFilePairsToBatch(filePairs),
 		KeyFile:   req.KeyFile,
 		Parallel:  req.Parallel,
 		Verbose:   req.Verbose,
 		Force:     req.Force,
 	}
-	_, err = crypto.BatchDecrypt(opts)
+	_, err = batch.Decrypt(opts)
 	return err
 }

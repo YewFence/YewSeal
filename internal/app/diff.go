@@ -5,7 +5,7 @@ import (
 	"io"
 
 	"github.com/YewFence/YewSeal/internal/config"
-	"github.com/YewFence/YewSeal/internal/crypto"
+	"github.com/YewFence/YewSeal/internal/diff"
 )
 
 type DiffResult struct {
@@ -25,13 +25,13 @@ func DiffPlaintextAgainstEncryptedTargets(w io.Writer, cfg *config.Config, targe
 			return DiffResult{}, err
 		}
 
-		result, err := crypto.DiffPlaintextAgainstEncrypted(
-			filePair.PlaintextPath,
-			filePair.EncryptedPath,
-			keyFile,
-			formatOverride,
-			verbose,
-		)
+		result, err := diff.PlaintextAgainstEncrypted(diff.Options{
+			PlaintextFile:  filePair.PlaintextPath,
+			EncryptedFile:  filePair.EncryptedPath,
+			KeyFile:        keyFile,
+			FormatOverride: formatOverride,
+			Verbose:        verbose,
+		})
 		if err != nil {
 			return DiffResult{}, err
 		}

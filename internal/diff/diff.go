@@ -1,4 +1,4 @@
-package crypto
+package diff
 
 import (
 	"bytes"
@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/YewFence/YewSeal/internal/seal"
 	"github.com/sergi/go-diff/diffmatchpatch"
 )
 
@@ -17,16 +18,30 @@ type DiffResult struct {
 
 // DiffPlaintextAgainstEncrypted compares an existing plaintext file with the
 // decrypted encrypted file without writing decrypted content to disk.
-func DiffPlaintextAgainstEncrypted(plaintextFile, encryptedFile, keyFile, formatOverride string, verbose bool) (DiffResult, error) {
-	currentData, err := os.ReadFile(plaintextFile)
+type Options struct {
+	PlaintextFile  string
+	EncryptedFile  string
+	KeyFile        string
+	FormatOverride string
+	Verbose        bool
+}
+
+func PlaintextAgainstEncrypted(opts Options) (DiffResult, error) {
+	currentData, err := os.ReadFile(opts.PlaintextFile)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return DiffResult{}, fmt.Errorf("plaintext file %s does not exist", plaintextFile)
+			return DiffResult{}, fmt.Errorf("plaintext file %s does not exist", opts.PlaintextFile)
 		}
 		return DiffResult{}, fmt.Errorf("failed to read plaintext file: %w", err)
 	}
 
-	decryptedData, err := DecryptToBytes(encryptedFile, plaintextFile, keyFile, formatOverride, verbose)
+	decryptedData, err := seal.DecryptToBytes(seal.DecryptBytesOptions{
+		InputFile:      opts.EncryptedFile,
+		OutputFile:     opts.PlaintextFile,
+		KeyFile:        opts.KeyFile,
+		FormatOverride: opts.FormatOverride,
+		Verbose:        opts.Verbose,
+	})
 	if err != nil {
 		return DiffResult{}, err
 	}
@@ -35,7 +50,7 @@ func DiffPlaintextAgainstEncrypted(plaintextFile, encryptedFile, keyFile, format
 		return DiffResult{}, nil
 	}
 
-	diff := UnifiedDiff(plaintextFile, encryptedFile+" (decrypted)", currentData, decryptedData)
+	diff := UnifiedDiff(opts.PlaintextFile, opts.EncryptedFile+" (decrypted)", currentData, decryptedData)
 	return DiffResult{Diff: diff, Different: true}, nil
 }
 

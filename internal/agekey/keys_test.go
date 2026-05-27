@@ -1,4 +1,4 @@
-package crypto
+package agekey
 
 import (
 	"os"
@@ -98,13 +98,13 @@ AGE-SECRET-KEY-1QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ`
 	err := os.WriteFile(keyFile, []byte(content), 0600)
 	require.NoError(t, err)
 
-	key, err := readKeyFile(keyFile)
+	key, err := GetAgeKey(keyFile)
 	require.NoError(t, err)
 	assert.Equal(t, "AGE-SECRET-KEY-1QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ", key)
 }
 
 func TestReadKeyFile_NotExists(t *testing.T) {
-	_, err := readKeyFile("/nonexistent/path/to/keys.txt")
+	_, err := GetAgeKey("/nonexistent/path/to/keys.txt")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to read key file")
 }
@@ -121,7 +121,7 @@ some random content`
 	err := os.WriteFile(keyFile, []byte(content), 0600)
 	require.NoError(t, err)
 
-	_, err = readKeyFile(keyFile)
+	_, err = GetAgeKey(keyFile)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "no valid Age secret key found")
 }
@@ -133,7 +133,7 @@ func TestReadKeyFile_EmptyFile(t *testing.T) {
 	err := os.WriteFile(keyFile, []byte(""), 0600)
 	require.NoError(t, err)
 
-	_, err = readKeyFile(keyFile)
+	_, err = GetAgeKey(keyFile)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "no valid Age secret key found")
 }
@@ -151,7 +151,7 @@ AGE-SECRET-KEY-1SECONDSECONDSECONDSECONDSECONDSECONDSECONDSECONDSECONDSECOND`
 	err := os.WriteFile(keyFile, []byte(content), 0600)
 	require.NoError(t, err)
 
-	key, err := readKeyFile(keyFile)
+	key, err := GetAgeKey(keyFile)
 	require.NoError(t, err)
 	assert.Equal(t, "AGE-SECRET-KEY-1FIRSTFIRSTFIRSTFIRSTFIRSTFIRSTFIRSTFIRSTFIRSTFIRSTFIRST", key)
 }

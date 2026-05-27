@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/YewFence/YewSeal/internal/config"
-	"github.com/YewFence/YewSeal/internal/crypto"
+	"github.com/YewFence/YewSeal/internal/seal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -15,7 +15,13 @@ func TestDiffPlaintextAgainstEncryptedTargets_WritesDiffForDifferentTarget(t *te
 	env := newDiffTestEnv(t)
 
 	require.NoError(t, os.WriteFile("config.yaml", []byte("database:\n  host: localhost\n"), 0644))
-	require.NoError(t, crypto.Encrypt("config.yaml", "config.enc.yaml", env.keyFile, env.publicKey, "yaml", false))
+	require.NoError(t, seal.Encrypt(seal.EncryptOptions{
+		InputFile:      "config.yaml",
+		OutputFile:     "config.enc.yaml",
+		KeyFile:        env.keyFile,
+		PublicKey:      env.publicKey,
+		FormatOverride: "yaml",
+	}))
 	require.NoError(t, os.WriteFile("config.yaml", []byte("database:\n  host: local-change\n"), 0644))
 
 	cfg := &config.Config{
@@ -41,8 +47,19 @@ func TestDiffPlaintextAgainstEncryptedTargets_NoOutputForIdenticalTarget(t *test
 	env := newDiffTestEnv(t)
 
 	require.NoError(t, os.WriteFile("config.yaml", []byte("database:\n  host: localhost\n"), 0644))
-	require.NoError(t, crypto.Encrypt("config.yaml", "config.enc.yaml", env.keyFile, env.publicKey, "yaml", false))
-	decrypted, err := crypto.DecryptToBytes("config.enc.yaml", "config.yaml", env.keyFile, "yaml", false)
+	require.NoError(t, seal.Encrypt(seal.EncryptOptions{
+		InputFile:      "config.yaml",
+		OutputFile:     "config.enc.yaml",
+		KeyFile:        env.keyFile,
+		PublicKey:      env.publicKey,
+		FormatOverride: "yaml",
+	}))
+	decrypted, err := seal.DecryptToBytes(seal.DecryptBytesOptions{
+		InputFile:      "config.enc.yaml",
+		OutputFile:     "config.yaml",
+		KeyFile:        env.keyFile,
+		FormatOverride: "yaml",
+	})
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile("config.yaml", decrypted, 0644))
 
