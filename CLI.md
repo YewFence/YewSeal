@@ -79,6 +79,8 @@ Decrypt encrypted file (output format determined by extension)
 
 **--dir**="": Directory to scan for encrypted files (enables batch mode)
 
+**--force, -f**: Force overwrite existing plaintext file when it differs from decrypted content
+
 **--format**="": Format override for single-file mode (toml/yaml/json/env/ini)
 
 **--input, -i**="": Input encrypted file (single file mode) (default: "wrangler.enc.toml.yaml")
@@ -102,6 +104,26 @@ Edit encrypted configuration file using SOPS
 **--editor, -e**="": Editor command to use (e.g., 'code -w', 'vim')
 
 **--file, -f**="": Encrypted file to edit (default: "wrangler.enc.toml.yaml")
+
+## view
+
+Print decrypted plaintext to standard output without writing files
+
+>yews view [command options] <target>
+
+**--format**="": Format override for the selected target (toml/yaml/json/env/ini)
+
+**--verbose, -v**: Enable verbose output
+
+## diff
+
+Compare plaintext file with decrypted encrypted file
+
+>yews diff [target]
+
+**--format**="": Format override for the selected target (toml/yaml/json/env/ini)
+
+**--verbose, -v**: Enable verbose output
 
 ## check, doctor
 

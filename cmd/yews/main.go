@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -55,6 +56,50 @@ func resolveTargetFilePairs(cfg *config.Config, target string) ([]config.FilePai
 	}
 
 	return nil, fmt.Errorf("target %s is not configured as a plaintext or encrypted file", target)
+}
+
+func resolveSingleTargetFilePair(cfg *config.Config, target, commandName string) (config.FilePair, error) {
+	target = strings.TrimSpace(target)
+	if target == "" {
+		return config.FilePair{}, fmt.Errorf("%s requires exactly one target", commandName)
+	}
+
+	filePairs, err := resolveTargetFilePairs(cfg, target)
+	if err != nil {
+		return config.FilePair{}, err
+	}
+	if len(filePairs) != 1 {
+		return config.FilePair{}, fmt.Errorf("%s requires exactly one target", commandName)
+	}
+	return filePairs[0], nil
+}
+
+func writeViewedTarget(w io.Writer, cfg *config.Config, target, keyFile, cliFormat string, verbose bool) error {
+	filePair, err := resolveSingleTargetFilePair(cfg, target, "view")
+	if err != nil {
+		return err
+	}
+
+	formatOverride, err := resolveFormatOverride(cliFormat, filePair)
+	if err != nil {
+		return err
+	}
+
+	plainData, err := crypto.DecryptToBytes(
+		filePair.EncryptedPath,
+		filePair.PlaintextPath,
+		keyFile,
+		formatOverride,
+		verbose,
+	)
+	if err != nil {
+		return err
+	}
+
+	if _, err := w.Write(plainData); err != nil {
+		return err
+	}
+	return nil
 }
 
 func resolveSyncKeyFile(c *cli.Context, cfg *config.Config) string {
@@ -443,6 +488,39 @@ func main() {
 				Action: func(c *cli.Context) error {
 					keyFile := c.String("key-file")
 					return crypto.Edit(c.String("file"), c.String("editor"), keyFile)
+				},
+			},
+			{
+				Name:      "view",
+				Usage:     "Print decrypted plaintext to standard output without writing files",
+				UsageText: `yews view [command options] <target>`,
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:  "format",
+						Usage: "Format override for the selected target (toml/yaml/json/env/ini)",
+					},
+					&cli.BoolFlag{
+						Name:    "verbose",
+						Aliases: []string{"v"},
+						Usage:   "Enable verbose output",
+					},
+				},
+				Action: func(c *cli.Context) error {
+					if c.Args().Len() != 1 {
+						return cli.Exit("view requires exactly one target", 2)
+					}
+
+					keyFile := cfg.GetKeyFile(c.String("key-file"))
+					verbose := c.Bool("verbose")
+					cliFormat, err := validateCLIFormatOverride(c.String("format"))
+					if err != nil {
+						return cli.Exit(err, 2)
+					}
+
+					if err := writeViewedTarget(os.Stdout, cfg, c.Args().First(), keyFile, cliFormat, verbose); err != nil {
+						return cli.Exit(err, 2)
+					}
+					return nil
 				},
 			},
 			{

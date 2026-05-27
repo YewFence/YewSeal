@@ -1,9 +1,16 @@
 package main
 
 import (
+	"bytes"
+	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
+	"time"
 
+	"filippo.io/age"
 	"github.com/YewFence/YewSeal/internal/config"
+	"github.com/YewFence/YewSeal/internal/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -89,4 +96,77 @@ func TestResolveTargetFilePairs_UnknownTarget(t *testing.T) {
 	_, err := resolveTargetFilePairs(cfg, "unknown.toml")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "is not configured")
+}
+
+func TestResolveSingleTargetFilePair_RequiresTarget(t *testing.T) {
+	cfg := config.DefaultConfig()
+
+	_, err := resolveSingleTargetFilePair(cfg, "", "view")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "view requires exactly one target")
+}
+
+func TestResolveSingleTargetFilePair_MatchesPlaintextPath(t *testing.T) {
+	cfg := &config.Config{
+		Encryption: config.EncryptionConfig{
+			Files: []config.FilePair{
+				{PlaintextPath: "wrangler.toml", EncryptedPath: "wrangler.enc.toml.yaml"},
+			},
+		},
+	}
+
+	filePair, err := resolveSingleTargetFilePair(cfg, "wrangler.toml", "view")
+	require.NoError(t, err)
+	assert.Equal(t, "wrangler.toml", filePair.PlaintextPath)
+	assert.Equal(t, "wrangler.enc.toml.yaml", filePair.EncryptedPath)
+}
+
+func TestWriteViewedTarget_WritesPlaintextToWriterOnly(t *testing.T) {
+	tempDir := t.TempDir()
+	oldWd, err := os.Getwd()
+	require.NoError(t, err)
+	require.NoError(t, os.Chdir(tempDir))
+	t.Cleanup(func() {
+		require.NoError(t, os.Chdir(oldWd))
+	})
+
+	identity, err := age.GenerateX25519Identity()
+	require.NoError(t, err)
+
+	keyDir := filepath.Join(tempDir, ".age")
+	require.NoError(t, os.MkdirAll(keyDir, 0700))
+	keyFile := filepath.Join(keyDir, "keys.txt")
+	keyContent := fmt.Sprintf("# created: %s\n# public key: %s\n%s\n",
+		time.Now().UTC().Format(time.RFC3339),
+		identity.Recipient().String(),
+		identity.String(),
+	)
+	require.NoError(t, os.WriteFile(keyFile, []byte(keyContent), 0600))
+
+	plaintextFile := "config.yaml"
+	encryptedFile := "config.enc.yaml"
+	outputFile := "view-output.yaml"
+	plaintext := []byte("database:\n  host: localhost\n  password: secret123\n")
+
+	require.NoError(t, os.WriteFile(plaintextFile, plaintext, 0644))
+	require.NoError(t, crypto.Encrypt(plaintextFile, encryptedFile, keyFile, identity.Recipient().String(), "yaml", false))
+	require.NoError(t, os.Remove(plaintextFile))
+
+	cfg := &config.Config{
+		Encryption: config.EncryptionConfig{
+			Files: []config.FilePair{
+				{PlaintextPath: outputFile, EncryptedPath: encryptedFile, Format: "yaml"},
+			},
+		},
+		Key: config.KeyConfig{FilePath: keyFile},
+	}
+
+	var out bytes.Buffer
+	err = writeViewedTarget(&out, cfg, encryptedFile, keyFile, "", false)
+	require.NoError(t, err)
+
+	assert.Contains(t, out.String(), "localhost")
+	assert.Contains(t, out.String(), "secret123")
+	_, statErr := os.Stat(outputFile)
+	assert.True(t, os.IsNotExist(statErr))
 }

@@ -259,6 +259,45 @@ func TestDecryptWithOptions_ForceOverwritesDifferentPlaintext(t *testing.T) {
 	assert.NotContains(t, string(content), "local-change")
 }
 
+func TestDecryptToBytes_ReturnsPlaintextWithoutWritingOutput(t *testing.T) {
+	env := setupIntegrationEnv(t)
+
+	inputFile := "config.yaml"
+	encryptedFile := "config.enc.yaml"
+	outputFile := "config.decrypted.yaml"
+
+	require.NoError(t, os.WriteFile(inputFile, sampleYAML(), 0644))
+	require.NoError(t, Encrypt(inputFile, encryptedFile, env.keyFile, env.publicKey, "", false))
+
+	plainData, err := DecryptToBytes(encryptedFile, outputFile, env.keyFile, "", false)
+	require.NoError(t, err)
+
+	assert.Contains(t, string(plainData), "localhost")
+	assert.Contains(t, string(plainData), "secret123")
+
+	_, statErr := os.Stat(outputFile)
+	assert.True(t, os.IsNotExist(statErr))
+}
+
+func TestDecryptToBytes_ConvertsTOMLOutput(t *testing.T) {
+	skipIfNoRemarshal(t)
+	env := setupIntegrationEnv(t)
+
+	inputFile := "config.toml"
+	encryptedFile := "config.enc.toml.yaml"
+	outputFile := "config.toml"
+
+	require.NoError(t, os.WriteFile(inputFile, sampleTOML(), 0644))
+	require.NoError(t, Encrypt(inputFile, encryptedFile, env.keyFile, env.publicKey, "", false))
+
+	plainData, err := DecryptToBytes(encryptedFile, outputFile, env.keyFile, "", false)
+	require.NoError(t, err)
+
+	assert.Contains(t, string(plainData), "[database]")
+	assert.Contains(t, string(plainData), `host = "localhost"`)
+	assert.NotContains(t, string(plainData), "database:")
+}
+
 func TestUnifiedDiff_LineOriented(t *testing.T) {
 	diff := UnifiedDiff(
 		"config.yaml",
