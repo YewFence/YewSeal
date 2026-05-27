@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -38,6 +39,22 @@ func resolveFormatOverride(cliFormat string, filePair config.FilePair) (string, 
 		return validatedFormat, nil
 	}
 	return filePair.Format, nil
+}
+
+func resolveTargetFilePairs(cfg *config.Config, target string) ([]config.FilePair, error) {
+	target = strings.TrimSpace(target)
+	files := cfg.GetFiles()
+	if target == "" {
+		return files, nil
+	}
+
+	for _, filePair := range files {
+		if target == filePair.PlaintextPath || target == filePair.EncryptedPath {
+			return []config.FilePair{filePair}, nil
+		}
+	}
+
+	return nil, fmt.Errorf("target %s is not configured as a plaintext or encrypted file", target)
 }
 
 func resolveSyncKeyFile(c *cli.Context, cfg *config.Config) string {
@@ -429,6 +446,67 @@ func main() {
 				},
 			},
 			{
+				Name:      "diff",
+				Usage:     "Compare plaintext file with decrypted encrypted file",
+				UsageText: `yews diff [target]`,
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:  "format",
+						Usage: "Format override for the selected target (toml/yaml/json/env/ini)",
+					},
+					&cli.BoolFlag{
+						Name:    "verbose",
+						Aliases: []string{"v"},
+						Usage:   "Enable verbose output",
+					},
+				},
+				Action: func(c *cli.Context) error {
+					if c.Args().Len() > 1 {
+						return cli.Exit("diff accepts at most one target", 2)
+					}
+
+					keyFile := cfg.GetKeyFile(c.String("key-file"))
+					verbose := c.Bool("verbose")
+					cliFormat, err := validateCLIFormatOverride(c.String("format"))
+					if err != nil {
+						return cli.Exit(err, 2)
+					}
+
+					filePairs, err := resolveTargetFilePairs(cfg, c.Args().First())
+					if err != nil {
+						return cli.Exit(err, 2)
+					}
+
+					different := false
+					for _, filePair := range filePairs {
+						formatOverride, err := resolveFormatOverride(cliFormat, filePair)
+						if err != nil {
+							return cli.Exit(err, 2)
+						}
+
+						result, err := crypto.DiffPlaintextAgainstEncrypted(
+							filePair.PlaintextPath,
+							filePair.EncryptedPath,
+							keyFile,
+							formatOverride,
+							verbose,
+						)
+						if err != nil {
+							return cli.Exit(err, 2)
+						}
+						if result.Different {
+							different = true
+							fmt.Print(result.Diff)
+						}
+					}
+
+					if different {
+						return cli.Exit("", 1)
+					}
+					return nil
+				},
+			},
+			{
 				Name:    "check",
 				Aliases: []string{"doctor"},
 				Usage:   "Check if required external tools are installed",
@@ -572,6 +650,13 @@ func main() {
 	}
 
 	if err := app.Run(os.Args); err != nil {
+		var exitCoder cli.ExitCoder
+		if errors.As(err, &exitCoder) {
+			if strings.TrimSpace(err.Error()) != "" {
+				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			}
+			os.Exit(exitCoder.ExitCode())
+		}
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}

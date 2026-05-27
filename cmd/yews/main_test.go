@@ -37,3 +37,56 @@ func TestResolveFormatOverride_PrefersCLIValue(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "json", format)
 }
+
+func TestResolveTargetFilePairs_EmptyUsesAllConfiguredFiles(t *testing.T) {
+	cfg := &config.Config{
+		Encryption: config.EncryptionConfig{
+			Files: []config.FilePair{
+				{PlaintextPath: "wrangler.toml", EncryptedPath: "wrangler.enc.toml.yaml"},
+				{PlaintextPath: ".dev.vars", EncryptedPath: ".dev.vars.enc.yaml", Format: "env"},
+			},
+		},
+	}
+
+	filePairs, err := resolveTargetFilePairs(cfg, "")
+	require.NoError(t, err)
+	assert.Len(t, filePairs, 2)
+}
+
+func TestResolveTargetFilePairs_MatchesPlaintextPath(t *testing.T) {
+	cfg := &config.Config{
+		Encryption: config.EncryptionConfig{
+			Files: []config.FilePair{
+				{PlaintextPath: "wrangler.toml", EncryptedPath: "wrangler.enc.toml.yaml"},
+			},
+		},
+	}
+
+	filePairs, err := resolveTargetFilePairs(cfg, "wrangler.toml")
+	require.NoError(t, err)
+	require.Len(t, filePairs, 1)
+	assert.Equal(t, "wrangler.enc.toml.yaml", filePairs[0].EncryptedPath)
+}
+
+func TestResolveTargetFilePairs_MatchesEncryptedPath(t *testing.T) {
+	cfg := &config.Config{
+		Encryption: config.EncryptionConfig{
+			Files: []config.FilePair{
+				{PlaintextPath: "wrangler.toml", EncryptedPath: "wrangler.enc.toml.yaml"},
+			},
+		},
+	}
+
+	filePairs, err := resolveTargetFilePairs(cfg, "wrangler.enc.toml.yaml")
+	require.NoError(t, err)
+	require.Len(t, filePairs, 1)
+	assert.Equal(t, "wrangler.toml", filePairs[0].PlaintextPath)
+}
+
+func TestResolveTargetFilePairs_UnknownTarget(t *testing.T) {
+	cfg := config.DefaultConfig()
+
+	_, err := resolveTargetFilePairs(cfg, "unknown.toml")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "is not configured")
+}

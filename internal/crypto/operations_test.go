@@ -259,6 +259,70 @@ func TestDecryptWithOptions_ForceOverwritesDifferentPlaintext(t *testing.T) {
 	assert.NotContains(t, string(content), "local-change")
 }
 
+func TestUnifiedDiff_LineOriented(t *testing.T) {
+	diff := UnifiedDiff(
+		"config.yaml",
+		"config.enc.yaml (decrypted)",
+		[]byte("database:\n  host: local-change\n"),
+		[]byte("database:\n  host: localhost\n"),
+	)
+
+	assert.Contains(t, diff, "--- config.yaml")
+	assert.Contains(t, diff, "+++ config.enc.yaml (decrypted)")
+	assert.Contains(t, diff, "-  host: local-change\n")
+	assert.Contains(t, diff, "+  host: localhost\n")
+}
+
+func TestDiffPlaintextAgainstEncrypted_Different(t *testing.T) {
+	env := setupIntegrationEnv(t)
+
+	inputFile := "config.yaml"
+	encryptedFile := "config.enc.yaml"
+
+	require.NoError(t, os.WriteFile(inputFile, sampleYAML(), 0644))
+	require.NoError(t, Encrypt(inputFile, encryptedFile, env.keyFile, env.publicKey, "", false))
+	decrypted, err := DecryptToBytes(encryptedFile, inputFile, env.keyFile, "", false)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(inputFile, decrypted, 0644))
+	require.NoError(t, os.WriteFile(inputFile, []byte("database:\n    host: local-change\n    port: 5432\n    password: secret123\nserver:\n    name: test\n    enabled: true\n"), 0644))
+
+	result, err := DiffPlaintextAgainstEncrypted(inputFile, encryptedFile, env.keyFile, "", false)
+	require.NoError(t, err)
+
+	assert.True(t, result.Different)
+	assert.Contains(t, result.Diff, "--- config.yaml")
+	assert.Contains(t, result.Diff, "+++ config.enc.yaml (decrypted)")
+	assert.Contains(t, result.Diff, "-    host: local-change\n")
+	assert.Contains(t, result.Diff, "+    host: localhost\n")
+}
+
+func TestDiffPlaintextAgainstEncrypted_Identical(t *testing.T) {
+	env := setupIntegrationEnv(t)
+
+	inputFile := "config.yaml"
+	encryptedFile := "config.enc.yaml"
+
+	require.NoError(t, os.WriteFile(inputFile, sampleYAML(), 0644))
+	require.NoError(t, Encrypt(inputFile, encryptedFile, env.keyFile, env.publicKey, "", false))
+	decrypted, err := DecryptToBytes(encryptedFile, inputFile, env.keyFile, "", false)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(inputFile, decrypted, 0644))
+
+	result, err := DiffPlaintextAgainstEncrypted(inputFile, encryptedFile, env.keyFile, "", false)
+	require.NoError(t, err)
+
+	assert.False(t, result.Different)
+	assert.Empty(t, result.Diff)
+}
+
+func TestDiffPlaintextAgainstEncrypted_MissingPlaintext(t *testing.T) {
+	env := setupIntegrationEnv(t)
+
+	_, err := DiffPlaintextAgainstEncrypted("missing.yaml", "config.enc.yaml", env.keyFile, "", false)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "plaintext file missing.yaml does not exist")
+}
+
 // ============================================================================
 // Round-trip Tests
 // ============================================================================
