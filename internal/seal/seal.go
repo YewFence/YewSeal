@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/YewFence/YewSeal/internal/agekey"
-	tools "github.com/YewFence/YewSeal/internal/doctor"
 	"github.com/YewFence/YewSeal/internal/errx"
 	"github.com/YewFence/YewSeal/internal/sopsx"
 )
@@ -52,14 +51,12 @@ func Encrypt(opts EncryptOptions) error {
 		return &errx.NotFoundError{What: "input file", Path: opts.InputFile}
 	}
 
-	inputFormat := resolveFormat(opts.InputFile, opts.FormatOverride)
-	if inputFormat == formatUnknown {
-		return &errx.UnsupportedFormatError{Path: opts.InputFile, Supported: supportedExtensions()}
+	plan, err := newCodecPlan(opts.InputFile, opts.FormatOverride)
+	if err != nil {
+		return err
 	}
-	if needsConversion(inputFormat) {
-		if err := tools.CheckRemarshal(); err != nil {
-			return err
-		}
+	if err := plan.checkTools(); err != nil {
+		return err
 	}
 
 	if opts.Verbose {
@@ -71,14 +68,14 @@ func Encrypt(opts EncryptOptions) error {
 		return fmt.Errorf("failed to read input file: %w", err)
 	}
 
-	if needsConversion(inputFormat) {
+	if plan.needsRemarshal {
 		if opts.Verbose {
-			fmt.Println("🔄 Converting TOML to YAML...")
+			fmt.Println(plan.encryptAction)
 		}
-		plainData, err = tomlToYAML(plainData)
-		if err != nil {
-			return fmt.Errorf("failed to convert TOML to YAML: %w", err)
-		}
+	}
+	plainData, err = plan.prepareEncrypt(plainData)
+	if err != nil {
+		return err
 	}
 
 	if opts.Verbose {
@@ -90,7 +87,7 @@ func Encrypt(opts EncryptOptions) error {
 		return err
 	}
 
-	encData, err := sopsx.Encrypt(plainData, sopsFormat(inputFormat), publicKey)
+	encData, err := sopsx.Encrypt(plainData, plan.sopsFormat, publicKey)
 	if err != nil {
 		return fmt.Errorf("failed to encrypt: %w", err)
 	}
@@ -128,14 +125,12 @@ func DecryptToBytes(opts DecryptBytesOptions) ([]byte, error) {
 		return nil, &errx.NotFoundError{What: "input file", Path: opts.InputFile}
 	}
 
-	outputFormat := resolveFormat(opts.OutputFile, opts.FormatOverride)
-	if outputFormat == formatUnknown {
-		return nil, &errx.UnsupportedFormatError{Path: opts.OutputFile, Supported: supportedExtensions()}
+	plan, err := newCodecPlan(opts.OutputFile, opts.FormatOverride)
+	if err != nil {
+		return nil, err
 	}
-	if needsConversion(outputFormat) {
-		if err := tools.CheckRemarshal(); err != nil {
-			return nil, err
-		}
+	if err := plan.checkTools(); err != nil {
+		return nil, err
 	}
 
 	if opts.Verbose {
@@ -153,19 +148,19 @@ func DecryptToBytes(opts DecryptBytesOptions) ([]byte, error) {
 		return nil, fmt.Errorf("failed to read input file: %w", err)
 	}
 
-	plainData, err := sopsx.Decrypt(encData, sopsFormat(outputFormat), privateKey)
+	plainData, err := sopsx.Decrypt(encData, plan.sopsFormat, privateKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decrypt: %w", err)
 	}
 
-	if needsConversion(outputFormat) {
+	if plan.needsRemarshal {
 		if opts.Verbose {
-			fmt.Println("🔄 Converting YAML to TOML...")
+			fmt.Println(plan.decryptAction)
 		}
-		plainData, err = yamlToTOML(plainData)
-		if err != nil {
-			return nil, fmt.Errorf("failed to convert YAML to TOML: %w", err)
-		}
+	}
+	plainData, err = plan.restoreDecrypt(plainData)
+	if err != nil {
+		return nil, err
 	}
 
 	return plainData, nil
@@ -180,7 +175,7 @@ func Edit(opts EditOptions) error {
 	if editFormat == formatUnknown {
 		editFormat = formatYAML
 	}
-	sopsType := sopsFormat(editFormat)
+	sopsType := codecPlanForFormat(editFormat).sopsFormat
 
 	key, err := agekey.GetAgeKey(opts.KeyFile)
 	if err != nil {

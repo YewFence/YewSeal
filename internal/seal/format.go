@@ -42,27 +42,6 @@ func detectFormat(filename string) format {
 	}
 }
 
-func needsConversion(format format) bool {
-	return format == formatTOML
-}
-
-func sopsFormat(format format) string {
-	switch format {
-	case formatTOML:
-		return "yaml"
-	case formatYAML:
-		return "yaml"
-	case formatJSON:
-		return "json"
-	case formatENV:
-		return "dotenv"
-	case formatINI:
-		return "ini"
-	default:
-		return "yaml"
-	}
-}
-
 func parseFormat(value string) format {
 	switch strings.ToLower(strings.TrimSpace(value)) {
 	case "toml":
