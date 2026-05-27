@@ -1,6 +1,7 @@
 package crypto
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"fmt"
 	"os"
@@ -11,6 +12,11 @@ import (
 	tools "github.com/YewFence/YewSeal/internal/doctor"
 	"github.com/YewFence/YewSeal/internal/errx"
 )
+
+// DecryptOptions controls how decrypted plaintext is written.
+type DecryptOptions struct {
+	Force bool
+}
 
 // Encrypt encrypts a configuration file using SOPS
 // For TOML files: converts to YAML first, then encrypts
@@ -123,9 +129,29 @@ func encryptNative(inputFile, outputFile, keyFile, publicKeyParam string, inputF
 // For native SOPS formats: decrypts directly
 // formatOverride: optional format string (e.g. "env") to bypass extension detection
 func Decrypt(inputFile, outputFile, keyFile, formatOverride string, verbose bool) error {
+	return DecryptWithOptions(inputFile, outputFile, keyFile, formatOverride, verbose, DecryptOptions{})
+}
+
+// DecryptWithOptions decrypts a SOPS encrypted file and writes it with protection options.
+func DecryptWithOptions(inputFile, outputFile, keyFile, formatOverride string, verbose bool, opts DecryptOptions) error {
+	plainData, err := DecryptToBytes(inputFile, outputFile, keyFile, formatOverride, verbose)
+	if err != nil {
+		return err
+	}
+
+	if err := writeDecryptedFile(inputFile, outputFile, plainData, opts.Force); err != nil {
+		return err
+	}
+
+	fmt.Printf("✅ Decrypted %s → %s\n", inputFile, outputFile)
+	return nil
+}
+
+// DecryptToBytes decrypts a SOPS encrypted file without writing plaintext to disk.
+func DecryptToBytes(inputFile, outputFile, keyFile, formatOverride string, verbose bool) ([]byte, error) {
 	// Check if input file exists
 	if _, err := os.Stat(inputFile); os.IsNotExist(err) {
-		return &errx.NotFoundError{What: "input file", Path: inputFile}
+		return nil, &errx.NotFoundError{What: "input file", Path: inputFile}
 	}
 
 	outputFormat := DetectFormat(outputFile)
@@ -136,21 +162,21 @@ func Decrypt(inputFile, outputFile, keyFile, formatOverride string, verbose bool
 	if outputFormat == FormatTOML {
 		// TOML needs conversion: check remarshal is available
 		if err := tools.CheckRemarshal(); err != nil {
-			return err
+			return nil, err
 		}
-		return decryptTOML(inputFile, outputFile, keyFile, verbose)
+		return decryptTOMLToBytes(inputFile, keyFile, verbose)
 	}
 
 	if outputFormat == FormatUnknown {
-		return &errx.UnsupportedFormatError{Path: outputFile, Supported: []string{".toml", ".yaml", ".yml", ".json", ".env", ".ini"}}
+		return nil, &errx.UnsupportedFormatError{Path: outputFile, Supported: []string{".toml", ".yaml", ".yml", ".json", ".env", ".ini"}}
 	}
 
 	// Native SOPS format: decrypt directly
-	return decryptNative(inputFile, outputFile, keyFile, outputFormat, verbose)
+	return decryptNativeToBytes(inputFile, keyFile, outputFormat, verbose)
 }
 
-// decryptTOML decrypts a SOPS file and converts it to TOML
-func decryptTOML(inputFile, outputFile, keyFile string, verbose bool) error {
+// decryptTOMLToBytes decrypts a SOPS file and converts it to TOML.
+func decryptTOMLToBytes(inputFile, keyFile string, verbose bool) ([]byte, error) {
 	if verbose {
 		fmt.Printf("📖 Reading %s...\n", inputFile)
 		fmt.Println("🔓 Decrypting with SOPS...")
@@ -158,17 +184,17 @@ func decryptTOML(inputFile, outputFile, keyFile string, verbose bool) error {
 
 	key, err := GetAgeKey(keyFile)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	encData, err := os.ReadFile(inputFile)
 	if err != nil {
-		return fmt.Errorf("failed to read input file: %w", err)
+		return nil, fmt.Errorf("failed to read input file: %w", err)
 	}
 
 	yamlContent, err := sopsDecryptData(encData, "yaml", key)
 	if err != nil {
-		return fmt.Errorf("failed to decrypt: %w", err)
+		return nil, fmt.Errorf("failed to decrypt: %w", err)
 	}
 
 	if verbose {
@@ -178,19 +204,14 @@ func decryptTOML(inputFile, outputFile, keyFile string, verbose bool) error {
 	// Convert YAML to TOML (via remarshal)
 	tomlContent, err := YAMLToTOML(yamlContent)
 	if err != nil {
-		return fmt.Errorf("failed to convert YAML to TOML: %w", err)
+		return nil, fmt.Errorf("failed to convert YAML to TOML: %w", err)
 	}
 
-	if err := os.WriteFile(outputFile, tomlContent, 0644); err != nil {
-		return fmt.Errorf("failed to write output file: %w", err)
-	}
-
-	fmt.Printf("✅ Decrypted %s → %s\n", inputFile, outputFile)
-	return nil
+	return tomlContent, nil
 }
 
-// decryptNative decrypts a native SOPS format file directly
-func decryptNative(inputFile, outputFile, keyFile string, outputFormat FileFormat, verbose bool) error {
+// decryptNativeToBytes decrypts a native SOPS format file directly.
+func decryptNativeToBytes(inputFile, keyFile string, outputFormat FileFormat, verbose bool) ([]byte, error) {
 	if verbose {
 		fmt.Printf("📖 Reading %s...\n", inputFile)
 		fmt.Println("🔓 Decrypting with SOPS...")
@@ -198,25 +219,39 @@ func decryptNative(inputFile, outputFile, keyFile string, outputFormat FileForma
 
 	key, err := GetAgeKey(keyFile)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	encData, err := os.ReadFile(inputFile)
 	if err != nil {
-		return fmt.Errorf("failed to read input file: %w", err)
+		return nil, fmt.Errorf("failed to read input file: %w", err)
 	}
 
 	sopsType := GetSopsType(outputFormat)
 	plainData, err := sopsDecryptData(encData, sopsType, key)
 	if err != nil {
-		return fmt.Errorf("failed to decrypt: %w", err)
+		return nil, fmt.Errorf("failed to decrypt: %w", err)
+	}
+
+	return plainData, nil
+}
+
+func writeDecryptedFile(inputFile, outputFile string, plainData []byte, force bool) error {
+	currentData, err := os.ReadFile(outputFile)
+	if err == nil {
+		if bytes.Equal(currentData, plainData) {
+			return nil
+		}
+		if !force {
+			return &errx.ProtectedOverwriteError{SourceFile: inputFile, TargetFile: outputFile}
+		}
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("failed to read output file: %w", err)
 	}
 
 	if err := os.WriteFile(outputFile, plainData, 0644); err != nil {
 		return fmt.Errorf("failed to write output file: %w", err)
 	}
-
-	fmt.Printf("✅ Decrypted %s → %s\n", inputFile, outputFile)
 	return nil
 }
 

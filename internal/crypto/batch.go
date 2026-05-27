@@ -20,6 +20,7 @@ type BatchOptions struct {
 	PublicKey    string // Age 公钥（加密时使用）
 	Parallel     int    // 并行度（1=顺序执行）
 	Verbose      bool   // 详细输出
+	Force        bool   // 解密时允许覆盖不同内容的明文文件
 	// FilePairs 直接指定的文件对列表（来自配置文件）
 	FilePairs []config.FilePair
 }
@@ -187,7 +188,7 @@ func BatchDecrypt(opts BatchOptions) (*BatchSummary, error) {
 
 	// 定义处理器函数
 	processor := func(pair config.FilePair) error {
-		return Decrypt(pair.EncryptedPath, pair.PlaintextPath, opts.KeyFile, pair.Format, opts.Verbose)
+		return DecryptWithOptions(pair.EncryptedPath, pair.PlaintextPath, opts.KeyFile, pair.Format, opts.Verbose, DecryptOptions{Force: opts.Force})
 	}
 	describe := func(pair config.FilePair) (string, string) {
 		return pair.EncryptedPath, pair.PlaintextPath

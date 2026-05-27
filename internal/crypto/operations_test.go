@@ -202,6 +202,63 @@ func TestDecrypt_WrongKey(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestDecrypt_RefusesToOverwriteDifferentPlaintext(t *testing.T) {
+	env := setupIntegrationEnv(t)
+
+	inputFile := "config.yaml"
+	encryptedFile := "config.enc.yaml"
+	decryptedFile := "config.decrypted.yaml"
+	localContent := []byte("database:\n  host: local-change\n")
+
+	require.NoError(t, os.WriteFile(inputFile, sampleYAML(), 0644))
+	require.NoError(t, Encrypt(inputFile, encryptedFile, env.keyFile, env.publicKey, "", false))
+	require.NoError(t, os.WriteFile(decryptedFile, localContent, 0644))
+
+	err := Decrypt(encryptedFile, decryptedFile, env.keyFile, "", false)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "refusing to overwrite")
+	assert.Contains(t, err.Error(), "--force/-f")
+
+	content, readErr := os.ReadFile(decryptedFile)
+	require.NoError(t, readErr)
+	assert.Equal(t, localContent, content)
+}
+
+func TestDecrypt_AllowsIdenticalExistingPlaintext(t *testing.T) {
+	env := setupIntegrationEnv(t)
+
+	inputFile := "config.yaml"
+	encryptedFile := "config.enc.yaml"
+	decryptedFile := "config.decrypted.yaml"
+
+	require.NoError(t, os.WriteFile(inputFile, sampleYAML(), 0644))
+	require.NoError(t, Encrypt(inputFile, encryptedFile, env.keyFile, env.publicKey, "", false))
+	require.NoError(t, Decrypt(encryptedFile, decryptedFile, env.keyFile, "", false))
+
+	err := Decrypt(encryptedFile, decryptedFile, env.keyFile, "", false)
+	require.NoError(t, err)
+}
+
+func TestDecryptWithOptions_ForceOverwritesDifferentPlaintext(t *testing.T) {
+	env := setupIntegrationEnv(t)
+
+	inputFile := "config.yaml"
+	encryptedFile := "config.enc.yaml"
+	decryptedFile := "config.decrypted.yaml"
+
+	require.NoError(t, os.WriteFile(inputFile, sampleYAML(), 0644))
+	require.NoError(t, Encrypt(inputFile, encryptedFile, env.keyFile, env.publicKey, "", false))
+	require.NoError(t, os.WriteFile(decryptedFile, []byte("database:\n  host: local-change\n"), 0644))
+
+	err := DecryptWithOptions(encryptedFile, decryptedFile, env.keyFile, "", false, DecryptOptions{Force: true})
+	require.NoError(t, err)
+
+	content, readErr := os.ReadFile(decryptedFile)
+	require.NoError(t, readErr)
+	assert.Contains(t, string(content), "localhost")
+	assert.NotContains(t, string(content), "local-change")
+}
+
 // ============================================================================
 // Round-trip Tests
 // ============================================================================

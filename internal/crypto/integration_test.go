@@ -864,6 +864,7 @@ func TestIntegration_FormatOverride_Batch(t *testing.T) {
 			{PlaintextPath: "config.yaml", EncryptedPath: "config.enc.yaml"},
 		},
 		KeyFile: env.keyFile,
+		Force:   true,
 	})
 	require.NoError(t, err)
 

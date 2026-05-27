@@ -33,6 +33,20 @@ func (e *UnsupportedFormatError) Error() string {
 	return fmt.Sprintf("unsupported file format for %s (supported: %s)", e.Path, strings.Join(e.Supported, ", "))
 }
 
+// ProtectedOverwriteError indicates that decrypt would overwrite local changes.
+type ProtectedOverwriteError struct {
+	SourceFile string
+	TargetFile string
+}
+
+func (e *ProtectedOverwriteError) Error() string {
+	return fmt.Sprintf(
+		"refusing to overwrite %s because it differs from decrypted %s\nRerun decrypt with --force/-f to overwrite",
+		e.TargetFile,
+		e.SourceFile,
+	)
+}
+
 // UnknownProviderError indicates an unknown sync provider.
 type UnknownProviderError struct {
 	Name      string

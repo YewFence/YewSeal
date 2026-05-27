@@ -327,6 +327,11 @@ func main() {
 						Usage:   "Number of parallel workers for batch mode",
 					},
 					&cli.BoolFlag{
+						Name:    "force",
+						Aliases: []string{"f"},
+						Usage:   "Force overwrite existing plaintext file when it differs from decrypted content",
+					},
+					&cli.BoolFlag{
 						Name:    "verbose",
 						Aliases: []string{"v"},
 						Usage:   "Enable verbose output",
@@ -354,6 +359,7 @@ func main() {
 							KeyFile:      keyFile,
 							Parallel:     c.Int("parallel"),
 							Verbose:      verbose,
+							Force:        c.Bool("force"),
 						}
 						_, err := crypto.BatchDecrypt(opts)
 						return err
@@ -371,7 +377,14 @@ func main() {
 						if err != nil {
 							return err
 						}
-						return crypto.Decrypt(filePair.EncryptedPath, filePair.PlaintextPath, keyFile, formatOverride, verbose)
+						return crypto.DecryptWithOptions(
+							filePair.EncryptedPath,
+							filePair.PlaintextPath,
+							keyFile,
+							formatOverride,
+							verbose,
+							crypto.DecryptOptions{Force: c.Bool("force")},
+						)
 					}
 
 					if cliFormat != "" {
@@ -388,6 +401,7 @@ func main() {
 						KeyFile:   keyFile,
 						Parallel:  c.Int("parallel"),
 						Verbose:   verbose,
+						Force:     c.Bool("force"),
 					}
 					_, err = crypto.BatchDecrypt(opts)
 					return err
