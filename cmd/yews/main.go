@@ -3,10 +3,10 @@ package main
 import (
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"strings"
 
+	yewsapp "github.com/YewFence/YewSeal/internal/app"
 	"github.com/YewFence/YewSeal/internal/config"
 	"github.com/YewFence/YewSeal/internal/crypto"
 	tools "github.com/YewFence/YewSeal/internal/doctor"
@@ -17,132 +17,6 @@ import (
 )
 
 var Version = "dev"
-
-func validateCLIFormatOverride(format string) (string, error) {
-	if strings.TrimSpace(format) == "" {
-		return "", nil
-	}
-
-	parsed := crypto.ParseFormat(format)
-	if parsed == crypto.FormatUnknown {
-		return "", fmt.Errorf("unsupported format %q (supported: toml, yaml, json, env, ini)", format)
-	}
-
-	return string(parsed), nil
-}
-
-func resolveFormatOverride(cliFormat string, filePair config.FilePair) (string, error) {
-	validatedFormat, err := validateCLIFormatOverride(cliFormat)
-	if err != nil {
-		return "", err
-	}
-	if validatedFormat != "" {
-		return validatedFormat, nil
-	}
-	return filePair.Format, nil
-}
-
-func resolveTargetFilePairs(cfg *config.Config, target string) ([]config.FilePair, error) {
-	target = strings.TrimSpace(target)
-	files := cfg.GetFiles()
-	if target == "" {
-		return files, nil
-	}
-
-	for _, filePair := range files {
-		if target == filePair.PlaintextPath || target == filePair.EncryptedPath {
-			return []config.FilePair{filePair}, nil
-		}
-	}
-
-	return nil, fmt.Errorf("target %s is not configured as a plaintext or encrypted file", target)
-}
-
-func resolveSingleTargetFilePair(cfg *config.Config, target, commandName string) (config.FilePair, error) {
-	target = strings.TrimSpace(target)
-	if target == "" {
-		return config.FilePair{}, fmt.Errorf("%s requires exactly one target", commandName)
-	}
-
-	filePairs, err := resolveTargetFilePairs(cfg, target)
-	if err != nil {
-		return config.FilePair{}, err
-	}
-	if len(filePairs) != 1 {
-		return config.FilePair{}, fmt.Errorf("%s requires exactly one target", commandName)
-	}
-	return filePairs[0], nil
-}
-
-func writeViewedTarget(w io.Writer, cfg *config.Config, target, keyFile, cliFormat string, verbose bool) error {
-	filePair, err := resolveSingleTargetFilePair(cfg, target, "view")
-	if err != nil {
-		return err
-	}
-
-	formatOverride, err := resolveFormatOverride(cliFormat, filePair)
-	if err != nil {
-		return err
-	}
-
-	plainData, err := crypto.DecryptToBytes(
-		filePair.EncryptedPath,
-		filePair.PlaintextPath,
-		keyFile,
-		formatOverride,
-		verbose,
-	)
-	if err != nil {
-		return err
-	}
-
-	if _, err := w.Write(plainData); err != nil {
-		return err
-	}
-	return nil
-}
-
-func resolveSyncKeyFile(c *cli.Context, cfg *config.Config) string {
-	if c.IsSet("key-file") {
-		return cfg.GetKeyFile(c.String("key-file"))
-	}
-	return cfg.GetKeyFile("")
-}
-
-func resolveSyncProvider(c *cli.Context, cfg *config.Config) string {
-	if c.IsSet("provider") {
-		return cfg.GetSyncProvider(c.String("provider"))
-	}
-	return cfg.GetSyncProvider("")
-}
-
-func resolveSyncSecretName(c *cli.Context, cfg *config.Config) string {
-	if c.IsSet("name") {
-		return cfg.GetSyncSecretName(c.String("name"))
-	}
-	return cfg.GetSyncSecretName("")
-}
-
-func resolveSyncProjectID(c *cli.Context, cfg *config.Config) string {
-	if c.IsSet("project-id") {
-		return cfg.GetSyncProjectID(c.String("project-id"))
-	}
-	return cfg.GetSyncProjectID("")
-}
-
-func resolveSyncPath(c *cli.Context, cfg *config.Config) string {
-	if c.IsSet("path") {
-		return cfg.GetSyncPath(c.String("path"))
-	}
-	return cfg.GetSyncPath("")
-}
-
-func resolveSyncEnvironment(c *cli.Context, cfg *config.Config) string {
-	if c.IsSet("env") {
-		return cfg.GetSyncEnvironment(c.String("env"))
-	}
-	return cfg.GetSyncEnvironment("")
-}
 
 func main() {
 	// Load configuration file
@@ -273,7 +147,7 @@ func main() {
 					publicKey := c.String("public-key")
 					verbose := c.Bool("verbose")
 					hasSingleFileOverride := c.IsSet("input") || c.IsSet("output")
-					cliFormat, err := validateCLIFormatOverride(c.String("format"))
+					cliFormat, err := yewsapp.ValidateCLIFormatOverride(c.String("format"))
 					if err != nil {
 						return err
 					}
@@ -305,7 +179,7 @@ func main() {
 						if c.IsSet("output") {
 							filePair.EncryptedPath = c.String("output")
 						}
-						formatOverride, err := resolveFormatOverride(cliFormat, filePair)
+						formatOverride, err := yewsapp.ResolveFormatOverride(cliFormat, filePair)
 						if err != nil {
 							return err
 						}
@@ -403,7 +277,7 @@ func main() {
 					keyFile := cfg.GetKeyFile(c.String("key-file"))
 					verbose := c.Bool("verbose")
 					hasSingleFileOverride := c.IsSet("input") || c.IsSet("output")
-					cliFormat, err := validateCLIFormatOverride(c.String("format"))
+					cliFormat, err := yewsapp.ValidateCLIFormatOverride(c.String("format"))
 					if err != nil {
 						return err
 					}
@@ -435,7 +309,7 @@ func main() {
 						if c.IsSet("output") {
 							filePair.PlaintextPath = c.String("output")
 						}
-						formatOverride, err := resolveFormatOverride(cliFormat, filePair)
+						formatOverride, err := yewsapp.ResolveFormatOverride(cliFormat, filePair)
 						if err != nil {
 							return err
 						}
@@ -512,12 +386,12 @@ func main() {
 
 					keyFile := cfg.GetKeyFile(c.String("key-file"))
 					verbose := c.Bool("verbose")
-					cliFormat, err := validateCLIFormatOverride(c.String("format"))
+					cliFormat, err := yewsapp.ValidateCLIFormatOverride(c.String("format"))
 					if err != nil {
 						return cli.Exit(err, 2)
 					}
 
-					if err := writeViewedTarget(os.Stdout, cfg, c.Args().First(), keyFile, cliFormat, verbose); err != nil {
+					if err := yewsapp.WriteViewedTarget(os.Stdout, cfg, c.Args().First(), keyFile, cliFormat, verbose); err != nil {
 						return cli.Exit(err, 2)
 					}
 					return nil
@@ -545,40 +419,16 @@ func main() {
 
 					keyFile := cfg.GetKeyFile(c.String("key-file"))
 					verbose := c.Bool("verbose")
-					cliFormat, err := validateCLIFormatOverride(c.String("format"))
+					cliFormat, err := yewsapp.ValidateCLIFormatOverride(c.String("format"))
 					if err != nil {
 						return cli.Exit(err, 2)
 					}
 
-					filePairs, err := resolveTargetFilePairs(cfg, c.Args().First())
+					result, err := yewsapp.DiffPlaintextAgainstEncryptedTargets(os.Stdout, cfg, c.Args().First(), keyFile, cliFormat, verbose)
 					if err != nil {
 						return cli.Exit(err, 2)
 					}
-
-					different := false
-					for _, filePair := range filePairs {
-						formatOverride, err := resolveFormatOverride(cliFormat, filePair)
-						if err != nil {
-							return cli.Exit(err, 2)
-						}
-
-						result, err := crypto.DiffPlaintextAgainstEncrypted(
-							filePair.PlaintextPath,
-							filePair.EncryptedPath,
-							keyFile,
-							formatOverride,
-							verbose,
-						)
-						if err != nil {
-							return cli.Exit(err, 2)
-						}
-						if result.Different {
-							different = true
-							fmt.Print(result.Diff)
-						}
-					}
-
-					if different {
+					if result.Different {
 						return cli.Exit("", 1)
 					}
 					return nil
@@ -658,12 +508,12 @@ func main() {
 				},
 				Action: func(c *cli.Context) error {
 					return sync.SyncKey(
-						resolveSyncProvider(c, cfg),
-						resolveSyncKeyFile(c, cfg),
-						resolveSyncSecretName(c, cfg),
-						resolveSyncProjectID(c, cfg),
-						resolveSyncPath(c, cfg),
-						resolveSyncEnvironment(c, cfg),
+						yewsapp.ResolveSyncProvider(c, cfg),
+						yewsapp.ResolveSyncKeyFile(c, cfg),
+						yewsapp.ResolveSyncSecretName(c, cfg),
+						yewsapp.ResolveSyncProjectID(c, cfg),
+						yewsapp.ResolveSyncPath(c, cfg),
+						yewsapp.ResolveSyncEnvironment(c, cfg),
 					)
 				},
 				Subcommands: []*cli.Command{
@@ -705,12 +555,12 @@ func main() {
 						},
 						Action: func(c *cli.Context) error {
 							return sync.PullKey(
-								resolveSyncProvider(c, cfg),
-								resolveSyncKeyFile(c, cfg),
-								resolveSyncSecretName(c, cfg),
-								resolveSyncProjectID(c, cfg),
-								resolveSyncPath(c, cfg),
-								resolveSyncEnvironment(c, cfg),
+								yewsapp.ResolveSyncProvider(c, cfg),
+								yewsapp.ResolveSyncKeyFile(c, cfg),
+								yewsapp.ResolveSyncSecretName(c, cfg),
+								yewsapp.ResolveSyncProjectID(c, cfg),
+								yewsapp.ResolveSyncPath(c, cfg),
+								yewsapp.ResolveSyncEnvironment(c, cfg),
 							)
 						},
 					},
