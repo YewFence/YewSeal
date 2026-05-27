@@ -1,0 +1,95 @@
+name: GitHub Actions Updates
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
+  workflow_dispatch:
+    inputs:
+      update:
+        description: 自动更新并提交 GitHub Actions 版本
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  update:
+    name: Update GitHub Actions
+    runs-on: ubuntu-latest
+    if: (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || (github.event_name == 'workflow_dispatch' && inputs.update)
+    permissions:
+      contents: write
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+          token: ${{ secrets.ACTIONS_UPDATE_TOKEN || github.token }}
+
+      - uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4.0.1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update action versions
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: mise run action:update:all
+
+      - name: Commit action updates
+        env:
+          ACTIONS_UPDATE_TOKEN: ${{ secrets.ACTIONS_UPDATE_TOKEN }}
+        run: |
+          if git diff --quiet -- .github/workflows; then
+            echo "没有发现需要更新的 GitHub Actions"
+            exit 0
+          fi
+
+          if [[ -z "${ACTIONS_UPDATE_TOKEN}" ]]; then
+            echo "::error::发现需要更新的 GitHub Actions，但没有配置 ACTIONS_UPDATE_TOKEN，无法自动推送 .github/workflows 变更。请配置带 workflow 权限的令牌，或者在本地运行 mise run action:update:all 后手动提交。"
+            git diff --name-only -- .github/workflows
+            exit 1
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .github/workflows
+          git commit -m "chore: 自动更新 GitHub Actions 版本"
+          git push
+
+  check:
+    name: Check GitHub Actions
+    runs-on: ubuntu-latest
+    if: (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository) || (github.event_name == 'workflow_dispatch' && !inputs.update)
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4.0.1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check action updates
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mise run action:update:all
+
+          if git diff --quiet -- .github/workflows; then
+            echo "GitHub Actions 已是最新" >> "${GITHUB_STEP_SUMMARY}"
+            exit 0
+          fi
+
+          {
+            echo "## GitHub Actions 更新检查"
+            echo
+            echo "发现可更新的 GitHub Actions，请在本地运行 \`mise run action:update:all\` 后提交变更。"
+            echo
+            echo '```diff'
+            git diff -- .github/workflows
+            echo '```'
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+          git diff --name-only -- .github/workflows
+          exit 1

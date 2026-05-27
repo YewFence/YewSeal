@@ -12,41 +12,67 @@ jobs:
   go:
     name: Go
     runs-on: ubuntu-latest
+    env:
+      MISE_TASK_RUN_AUTO_INSTALL: "false"
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+      - uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4.0.1
         with:
-          go-version-file: go.mod
-          cache: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          install_args: go golangci-lint
+          add_shims_to_path: true
+          cache_key: "mise-v1-{{platform}}-{{install_args_hash}}-{{file_hash}}"
+
+      - uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: go-ci-${{ runner.os }}-${{ hashFiles('go.sum') }}
+          restore-keys: |
+            go-ci-${{ runner.os }}-
+            go-${{ runner.os }}-
 
       - name: Check go.mod tidy
-        run: |
-          go mod tidy
-          git diff --exit-code go.mod go.sum
+        run: mise run tidy:check
 
       - name: Vet
-        run: go vet ./...
+        run: mise run vet
 
       - name: Test
-        run: go test -v ./...
+        run: mise run test
 
       - name: Build
-        run: go build ./...
+        run: mise run build
 
   audit:
     name: Audit
     runs-on: ubuntu-latest
+    env:
+      MISE_TASK_RUN_AUTO_INSTALL: "false"
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+      - uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4.0.1
         with:
-          go-version-file: go.mod
-          cache: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          install_args: go
+          add_shims_to_path: true
+          cache_key: "mise-v1-{{platform}}-{{install_args_hash}}-{{file_hash}}"
+
+      - uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: go-audit-${{ runner.os }}-${{ hashFiles('go.sum') }}
+          restore-keys: |
+            go-audit-${{ runner.os }}-
+            go-${{ runner.os }}-
 
       - name: Verify dependencies
-        run: go mod verify
+        run: mise run mod:verify
 
       - id: govulncheck
         uses: golang/govulncheck-action@b625fbe08f3bccbe446d94fbf87fcc875a4f50ee # v1.0.4
@@ -54,23 +80,56 @@ jobs:
           repo-checkout: false
 
   docs:
-    name: Generate Docs
+    name: Docs
     runs-on: ubuntu-latest
+    env:
+      MISE_TASK_RUN_AUTO_INSTALL: "false"
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+      - uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4.0.1
         with:
-          go-version-file: go.mod
-          cache: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          install_args: node pnpm
+          add_shims_to_path: true
+          cache_key: "mise-v1-{{platform}}-{{install_args_hash}}-{{file_hash}}"
 
-      - name: Generate Docs
-        run: go run ./cmd/yews docs
+      - name: Resolve pnpm store path
+        id: pnpm-store
+        run: echo "path=$(pnpm store path --silent)" >> "${GITHUB_OUTPUT}"
+
+      - uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: pnpm-${{ runner.os }}-${{ hashFiles('docs/pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-${{ runner.os }}-
+
+      - name: Build
+        run: mise run docs:build
+
+  cli-docs:
+    name: Generate CLI Docs
+    runs-on: ubuntu-latest
+    env:
+      MISE_TASK_RUN_AUTO_INSTALL: "false"
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4.0.1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          install_args: go
+          add_shims_to_path: true
+          cache_key: "mise-v1-{{platform}}-{{install_args_hash}}-{{file_hash}}"
+
+      - name: Generate CLI docs
+        run: mise run docs
 
       - name: Check for changes
         run: |
           if [[ -n $(git status --porcelain) ]]; then
-            echo "Documentation is out of date. Please run 'go run ./cmd/yews docs' and commit the changes."
+            echo "Documentation is out of date. Please run 'mise run docs' and commit the changes."
             exit 1
           fi
 

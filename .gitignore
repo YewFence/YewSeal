@@ -1,35 +1,30 @@
-# Decrypted configuration files
-wrangler.toml
+/dist/
+/bin/
+/build/
+/coverage.out
+/coverage.html
+/docs/node_modules/
+/docs/.vitepress/cache/
+/docs/.vitepress/dist/
+*.out
+*.test
+*.exe
 
-# Age private keys
+.codex
+.claude
+
+.env
+.env.local
+wrangler.toml
 .age/keys.txt
 
-# Compiled binaries
-*.exe
-build/
-
-# Test coverage
-*.out
-coverage.html
-
-# Go build cache
-*.test
-
-# IDE
+mise.local.toml
+.gitnexus
 .idea/
 .vscode/
 *.swp
 *.swo
-
-# OS
 .DS_Store
 Thumbs.db
-
-# AI
-.claude/
-.codex
-
-# Temporary files
 *.tmp
 *.bak
-.gitnexus

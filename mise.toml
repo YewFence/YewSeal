@@ -1,8 +1,20 @@
 [tools]
+# https://go.dev/
 go = "1.25.6"
+# https://nodejs.org/
+node = "24"
+# https://infisical.com/docs/cli/overview
 infisical = "latest"
+# https://github.com/azat-io/actions-up
+"npm:actions-up" = "1"
+# https://github.com/paulhatch/semantic-version
 "npm:@semanticversion/cli" = "latest"
+# https://github.com/remarshal-project/remarshal
 "pipx:remarshal" = "latest"
+# https://pnpm.io/
+pnpm = "10"
+# https://golangci-lint.run/
+golangci-lint = "2"
 
 [env]
 BINARY_NAME = "yews"
@@ -14,42 +26,109 @@ DEV_DIR = "./test"
 depends = ["build"]
 
 [tasks.install]
-description = "Install to GOPATH/bin"
+description = "安装 CLI 到 GOPATH/bin"
 file = ".mise/tasks/install"
 
 [tasks.build]
-description = "Build for production"
+description = "构建 CLI 可执行文件"
 file = ".mise/tasks/build"
 
 [tasks.dev]
-description = "Build for development"
+description = "构建开发版本"
 file = ".mise/tasks/dev"
 
-[tasks.run]
-depends = ["build"]
-description = "Build and run the application"
-file = ".mise/tasks/run"
+[tasks.tidy]
+description = "整理 Go 模块依赖"
+run = "go mod tidy"
+
+[tasks.'tidy:check']
+description = "检查 Go 模块依赖是否已经整理"
+run = "go mod tidy && git diff --exit-code go.mod go.sum"
+
+[tasks.'mod:verify']
+description = "验证 Go 模块依赖"
+run = "go mod verify"
+
+[tasks.update]
+description = "更新 Go 第三方库并整理模块依赖"
+run = "go get -u ./... && go mod tidy"
 
 [tasks.test]
-description = "Run tests"
+description = "运行 Go 测试"
 run = "go test -v ./..."
 
 [tasks.clean]
-description = "Clean build artifacts"
+description = "清理构建产物"
 file = ".mise/tasks/clean"
 
 [tasks.deps]
-description = "Download dependencies"
+description = "下载 Go 依赖"
 run = "go get -v ./..."
 
-[tasks.tidy]
-description = "Tidy dependencies"
-run = "go mod tidy"
+[tasks.fmt]
+description = "检查 Go 代码格式"
+raw = true
+run = "golangci-lint fmt -E gofmt --diff"
+
+[tasks.vet]
+description = "运行 Go 静态检查"
+raw = true
+run = "go vet ./..."
+
+[tasks.lint]
+description = "运行 Go lint 检查"
+raw = true
+run = "golangci-lint run"
+
+[tasks.check]
+description = "运行 Go 格式、静态检查、构建和 lint"
+run = [
+  { task = "fmt" },
+  { task = "vet" },
+  { task = "build" },
+  { task = "lint" },
+]
+
+[tasks.run]
+depends = ["build"]
+description = "构建并运行 CLI"
+file = ".mise/tasks/run"
 
 [tasks.docs]
-description = "Generate docs"
+description = "生成 CLI 文档"
 run = "go run ./cmd/yews docs"
 
 [tasks.release]
-description = "Build all platforms and create release archives"
+description = "构建所有平台并创建发布归档"
 file = ".mise/tasks/release"
+
+[tasks.'action:update']
+description = "交互式更新 GitHub Action 版本并默认固定为提交哈希"
+run = "actions-up"
+
+[tasks.'action:update:all']
+description = "自动更新全部 GitHub Action 版本并默认固定为提交哈希"
+run = "actions-up --yes"
+
+[tasks.'docs:install']
+description = "安装文档站依赖"
+dir = "docs"
+run = "pnpm install"
+
+[tasks.'docs:dev']
+description = "启动 VitePress 文档站"
+depends = ["docs:install"]
+dir = "docs"
+run = "pnpm dev"
+
+[tasks.'docs:build']
+description = "构建 VitePress 文档站"
+depends = ["docs:install"]
+dir = "docs"
+run = "pnpm build"
+
+[tasks.'docs:preview']
+description = "预览 VitePress 文档站"
+depends = ["docs:install"]
+dir = "docs"
+run = "pnpm preview"
