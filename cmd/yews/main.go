@@ -143,75 +143,22 @@ func main() {
 					},
 				},
 				Action: func(c *cli.Context) error {
-					keyFile := cfg.GetKeyFile(c.String("key-file"))
-					publicKey := c.String("public-key")
-					verbose := c.Bool("verbose")
-					hasSingleFileOverride := c.IsSet("input") || c.IsSet("output")
-					cliFormat, err := yewsapp.ValidateCLIFormatOverride(c.String("format"))
-					if err != nil {
-						return err
-					}
-
-					// 目录扫描批量模式
-					if c.String("dir") != "" {
-						if cliFormat != "" {
-							return fmt.Errorf("--format is only supported in single-file mode")
-						}
-						opts := crypto.BatchOptions{
-							InputDir:     c.String("dir"),
-							Pattern:      c.String("pattern"),
-							OutputDir:    c.String("output-dir"),
-							OutputSuffix: c.String("output-suffix"),
-							KeyFile:      keyFile,
-							PublicKey:    publicKey,
-							Parallel:     c.Int("parallel"),
-							Verbose:      verbose,
-						}
-						_, err := crypto.BatchEncrypt(opts)
-						return err
-					}
-
-					if hasSingleFileOverride {
-						filePair := cfg.GetPrimaryFilePair()
-						if c.IsSet("input") {
-							filePair.PlaintextPath = c.String("input")
-						}
-						if c.IsSet("output") {
-							filePair.EncryptedPath = c.String("output")
-						}
-						formatOverride, err := yewsapp.ResolveFormatOverride(cliFormat, filePair)
-						if err != nil {
-							return err
-						}
-						return crypto.Encrypt(filePair.PlaintextPath, filePair.EncryptedPath, keyFile, publicKey, formatOverride, verbose)
-					}
-
-					if cliFormat != "" {
-						return fmt.Errorf("--format is only supported in single-file mode")
-					}
-
-					filePairs := cfg.GetFiles()
-					if err := project.UpdateGitignore(filePairs); err != nil {
-						return err
-					}
-
-					resolvedPublicKey, err := crypto.GetPublicKey(publicKey, keyFile, verbose)
-					if err != nil {
-						return err
-					}
-					if err := project.SyncSopsYaml(filePairs, resolvedPublicKey); err != nil {
-						return err
-					}
-
-					opts := crypto.BatchOptions{
-						FilePairs: filePairs,
-						KeyFile:   keyFile,
-						PublicKey: resolvedPublicKey,
-						Parallel:  c.Int("parallel"),
-						Verbose:   verbose,
-					}
-					_, err = crypto.BatchEncrypt(opts)
-					return err
+					return yewsapp.EncryptFiles(cfg, yewsapp.EncryptRequest{
+						KeyFile:               cfg.GetKeyFile(c.String("key-file")),
+						PublicKey:             c.String("public-key"),
+						Verbose:               c.Bool("verbose"),
+						Input:                 c.String("input"),
+						InputSet:              c.IsSet("input"),
+						Output:                c.String("output"),
+						OutputSet:             c.IsSet("output"),
+						Format:                c.String("format"),
+						Dir:                   c.String("dir"),
+						Pattern:               c.String("pattern"),
+						OutputDir:             c.String("output-dir"),
+						OutputSuffix:          c.String("output-suffix"),
+						Parallel:              c.Int("parallel"),
+						UpdateProjectMetadata: true,
+					})
 				},
 			},
 			{
@@ -274,73 +221,22 @@ func main() {
 					},
 				},
 				Action: func(c *cli.Context) error {
-					keyFile := cfg.GetKeyFile(c.String("key-file"))
-					verbose := c.Bool("verbose")
-					hasSingleFileOverride := c.IsSet("input") || c.IsSet("output")
-					cliFormat, err := yewsapp.ValidateCLIFormatOverride(c.String("format"))
-					if err != nil {
-						return err
-					}
-
-					// 目录扫描批量模式
-					if c.String("dir") != "" {
-						if cliFormat != "" {
-							return fmt.Errorf("--format is only supported in single-file mode")
-						}
-						opts := crypto.BatchOptions{
-							InputDir:     c.String("dir"),
-							Pattern:      c.String("pattern"),
-							OutputDir:    c.String("output-dir"),
-							OutputSuffix: c.String("output-suffix"),
-							KeyFile:      keyFile,
-							Parallel:     c.Int("parallel"),
-							Verbose:      verbose,
-							Force:        c.Bool("force"),
-						}
-						_, err := crypto.BatchDecrypt(opts)
-						return err
-					}
-
-					if hasSingleFileOverride {
-						filePair := cfg.GetPrimaryFilePair()
-						if c.IsSet("input") {
-							filePair.EncryptedPath = c.String("input")
-						}
-						if c.IsSet("output") {
-							filePair.PlaintextPath = c.String("output")
-						}
-						formatOverride, err := yewsapp.ResolveFormatOverride(cliFormat, filePair)
-						if err != nil {
-							return err
-						}
-						return crypto.DecryptWithOptions(
-							filePair.EncryptedPath,
-							filePair.PlaintextPath,
-							keyFile,
-							formatOverride,
-							verbose,
-							crypto.DecryptOptions{Force: c.Bool("force")},
-						)
-					}
-
-					if cliFormat != "" {
-						return fmt.Errorf("--format is only supported in single-file mode")
-					}
-
-					filePairs := cfg.GetFiles()
-					if err := project.UpdateGitignore(filePairs); err != nil {
-						return err
-					}
-
-					opts := crypto.BatchOptions{
-						FilePairs: filePairs,
-						KeyFile:   keyFile,
-						Parallel:  c.Int("parallel"),
-						Verbose:   verbose,
-						Force:     c.Bool("force"),
-					}
-					_, err = crypto.BatchDecrypt(opts)
-					return err
+					return yewsapp.DecryptFiles(cfg, yewsapp.DecryptRequest{
+						KeyFile:               cfg.GetKeyFile(c.String("key-file")),
+						Verbose:               c.Bool("verbose"),
+						Input:                 c.String("input"),
+						InputSet:              c.IsSet("input"),
+						Output:                c.String("output"),
+						OutputSet:             c.IsSet("output"),
+						Format:                c.String("format"),
+						Dir:                   c.String("dir"),
+						Pattern:               c.String("pattern"),
+						OutputDir:             c.String("output-dir"),
+						OutputSuffix:          c.String("output-suffix"),
+						Parallel:              c.Int("parallel"),
+						Force:                 c.Bool("force"),
+						UpdateProjectMetadata: true,
+					})
 				},
 			},
 			{
