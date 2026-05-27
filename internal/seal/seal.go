@@ -55,6 +55,9 @@ func Encrypt(opts EncryptOptions) error {
 	if err != nil {
 		return err
 	}
+	if plan.warning != "" {
+		fmt.Println(plan.warning)
+	}
 	if err := plan.checkTools(); err != nil {
 		return err
 	}
@@ -128,6 +131,9 @@ func DecryptToBytes(opts DecryptBytesOptions) ([]byte, error) {
 	plan, err := newCodecPlan(opts.OutputFile, opts.FormatOverride)
 	if err != nil {
 		return nil, err
+	}
+	if plan.warning != "" {
+		fmt.Println(plan.warning)
 	}
 	if err := plan.checkTools(); err != nil {
 		return nil, err

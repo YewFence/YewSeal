@@ -3,7 +3,6 @@ package seal
 import (
 	"testing"
 
-	"github.com/YewFence/YewSeal/internal/errx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -49,6 +48,12 @@ func TestNewCodecPlan(t *testing.T) {
 			wantSOPSFormat: "ini",
 		},
 		{
+			name:           "binary uses binary payload",
+			path:           "config.bin",
+			wantUserFormat: formatBinary,
+			wantSOPSFormat: "binary",
+		},
+		{
 			name:           "override wins over path",
 			path:           "config.unknown",
 			override:       "json",
@@ -68,18 +73,26 @@ func TestNewCodecPlan(t *testing.T) {
 	}
 }
 
-func TestNewCodecPlanUnsupportedFormat(t *testing.T) {
-	_, err := newCodecPlan("config.xml", "")
+func TestNewCodecPlanFallsBackToBinaryForUnknownDetectedFormat(t *testing.T) {
+	plan, err := newCodecPlan("config.unknown", "")
 
-	var formatErr *errx.UnsupportedFormatError
-	require.ErrorAs(t, err, &formatErr)
-	assert.Equal(t, "config.xml", formatErr.Path)
+	require.NoError(t, err)
+	assert.Equal(t, formatBinary, plan.userFormat)
+	assert.Equal(t, "binary", plan.sopsFormat)
+	assert.Contains(t, plan.warning, "using binary format")
 }
 
-func TestCodecPlanForFormatUnknownFallsBackToYAML(t *testing.T) {
+func TestNewCodecPlanRejectsInvalidExplicitOverride(t *testing.T) {
+	_, err := newCodecPlan("config.yaml", "xml")
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `unsupported format override "xml"`)
+}
+
+func TestCodecPlanForFormatUnknownFallsBackToBinary(t *testing.T) {
 	plan := codecPlanForFormat(formatUnknown)
 
 	assert.Equal(t, formatUnknown, plan.userFormat)
-	assert.Equal(t, "yaml", plan.sopsFormat)
+	assert.Equal(t, "binary", plan.sopsFormat)
 	assert.False(t, plan.needsRemarshal)
 }

@@ -27,6 +27,12 @@ func TestValidateCLIFormatOverride_NormalizesAlias(t *testing.T) {
 	assert.Equal(t, "env", format)
 }
 
+func TestValidateCLIFormatOverride_Binary(t *testing.T) {
+	format, err := ValidateCLIFormatOverride("bin")
+	require.NoError(t, err)
+	assert.Equal(t, "binary", format)
+}
+
 func TestValidateCLIFormatOverride_Invalid(t *testing.T) {
 	_, err := ValidateCLIFormatOverride("xml")
 	require.Error(t, err)

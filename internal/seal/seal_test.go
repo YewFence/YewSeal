@@ -1,7 +1,9 @@
 package seal
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -45,6 +47,28 @@ func setupTestEnv(t *testing.T) testEnv {
 	require.NoError(t, os.WriteFile(keyFile, []byte(keyContent), 0600))
 
 	return testEnv{keyFile: keyFile, publicKey: publicKey}
+}
+
+func captureStdout(t *testing.T, fn func()) string {
+	t.Helper()
+
+	oldStdout := os.Stdout
+	r, w, err := os.Pipe()
+	require.NoError(t, err)
+
+	os.Stdout = w
+	defer func() {
+		os.Stdout = oldStdout
+	}()
+
+	fn()
+	require.NoError(t, w.Close())
+
+	var output bytes.Buffer
+	_, err = io.Copy(&output, r)
+	require.NoError(t, err)
+	require.NoError(t, r.Close())
+	return output.String()
 }
 
 func TestEncryptDecryptYAMLRoundTrip(t *testing.T) {
@@ -134,18 +158,76 @@ func TestDecryptRefusesToOverwriteDifferentPlaintextUnlessForced(t *testing.T) {
 	assert.Contains(t, string(content), "original")
 }
 
-func TestEncryptUnsupportedFormat(t *testing.T) {
+func TestEncryptDecryptBinaryFallbackRoundTrip(t *testing.T) {
 	env := setupTestEnv(t)
-	require.NoError(t, os.WriteFile("config.vars", []byte("TOKEN=secret\n"), 0644))
+	plain := []byte{0, 1, 2, 3, 's', 'e', 'c', 'r', 'e', 't', 255}
+	require.NoError(t, os.WriteFile("secret.blob", plain, 0644))
+
+	var encryptErr error
+	encryptOutput := captureStdout(t, func() {
+		encryptErr = Encrypt(EncryptOptions{
+			InputFile:  "secret.blob",
+			OutputFile: "secret.blob.enc",
+			KeyFile:    env.keyFile,
+			PublicKey:  env.publicKey,
+		})
+	})
+	require.NoError(t, encryptErr)
+	assert.Contains(t, encryptOutput, "using binary format")
+
+	require.NoError(t, os.Remove("secret.blob"))
+	var decryptErr error
+	decryptOutput := captureStdout(t, func() {
+		decryptErr = Decrypt(DecryptOptions{
+			InputFile:  "secret.blob.enc",
+			OutputFile: "secret.blob",
+			KeyFile:    env.keyFile,
+		})
+	})
+	require.NoError(t, decryptErr)
+	assert.Contains(t, decryptOutput, "using binary format")
+
+	decrypted, err := os.ReadFile("secret.blob")
+	require.NoError(t, err)
+	assert.Equal(t, plain, decrypted)
+}
+
+func TestEncryptDecryptBinaryOverrideRoundTrip(t *testing.T) {
+	env := setupTestEnv(t)
+	plain := []byte("plain text with unknown extension")
+	require.NoError(t, os.WriteFile("secret.vars", plain, 0644))
+
+	require.NoError(t, Encrypt(EncryptOptions{
+		InputFile:      "secret.vars",
+		OutputFile:     "secret.vars.enc",
+		KeyFile:        env.keyFile,
+		PublicKey:      env.publicKey,
+		FormatOverride: "binary",
+	}))
+	require.NoError(t, os.Remove("secret.vars"))
+	require.NoError(t, Decrypt(DecryptOptions{
+		InputFile:      "secret.vars.enc",
+		OutputFile:     "secret.vars",
+		KeyFile:        env.keyFile,
+		FormatOverride: "binary",
+	}))
+
+	decrypted, err := os.ReadFile("secret.vars")
+	require.NoError(t, err)
+	assert.Equal(t, plain, decrypted)
+}
+
+func TestEncryptInvalidFormatOverride(t *testing.T) {
+	env := setupTestEnv(t)
+	require.NoError(t, os.WriteFile("config.yaml", []byte("TOKEN=secret\n"), 0644))
 
 	err := Encrypt(EncryptOptions{
-		InputFile:  "config.vars",
-		OutputFile: "config.enc.yaml",
-		KeyFile:    env.keyFile,
-		PublicKey:  env.publicKey,
+		InputFile:      "config.yaml",
+		OutputFile:     "config.enc.yaml",
+		KeyFile:        env.keyFile,
+		PublicKey:      env.publicKey,
+		FormatOverride: "xml",
 	})
 	require.Error(t, err)
-
-	var unsupportedErr *errx.UnsupportedFormatError
-	assert.ErrorAs(t, err, &unsupportedErr)
+	assert.Contains(t, err.Error(), `unsupported format override "xml"`)
 }

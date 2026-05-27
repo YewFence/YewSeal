@@ -18,7 +18,7 @@ func ValidateCLIFormatOverride(format string) (string, error) {
 
 	parsed, ok := seal.NormalizeFormatOverride(format)
 	if !ok {
-		return "", fmt.Errorf("unsupported format %q (supported: toml, yaml, json, env, ini)", format)
+		return "", fmt.Errorf("unsupported format %q (supported: toml, yaml, json, env, ini, binary)", format)
 	}
 
 	return parsed, nil

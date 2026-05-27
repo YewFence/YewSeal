@@ -2,15 +2,16 @@ package seal
 
 import (
 	"fmt"
+	"strings"
 
 	tools "github.com/YewFence/YewSeal/internal/doctor"
-	"github.com/YewFence/YewSeal/internal/errx"
 )
 
 type codecPlan struct {
 	userFormat     format
 	sopsFormat     string
 	needsRemarshal bool
+	warning        string
 	encryptAction  string
 	decryptAction  string
 	prepareEncrypt func([]byte) ([]byte, error)
@@ -18,9 +19,19 @@ type codecPlan struct {
 }
 
 func newCodecPlan(path, override string) (codecPlan, error) {
-	userFormat := resolveFormat(path, override)
+	if strings.TrimSpace(override) != "" {
+		userFormat := parseFormat(override)
+		if userFormat == formatUnknown {
+			return codecPlan{}, fmt.Errorf("unsupported format override %q (supported: %s)", override, supportedFormats())
+		}
+		return codecPlanForFormat(userFormat), nil
+	}
+
+	userFormat := detectFormat(path)
 	if userFormat == formatUnknown {
-		return codecPlan{}, &errx.UnsupportedFormatError{Path: path, Supported: supportedExtensions()}
+		plan := codecPlanForFormat(formatBinary)
+		plan.warning = fmt.Sprintf("⚠️  Warning: Could not detect format for %s, using binary format", path)
+		return plan, nil
 	}
 	return codecPlanForFormat(userFormat), nil
 }
@@ -78,7 +89,13 @@ func nativeSOPSFormat(userFormat format) string {
 		return "dotenv"
 	case formatINI:
 		return "ini"
+	case formatBinary:
+		return "binary"
 	default:
-		return "yaml"
+		return "binary"
 	}
+}
+
+func supportedFormats() string {
+	return "toml, yaml, json, env, ini, binary"
 }

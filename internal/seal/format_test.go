@@ -17,6 +17,8 @@ func TestDetectFormat(t *testing.T) {
 		{"config.json", formatJSON},
 		{"config.env", formatENV},
 		{"config.ini", formatINI},
+		{"config.bin", formatBinary},
+		{"config.binary", formatBinary},
 		{".dev.vars", formatUnknown},
 		{"secrets.vars", formatUnknown},
 		{"wrangler", formatUnknown},
@@ -45,6 +47,8 @@ func TestParseFormat(t *testing.T) {
 		{"env", formatENV},
 		{"dotenv", formatENV},
 		{"ini", formatINI},
+		{"binary", formatBinary},
+		{"bin", formatBinary},
 		{"TOML", formatTOML},
 		{"YAML", formatYAML},
 		{"ENV", formatENV},
@@ -54,7 +58,7 @@ func TestParseFormat(t *testing.T) {
 		{"", formatUnknown},
 		{"xml", formatUnknown},
 		{"vars", formatUnknown},
-		{"binary", formatUnknown},
+		{"BINARY", formatBinary},
 	}
 
 	for _, tt := range tests {

@@ -60,7 +60,7 @@ func main() {
 					},
 					&cli.StringFlag{
 						Name:  "format",
-						Usage: "Format override for the first config entry (toml/yaml/json/env/ini)",
+						Usage: "Format override for the first config entry (toml/yaml/json/env/ini/binary)",
 					},
 					&cli.BoolFlag{
 						Name:  "create-example",
@@ -104,7 +104,7 @@ func main() {
 					},
 					&cli.StringFlag{
 						Name:  "format",
-						Usage: "Format override for single-file mode (toml/yaml/json/env/ini)",
+						Usage: "Format override for single-file mode (toml/yaml/json/env/ini/binary)",
 					},
 					&cli.StringFlag{
 						Name:  "dir",
@@ -183,7 +183,7 @@ func main() {
 					},
 					&cli.StringFlag{
 						Name:  "format",
-						Usage: "Format override for single-file mode (toml/yaml/json/env/ini)",
+						Usage: "Format override for single-file mode (toml/yaml/json/env/ini/binary)",
 					},
 					&cli.StringFlag{
 						Name:  "dir",
@@ -271,7 +271,7 @@ func main() {
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:  "format",
-						Usage: "Format override for the selected target (toml/yaml/json/env/ini)",
+						Usage: "Format override for the selected target (toml/yaml/json/env/ini/binary)",
 					},
 					&cli.BoolFlag{
 						Name:    "verbose",
@@ -304,7 +304,7 @@ func main() {
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:  "format",
-						Usage: "Format override for the selected target (toml/yaml/json/env/ini)",
+						Usage: "Format override for the selected target (toml/yaml/json/env/ini/binary)",
 					},
 					&cli.BoolFlag{
 						Name:    "verbose",

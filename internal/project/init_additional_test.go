@@ -53,6 +53,7 @@ func TestDetectInitFormat(t *testing.T) {
 		{name: "json", filename: "config.json", want: "json"},
 		{name: "env", filename: "config.env", want: "env"},
 		{name: "ini", filename: "config.ini", want: "ini"},
+		{name: "binary", filename: "secret.bin", want: "binary"},
 		{name: "unknown", filename: ".dev.vars", want: ""},
 	}
 
@@ -65,16 +66,17 @@ func TestDetectInitFormat(t *testing.T) {
 
 func TestNormalizeInitFormat(t *testing.T) {
 	tests := []struct {
-		name   string
-		input  string
-		want   string
-		valid  bool
+		name  string
+		input string
+		want  string
+		valid bool
 	}{
 		{name: "toml", input: "toml", want: "toml", valid: true},
 		{name: "yaml alias", input: "YML", want: "yaml", valid: true},
 		{name: "dotenv alias", input: " dotenv ", want: "env", valid: true},
 		{name: "json", input: "json", want: "json", valid: true},
 		{name: "ini", input: "ini", want: "ini", valid: true},
+		{name: "binary alias", input: "bin", want: "binary", valid: true},
 		{name: "invalid", input: "xml", want: "", valid: false},
 	}
 
@@ -107,11 +109,10 @@ func TestResolveInitFormatOverride(t *testing.T) {
 		assert.Empty(t, format)
 	})
 
-	t.Run("requires override when format is ambiguous and non-interactive", func(t *testing.T) {
+	t.Run("keeps empty override when format is ambiguous and non-interactive", func(t *testing.T) {
 		format, err := resolveInitFormatOverride(".dev.vars", "", false)
+		require.NoError(t, err)
 		assert.Empty(t, format)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "please pass --format")
 	})
 }
 

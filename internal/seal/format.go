@@ -13,6 +13,7 @@ const (
 	formatJSON    format = "json"
 	formatENV     format = "env"
 	formatINI     format = "ini"
+	formatBinary  format = "binary"
 	formatUnknown format = "unknown"
 )
 
@@ -37,6 +38,8 @@ func detectFormat(filename string) format {
 		return formatENV
 	case ".ini":
 		return formatINI
+	case ".bin", ".binary":
+		return formatBinary
 	default:
 		return formatUnknown
 	}
@@ -54,18 +57,9 @@ func parseFormat(value string) format {
 		return formatENV
 	case "ini":
 		return formatINI
+	case "binary", "bin":
+		return formatBinary
 	default:
 		return formatUnknown
 	}
-}
-
-func resolveFormat(path, override string) format {
-	if parsed := parseFormat(override); parsed != formatUnknown {
-		return parsed
-	}
-	return detectFormat(path)
-}
-
-func supportedExtensions() []string {
-	return []string{".toml", ".yaml", ".yml", ".json", ".env", ".ini"}
 }

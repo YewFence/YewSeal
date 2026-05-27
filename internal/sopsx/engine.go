@@ -8,6 +8,7 @@ import (
 	sops "github.com/getsops/sops/v3"
 	"github.com/getsops/sops/v3/aes"
 	sopsage "github.com/getsops/sops/v3/age"
+	sopsconfig "github.com/getsops/sops/v3/config"
 	"github.com/getsops/sops/v3/stores/dotenv"
 	"github.com/getsops/sops/v3/stores/ini"
 	"github.com/getsops/sops/v3/stores/json"
@@ -27,13 +28,15 @@ func StoreForFormat(format string) sops.Store {
 		return &dotenv.Store{}
 	case "ini":
 		return &ini.Store{}
+	case "binary":
+		return json.NewBinaryStore(&sopsconfig.JSONBinaryStoreConfig{})
 	default:
 		return &yaml.Store{}
 	}
 }
 
 // sopsEncryptData encrypts plain data using the sops library.
-// format: "yaml", "json", "dotenv", "ini"
+// format: "yaml", "json", "dotenv", "ini", "binary"
 // agePublicKey: age recipient public key string (age1...)
 func Encrypt(plainData []byte, format string, agePublicKey string) ([]byte, error) {
 	store := StoreForFormat(format)
@@ -91,7 +94,7 @@ func Encrypt(plainData []byte, format string, agePublicKey string) ([]byte, erro
 }
 
 // sopsDecryptData decrypts encrypted data using the sops library.
-// format: "yaml", "json", "dotenv", "ini"
+// format: "yaml", "json", "dotenv", "ini", "binary"
 // agePrivateKey: age identity private key string (AGE-SECRET-KEY-...)
 func Decrypt(encData []byte, format string, agePrivateKey string) ([]byte, error) {
 	store := StoreForFormat(format)
