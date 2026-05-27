@@ -7,7 +7,6 @@ import (
 
 	"github.com/YewFence/YewSeal/internal/batch"
 	"github.com/YewFence/YewSeal/internal/config"
-	"github.com/YewFence/YewSeal/internal/fileformat"
 	"github.com/YewFence/YewSeal/internal/seal"
 	"github.com/urfave/cli/v2"
 )
@@ -17,12 +16,12 @@ func ValidateCLIFormatOverride(format string) (string, error) {
 		return "", nil
 	}
 
-	parsed := fileformat.Parse(format)
-	if parsed == fileformat.Unknown {
+	parsed, ok := seal.NormalizeFormatOverride(format)
+	if !ok {
 		return "", fmt.Errorf("unsupported format %q (supported: toml, yaml, json, env, ini)", format)
 	}
 
-	return string(parsed), nil
+	return parsed, nil
 }
 
 func ResolveFormatOverride(cliFormat string, filePair config.FilePair) (string, error) {
