@@ -1,11 +1,30 @@
 # syntax=docker/dockerfile:1.7
 
-FROM --platform=$BUILDPLATFORM golang:1.25.6-bookworm AS yews-builder
+FROM --platform=$BUILDPLATFORM debian:bookworm-slim AS yews-builder
 
 WORKDIR /src
 
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    git \
+    xz-utils \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN curl https://mise.run | sh
+
+ENV PATH=/root/.local/bin:$PATH \
+    MISE_CACHE_DIR=/mise/cache \
+    MISE_DATA_DIR=/mise/data \
+    MISE_TASK_RUN_AUTO_INSTALL=false
+
+COPY mise.toml ./
+RUN --mount=type=cache,target=/mise/cache \
+    mise trust mise.toml && mise install go
+
 COPY go.mod go.sum ./
-RUN go mod download
+RUN --mount=type=cache,target=/root/go/pkg/mod \
+    mise exec -- go mod download
 
 COPY . .
 
@@ -14,7 +33,9 @@ ARG TARGETARCH
 ARG VERSION=dev
 ENV CGO_ENABLED=0
 
-RUN GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build \
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    --mount=type=cache,target=/root/go/pkg/mod \
+    GOOS=${TARGETOS} GOARCH=${TARGETARCH} mise exec -- go build \
     -trimpath \
     -ldflags="-s -w -X main.Version=${VERSION}" \
     -o /out/yews \

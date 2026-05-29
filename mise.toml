@@ -15,6 +15,7 @@ infisical = "latest"
 pnpm = "10"
 # https://golangci-lint.run/
 golangci-lint = "2"
+uv = "latest"
 
 [env]
 BINARY_NAME = "yews"
