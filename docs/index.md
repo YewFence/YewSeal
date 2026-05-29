@@ -7,11 +7,11 @@ hero:
   tagline: 通过 SOPS 和 Age 管理 TOML、YAML、JSON、ENV、INI 配置文件。
   actions:
     - theme: brand
-      text: GitHub Repo
-      link: https://github.com/YewFence/YewSeal
+      text: 快速开始
+      link: /guide/getting-started
     - theme: alt
-      text: Shell 补全
-      link: /guide/completion
+      text: 命令参考
+      link: /commands/init
 
 features:
   - title: 多格式配置

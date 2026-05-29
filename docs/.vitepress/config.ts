@@ -8,7 +8,8 @@ export default defineConfig({
 
   themeConfig: {
     nav: [
-      { text: 'Shell 补全', link: '/guide/completion' },
+      { text: '指南', link: '/guide/getting-started' },
+      { text: '命令参考', link: '/commands/init' },
       { text: 'GitHub', link: 'https://github.com/YewFence/YewSeal' }
     ],
 
@@ -16,7 +17,22 @@ export default defineConfig({
       {
         text: '指南',
         items: [
+          { text: '快速开始', link: '/guide/getting-started' },
+          { text: '配置说明', link: '/guide/configuration' },
           { text: 'Shell 补全', link: '/guide/completion' }
+        ]
+      },
+      {
+        text: '命令参考',
+        items: [
+          { text: 'init - 初始化项目', link: '/commands/init' },
+          { text: 'encrypt - 加密文件', link: '/commands/encrypt' },
+          { text: 'decrypt - 解密文件', link: '/commands/decrypt' },
+          { text: 'edit - 编辑加密文件', link: '/commands/edit' },
+          { text: 'view - 查看加密文件', link: '/commands/view' },
+          { text: 'diff - 比较差异', link: '/commands/diff' },
+          { text: 'sync - 同步密钥', link: '/commands/sync' },
+          { text: 'check - 检查依赖', link: '/commands/check' }
         ]
       }
     ],
