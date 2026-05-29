@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/YewFence/YewSeal/internal/seal"
+	"github.com/fatih/color"
 	"github.com/sergi/go-diff/diffmatchpatch"
 )
 
@@ -80,6 +81,43 @@ func UnifiedDiff(fromName, toName string, fromData, toData []byte) string {
 		writePrefixedLines(&out, prefix, diff.Text)
 	}
 
+	return out.String()
+}
+
+// HighlightUnifiedDiff applies terminal colors to a unified diff without changing its text shape.
+func HighlightUnifiedDiff(unifiedDiff string, enabled bool) string {
+	if !enabled || unifiedDiff == "" {
+		return unifiedDiff
+	}
+
+	headerColor := color.New(color.FgCyan, color.Bold)
+	hunkColor := color.New(color.FgMagenta)
+	deleteColor := color.New(color.FgRed)
+	insertColor := color.New(color.FgGreen)
+	for _, c := range []*color.Color{headerColor, hunkColor, deleteColor, insertColor} {
+		c.EnableColor()
+	}
+
+	var out strings.Builder
+	lines := strings.SplitAfter(unifiedDiff, "\n")
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
+
+		switch {
+		case strings.HasPrefix(line, "--- ") || strings.HasPrefix(line, "+++ "):
+			out.WriteString(headerColor.Sprint(line))
+		case strings.HasPrefix(line, "@@"):
+			out.WriteString(hunkColor.Sprint(line))
+		case strings.HasPrefix(line, "-"):
+			out.WriteString(deleteColor.Sprint(line))
+		case strings.HasPrefix(line, "+"):
+			out.WriteString(insertColor.Sprint(line))
+		default:
+			out.WriteString(line)
+		}
+	}
 	return out.String()
 }
 

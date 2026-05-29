@@ -27,6 +27,17 @@ func TestUnifiedDiffLineOriented(t *testing.T) {
 	assert.Contains(t, diff, "+  host: localhost\n")
 }
 
+func TestHighlightUnifiedDiff(t *testing.T) {
+	plain := "--- config.yaml\n+++ config.enc.yaml (decrypted)\n@@\n-  host: local-change\n+  host: localhost\n"
+
+	highlighted := HighlightUnifiedDiff(plain, true)
+
+	assert.Contains(t, highlighted, "\x1b[")
+	assert.Contains(t, highlighted, "--- config.yaml")
+	assert.Contains(t, highlighted, "-  host: local-change")
+	assert.Equal(t, plain, HighlightUnifiedDiff(plain, false))
+}
+
 func TestPlaintextAgainstEncrypted(t *testing.T) {
 	keyFile, publicKey := setupDiffTestEnv(t)
 	require.NoError(t, os.WriteFile("config.yaml", []byte("database:\n  host: localhost\n"), 0644))
