@@ -1,6 +1,6 @@
 [tools]
 # https://go.dev/
-go = "1.25.6"
+go = "1.26.3"
 # https://nodejs.org/
 node = "24"
 # https://infisical.com/docs/cli/overview
