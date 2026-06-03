@@ -3,6 +3,7 @@ package app
 import (
 	"fmt"
 	"io"
+	"os"
 	"strings"
 
 	"github.com/YewFence/YewSeal/internal/batch"
@@ -96,6 +97,8 @@ func WriteViewedTarget(w io.Writer, cfg *config.Config, target, keyFile, cliForm
 		KeyFile:        keyFile,
 		FormatOverride: formatOverride,
 		Verbose:        verbose,
+		Output:         os.Stderr,
+		Warnings:       os.Stderr,
 	})
 	if err != nil {
 		return err

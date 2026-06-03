@@ -273,11 +273,6 @@ func main() {
 						Name:  "format",
 						Usage: "Format override for the selected target (toml/yaml/json/env/ini/binary)",
 					},
-					&cli.StringFlag{
-						Name:  "color",
-						Value: "auto",
-						Usage: "Colorize diff output (auto/always/never)",
-					},
 					&cli.BoolFlag{
 						Name:    "verbose",
 						Aliases: []string{"v"},
@@ -310,6 +305,11 @@ func main() {
 					&cli.StringFlag{
 						Name:  "format",
 						Usage: "Format override for the selected target (toml/yaml/json/env/ini/binary)",
+					},
+					&cli.StringFlag{
+						Name:  "color",
+						Value: "auto",
+						Usage: "Colorize diff output (auto/always/never)",
 					},
 					&cli.BoolFlag{
 						Name:    "verbose",

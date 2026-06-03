@@ -42,6 +42,8 @@ func PlaintextAgainstEncrypted(opts Options) (DiffResult, error) {
 		KeyFile:        opts.KeyFile,
 		FormatOverride: opts.FormatOverride,
 		Verbose:        opts.Verbose,
+		Output:         os.Stderr,
+		Warnings:       os.Stderr,
 	})
 	if err != nil {
 		return DiffResult{}, err

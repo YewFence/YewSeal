@@ -62,7 +62,7 @@ yews --key-file ~/.age/my-key.txt decrypt -i config.enc.toml.yaml
 
 Age 密钥文件格式如下：
 
-```
+```text
 # created: 2024-01-01T00:00:00Z
 # public key: age1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 AGE-SECRET-KEY-1XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -180,6 +180,7 @@ YewSeal 支持通过环境变量配置部分选项：
 *.ini
 
 # 但保留加密文件
+!.sops.yaml
 !*.enc.toml.yaml
 !*.enc.yaml
 !*.enc.json

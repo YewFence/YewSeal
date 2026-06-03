@@ -163,7 +163,7 @@ yews encrypt \
 
 ## 加密格式
 
-YewSeal 将所有配置文件加密为 YAML 格式（SOPS 标准格式）：
+YewSeal 会直接按 SOPS 原生格式加密 YAML、JSON、ENV 和 INI 文件，只有 TOML 会先转换为 YAML 后再加密：
 
 ```yaml
 # 原始 TOML 文件
@@ -198,7 +198,7 @@ YewSeal 通过以下方式检测文件格式：
 
 ## 注意事项
 
-1. **TOML 支持**：TOML 文件会先转换为 YAML，然后加密为 YAML 格式
+1. **TOML 支持**：TOML 是例外，会先转换为 YAML，然后加密为 YAML 格式
 2. **批量模式**：批量模式下，输出文件名为 `原文件名 + output-suffix`
 3. **并行处理**：使用 `--parallel` 可以加速批量加密，建议值为 CPU 核心数
 4. **公钥来源**：如果不指定 `--public-key`，会从 `.sops.yaml` 中读取

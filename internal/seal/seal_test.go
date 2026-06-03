@@ -71,6 +71,28 @@ func captureStdout(t *testing.T, fn func()) string {
 	return output.String()
 }
 
+func captureStderr(t *testing.T, fn func()) string {
+	t.Helper()
+
+	oldStderr := os.Stderr
+	r, w, err := os.Pipe()
+	require.NoError(t, err)
+
+	os.Stderr = w
+	defer func() {
+		os.Stderr = oldStderr
+	}()
+
+	fn()
+	require.NoError(t, w.Close())
+
+	var output bytes.Buffer
+	_, err = io.Copy(&output, r)
+	require.NoError(t, err)
+	require.NoError(t, r.Close())
+	return output.String()
+}
+
 func TestEncryptDecryptYAMLRoundTrip(t *testing.T) {
 	env := setupTestEnv(t)
 	plain := []byte("database:\n  host: localhost\n  password: secret123\n")
@@ -96,6 +118,10 @@ func TestEncryptDecryptYAMLRoundTrip(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, string(decrypted), "host: localhost")
 	assert.Contains(t, string(decrypted), "password: secret123")
+
+	info, err := os.Stat("config.yaml")
+	require.NoError(t, err)
+	assert.Equal(t, os.FileMode(0600), info.Mode().Perm())
 }
 
 func TestDecryptToBytesDoesNotWriteOutput(t *testing.T) {
@@ -120,6 +146,30 @@ func TestDecryptToBytesDoesNotWriteOutput(t *testing.T) {
 
 	_, statErr := os.Stat("view.yaml")
 	assert.True(t, os.IsNotExist(statErr))
+}
+
+func TestEncryptVerboseWritesToProvidedOutput(t *testing.T) {
+	env := setupTestEnv(t)
+	require.NoError(t, os.WriteFile("config.yaml", []byte("secret: value\n"), 0644))
+
+	var output bytes.Buffer
+	var encryptErr error
+	stdout := captureStdout(t, func() {
+		encryptErr = Encrypt(EncryptOptions{
+			InputFile:      "config.yaml",
+			OutputFile:     "config.enc.yaml",
+			KeyFile:        env.keyFile,
+			PublicKey:      env.publicKey,
+			FormatOverride: "yaml",
+			Verbose:        true,
+			Output:         &output,
+		})
+	})
+
+	require.NoError(t, encryptErr)
+	assert.Empty(t, stdout)
+	assert.Contains(t, output.String(), "Using public key from command-line parameter")
+	assert.Contains(t, output.String(), "Encrypted config.yaml")
 }
 
 func TestDecryptRefusesToOverwriteDifferentPlaintextUnlessForced(t *testing.T) {
@@ -156,6 +206,35 @@ func TestDecryptRefusesToOverwriteDifferentPlaintextUnlessForced(t *testing.T) {
 	content, readErr := os.ReadFile("config.yaml")
 	require.NoError(t, readErr)
 	assert.Contains(t, string(content), "original")
+
+	info, statErr := os.Stat("config.yaml")
+	require.NoError(t, statErr)
+	assert.Equal(t, os.FileMode(0600), info.Mode().Perm())
+}
+
+func TestDecryptTightensMatchingPlaintextPermissions(t *testing.T) {
+	env := setupTestEnv(t)
+	plain := []byte("secret: original\n")
+	require.NoError(t, os.WriteFile("config.yaml", plain, 0644))
+	require.NoError(t, Encrypt(EncryptOptions{
+		InputFile:      "config.yaml",
+		OutputFile:     "config.enc.yaml",
+		KeyFile:        env.keyFile,
+		PublicKey:      env.publicKey,
+		FormatOverride: "yaml",
+	}))
+	require.NoError(t, os.WriteFile("config.yaml", plain, 0644))
+
+	require.NoError(t, Decrypt(DecryptOptions{
+		InputFile:      "config.enc.yaml",
+		OutputFile:     "config.yaml",
+		KeyFile:        env.keyFile,
+		FormatOverride: "yaml",
+	}))
+
+	info, err := os.Stat("config.yaml")
+	require.NoError(t, err)
+	assert.Equal(t, os.FileMode(0600), info.Mode().Perm())
 }
 
 func TestEncryptDecryptBinaryFallbackRoundTrip(t *testing.T) {
@@ -164,7 +243,7 @@ func TestEncryptDecryptBinaryFallbackRoundTrip(t *testing.T) {
 	require.NoError(t, os.WriteFile("secret.blob", plain, 0644))
 
 	var encryptErr error
-	encryptOutput := captureStdout(t, func() {
+	encryptOutput := captureStderr(t, func() {
 		encryptErr = Encrypt(EncryptOptions{
 			InputFile:  "secret.blob",
 			OutputFile: "secret.blob.enc",
@@ -177,7 +256,7 @@ func TestEncryptDecryptBinaryFallbackRoundTrip(t *testing.T) {
 
 	require.NoError(t, os.Remove("secret.blob"))
 	var decryptErr error
-	decryptOutput := captureStdout(t, func() {
+	decryptOutput := captureStderr(t, func() {
 		decryptErr = Decrypt(DecryptOptions{
 			InputFile:  "secret.blob.enc",
 			OutputFile: "secret.blob",
@@ -190,6 +269,36 @@ func TestEncryptDecryptBinaryFallbackRoundTrip(t *testing.T) {
 	decrypted, err := os.ReadFile("secret.blob")
 	require.NoError(t, err)
 	assert.Equal(t, plain, decrypted)
+}
+
+func TestDecryptToBytesBinaryFallbackDoesNotWriteWarningToStdout(t *testing.T) {
+	env := setupTestEnv(t)
+	plain := []byte("plain text with unknown extension")
+	require.NoError(t, os.WriteFile("secret.vars", plain, 0644))
+	require.NoError(t, Encrypt(EncryptOptions{
+		InputFile:      "secret.vars",
+		OutputFile:     "secret.vars.enc",
+		KeyFile:        env.keyFile,
+		PublicKey:      env.publicKey,
+		FormatOverride: "binary",
+	}))
+
+	var warningOutput bytes.Buffer
+	var plainData []byte
+	var decryptErr error
+	stdout := captureStdout(t, func() {
+		plainData, decryptErr = DecryptToBytes(DecryptBytesOptions{
+			InputFile:  "secret.vars.enc",
+			OutputFile: "secret.vars",
+			KeyFile:    env.keyFile,
+			Warnings:   &warningOutput,
+		})
+	})
+
+	require.NoError(t, decryptErr)
+	assert.Empty(t, stdout)
+	assert.Contains(t, warningOutput.String(), "using binary format")
+	assert.Equal(t, plain, plainData)
 }
 
 func TestEncryptDecryptBinaryOverrideRoundTrip(t *testing.T) {
@@ -230,4 +339,10 @@ func TestEncryptInvalidFormatOverride(t *testing.T) {
 	})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), `unsupported format override "xml"`)
+}
+
+func TestSplitEditorCommandPreservesQuotedExecutable(t *testing.T) {
+	parts, err := splitEditorCommand(`"/Applications/Sublime Text.app/Contents/SharedSupport/bin/subl" -w`)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"/Applications/Sublime Text.app/Contents/SharedSupport/bin/subl", "-w"}, parts)
 }

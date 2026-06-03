@@ -195,14 +195,12 @@ func TestCollectInitFilePairs_NonInteractiveWithFormatOverride(t *testing.T) {
 	assert.Equal(t, "env", filePairs[0].Format)
 }
 
-func TestCollectInitFilePairs_NonInteractiveAmbiguousFormatUsesBinaryFallback(t *testing.T) {
+func TestCollectInitFilePairs_NonInteractiveAmbiguousFormatRequiresOverride(t *testing.T) {
 	filePairs, err := collectInitFilePairs(".dev.vars", ".dev.vars.enc.yaml", "")
-	require.NoError(t, err)
 
-	require.Len(t, filePairs, 1)
-	assert.Equal(t, ".dev.vars", filePairs[0].PlaintextPath)
-	assert.Equal(t, ".dev.vars.enc.yaml", filePairs[0].EncryptedPath)
-	assert.Empty(t, filePairs[0].Format)
+	assert.Empty(t, filePairs)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "please pass --format")
 }
 
 func TestDefaultEncryptedOutputNameForFile(t *testing.T) {

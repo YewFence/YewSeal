@@ -2,6 +2,7 @@ package agekey
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"runtime"
 	"strings"
@@ -81,10 +82,18 @@ func GetAgeKey(keyFile string) (string, error) {
 // 3. Config file .yewseal.toml
 // 4. Extract from private key file .age/keys.txt (fallback)
 func GetPublicKey(providedKey, keyFile string, verbose bool) (string, error) {
+	return GetPublicKeyWithOutput(providedKey, keyFile, verbose, os.Stdout)
+}
+
+func GetPublicKeyWithOutput(providedKey, keyFile string, verbose bool, output io.Writer) (string, error) {
+	if output == nil {
+		output = os.Stdout
+	}
+
 	// Priority 1: Command-line parameter
 	if providedKey != "" {
 		if verbose {
-			fmt.Println("🔑 Using public key from command-line parameter")
+			fmt.Fprintln(output, "🔑 Using public key from command-line parameter")
 		}
 		return providedKey, nil
 	}
@@ -92,7 +101,7 @@ func GetPublicKey(providedKey, keyFile string, verbose bool) (string, error) {
 	// Priority 2: Environment variable
 	if envKey := os.Getenv("SOPS_AGE_RECIPIENTS"); envKey != "" {
 		if verbose {
-			fmt.Println("🔑 Using public key from SOPS_AGE_RECIPIENTS environment variable")
+			fmt.Fprintln(output, "🔑 Using public key from SOPS_AGE_RECIPIENTS environment variable")
 		}
 		return envKey, nil
 	}
@@ -104,14 +113,14 @@ func GetPublicKey(providedKey, keyFile string, verbose bool) (string, error) {
 	}
 	if cfg.GetPublicKey() != "" {
 		if verbose {
-			fmt.Println("🔑 Using public key from .yewseal.toml")
+			fmt.Fprintln(output, "🔑 Using public key from .yewseal.toml")
 		}
 		return cfg.GetPublicKey(), nil
 	}
 
 	// Priority 4: Extract from private key file (fallback)
 	if verbose {
-		fmt.Println("🔑 Attempting to extract public key from private key file...")
+		fmt.Fprintln(output, "🔑 Attempting to extract public key from private key file...")
 	}
 
 	// Try to get the key file path
@@ -132,7 +141,7 @@ func GetPublicKey(providedKey, keyFile string, verbose bool) (string, error) {
 	}
 
 	if verbose {
-		fmt.Printf("✅ Extracted public key from %s: %s\n", keyFile, publicKey)
+		fmt.Fprintf(output, "✅ Extracted public key from %s: %s\n", keyFile, publicKey)
 	}
 
 	return publicKey, nil

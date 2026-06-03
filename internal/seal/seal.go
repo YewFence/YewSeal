@@ -4,14 +4,15 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"runtime"
-	"strings"
 
 	"github.com/YewFence/YewSeal/internal/agekey"
 	"github.com/YewFence/YewSeal/internal/errx"
 	"github.com/YewFence/YewSeal/internal/sopsx"
+	"github.com/google/shlex"
 )
 
 type EncryptOptions struct {
@@ -21,6 +22,8 @@ type EncryptOptions struct {
 	PublicKey      string
 	FormatOverride string
 	Verbose        bool
+	Output         io.Writer
+	Warnings       io.Writer
 }
 
 type DecryptOptions struct {
@@ -30,6 +33,8 @@ type DecryptOptions struct {
 	FormatOverride string
 	Verbose        bool
 	Force          bool
+	Output         io.Writer
+	Warnings       io.Writer
 }
 
 type DecryptBytesOptions struct {
@@ -38,15 +43,22 @@ type DecryptBytesOptions struct {
 	KeyFile        string
 	FormatOverride string
 	Verbose        bool
+	Output         io.Writer
+	Warnings       io.Writer
 }
 
 type EditOptions struct {
-	File    string
-	Editor  string
-	KeyFile string
+	File     string
+	Editor   string
+	KeyFile  string
+	Output   io.Writer
+	Warnings io.Writer
 }
 
 func Encrypt(opts EncryptOptions) error {
+	out := outputWriter(opts.Output)
+	warnings := warningWriter(opts.Warnings)
+
 	if _, err := os.Stat(opts.InputFile); os.IsNotExist(err) {
 		return &errx.NotFoundError{What: "input file", Path: opts.InputFile}
 	}
@@ -56,14 +68,14 @@ func Encrypt(opts EncryptOptions) error {
 		return err
 	}
 	if plan.warning != "" {
-		fmt.Println(plan.warning)
+		fmt.Fprintln(warnings, plan.warning)
 	}
 	if err := plan.checkTools(); err != nil {
 		return err
 	}
 
 	if opts.Verbose {
-		fmt.Printf("📖 Reading %s...\n", opts.InputFile)
+		fmt.Fprintf(out, "📖 Reading %s...\n", opts.InputFile)
 	}
 
 	plainData, err := os.ReadFile(opts.InputFile)
@@ -73,7 +85,7 @@ func Encrypt(opts EncryptOptions) error {
 
 	if plan.needsRemarshal {
 		if opts.Verbose {
-			fmt.Println(plan.encryptAction)
+			fmt.Fprintln(out, plan.encryptAction)
 		}
 	}
 	plainData, err = plan.prepareEncrypt(plainData)
@@ -82,10 +94,10 @@ func Encrypt(opts EncryptOptions) error {
 	}
 
 	if opts.Verbose {
-		fmt.Println("🔐 Encrypting with SOPS...")
+		fmt.Fprintln(out, "🔐 Encrypting with SOPS...")
 	}
 
-	publicKey, err := agekey.GetPublicKey(opts.PublicKey, opts.KeyFile, opts.Verbose)
+	publicKey, err := agekey.GetPublicKeyWithOutput(opts.PublicKey, opts.KeyFile, opts.Verbose, out)
 	if err != nil {
 		return err
 	}
@@ -99,17 +111,21 @@ func Encrypt(opts EncryptOptions) error {
 		return fmt.Errorf("failed to write output file: %w", err)
 	}
 
-	fmt.Printf("✅ Encrypted %s → %s\n", opts.InputFile, opts.OutputFile)
+	fmt.Fprintf(out, "✅ Encrypted %s → %s\n", opts.InputFile, opts.OutputFile)
 	return nil
 }
 
 func Decrypt(opts DecryptOptions) error {
+	out := outputWriter(opts.Output)
+
 	plainData, err := DecryptToBytes(DecryptBytesOptions{
 		InputFile:      opts.InputFile,
 		OutputFile:     opts.OutputFile,
 		KeyFile:        opts.KeyFile,
 		FormatOverride: opts.FormatOverride,
 		Verbose:        opts.Verbose,
+		Output:         opts.Output,
+		Warnings:       opts.Warnings,
 	})
 	if err != nil {
 		return err
@@ -119,11 +135,14 @@ func Decrypt(opts DecryptOptions) error {
 		return err
 	}
 
-	fmt.Printf("✅ Decrypted %s → %s\n", opts.InputFile, opts.OutputFile)
+	fmt.Fprintf(out, "✅ Decrypted %s → %s\n", opts.InputFile, opts.OutputFile)
 	return nil
 }
 
 func DecryptToBytes(opts DecryptBytesOptions) ([]byte, error) {
+	out := outputWriter(opts.Output)
+	warnings := warningWriter(opts.Warnings)
+
 	if _, err := os.Stat(opts.InputFile); os.IsNotExist(err) {
 		return nil, &errx.NotFoundError{What: "input file", Path: opts.InputFile}
 	}
@@ -133,15 +152,15 @@ func DecryptToBytes(opts DecryptBytesOptions) ([]byte, error) {
 		return nil, err
 	}
 	if plan.warning != "" {
-		fmt.Println(plan.warning)
+		fmt.Fprintln(warnings, plan.warning)
 	}
 	if err := plan.checkTools(); err != nil {
 		return nil, err
 	}
 
 	if opts.Verbose {
-		fmt.Printf("📖 Reading %s...\n", opts.InputFile)
-		fmt.Println("🔓 Decrypting with SOPS...")
+		fmt.Fprintf(out, "📖 Reading %s...\n", opts.InputFile)
+		fmt.Fprintln(out, "🔓 Decrypting with SOPS...")
 	}
 
 	privateKey, err := agekey.GetAgeKey(opts.KeyFile)
@@ -161,7 +180,7 @@ func DecryptToBytes(opts DecryptBytesOptions) ([]byte, error) {
 
 	if plan.needsRemarshal {
 		if opts.Verbose {
-			fmt.Println(plan.decryptAction)
+			fmt.Fprintln(out, plan.decryptAction)
 		}
 	}
 	plainData, err = plan.restoreDecrypt(plainData)
@@ -173,6 +192,8 @@ func DecryptToBytes(opts DecryptBytesOptions) ([]byte, error) {
 }
 
 func Edit(opts EditOptions) error {
+	out := outputWriter(opts.Output)
+
 	if _, err := os.Stat(opts.File); os.IsNotExist(err) {
 		return &errx.NotFoundError{What: "file", Path: opts.File}
 	}
@@ -216,9 +237,12 @@ func Edit(opts EditOptions) error {
 	originalHash := sha256.Sum256(plainData)
 	editorCmd := resolveEditor(opts.Editor)
 
-	fmt.Printf("✏️  Opening %s in %s...\n", opts.File, editorCmd)
+	fmt.Fprintf(out, "✏️  Opening %s in %s...\n", opts.File, editorCmd)
 
-	parts := strings.Fields(editorCmd)
+	parts, err := splitEditorCommand(editorCmd)
+	if err != nil {
+		return err
+	}
 	args := append(parts[1:], tmpPath)
 	cmd := exec.Command(parts[0], args...)
 	cmd.Stdin = os.Stdin
@@ -236,7 +260,7 @@ func Edit(opts EditOptions) error {
 
 	editedHash := sha256.Sum256(editedData)
 	if originalHash == editedHash {
-		fmt.Println("⏭️  No changes detected, skipping re-encryption")
+		fmt.Fprintln(out, "⏭️  No changes detected, skipping re-encryption")
 		return nil
 	}
 
@@ -260,7 +284,7 @@ func Edit(opts EditOptions) error {
 		return fmt.Errorf("failed to write encrypted file: %w", err)
 	}
 
-	fmt.Println("✅ File edited and re-encrypted successfully")
+	fmt.Fprintln(out, "✅ File edited and re-encrypted successfully")
 	return nil
 }
 
@@ -268,17 +292,26 @@ func writeDecryptedFile(inputFile, outputFile string, plainData []byte, force bo
 	currentData, err := os.ReadFile(outputFile)
 	if err == nil {
 		if bytes.Equal(currentData, plainData) {
+			if err := os.Chmod(outputFile, 0600); err != nil {
+				return fmt.Errorf("failed to set output file permissions: %w", err)
+			}
 			return nil
 		}
 		if !force {
 			return &errx.ProtectedOverwriteError{SourceFile: inputFile, TargetFile: outputFile}
 		}
+		if err := os.Chmod(outputFile, 0600); err != nil {
+			return fmt.Errorf("failed to set output file permissions: %w", err)
+		}
 	} else if !os.IsNotExist(err) {
 		return fmt.Errorf("failed to read output file: %w", err)
 	}
 
-	if err := os.WriteFile(outputFile, plainData, 0644); err != nil {
+	if err := os.WriteFile(outputFile, plainData, 0600); err != nil {
 		return fmt.Errorf("failed to write output file: %w", err)
+	}
+	if err := os.Chmod(outputFile, 0600); err != nil {
+		return fmt.Errorf("failed to set output file permissions: %w", err)
 	}
 	return nil
 }
@@ -295,7 +328,11 @@ func resolveEditor(editor string) string {
 	}
 	if runtime.GOOS == "windows" {
 		for _, candidate := range []string{"code -w", "notepad"} {
-			name := strings.Fields(candidate)[0]
+			parts, err := splitEditorCommand(candidate)
+			if err != nil || len(parts) == 0 {
+				continue
+			}
+			name := parts[0]
 			if p, _ := exec.LookPath(name); p != "" {
 				return candidate
 			}
@@ -303,4 +340,29 @@ func resolveEditor(editor string) string {
 		return "notepad"
 	}
 	return "vi"
+}
+
+func splitEditorCommand(editorCmd string) ([]string, error) {
+	parts, err := shlex.Split(editorCmd)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse editor command: %w", err)
+	}
+	if len(parts) == 0 {
+		return nil, fmt.Errorf("editor command is empty")
+	}
+	return parts, nil
+}
+
+func outputWriter(w io.Writer) io.Writer {
+	if w != nil {
+		return w
+	}
+	return os.Stdout
+}
+
+func warningWriter(w io.Writer) io.Writer {
+	if w != nil {
+		return w
+	}
+	return os.Stderr
 }

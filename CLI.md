@@ -111,8 +111,6 @@ Print decrypted plaintext to standard output without writing files
 
 >yews view [command options] <target>
 
-**--color**="": Colorize diff output (auto/always/never) (default: "auto")
-
 **--format**="": Format override for the selected target (toml/yaml/json/env/ini/binary)
 
 **--verbose, -v**: Enable verbose output
@@ -122,6 +120,8 @@ Print decrypted plaintext to standard output without writing files
 Compare plaintext file with decrypted encrypted file
 
 >yews diff [target]
+
+**--color**="": Colorize diff output (auto/always/never) (default: "auto")
 
 **--format**="": Format override for the selected target (toml/yaml/json/env/ini/binary)
 

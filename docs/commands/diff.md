@@ -71,7 +71,7 @@ yews diff config.toml -v
 ## 输出格式
 
 如果文件内容相同，输出：
-```
+```text
 Files are identical
 ```
 

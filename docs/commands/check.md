@@ -32,7 +32,7 @@ yews doctor
 
 ### 所有依赖已安装
 
-```
+```text
 ✓ SOPS is installed (version 3.8.1)
 ✓ Age is installed (version 1.1.1)
 
@@ -41,7 +41,7 @@ All required tools are installed!
 
 ### 缺少依赖
 
-```
+```text
 ✗ SOPS is not installed
 ✓ Age is installed (version 1.1.1)
 

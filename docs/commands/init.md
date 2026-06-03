@@ -125,7 +125,7 @@ yews init --skip-sops-config
 
 Age 私钥文件，格式如下：
 
-```
+```text
 # created: 2024-01-01T00:00:00Z
 # public key: age1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 AGE-SECRET-KEY-1XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX

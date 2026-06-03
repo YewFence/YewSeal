@@ -109,10 +109,18 @@ func TestResolveInitFormatOverride(t *testing.T) {
 		assert.Empty(t, format)
 	})
 
-	t.Run("keeps empty override when format is ambiguous and non-interactive", func(t *testing.T) {
+	t.Run("rejects ambiguous format in non-interactive mode", func(t *testing.T) {
 		format, err := resolveInitFormatOverride(".dev.vars", "", false)
-		require.NoError(t, err)
 		assert.Empty(t, format)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "please pass --format")
+	})
+
+	t.Run("prompts when format is ambiguous and interactive", func(t *testing.T) {
+		mockProjectInput(t, "env\n")
+		format, err := resolveInitFormatOverride(".dev.vars", "", true)
+		require.NoError(t, err)
+		assert.Equal(t, "env", format)
 	})
 }
 
