@@ -241,7 +241,7 @@ func resolveInitFormatOverride(plaintextFile, providedFormat string, interactive
 	}
 
 	if !interactive {
-		return "", fmt.Errorf("could not detect format for %s, please pass --format (toml, yaml, json, env, ini, binary)", plaintextFile)
+		return "", fmt.Errorf("could not detect format for %s, please pass --format (toml, yaml, json, env, ini, binary). Hint: pass --format binary if this should be encrypted as a binary file", plaintextFile)
 	}
 
 	return promptInitFormatOverride(plaintextFile), nil

@@ -73,13 +73,12 @@ func TestNewCodecPlan(t *testing.T) {
 	}
 }
 
-func TestNewCodecPlanFallsBackToBinaryForUnknownDetectedFormat(t *testing.T) {
-	plan, err := newCodecPlan("config.unknown", "")
+func TestNewCodecPlanRejectsUnknownDetectedFormatWithBinaryHint(t *testing.T) {
+	_, err := newCodecPlan("config.unknown", "")
 
-	require.NoError(t, err)
-	assert.Equal(t, formatBinary, plan.userFormat)
-	assert.Equal(t, "binary", plan.sopsFormat)
-	assert.Contains(t, plan.warning, "using binary format")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "could not detect format for config.unknown")
+	assert.Contains(t, err.Error(), "Hint: pass --format binary")
 }
 
 func TestNewCodecPlanRejectsInvalidExplicitOverride(t *testing.T) {
@@ -89,10 +88,10 @@ func TestNewCodecPlanRejectsInvalidExplicitOverride(t *testing.T) {
 	assert.Contains(t, err.Error(), `unsupported format override "xml"`)
 }
 
-func TestCodecPlanForFormatUnknownFallsBackToBinary(t *testing.T) {
+func TestCodecPlanForFormatUnknownHasNoSOPSFormat(t *testing.T) {
 	plan := codecPlanForFormat(formatUnknown)
 
 	assert.Equal(t, formatUnknown, plan.userFormat)
-	assert.Equal(t, "binary", plan.sopsFormat)
+	assert.Empty(t, plan.sopsFormat)
 	assert.False(t, plan.needsRemarshal)
 }

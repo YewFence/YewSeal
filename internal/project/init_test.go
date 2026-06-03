@@ -201,6 +201,7 @@ func TestCollectInitFilePairs_NonInteractiveAmbiguousFormatRequiresOverride(t *t
 	assert.Empty(t, filePairs)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "please pass --format")
+	assert.Contains(t, err.Error(), "Hint: pass --format binary")
 }
 
 func TestDefaultEncryptedOutputNameForFile(t *testing.T) {

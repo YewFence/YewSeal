@@ -11,7 +11,6 @@ type codecPlan struct {
 	userFormat     format
 	sopsFormat     string
 	needsRemarshal bool
-	warning        string
 	encryptAction  string
 	decryptAction  string
 	prepareEncrypt func([]byte) ([]byte, error)
@@ -29,9 +28,7 @@ func newCodecPlan(path, override string) (codecPlan, error) {
 
 	userFormat := detectFormat(path)
 	if userFormat == formatUnknown {
-		plan := codecPlanForFormat(formatBinary)
-		plan.warning = fmt.Sprintf("⚠️  Warning: Could not detect format for %s, using binary format", path)
-		return plan, nil
+		return codecPlan{}, fmt.Errorf("could not detect format for %s (supported: %s). Hint: pass --format binary if this should be encrypted as a binary file", path, supportedFormats())
 	}
 	return codecPlanForFormat(userFormat), nil
 }
@@ -92,7 +89,7 @@ func nativeSOPSFormat(userFormat format) string {
 	case formatBinary:
 		return "binary"
 	default:
-		return "binary"
+		return ""
 	}
 }
 

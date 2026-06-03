@@ -71,28 +71,6 @@ func captureStdout(t *testing.T, fn func()) string {
 	return output.String()
 }
 
-func captureStderr(t *testing.T, fn func()) string {
-	t.Helper()
-
-	oldStderr := os.Stderr
-	r, w, err := os.Pipe()
-	require.NoError(t, err)
-
-	os.Stderr = w
-	defer func() {
-		os.Stderr = oldStderr
-	}()
-
-	fn()
-	require.NoError(t, w.Close())
-
-	var output bytes.Buffer
-	_, err = io.Copy(&output, r)
-	require.NoError(t, err)
-	require.NoError(t, r.Close())
-	return output.String()
-}
-
 func TestEncryptDecryptYAMLRoundTrip(t *testing.T) {
 	env := setupTestEnv(t)
 	plain := []byte("database:\n  host: localhost\n  password: secret123\n")
@@ -237,41 +215,24 @@ func TestDecryptTightensMatchingPlaintextPermissions(t *testing.T) {
 	assert.Equal(t, os.FileMode(0600), info.Mode().Perm())
 }
 
-func TestEncryptDecryptBinaryFallbackRoundTrip(t *testing.T) {
+func TestEncryptUnknownFormatFailsWithBinaryHint(t *testing.T) {
 	env := setupTestEnv(t)
 	plain := []byte{0, 1, 2, 3, 's', 'e', 'c', 'r', 'e', 't', 255}
 	require.NoError(t, os.WriteFile("secret.blob", plain, 0644))
 
-	var encryptErr error
-	encryptOutput := captureStderr(t, func() {
-		encryptErr = Encrypt(EncryptOptions{
-			InputFile:  "secret.blob",
-			OutputFile: "secret.blob.enc",
-			KeyFile:    env.keyFile,
-			PublicKey:  env.publicKey,
-		})
+	err := Encrypt(EncryptOptions{
+		InputFile:  "secret.blob",
+		OutputFile: "secret.blob.enc",
+		KeyFile:    env.keyFile,
+		PublicKey:  env.publicKey,
 	})
-	require.NoError(t, encryptErr)
-	assert.Contains(t, encryptOutput, "using binary format")
 
-	require.NoError(t, os.Remove("secret.blob"))
-	var decryptErr error
-	decryptOutput := captureStderr(t, func() {
-		decryptErr = Decrypt(DecryptOptions{
-			InputFile:  "secret.blob.enc",
-			OutputFile: "secret.blob",
-			KeyFile:    env.keyFile,
-		})
-	})
-	require.NoError(t, decryptErr)
-	assert.Contains(t, decryptOutput, "using binary format")
-
-	decrypted, err := os.ReadFile("secret.blob")
-	require.NoError(t, err)
-	assert.Equal(t, plain, decrypted)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "could not detect format for secret.blob")
+	assert.Contains(t, err.Error(), "Hint: pass --format binary")
 }
 
-func TestDecryptToBytesBinaryFallbackDoesNotWriteWarningToStdout(t *testing.T) {
+func TestDecryptToBytesUnknownFormatFailsWithBinaryHint(t *testing.T) {
 	env := setupTestEnv(t)
 	plain := []byte("plain text with unknown extension")
 	require.NoError(t, os.WriteFile("secret.vars", plain, 0644))
@@ -284,10 +245,9 @@ func TestDecryptToBytesBinaryFallbackDoesNotWriteWarningToStdout(t *testing.T) {
 	}))
 
 	var warningOutput bytes.Buffer
-	var plainData []byte
 	var decryptErr error
 	stdout := captureStdout(t, func() {
-		plainData, decryptErr = DecryptToBytes(DecryptBytesOptions{
+		_, decryptErr = DecryptToBytes(DecryptBytesOptions{
 			InputFile:  "secret.vars.enc",
 			OutputFile: "secret.vars",
 			KeyFile:    env.keyFile,
@@ -295,10 +255,11 @@ func TestDecryptToBytesBinaryFallbackDoesNotWriteWarningToStdout(t *testing.T) {
 		})
 	})
 
-	require.NoError(t, decryptErr)
+	require.Error(t, decryptErr)
 	assert.Empty(t, stdout)
-	assert.Contains(t, warningOutput.String(), "using binary format")
-	assert.Equal(t, plain, plainData)
+	assert.Empty(t, warningOutput.String())
+	assert.Contains(t, decryptErr.Error(), "could not detect format for secret.vars")
+	assert.Contains(t, decryptErr.Error(), "Hint: pass --format binary")
 }
 
 func TestEncryptDecryptBinaryOverrideRoundTrip(t *testing.T) {

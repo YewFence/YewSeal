@@ -114,6 +114,7 @@ func TestResolveInitFormatOverride(t *testing.T) {
 		assert.Empty(t, format)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "please pass --format")
+		assert.Contains(t, err.Error(), "Hint: pass --format binary")
 	})
 
 	t.Run("prompts when format is ambiguous and interactive", func(t *testing.T) {

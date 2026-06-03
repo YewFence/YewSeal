@@ -57,7 +57,6 @@ type EditOptions struct {
 
 func Encrypt(opts EncryptOptions) error {
 	out := outputWriter(opts.Output)
-	warnings := warningWriter(opts.Warnings)
 
 	if _, err := os.Stat(opts.InputFile); os.IsNotExist(err) {
 		return &errx.NotFoundError{What: "input file", Path: opts.InputFile}
@@ -66,9 +65,6 @@ func Encrypt(opts EncryptOptions) error {
 	plan, err := newCodecPlan(opts.InputFile, opts.FormatOverride)
 	if err != nil {
 		return err
-	}
-	if plan.warning != "" {
-		fmt.Fprintln(warnings, plan.warning)
 	}
 	if err := plan.checkTools(); err != nil {
 		return err
@@ -141,7 +137,6 @@ func Decrypt(opts DecryptOptions) error {
 
 func DecryptToBytes(opts DecryptBytesOptions) ([]byte, error) {
 	out := outputWriter(opts.Output)
-	warnings := warningWriter(opts.Warnings)
 
 	if _, err := os.Stat(opts.InputFile); os.IsNotExist(err) {
 		return nil, &errx.NotFoundError{What: "input file", Path: opts.InputFile}
@@ -150,9 +145,6 @@ func DecryptToBytes(opts DecryptBytesOptions) ([]byte, error) {
 	plan, err := newCodecPlan(opts.OutputFile, opts.FormatOverride)
 	if err != nil {
 		return nil, err
-	}
-	if plan.warning != "" {
-		fmt.Fprintln(warnings, plan.warning)
 	}
 	if err := plan.checkTools(); err != nil {
 		return nil, err
@@ -358,11 +350,4 @@ func outputWriter(w io.Writer) io.Writer {
 		return w
 	}
 	return os.Stdout
-}
-
-func warningWriter(w io.Writer) io.Writer {
-	if w != nil {
-		return w
-	}
-	return os.Stderr
 }
