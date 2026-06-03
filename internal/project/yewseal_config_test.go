@@ -10,10 +10,8 @@ import (
 )
 
 func TestSavePublicKeyToConfig_CreateNew(t *testing.T) {
-	oldWd, _ := os.Getwd()
 	tmpDir := t.TempDir()
-	os.Chdir(tmpDir)
-	defer os.Chdir(oldWd)
+	withProjectWorkingDir(t, tmpDir)
 
 	err := SavePublicKeyToConfig("age1testpublickey", []config.FilePair{
 		{PlaintextPath: "secrets.toml", EncryptedPath: "secrets.enc.yaml"},
@@ -32,10 +30,8 @@ func TestSavePublicKeyToConfig_CreateNew(t *testing.T) {
 }
 
 func TestSavePublicKeyToConfig_OverwriteExisting(t *testing.T) {
-	oldWd, _ := os.Getwd()
 	tmpDir := t.TempDir()
-	os.Chdir(tmpDir)
-	defer os.Chdir(oldWd)
+	withProjectWorkingDir(t, tmpDir)
 
 	existingContent := `[encryption]
 
@@ -66,10 +62,8 @@ public_key = "age1existingkey"
 }
 
 func TestSavePublicKeyToConfig_MultipleFilePairs(t *testing.T) {
-	oldWd, _ := os.Getwd()
 	tmpDir := t.TempDir()
-	os.Chdir(tmpDir)
-	defer os.Chdir(oldWd)
+	withProjectWorkingDir(t, tmpDir)
 
 	err := SavePublicKeyToConfig("age1test", []config.FilePair{
 		{PlaintextPath: "app.toml", EncryptedPath: "app.enc.toml.yaml"},
@@ -88,10 +82,8 @@ func TestSavePublicKeyToConfig_MultipleFilePairs(t *testing.T) {
 }
 
 func TestSavePublicKeyToConfig_ConfigCanBeLoaded(t *testing.T) {
-	oldWd, _ := os.Getwd()
 	tmpDir := t.TempDir()
-	os.Chdir(tmpDir)
-	defer os.Chdir(oldWd)
+	withProjectWorkingDir(t, tmpDir)
 
 	err := SavePublicKeyToConfig("age1testkey", []config.FilePair{
 		{PlaintextPath: "input.toml", EncryptedPath: "output.yaml"},
@@ -107,10 +99,8 @@ func TestSavePublicKeyToConfig_ConfigCanBeLoaded(t *testing.T) {
 }
 
 func TestSavePublicKeyToConfig_WritesWithoutIndentation(t *testing.T) {
-	oldWd, _ := os.Getwd()
 	tmpDir := t.TempDir()
-	os.Chdir(tmpDir)
-	defer os.Chdir(oldWd)
+	withProjectWorkingDir(t, tmpDir)
 
 	err := SavePublicKeyToConfig("age1test", []config.FilePair{
 		{PlaintextPath: "app.toml", EncryptedPath: "app.enc.toml.yaml"},

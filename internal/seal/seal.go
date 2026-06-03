@@ -71,7 +71,7 @@ func Encrypt(opts EncryptOptions) error {
 	}
 
 	if opts.Verbose {
-		fmt.Fprintf(out, "📖 Reading %s...\n", opts.InputFile)
+		_, _ = fmt.Fprintf(out, "📖 Reading %s...\n", opts.InputFile)
 	}
 
 	plainData, err := os.ReadFile(opts.InputFile)
@@ -81,7 +81,7 @@ func Encrypt(opts EncryptOptions) error {
 
 	if plan.needsRemarshal {
 		if opts.Verbose {
-			fmt.Fprintln(out, plan.encryptAction)
+			_, _ = fmt.Fprintln(out, plan.encryptAction)
 		}
 	}
 	plainData, err = plan.prepareEncrypt(plainData)
@@ -90,7 +90,7 @@ func Encrypt(opts EncryptOptions) error {
 	}
 
 	if opts.Verbose {
-		fmt.Fprintln(out, "🔐 Encrypting with SOPS...")
+		_, _ = fmt.Fprintln(out, "🔐 Encrypting with SOPS...")
 	}
 
 	publicKey, err := agekey.GetPublicKeyWithOutput(opts.PublicKey, opts.KeyFile, opts.Verbose, out)
@@ -107,7 +107,7 @@ func Encrypt(opts EncryptOptions) error {
 		return fmt.Errorf("failed to write output file: %w", err)
 	}
 
-	fmt.Fprintf(out, "✅ Encrypted %s → %s\n", opts.InputFile, opts.OutputFile)
+	_, _ = fmt.Fprintf(out, "✅ Encrypted %s → %s\n", opts.InputFile, opts.OutputFile)
 	return nil
 }
 
@@ -131,7 +131,7 @@ func Decrypt(opts DecryptOptions) error {
 		return err
 	}
 
-	fmt.Fprintf(out, "✅ Decrypted %s → %s\n", opts.InputFile, opts.OutputFile)
+	_, _ = fmt.Fprintf(out, "✅ Decrypted %s → %s\n", opts.InputFile, opts.OutputFile)
 	return nil
 }
 
@@ -151,8 +151,8 @@ func DecryptToBytes(opts DecryptBytesOptions) ([]byte, error) {
 	}
 
 	if opts.Verbose {
-		fmt.Fprintf(out, "📖 Reading %s...\n", opts.InputFile)
-		fmt.Fprintln(out, "🔓 Decrypting with SOPS...")
+		_, _ = fmt.Fprintf(out, "📖 Reading %s...\n", opts.InputFile)
+		_, _ = fmt.Fprintln(out, "🔓 Decrypting with SOPS...")
 	}
 
 	privateKey, err := agekey.GetAgeKey(opts.KeyFile)
@@ -172,7 +172,7 @@ func DecryptToBytes(opts DecryptBytesOptions) ([]byte, error) {
 
 	if plan.needsRemarshal {
 		if opts.Verbose {
-			fmt.Fprintln(out, plan.decryptAction)
+			_, _ = fmt.Fprintln(out, plan.decryptAction)
 		}
 	}
 	plainData, err = plan.restoreDecrypt(plainData)
@@ -216,7 +216,9 @@ func Edit(opts EditOptions) error {
 		return fmt.Errorf("failed to create temp file: %w", err)
 	}
 	tmpPath := tmpFile.Name()
-	defer os.Remove(tmpPath)
+	defer func() {
+		_ = os.Remove(tmpPath)
+	}()
 
 	if _, err := tmpFile.Write(plainData); err != nil {
 		_ = tmpFile.Close()
@@ -229,7 +231,7 @@ func Edit(opts EditOptions) error {
 	originalHash := sha256.Sum256(plainData)
 	editorCmd := resolveEditor(opts.Editor)
 
-	fmt.Fprintf(out, "✏️  Opening %s in %s...\n", opts.File, editorCmd)
+	_, _ = fmt.Fprintf(out, "✏️  Opening %s in %s...\n", opts.File, editorCmd)
 
 	parts, err := splitEditorCommand(editorCmd)
 	if err != nil {
@@ -252,7 +254,7 @@ func Edit(opts EditOptions) error {
 
 	editedHash := sha256.Sum256(editedData)
 	if originalHash == editedHash {
-		fmt.Fprintln(out, "⏭️  No changes detected, skipping re-encryption")
+		_, _ = fmt.Fprintln(out, "⏭️  No changes detected, skipping re-encryption")
 		return nil
 	}
 
@@ -276,7 +278,7 @@ func Edit(opts EditOptions) error {
 		return fmt.Errorf("failed to write encrypted file: %w", err)
 	}
 
-	fmt.Fprintln(out, "✅ File edited and re-encrypted successfully")
+	_, _ = fmt.Fprintln(out, "✅ File edited and re-encrypted successfully")
 	return nil
 }
 

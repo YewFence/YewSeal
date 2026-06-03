@@ -342,7 +342,9 @@ func setupAgeKey(force bool) (string, error) {
 	// Generate new key (either no key exists or force mode)
 	if force && keyExists {
 		fmt.Println("🔑 Force mode: Regenerating Age key pair...")
-		os.Remove(keyFilePath)
+		if err := os.Remove(keyFilePath); err != nil {
+			return "", fmt.Errorf("failed to remove existing key file: %w", err)
+		}
 	} else {
 		fmt.Println("🔑 Generating Age key pair...")
 	}

@@ -16,13 +16,9 @@ import (
 
 func TestSetupAgeKey_NewKey(t *testing.T) {
 	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	os.Chdir(tempDir)
-	defer os.Chdir(oldWd)
+	withProjectWorkingDir(t, tempDir)
 
-	// Ensure no key exists
 	keyFile := ".age/keys.txt"
-	os.RemoveAll(".age")
 
 	publicKey, err := setupAgeKey(false)
 	require.NoError(t, err)
@@ -36,9 +32,7 @@ func TestSetupAgeKey_NewKey(t *testing.T) {
 
 func TestSetupAgeKey_ExistingKey(t *testing.T) {
 	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	os.Chdir(tempDir)
-	defer os.Chdir(oldWd)
+	withProjectWorkingDir(t, tempDir)
 
 	// First, generate a key
 	publicKey1, err := setupAgeKey(false)
@@ -53,9 +47,7 @@ func TestSetupAgeKey_ExistingKey(t *testing.T) {
 
 func TestSetupAgeKey_ForceRegenerate(t *testing.T) {
 	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	os.Chdir(tempDir)
-	defer os.Chdir(oldWd)
+	withProjectWorkingDir(t, tempDir)
 
 	// First, generate a key
 	publicKey1, err := setupAgeKey(false)
@@ -70,12 +62,10 @@ func TestSetupAgeKey_ForceRegenerate(t *testing.T) {
 
 func TestSetupAgeKey_InvalidExistingKey(t *testing.T) {
 	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	os.Chdir(tempDir)
-	defer os.Chdir(oldWd)
+	withProjectWorkingDir(t, tempDir)
 
 	// Create .age directory with invalid key file
-	os.MkdirAll(".age", 0700)
+	require.NoError(t, os.MkdirAll(".age", 0700))
 	err := os.WriteFile(".age/keys.txt", []byte("invalid key content"), 0600)
 	require.NoError(t, err)
 
@@ -90,12 +80,7 @@ func TestSetupAgeKey_InvalidExistingKey(t *testing.T) {
 
 func TestUpdateGitignore_Create(t *testing.T) {
 	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	os.Chdir(tempDir)
-	defer os.Chdir(oldWd)
-
-	// Ensure no .gitignore exists
-	os.Remove(".gitignore")
+	withProjectWorkingDir(t, tempDir)
 
 	err := UpdateGitignore([]config.FilePair{
 		{PlaintextPath: "wrangler.toml", EncryptedPath: "wrangler.enc.toml.yaml"},
@@ -113,9 +98,7 @@ func TestUpdateGitignore_Create(t *testing.T) {
 
 func TestUpdateGitignore_Update(t *testing.T) {
 	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	os.Chdir(tempDir)
-	defer os.Chdir(oldWd)
+	withProjectWorkingDir(t, tempDir)
 
 	// Create existing .gitignore
 	existingContent := `# Existing content
@@ -145,9 +128,7 @@ node_modules/
 
 func TestUpdateGitignore_AlreadyContainsYewSeal(t *testing.T) {
 	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	os.Chdir(tempDir)
-	defer os.Chdir(oldWd)
+	withProjectWorkingDir(t, tempDir)
 
 	// Create .gitignore with YewSeal section already
 	existingContent := `# Existing content
@@ -246,9 +227,7 @@ func TestDefaultEncryptedOutputNameForFile(t *testing.T) {
 
 func TestConfirmInitOverwrite_NonInteractiveExistingConfig(t *testing.T) {
 	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	os.Chdir(tempDir)
-	defer os.Chdir(oldWd)
+	withProjectWorkingDir(t, tempDir)
 
 	err := os.WriteFile(".yewseal.toml", []byte("existing = true"), 0644)
 	require.NoError(t, err)
@@ -263,7 +242,9 @@ func TestCollectInitFilePairs_InteractiveMultiple(t *testing.T) {
 	oldStdin := os.Stdin
 	inputFile, err := os.CreateTemp(t.TempDir(), "stdin-*")
 	require.NoError(t, err)
-	defer inputFile.Close()
+	defer func() {
+		require.NoError(t, inputFile.Close())
+	}()
 	defer func() { os.Stdin = oldStdin }()
 
 	_, err = inputFile.WriteString("app.toml\n\nY\n.dev.vars\n.dev.vars.enc.yaml\nenv\nn\n")
@@ -287,7 +268,9 @@ func TestCollectInitSelections_InteractiveExamplePerFile(t *testing.T) {
 	oldStdin := os.Stdin
 	inputFile, err := os.CreateTemp(t.TempDir(), "stdin-*")
 	require.NoError(t, err)
-	defer inputFile.Close()
+	defer func() {
+		require.NoError(t, inputFile.Close())
+	}()
 	defer func() { os.Stdin = oldStdin }()
 
 	_, err = inputFile.WriteString("app.toml\n\ny\ny\n.dev.vars\n.dev.vars.enc.yaml\nenv\nn\nn\n")
@@ -324,9 +307,7 @@ func TestCollectInitSelections_NonInteractiveCreateExampleFlag(t *testing.T) {
 
 func TestCreateExampleFile_Success(t *testing.T) {
 	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	os.Chdir(tempDir)
-	defer os.Chdir(oldWd)
+	withProjectWorkingDir(t, tempDir)
 
 	// Create input file
 	inputContent := `[config]
@@ -350,9 +331,7 @@ secret = "should-be-removed"
 
 func TestCreateExampleFile_InputNotExist(t *testing.T) {
 	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	os.Chdir(tempDir)
-	defer os.Chdir(oldWd)
+	withProjectWorkingDir(t, tempDir)
 
 	// Call with non-existent file (should not panic, just print warning)
 	createExampleFile("nonexistent.toml")
@@ -364,12 +343,10 @@ func TestCreateExampleFile_InputNotExist(t *testing.T) {
 
 func TestCreateExampleFile_WithPath(t *testing.T) {
 	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	os.Chdir(tempDir)
-	defer os.Chdir(oldWd)
+	withProjectWorkingDir(t, tempDir)
 
 	// Create subdirectory and input file
-	os.MkdirAll("subdir", 0755)
+	require.NoError(t, os.MkdirAll("subdir", 0755))
 	inputFile := filepath.Join("subdir", "config.toml")
 	err := os.WriteFile(inputFile, []byte("[test]\nkey = 1"), 0644)
 	require.NoError(t, err)
@@ -384,9 +361,7 @@ func TestCreateExampleFile_WithPath(t *testing.T) {
 
 func TestCreateExampleFile_PreservesExtension(t *testing.T) {
 	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	os.Chdir(tempDir)
-	defer os.Chdir(oldWd)
+	withProjectWorkingDir(t, tempDir)
 
 	testCases := []struct {
 		inputFile    string
@@ -409,7 +384,7 @@ func TestCreateExampleFile_PreservesExtension(t *testing.T) {
 		assert.NoError(t, err, "Expected %s to exist", tc.expectedFile)
 
 		// Cleanup
-		os.Remove(tc.inputFile)
-		os.Remove(tc.expectedFile)
+		_ = os.Remove(tc.inputFile)
+		_ = os.Remove(tc.expectedFile)
 	}
 }

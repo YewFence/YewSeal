@@ -93,7 +93,7 @@ func GetPublicKeyWithOutput(providedKey, keyFile string, verbose bool, output io
 	// Priority 1: Command-line parameter
 	if providedKey != "" {
 		if verbose {
-			fmt.Fprintln(output, "🔑 Using public key from command-line parameter")
+			_, _ = fmt.Fprintln(output, "🔑 Using public key from command-line parameter")
 		}
 		return providedKey, nil
 	}
@@ -101,7 +101,7 @@ func GetPublicKeyWithOutput(providedKey, keyFile string, verbose bool, output io
 	// Priority 2: Environment variable
 	if envKey := os.Getenv("SOPS_AGE_RECIPIENTS"); envKey != "" {
 		if verbose {
-			fmt.Fprintln(output, "🔑 Using public key from SOPS_AGE_RECIPIENTS environment variable")
+			_, _ = fmt.Fprintln(output, "🔑 Using public key from SOPS_AGE_RECIPIENTS environment variable")
 		}
 		return envKey, nil
 	}
@@ -113,14 +113,14 @@ func GetPublicKeyWithOutput(providedKey, keyFile string, verbose bool, output io
 	}
 	if cfg.GetPublicKey() != "" {
 		if verbose {
-			fmt.Fprintln(output, "🔑 Using public key from .yewseal.toml")
+			_, _ = fmt.Fprintln(output, "🔑 Using public key from .yewseal.toml")
 		}
 		return cfg.GetPublicKey(), nil
 	}
 
 	// Priority 4: Extract from private key file (fallback)
 	if verbose {
-		fmt.Fprintln(output, "🔑 Attempting to extract public key from private key file...")
+		_, _ = fmt.Fprintln(output, "🔑 Attempting to extract public key from private key file...")
 	}
 
 	// Try to get the key file path
@@ -141,7 +141,7 @@ func GetPublicKeyWithOutput(providedKey, keyFile string, verbose bool, output io
 	}
 
 	if verbose {
-		fmt.Fprintf(output, "✅ Extracted public key from %s: %s\n", keyFile, publicKey)
+		_, _ = fmt.Fprintf(output, "✅ Extracted public key from %s: %s\n", keyFile, publicKey)
 	}
 
 	return publicKey, nil

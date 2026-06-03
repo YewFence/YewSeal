@@ -9,6 +9,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func withAgekeyWorkingDir(t *testing.T, dir string) {
+	t.Helper()
+
+	oldWd, err := os.Getwd()
+	require.NoError(t, err)
+	require.NoError(t, os.Chdir(dir))
+	t.Cleanup(func() {
+		require.NoError(t, os.Chdir(oldWd))
+	})
+}
+
 func TestExtractPublicKey_Valid(t *testing.T) {
 	output := "# public key: age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p"
 	result := ExtractPublicKey(output)
@@ -176,18 +187,8 @@ AGE-SECRET-KEY-1TESTTESTTESTTESTTESTTESTTESTTESTTESTTESTTESTTESTTEST`
 }
 
 func TestGetAgeKey_FromEnvVar(t *testing.T) {
-	// Save and restore env vars
-	oldKey := os.Getenv("SOPS_AGE_KEY")
-	defer func() {
-		if oldKey != "" {
-			os.Setenv("SOPS_AGE_KEY", oldKey)
-		} else {
-			os.Unsetenv("SOPS_AGE_KEY")
-		}
-	}()
-
 	expectedKey := "AGE-SECRET-KEY-1ENVENVENVENVENVENVENVENVENVENVENVENVENVENV"
-	os.Setenv("SOPS_AGE_KEY", expectedKey)
+	t.Setenv("SOPS_AGE_KEY", expectedKey)
 
 	key, err := GetAgeKey("")
 	require.NoError(t, err)
@@ -195,24 +196,7 @@ func TestGetAgeKey_FromEnvVar(t *testing.T) {
 }
 
 func TestGetAgeKey_FromEnvFilePath(t *testing.T) {
-	// Save and restore env vars
-	oldKeyFile := os.Getenv("SOPS_AGE_KEY_FILE")
-	oldKey := os.Getenv("SOPS_AGE_KEY")
-	defer func() {
-		if oldKeyFile != "" {
-			os.Setenv("SOPS_AGE_KEY_FILE", oldKeyFile)
-		} else {
-			os.Unsetenv("SOPS_AGE_KEY_FILE")
-		}
-		if oldKey != "" {
-			os.Setenv("SOPS_AGE_KEY", oldKey)
-		} else {
-			os.Unsetenv("SOPS_AGE_KEY")
-		}
-	}()
-
-	// Clear SOPS_AGE_KEY so SOPS_AGE_KEY_FILE is used
-	os.Unsetenv("SOPS_AGE_KEY")
+	t.Setenv("SOPS_AGE_KEY", "")
 
 	tmpDir := t.TempDir()
 	keyFile := filepath.Join(tmpDir, "keys.txt")
@@ -223,7 +207,7 @@ AGE-SECRET-KEY-1FILEFILEFILEFILEFILEFILEFILEFILEFILEFILEFILEFILE`
 	err := os.WriteFile(keyFile, []byte(content), 0600)
 	require.NoError(t, err)
 
-	os.Setenv("SOPS_AGE_KEY_FILE", keyFile)
+	t.Setenv("SOPS_AGE_KEY_FILE", keyFile)
 
 	key, err := GetAgeKey("")
 	require.NoError(t, err)
@@ -231,18 +215,7 @@ AGE-SECRET-KEY-1FILEFILEFILEFILEFILEFILEFILEFILEFILEFILEFILEFILE`
 }
 
 func TestGetAgeKey_Priority(t *testing.T) {
-	// Test that CLI parameter has highest priority
-	oldKey := os.Getenv("SOPS_AGE_KEY")
-	defer func() {
-		if oldKey != "" {
-			os.Setenv("SOPS_AGE_KEY", oldKey)
-		} else {
-			os.Unsetenv("SOPS_AGE_KEY")
-		}
-	}()
-
-	// Set env var
-	os.Setenv("SOPS_AGE_KEY", "AGE-SECRET-KEY-1ENVENVENVENVENVENVENVENVENVENVENVENVENVENV")
+	t.Setenv("SOPS_AGE_KEY", "AGE-SECRET-KEY-1ENVENVENVENVENVENVENVENVENVENVENVENVENVENV")
 
 	// Create key file
 	tmpDir := t.TempDir()
@@ -258,26 +231,12 @@ func TestGetAgeKey_Priority(t *testing.T) {
 }
 
 func TestGetAgeKey_NoKeyFound(t *testing.T) {
-	// Save and restore all relevant env vars
 	envVars := []string{"SOPS_AGE_KEY", "SOPS_AGE_KEY_FILE", "SOPS_AGE_KEY_CMD"}
-	oldVals := make(map[string]string)
 	for _, v := range envVars {
-		oldVals[v] = os.Getenv(v)
-		os.Unsetenv(v)
+		t.Setenv(v, "")
 	}
-	defer func() {
-		for k, v := range oldVals {
-			if v != "" {
-				os.Setenv(k, v)
-			}
-		}
-	}()
 
-	// Change to a temp directory without .age/keys.txt
-	oldWd, _ := os.Getwd()
-	tmpDir := t.TempDir()
-	os.Chdir(tmpDir)
-	defer os.Chdir(oldWd)
+	withAgekeyWorkingDir(t, t.TempDir())
 
 	_, err := GetAgeKey("")
 	assert.Error(t, err)
@@ -297,18 +256,8 @@ func TestGetPublicKey_FromParam(t *testing.T) {
 }
 
 func TestGetPublicKey_FromEnv(t *testing.T) {
-	// Save and restore env var
-	oldKey := os.Getenv("SOPS_AGE_RECIPIENTS")
-	defer func() {
-		if oldKey != "" {
-			os.Setenv("SOPS_AGE_RECIPIENTS", oldKey)
-		} else {
-			os.Unsetenv("SOPS_AGE_RECIPIENTS")
-		}
-	}()
-
 	expectedKey := "age1envenvenvenvenvenvenvenvenvenvenvenvenvenvenvenvenvenvenvenv"
-	os.Setenv("SOPS_AGE_RECIPIENTS", expectedKey)
+	t.Setenv("SOPS_AGE_RECIPIENTS", expectedKey)
 
 	key, err := GetPublicKey("", "", false)
 	require.NoError(t, err)
@@ -316,22 +265,10 @@ func TestGetPublicKey_FromEnv(t *testing.T) {
 }
 
 func TestGetPublicKey_FromKeyFile(t *testing.T) {
-	// Save and restore env var
-	oldKey := os.Getenv("SOPS_AGE_RECIPIENTS")
-	defer func() {
-		if oldKey != "" {
-			os.Setenv("SOPS_AGE_RECIPIENTS", oldKey)
-		} else {
-			os.Unsetenv("SOPS_AGE_RECIPIENTS")
-		}
-	}()
-	os.Unsetenv("SOPS_AGE_RECIPIENTS")
+	t.Setenv("SOPS_AGE_RECIPIENTS", "")
 
-	// Change to temp dir to avoid picking up existing config
-	oldWd, _ := os.Getwd()
 	tmpDir := t.TempDir()
-	os.Chdir(tmpDir)
-	defer os.Chdir(oldWd)
+	withAgekeyWorkingDir(t, tmpDir)
 
 	// Create key file with public key in comment
 	keyFile := filepath.Join(tmpDir, "keys.txt")
@@ -348,18 +285,7 @@ AGE-SECRET-KEY-1TESTTESTTESTTESTTESTTESTTESTTESTTESTTESTTESTTESTTEST`
 }
 
 func TestGetPublicKey_Priority_ParamOverEnv(t *testing.T) {
-	// Save and restore env var
-	oldKey := os.Getenv("SOPS_AGE_RECIPIENTS")
-	defer func() {
-		if oldKey != "" {
-			os.Setenv("SOPS_AGE_RECIPIENTS", oldKey)
-		} else {
-			os.Unsetenv("SOPS_AGE_RECIPIENTS")
-		}
-	}()
-
-	// Set env var
-	os.Setenv("SOPS_AGE_RECIPIENTS", "age1envenvenvenvenvenvenvenvenvenvenvenvenvenvenvenvenvenvenvenv")
+	t.Setenv("SOPS_AGE_RECIPIENTS", "age1envenvenvenvenvenvenvenvenvenvenvenvenvenvenvenvenvenvenvenv")
 
 	// Param should have higher priority
 	providedKey := "age1paramprovided"
@@ -369,22 +295,9 @@ func TestGetPublicKey_Priority_ParamOverEnv(t *testing.T) {
 }
 
 func TestGetPublicKey_NoKeyFound(t *testing.T) {
-	// Save and restore env var
-	oldKey := os.Getenv("SOPS_AGE_RECIPIENTS")
-	defer func() {
-		if oldKey != "" {
-			os.Setenv("SOPS_AGE_RECIPIENTS", oldKey)
-		} else {
-			os.Unsetenv("SOPS_AGE_RECIPIENTS")
-		}
-	}()
-	os.Unsetenv("SOPS_AGE_RECIPIENTS")
+	t.Setenv("SOPS_AGE_RECIPIENTS", "")
 
-	// Change to temp dir without any config or key files
-	oldWd, _ := os.Getwd()
-	tmpDir := t.TempDir()
-	os.Chdir(tmpDir)
-	defer os.Chdir(oldWd)
+	withAgekeyWorkingDir(t, t.TempDir())
 
 	_, err := GetPublicKey("", "", false)
 	assert.Error(t, err)
@@ -401,22 +314,10 @@ func TestGetPublicKey_VerboseMode(t *testing.T) {
 }
 
 func TestGetPublicKey_InvalidKeyFile(t *testing.T) {
-	// Save and restore env var
-	oldKey := os.Getenv("SOPS_AGE_RECIPIENTS")
-	defer func() {
-		if oldKey != "" {
-			os.Setenv("SOPS_AGE_RECIPIENTS", oldKey)
-		} else {
-			os.Unsetenv("SOPS_AGE_RECIPIENTS")
-		}
-	}()
-	os.Unsetenv("SOPS_AGE_RECIPIENTS")
+	t.Setenv("SOPS_AGE_RECIPIENTS", "")
 
-	// Change to temp dir
-	oldWd, _ := os.Getwd()
 	tmpDir := t.TempDir()
-	os.Chdir(tmpDir)
-	defer os.Chdir(oldWd)
+	withAgekeyWorkingDir(t, tmpDir)
 
 	// Create key file without public key comment
 	keyFile := filepath.Join(tmpDir, "keys.txt")
