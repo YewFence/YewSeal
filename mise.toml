@@ -64,7 +64,7 @@ file = ".mise/tasks/clean"
 
 [tasks.deps]
 description = "下载 Go 依赖"
-run = "go get -v ./..."
+run = "go mod download"
 
 [tasks.fmt]
 description = "检查 Go 代码格式"
@@ -82,12 +82,15 @@ raw = true
 run = "golangci-lint run"
 
 [tasks.check]
-description = "运行 Go 格式、静态检查、构建和 lint"
+description = "运行所有检查任务"
 run = [
   { task = "fmt" },
   { task = "vet" },
   { task = "build" },
   { task = "lint" },
+  { task = "tidy:check" },
+  { task = "mod:verify" },
+  { task = "docs" }
 ]
 
 [tasks.run]
