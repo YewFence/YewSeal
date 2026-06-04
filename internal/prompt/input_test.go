@@ -5,27 +5,32 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // mockStdin replaces os.Stdin with a pipe containing the given input
 // Returns a cleanup function that restores the original stdin
-func mockStdin(input string) func() {
-	r, w, _ := os.Pipe()
+func mockStdin(t *testing.T, input string) func() {
+	t.Helper()
+
+	r, w, err := os.Pipe()
+	require.NoError(t, err)
 	oldStdin := os.Stdin
 	os.Stdin = r
 
 	go func() {
-		w.Write([]byte(input))
-		w.Close()
+		_, _ = w.Write([]byte(input))
+		_ = w.Close()
 	}()
 
 	return func() {
 		os.Stdin = oldStdin
+		_ = r.Close()
 	}
 }
 
 func TestPromptWithDefault_UserInput(t *testing.T) {
-	restore := mockStdin("custom_value\n")
+	restore := mockStdin(t, "custom_value\n")
 	defer restore()
 
 	result := PromptWithDefault("Enter value", "default")
@@ -33,7 +38,7 @@ func TestPromptWithDefault_UserInput(t *testing.T) {
 }
 
 func TestPromptWithDefault_EmptyInput(t *testing.T) {
-	restore := mockStdin("\n")
+	restore := mockStdin(t, "\n")
 	defer restore()
 
 	result := PromptWithDefault("Enter value", "default")
@@ -41,7 +46,7 @@ func TestPromptWithDefault_EmptyInput(t *testing.T) {
 }
 
 func TestPromptWithDefault_WhitespaceInput(t *testing.T) {
-	restore := mockStdin("   \n")
+	restore := mockStdin(t, "   \n")
 	defer restore()
 
 	result := PromptWithDefault("Enter value", "default")
@@ -49,7 +54,7 @@ func TestPromptWithDefault_WhitespaceInput(t *testing.T) {
 }
 
 func TestPromptOptional_UserInput(t *testing.T) {
-	restore := mockStdin(" custom_value \n")
+	restore := mockStdin(t, " custom_value \n")
 	defer restore()
 
 	result := PromptOptional("Enter value")
@@ -57,7 +62,7 @@ func TestPromptOptional_UserInput(t *testing.T) {
 }
 
 func TestPromptOptional_EmptyInput(t *testing.T) {
-	restore := mockStdin("\n")
+	restore := mockStdin(t, "\n")
 	defer restore()
 
 	result := PromptOptional("Enter value")
@@ -78,7 +83,7 @@ func TestPromptYesNo_Yes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
-			restore := mockStdin(tt.input)
+			restore := mockStdin(t, tt.input)
 			defer restore()
 
 			result := PromptYesNo("Continue?", false)
@@ -101,7 +106,7 @@ func TestPromptYesNo_No(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
-			restore := mockStdin(tt.input)
+			restore := mockStdin(t, tt.input)
 			defer restore()
 
 			result := PromptYesNo("Continue?", true)
@@ -111,7 +116,7 @@ func TestPromptYesNo_No(t *testing.T) {
 }
 
 func TestPromptYesNo_DefaultYes(t *testing.T) {
-	restore := mockStdin("\n")
+	restore := mockStdin(t, "\n")
 	defer restore()
 
 	result := PromptYesNo("Continue?", true)
@@ -119,7 +124,7 @@ func TestPromptYesNo_DefaultYes(t *testing.T) {
 }
 
 func TestPromptYesNo_DefaultNo(t *testing.T) {
-	restore := mockStdin("\n")
+	restore := mockStdin(t, "\n")
 	defer restore()
 
 	result := PromptYesNo("Continue?", false)
@@ -127,7 +132,7 @@ func TestPromptYesNo_DefaultNo(t *testing.T) {
 }
 
 func TestPromptYesNo_InvalidInputUsesDefault(t *testing.T) {
-	restore := mockStdin("maybe\n")
+	restore := mockStdin(t, "maybe\n")
 	defer restore()
 
 	// Invalid input should not match "y" or "yes", so it returns false
@@ -145,7 +150,7 @@ func TestPromptYesNoConditional_FlagSet(t *testing.T) {
 }
 
 func TestPromptYesNoConditional_FlagNotSet(t *testing.T) {
-	restore := mockStdin("y\n")
+	restore := mockStdin(t, "y\n")
 	defer restore()
 
 	result := PromptYesNoConditional(false, false, "Continue?")

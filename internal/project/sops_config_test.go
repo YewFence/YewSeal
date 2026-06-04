@@ -12,11 +12,8 @@ import (
 )
 
 func TestUpdateSopsYaml_CreateNew(t *testing.T) {
-	// Change to temp directory
-	oldWd, _ := os.Getwd()
 	tmpDir := t.TempDir()
-	os.Chdir(tmpDir)
-	defer os.Chdir(oldWd)
+	withProjectWorkingDir(t, tmpDir)
 
 	err := UpdateSopsYaml("secrets.enc.yaml", "age1testpublickey123", false)
 	require.NoError(t, err)
@@ -33,10 +30,8 @@ func TestUpdateSopsYaml_CreateNew(t *testing.T) {
 }
 
 func TestUpdateSopsYaml_AppendRule(t *testing.T) {
-	oldWd, _ := os.Getwd()
 	tmpDir := t.TempDir()
-	os.Chdir(tmpDir)
-	defer os.Chdir(oldWd)
+	withProjectWorkingDir(t, tmpDir)
 
 	// Create first rule
 	err := UpdateSopsYaml("first.enc.yaml", "age1first", false)
@@ -57,10 +52,8 @@ func TestUpdateSopsYaml_AppendRule(t *testing.T) {
 }
 
 func TestUpdateSopsYaml_IdempotentRule(t *testing.T) {
-	oldWd, _ := os.Getwd()
 	tmpDir := t.TempDir()
-	os.Chdir(tmpDir)
-	defer os.Chdir(oldWd)
+	withProjectWorkingDir(t, tmpDir)
 
 	// Create rule
 	err := UpdateSopsYaml("secrets.enc.yaml", "age1test", false)
@@ -79,10 +72,8 @@ func TestUpdateSopsYaml_IdempotentRule(t *testing.T) {
 }
 
 func TestUpdateSopsYaml_ForceReplace(t *testing.T) {
-	oldWd, _ := os.Getwd()
 	tmpDir := t.TempDir()
-	os.Chdir(tmpDir)
-	defer os.Chdir(oldWd)
+	withProjectWorkingDir(t, tmpDir)
 
 	// Create first rule
 	err := UpdateSopsYaml("first.enc.yaml", "age1first", false)
@@ -102,10 +93,8 @@ func TestUpdateSopsYaml_ForceReplace(t *testing.T) {
 }
 
 func TestUpdateSopsYaml_SpecialCharactersInPath(t *testing.T) {
-	oldWd, _ := os.Getwd()
 	tmpDir := t.TempDir()
-	os.Chdir(tmpDir)
-	defer os.Chdir(oldWd)
+	withProjectWorkingDir(t, tmpDir)
 
 	// Path with special regex characters
 	err := UpdateSopsYaml("path.with.dots.yaml", "age1test", false)
@@ -119,10 +108,8 @@ func TestUpdateSopsYaml_SpecialCharactersInPath(t *testing.T) {
 }
 
 func TestUpdateSopsYaml_InvalidExistingYaml(t *testing.T) {
-	oldWd, _ := os.Getwd()
 	tmpDir := t.TempDir()
-	os.Chdir(tmpDir)
-	defer os.Chdir(oldWd)
+	withProjectWorkingDir(t, tmpDir)
 
 	// Create invalid YAML file
 	err := os.WriteFile(".sops.yaml", []byte("invalid: yaml: content: ["), 0644)
@@ -146,10 +133,8 @@ func TestSopsConfig_Struct(t *testing.T) {
 }
 
 func TestUpdateSopsYaml_SubdirectoryPath(t *testing.T) {
-	oldWd, _ := os.Getwd()
 	tmpDir := t.TempDir()
-	os.Chdir(tmpDir)
-	defer os.Chdir(oldWd)
+	withProjectWorkingDir(t, tmpDir)
 
 	err := UpdateSopsYaml(filepath.Join("config", "secrets.enc.yaml"), "age1test", false)
 	require.NoError(t, err)
@@ -162,10 +147,8 @@ func TestUpdateSopsYaml_SubdirectoryPath(t *testing.T) {
 }
 
 func TestSyncSopsYaml_ReplacesWithConfiguredRules(t *testing.T) {
-	oldWd, _ := os.Getwd()
 	tmpDir := t.TempDir()
-	os.Chdir(tmpDir)
-	defer os.Chdir(oldWd)
+	withProjectWorkingDir(t, tmpDir)
 
 	err := UpdateSopsYaml("legacy.enc.yaml", "age1legacy", false)
 	require.NoError(t, err)
@@ -186,10 +169,8 @@ func TestSyncSopsYaml_ReplacesWithConfiguredRules(t *testing.T) {
 }
 
 func TestSyncSopsYaml_DeduplicatesEncryptedFiles(t *testing.T) {
-	oldWd, _ := os.Getwd()
 	tmpDir := t.TempDir()
-	os.Chdir(tmpDir)
-	defer os.Chdir(oldWd)
+	withProjectWorkingDir(t, tmpDir)
 
 	err := SyncSopsYaml([]config.FilePair{
 		{PlaintextPath: "app.toml", EncryptedPath: "shared.enc.yaml"},

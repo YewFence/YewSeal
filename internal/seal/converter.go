@@ -1,4 +1,4 @@
-package crypto
+package seal
 
 import (
 	"bytes"
@@ -7,8 +7,7 @@ import (
 	"github.com/YewFence/YewSeal/internal/errx"
 )
 
-// YAMLToTOML converts YAML content to TOML format using remarshal
-func YAMLToTOML(yamlContent []byte) ([]byte, error) {
+func yamlToTOML(yamlContent []byte) ([]byte, error) {
 	cmd := exec.Command("yaml2toml")
 	cmd.Stdin = bytes.NewReader(yamlContent)
 
@@ -23,8 +22,7 @@ func YAMLToTOML(yamlContent []byte) ([]byte, error) {
 	return stdout.Bytes(), nil
 }
 
-// TOMLToYAML converts TOML content to YAML format using remarshal
-func TOMLToYAML(tomlContent []byte) ([]byte, error) {
+func tomlToYAML(tomlContent []byte) ([]byte, error) {
 	cmd := exec.Command("toml2yaml")
 	cmd.Stdin = bytes.NewReader(tomlContent)
 

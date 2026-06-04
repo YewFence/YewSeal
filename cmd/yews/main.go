@@ -1,86 +1,22 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
 
+	yewsapp "github.com/YewFence/YewSeal/internal/app"
 	"github.com/YewFence/YewSeal/internal/config"
-	"github.com/YewFence/YewSeal/internal/crypto"
 	tools "github.com/YewFence/YewSeal/internal/doctor"
 	"github.com/YewFence/YewSeal/internal/project"
+	"github.com/YewFence/YewSeal/internal/seal"
 	"github.com/YewFence/YewSeal/internal/sync"
 
 	"github.com/urfave/cli/v2"
 )
 
 var Version = "dev"
-
-func validateCLIFormatOverride(format string) (string, error) {
-	if strings.TrimSpace(format) == "" {
-		return "", nil
-	}
-
-	parsed := crypto.ParseFormat(format)
-	if parsed == crypto.FormatUnknown {
-		return "", fmt.Errorf("unsupported format %q (supported: toml, yaml, json, env, ini)", format)
-	}
-
-	return string(parsed), nil
-}
-
-func resolveFormatOverride(cliFormat string, filePair config.FilePair) (string, error) {
-	validatedFormat, err := validateCLIFormatOverride(cliFormat)
-	if err != nil {
-		return "", err
-	}
-	if validatedFormat != "" {
-		return validatedFormat, nil
-	}
-	return filePair.Format, nil
-}
-
-func resolveSyncKeyFile(c *cli.Context, cfg *config.Config) string {
-	if c.IsSet("key-file") {
-		return cfg.GetKeyFile(c.String("key-file"))
-	}
-	return cfg.GetKeyFile("")
-}
-
-func resolveSyncProvider(c *cli.Context, cfg *config.Config) string {
-	if c.IsSet("provider") {
-		return cfg.GetSyncProvider(c.String("provider"))
-	}
-	return cfg.GetSyncProvider("")
-}
-
-func resolveSyncSecretName(c *cli.Context, cfg *config.Config) string {
-	if c.IsSet("name") {
-		return cfg.GetSyncSecretName(c.String("name"))
-	}
-	return cfg.GetSyncSecretName("")
-}
-
-func resolveSyncProjectID(c *cli.Context, cfg *config.Config) string {
-	if c.IsSet("project-id") {
-		return cfg.GetSyncProjectID(c.String("project-id"))
-	}
-	return cfg.GetSyncProjectID("")
-}
-
-func resolveSyncPath(c *cli.Context, cfg *config.Config) string {
-	if c.IsSet("path") {
-		return cfg.GetSyncPath(c.String("path"))
-	}
-	return cfg.GetSyncPath("")
-}
-
-func resolveSyncEnvironment(c *cli.Context, cfg *config.Config) string {
-	if c.IsSet("env") {
-		return cfg.GetSyncEnvironment(c.String("env"))
-	}
-	return cfg.GetSyncEnvironment("")
-}
 
 func main() {
 	// Load configuration file
@@ -124,7 +60,7 @@ func main() {
 					},
 					&cli.StringFlag{
 						Name:  "format",
-						Usage: "Format override for the first config entry (toml/yaml/json/env/ini)",
+						Usage: "Format override for the first config entry (toml/yaml/json/env/ini/binary)",
 					},
 					&cli.BoolFlag{
 						Name:  "create-example",
@@ -168,7 +104,7 @@ func main() {
 					},
 					&cli.StringFlag{
 						Name:  "format",
-						Usage: "Format override for single-file mode (toml/yaml/json/env/ini)",
+						Usage: "Format override for single-file mode (toml/yaml/json/env/ini/binary)",
 					},
 					&cli.StringFlag{
 						Name:  "dir",
@@ -207,75 +143,22 @@ func main() {
 					},
 				},
 				Action: func(c *cli.Context) error {
-					keyFile := cfg.GetKeyFile(c.String("key-file"))
-					publicKey := c.String("public-key")
-					verbose := c.Bool("verbose")
-					hasSingleFileOverride := c.IsSet("input") || c.IsSet("output")
-					cliFormat, err := validateCLIFormatOverride(c.String("format"))
-					if err != nil {
-						return err
-					}
-
-					// 目录扫描批量模式
-					if c.String("dir") != "" {
-						if cliFormat != "" {
-							return fmt.Errorf("--format is only supported in single-file mode")
-						}
-						opts := crypto.BatchOptions{
-							InputDir:     c.String("dir"),
-							Pattern:      c.String("pattern"),
-							OutputDir:    c.String("output-dir"),
-							OutputSuffix: c.String("output-suffix"),
-							KeyFile:      keyFile,
-							PublicKey:    publicKey,
-							Parallel:     c.Int("parallel"),
-							Verbose:      verbose,
-						}
-						_, err := crypto.BatchEncrypt(opts)
-						return err
-					}
-
-					if hasSingleFileOverride {
-						filePair := cfg.GetPrimaryFilePair()
-						if c.IsSet("input") {
-							filePair.PlaintextPath = c.String("input")
-						}
-						if c.IsSet("output") {
-							filePair.EncryptedPath = c.String("output")
-						}
-						formatOverride, err := resolveFormatOverride(cliFormat, filePair)
-						if err != nil {
-							return err
-						}
-						return crypto.Encrypt(filePair.PlaintextPath, filePair.EncryptedPath, keyFile, publicKey, formatOverride, verbose)
-					}
-
-					if cliFormat != "" {
-						return fmt.Errorf("--format is only supported in single-file mode")
-					}
-
-					filePairs := cfg.GetFiles()
-					if err := project.UpdateGitignore(filePairs); err != nil {
-						return err
-					}
-
-					resolvedPublicKey, err := crypto.GetPublicKey(publicKey, keyFile, verbose)
-					if err != nil {
-						return err
-					}
-					if err := project.SyncSopsYaml(filePairs, resolvedPublicKey); err != nil {
-						return err
-					}
-
-					opts := crypto.BatchOptions{
-						FilePairs: filePairs,
-						KeyFile:   keyFile,
-						PublicKey: resolvedPublicKey,
-						Parallel:  c.Int("parallel"),
-						Verbose:   verbose,
-					}
-					_, err = crypto.BatchEncrypt(opts)
-					return err
+					return yewsapp.EncryptFiles(cfg, yewsapp.EncryptRequest{
+						KeyFile:               cfg.GetKeyFile(c.String("key-file")),
+						PublicKey:             c.String("public-key"),
+						Verbose:               c.Bool("verbose"),
+						Input:                 c.String("input"),
+						InputSet:              c.IsSet("input"),
+						Output:                c.String("output"),
+						OutputSet:             c.IsSet("output"),
+						Format:                c.String("format"),
+						Dir:                   c.String("dir"),
+						Pattern:               c.String("pattern"),
+						OutputDir:             c.String("output-dir"),
+						OutputSuffix:          c.String("output-suffix"),
+						Parallel:              c.Int("parallel"),
+						UpdateProjectMetadata: true,
+					})
 				},
 			},
 			{
@@ -300,7 +183,7 @@ func main() {
 					},
 					&cli.StringFlag{
 						Name:  "format",
-						Usage: "Format override for single-file mode (toml/yaml/json/env/ini)",
+						Usage: "Format override for single-file mode (toml/yaml/json/env/ini/binary)",
 					},
 					&cli.StringFlag{
 						Name:  "dir",
@@ -327,70 +210,33 @@ func main() {
 						Usage:   "Number of parallel workers for batch mode",
 					},
 					&cli.BoolFlag{
+						Name:    "force",
+						Aliases: []string{"f"},
+						Usage:   "Force overwrite existing plaintext file when it differs from decrypted content",
+					},
+					&cli.BoolFlag{
 						Name:    "verbose",
 						Aliases: []string{"v"},
 						Usage:   "Enable verbose output",
 					},
 				},
 				Action: func(c *cli.Context) error {
-					keyFile := cfg.GetKeyFile(c.String("key-file"))
-					verbose := c.Bool("verbose")
-					hasSingleFileOverride := c.IsSet("input") || c.IsSet("output")
-					cliFormat, err := validateCLIFormatOverride(c.String("format"))
-					if err != nil {
-						return err
-					}
-
-					// 目录扫描批量模式
-					if c.String("dir") != "" {
-						if cliFormat != "" {
-							return fmt.Errorf("--format is only supported in single-file mode")
-						}
-						opts := crypto.BatchOptions{
-							InputDir:     c.String("dir"),
-							Pattern:      c.String("pattern"),
-							OutputDir:    c.String("output-dir"),
-							OutputSuffix: c.String("output-suffix"),
-							KeyFile:      keyFile,
-							Parallel:     c.Int("parallel"),
-							Verbose:      verbose,
-						}
-						_, err := crypto.BatchDecrypt(opts)
-						return err
-					}
-
-					if hasSingleFileOverride {
-						filePair := cfg.GetPrimaryFilePair()
-						if c.IsSet("input") {
-							filePair.EncryptedPath = c.String("input")
-						}
-						if c.IsSet("output") {
-							filePair.PlaintextPath = c.String("output")
-						}
-						formatOverride, err := resolveFormatOverride(cliFormat, filePair)
-						if err != nil {
-							return err
-						}
-						return crypto.Decrypt(filePair.EncryptedPath, filePair.PlaintextPath, keyFile, formatOverride, verbose)
-					}
-
-					if cliFormat != "" {
-						return fmt.Errorf("--format is only supported in single-file mode")
-					}
-
-					filePairs := cfg.GetFiles()
-					if err := project.UpdateGitignore(filePairs); err != nil {
-						return err
-					}
-
-					opts := crypto.BatchOptions{
-						FilePairs: filePairs,
-						KeyFile:   keyFile,
-						Parallel:  c.Int("parallel"),
-						Verbose:   verbose,
-					}
-					_, err = crypto.BatchDecrypt(opts)
-					return err
+					return yewsapp.DecryptFiles(cfg, yewsapp.DecryptRequest{
+						KeyFile:               cfg.GetKeyFile(c.String("key-file")),
+						Verbose:               c.Bool("verbose"),
+						Input:                 c.String("input"),
+						InputSet:              c.IsSet("input"),
+						Output:                c.String("output"),
+						OutputSet:             c.IsSet("output"),
+						Format:                c.String("format"),
+						Dir:                   c.String("dir"),
+						Pattern:               c.String("pattern"),
+						OutputDir:             c.String("output-dir"),
+						OutputSuffix:          c.String("output-suffix"),
+						Parallel:              c.Int("parallel"),
+						Force:                 c.Bool("force"),
+						UpdateProjectMetadata: true,
+					})
 				},
 			},
 			{
@@ -411,7 +257,86 @@ func main() {
 				},
 				Action: func(c *cli.Context) error {
 					keyFile := c.String("key-file")
-					return crypto.Edit(c.String("file"), c.String("editor"), keyFile)
+					return seal.Edit(seal.EditOptions{
+						File:    c.String("file"),
+						Editor:  c.String("editor"),
+						KeyFile: keyFile,
+					})
+				},
+			},
+			{
+				Name:      "view",
+				Usage:     "Print decrypted plaintext to standard output without writing files",
+				UsageText: `yews view [command options] <target>`,
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:  "format",
+						Usage: "Format override for the selected target (toml/yaml/json/env/ini/binary)",
+					},
+					&cli.BoolFlag{
+						Name:    "verbose",
+						Aliases: []string{"v"},
+						Usage:   "Enable verbose output",
+					},
+				},
+				Action: func(c *cli.Context) error {
+					if c.Args().Len() != 1 {
+						return cli.Exit("view requires exactly one target", 2)
+					}
+
+					keyFile := cfg.GetKeyFile(c.String("key-file"))
+					verbose := c.Bool("verbose")
+					cliFormat, err := yewsapp.ValidateCLIFormatOverride(c.String("format"))
+					if err != nil {
+						return cli.Exit(err, 2)
+					}
+
+					if err := yewsapp.WriteViewedTarget(os.Stdout, cfg, c.Args().First(), keyFile, cliFormat, verbose); err != nil {
+						return cli.Exit(err, 2)
+					}
+					return nil
+				},
+			},
+			{
+				Name:      "diff",
+				Usage:     "Compare plaintext file with decrypted encrypted file",
+				UsageText: `yews diff [target]`,
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:  "format",
+						Usage: "Format override for the selected target (toml/yaml/json/env/ini/binary)",
+					},
+					&cli.StringFlag{
+						Name:  "color",
+						Value: "auto",
+						Usage: "Colorize diff output (auto/always/never)",
+					},
+					&cli.BoolFlag{
+						Name:    "verbose",
+						Aliases: []string{"v"},
+						Usage:   "Enable verbose output",
+					},
+				},
+				Action: func(c *cli.Context) error {
+					if c.Args().Len() > 1 {
+						return cli.Exit("diff accepts at most one target", 2)
+					}
+
+					keyFile := cfg.GetKeyFile(c.String("key-file"))
+					verbose := c.Bool("verbose")
+					cliFormat, err := yewsapp.ValidateCLIFormatOverride(c.String("format"))
+					if err != nil {
+						return cli.Exit(err, 2)
+					}
+
+					result, err := yewsapp.DiffPlaintextAgainstEncryptedTargets(os.Stdout, cfg, c.Args().First(), keyFile, cliFormat, verbose, c.String("color"))
+					if err != nil {
+						return cli.Exit(err, 2)
+					}
+					if result.Different {
+						return cli.Exit("", 1)
+					}
+					return nil
 				},
 			},
 			{
@@ -488,12 +413,12 @@ func main() {
 				},
 				Action: func(c *cli.Context) error {
 					return sync.SyncKey(
-						resolveSyncProvider(c, cfg),
-						resolveSyncKeyFile(c, cfg),
-						resolveSyncSecretName(c, cfg),
-						resolveSyncProjectID(c, cfg),
-						resolveSyncPath(c, cfg),
-						resolveSyncEnvironment(c, cfg),
+						yewsapp.ResolveSyncProvider(c, cfg),
+						yewsapp.ResolveSyncKeyFile(c, cfg),
+						yewsapp.ResolveSyncSecretName(c, cfg),
+						yewsapp.ResolveSyncProjectID(c, cfg),
+						yewsapp.ResolveSyncPath(c, cfg),
+						yewsapp.ResolveSyncEnvironment(c, cfg),
 					)
 				},
 				Subcommands: []*cli.Command{
@@ -535,12 +460,12 @@ func main() {
 						},
 						Action: func(c *cli.Context) error {
 							return sync.PullKey(
-								resolveSyncProvider(c, cfg),
-								resolveSyncKeyFile(c, cfg),
-								resolveSyncSecretName(c, cfg),
-								resolveSyncProjectID(c, cfg),
-								resolveSyncPath(c, cfg),
-								resolveSyncEnvironment(c, cfg),
+								yewsapp.ResolveSyncProvider(c, cfg),
+								yewsapp.ResolveSyncKeyFile(c, cfg),
+								yewsapp.ResolveSyncSecretName(c, cfg),
+								yewsapp.ResolveSyncProjectID(c, cfg),
+								yewsapp.ResolveSyncPath(c, cfg),
+								yewsapp.ResolveSyncEnvironment(c, cfg),
 							)
 						},
 					},
@@ -558,6 +483,13 @@ func main() {
 	}
 
 	if err := app.Run(os.Args); err != nil {
+		var exitCoder cli.ExitCoder
+		if errors.As(err, &exitCoder) {
+			if strings.TrimSpace(err.Error()) != "" {
+				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			}
+			os.Exit(exitCoder.ExitCode())
+		}
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}

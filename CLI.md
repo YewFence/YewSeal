@@ -37,7 +37,7 @@ Initialize project with Age keys and YewSeal config entries
 
 **--force, -f**: Force overwrite existing configuration
 
-**--format**="": Format override for the first config entry (toml/yaml/json/env/ini)
+**--format**="": Format override for the first config entry (toml/yaml/json/env/ini/binary)
 
 **--input, -i**="": Plaintext file for the first config entry (non-interactive mode)
 
@@ -53,7 +53,7 @@ Encrypt configuration file (supports .toml, .yaml, .yml, .json, .env, .ini)
 
 **--dir**="": Directory to scan for files (enables batch mode)
 
-**--format**="": Format override for single-file mode (toml/yaml/json/env/ini)
+**--format**="": Format override for single-file mode (toml/yaml/json/env/ini/binary)
 
 **--input, -i**="": Input file to encrypt (single file mode) (default: "wrangler.toml")
 
@@ -79,7 +79,9 @@ Decrypt encrypted file (output format determined by extension)
 
 **--dir**="": Directory to scan for encrypted files (enables batch mode)
 
-**--format**="": Format override for single-file mode (toml/yaml/json/env/ini)
+**--force, -f**: Force overwrite existing plaintext file when it differs from decrypted content
+
+**--format**="": Format override for single-file mode (toml/yaml/json/env/ini/binary)
 
 **--input, -i**="": Input encrypted file (single file mode) (default: "wrangler.enc.toml.yaml")
 
@@ -102,6 +104,28 @@ Edit encrypted configuration file using SOPS
 **--editor, -e**="": Editor command to use (e.g., 'code -w', 'vim')
 
 **--file, -f**="": Encrypted file to edit (default: "wrangler.enc.toml.yaml")
+
+## view
+
+Print decrypted plaintext to standard output without writing files
+
+>yews view [command options] <target>
+
+**--format**="": Format override for the selected target (toml/yaml/json/env/ini/binary)
+
+**--verbose, -v**: Enable verbose output
+
+## diff
+
+Compare plaintext file with decrypted encrypted file
+
+>yews diff [target]
+
+**--color**="": Colorize diff output (auto/always/never) (default: "auto")
+
+**--format**="": Format override for the selected target (toml/yaml/json/env/ini/binary)
+
+**--verbose, -v**: Enable verbose output
 
 ## check, doctor
 

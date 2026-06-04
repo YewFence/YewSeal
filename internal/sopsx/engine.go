@@ -1,4 +1,4 @@
-package crypto
+package sopsx
 
 import (
 	"crypto/rand"
@@ -8,6 +8,7 @@ import (
 	sops "github.com/getsops/sops/v3"
 	"github.com/getsops/sops/v3/aes"
 	sopsage "github.com/getsops/sops/v3/age"
+	sopsconfig "github.com/getsops/sops/v3/config"
 	"github.com/getsops/sops/v3/stores/dotenv"
 	"github.com/getsops/sops/v3/stores/ini"
 	"github.com/getsops/sops/v3/stores/json"
@@ -16,8 +17,8 @@ import (
 
 const sopsVersion = "3.12.1"
 
-// storeForFormat returns the appropriate sops store for the given format string
-func storeForFormat(format string) sops.Store {
+// StoreForFormat returns the appropriate sops store for the given format string.
+func StoreForFormat(format string) sops.Store {
 	switch format {
 	case "yaml":
 		return &yaml.Store{}
@@ -27,16 +28,18 @@ func storeForFormat(format string) sops.Store {
 		return &dotenv.Store{}
 	case "ini":
 		return &ini.Store{}
+	case "binary":
+		return json.NewBinaryStore(&sopsconfig.JSONBinaryStoreConfig{})
 	default:
 		return &yaml.Store{}
 	}
 }
 
 // sopsEncryptData encrypts plain data using the sops library.
-// format: "yaml", "json", "dotenv", "ini"
+// format: "yaml", "json", "dotenv", "ini", "binary"
 // agePublicKey: age recipient public key string (age1...)
-func sopsEncryptData(plainData []byte, format string, agePublicKey string) ([]byte, error) {
-	store := storeForFormat(format)
+func Encrypt(plainData []byte, format string, agePublicKey string) ([]byte, error) {
+	store := StoreForFormat(format)
 
 	// Load plain data into tree branches
 	branches, err := store.LoadPlainFile(plainData)
@@ -91,10 +94,10 @@ func sopsEncryptData(plainData []byte, format string, agePublicKey string) ([]by
 }
 
 // sopsDecryptData decrypts encrypted data using the sops library.
-// format: "yaml", "json", "dotenv", "ini"
+// format: "yaml", "json", "dotenv", "ini", "binary"
 // agePrivateKey: age identity private key string (AGE-SECRET-KEY-...)
-func sopsDecryptData(encData []byte, format string, agePrivateKey string) ([]byte, error) {
-	store := storeForFormat(format)
+func Decrypt(encData []byte, format string, agePrivateKey string) ([]byte, error) {
+	store := StoreForFormat(format)
 
 	// Load encrypted file into tree
 	tree, err := store.LoadEncryptedFile(encData)
@@ -155,7 +158,7 @@ func decryptTreeDataKey(tree *sops.Tree, identities sopsage.ParsedIdentities) ([
 
 // extractAgeRecipientFromTree extracts the age public key from encrypted file metadata.
 // Used by Edit to re-encrypt with the same key after editing.
-func extractAgeRecipientFromTree(tree sops.Tree) (string, error) {
+func ExtractAgeRecipientFromTree(tree sops.Tree) (string, error) {
 	for _, group := range tree.Metadata.KeyGroups {
 		for _, key := range group {
 			ageMK, ok := key.(*sopsage.MasterKey)

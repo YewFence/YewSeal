@@ -88,10 +88,13 @@ func TestGetPublicKey(t *testing.T) {
 
 func TestLoadConfig_NoFile(t *testing.T) {
 	tmpDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
+	oldWd, err := os.Getwd()
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, os.Chdir(oldWd))
+	}()
 
-	err := os.Chdir(tmpDir)
+	err = os.Chdir(tmpDir)
 	require.NoError(t, err)
 
 	cfg, err := LoadConfig()
@@ -105,8 +108,11 @@ func TestLoadConfig_NoFile(t *testing.T) {
 
 func TestLoadConfig_WithFile(t *testing.T) {
 	tmpDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
+	oldWd, err := os.Getwd()
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, os.Chdir(oldWd))
+	}()
 
 	configContent := `[encryption]
 
@@ -130,7 +136,7 @@ secret_name = "CUSTOM_AGE_KEY"
 path = "/apps/yewseal"
 environment = "prod"
 `
-	err := os.WriteFile(filepath.Join(tmpDir, ".yewseal.toml"), []byte(configContent), 0644)
+	err = os.WriteFile(filepath.Join(tmpDir, ".yewseal.toml"), []byte(configContent), 0644)
 	require.NoError(t, err)
 
 	err = os.Chdir(tmpDir)
@@ -186,11 +192,14 @@ func TestGetSyncConfig(t *testing.T) {
 
 func TestLoadConfig_InvalidToml(t *testing.T) {
 	tmpDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
+	oldWd, err := os.Getwd()
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, os.Chdir(oldWd))
+	}()
 
 	invalidContent := `this is not valid toml [[[`
-	err := os.WriteFile(filepath.Join(tmpDir, ".yewseal.toml"), []byte(invalidContent), 0644)
+	err = os.WriteFile(filepath.Join(tmpDir, ".yewseal.toml"), []byte(invalidContent), 0644)
 	require.NoError(t, err)
 
 	err = os.Chdir(tmpDir)
@@ -203,11 +212,14 @@ func TestLoadConfig_InvalidToml(t *testing.T) {
 
 func TestLoadConfig_MultipleLocations(t *testing.T) {
 	tmpDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
+	oldWd, err := os.Getwd()
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, os.Chdir(oldWd))
+	}()
 
 	yewsealDir := filepath.Join(tmpDir, ".yewseal")
-	err := os.MkdirAll(yewsealDir, 0755)
+	err = os.MkdirAll(yewsealDir, 0755)
 	require.NoError(t, err)
 
 	highPriorityConfig := `[encryption]

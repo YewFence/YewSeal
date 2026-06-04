@@ -233,7 +233,7 @@ func resolveInitFormatOverride(plaintextFile, providedFormat string, interactive
 		return normalizedFormat, nil
 	}
 	if strings.TrimSpace(providedFormat) != "" {
-		return "", fmt.Errorf("unsupported format override %q (supported: toml, yaml, json, env, ini)", providedFormat)
+		return "", fmt.Errorf("unsupported format override %q (supported: toml, yaml, json, env, ini, binary)", providedFormat)
 	}
 
 	if detectInitFormat(plaintextFile) != "" {
@@ -241,7 +241,7 @@ func resolveInitFormatOverride(plaintextFile, providedFormat string, interactive
 	}
 
 	if !interactive {
-		return "", fmt.Errorf("could not detect format for %s, please pass --format (toml, yaml, json, env, ini)", plaintextFile)
+		return "", fmt.Errorf("could not detect format for %s, please pass --format (toml, yaml, json, env, ini, binary). Hint: pass --format binary if this should be encrypted as a binary file", plaintextFile)
 	}
 
 	return promptInitFormatOverride(plaintextFile), nil
@@ -249,7 +249,7 @@ func resolveInitFormatOverride(plaintextFile, providedFormat string, interactive
 
 func promptInitFormatOverride(plaintextFile string) string {
 	fmt.Printf("ℹ️  Could not detect format from %s.\n", plaintextFile)
-	fmt.Println("ℹ️  Supported overrides: toml, yaml, json, env, ini")
+	fmt.Println("ℹ️  Supported overrides: toml, yaml, json, env, ini, binary")
 
 	for {
 		input := tools.PromptOptional("Enter format override (optional)")
@@ -261,7 +261,7 @@ func promptInitFormatOverride(plaintextFile string) string {
 			return normalizedFormat
 		}
 
-		fmt.Println("⚠️  Unsupported format. Use one of: toml, yaml, json, env, ini")
+		fmt.Println("⚠️  Unsupported format. Use one of: toml, yaml, json, env, ini, binary")
 	}
 }
 
@@ -277,6 +277,8 @@ func detectInitFormat(filename string) string {
 		return "env"
 	case ".ini":
 		return "ini"
+	case ".bin", ".binary":
+		return "binary"
 	default:
 		return ""
 	}
@@ -294,6 +296,8 @@ func normalizeInitFormat(format string) (string, bool) {
 		return "env", true
 	case "ini":
 		return "ini", true
+	case "binary", "bin":
+		return "binary", true
 	default:
 		return "", false
 	}
@@ -338,7 +342,9 @@ func setupAgeKey(force bool) (string, error) {
 	// Generate new key (either no key exists or force mode)
 	if force && keyExists {
 		fmt.Println("🔑 Force mode: Regenerating Age key pair...")
-		os.Remove(keyFilePath)
+		if err := os.Remove(keyFilePath); err != nil {
+			return "", fmt.Errorf("failed to remove existing key file: %w", err)
+		}
 	} else {
 		fmt.Println("🔑 Generating Age key pair...")
 	}

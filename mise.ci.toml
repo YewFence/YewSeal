@@ -1,0 +1,6 @@
+[tools]
+"go:golang.org/x/vuln/cmd/govulncheck" = "1"
+
+[tasks.audit]
+description = "Run CI vulnerability audit"
+run = "govulncheck ./..."

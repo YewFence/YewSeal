@@ -33,7 +33,7 @@ type FilePair struct {
 	PlaintextPath string `toml:"plaintext"`
 	// EncryptedPath is the encrypted file path used by encrypt output and decrypt input.
 	EncryptedPath string `toml:"encrypted"`
-	// Format overrides the file format detection (toml/yaml/json/env/ini).
+	// Format overrides the file format detection (toml/yaml/json/env/ini/binary).
 	// Useful for files with non-standard extensions like .dev.vars.
 	Format string `toml:"format,omitempty"`
 }
