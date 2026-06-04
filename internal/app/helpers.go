@@ -7,10 +7,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/YewFence/YewSeal/internal/batch"
 	"github.com/YewFence/YewSeal/internal/config"
 	"github.com/YewFence/YewSeal/internal/fileformat"
 	"github.com/YewFence/YewSeal/internal/seal"
+	"github.com/YewFence/YewSeal/internal/task"
 	"github.com/urfave/cli/v2"
 )
 
@@ -77,10 +77,10 @@ func ResolvePlaintextTarget(cfg *config.Config, target, cliFormat, output string
 	}, nil
 }
 
-func configFilePairsToBatch(filePairs []config.FilePair) []batch.FilePair {
-	pairs := make([]batch.FilePair, 0, len(filePairs))
+func configFilePairsToTasks(filePairs []config.FilePair) []task.FilePair {
+	pairs := make([]task.FilePair, 0, len(filePairs))
 	for _, filePair := range filePairs {
-		pairs = append(pairs, batch.FilePair{
+		pairs = append(pairs, task.FilePair{
 			PlaintextPath: filePair.PlaintextPath,
 			EncryptedPath: filePair.EncryptedPath,
 			Format:        filePair.Format,
@@ -96,7 +96,7 @@ type scanRequestOptions struct {
 	UnknownAsBinarySet bool
 }
 
-func scanBatchOptionsFromRequest(
+func scanTaskOptionsFromRequest(
 	cfg *config.Config,
 	root,
 	mode,
@@ -106,7 +106,7 @@ func scanBatchOptionsFromRequest(
 	verbose,
 	force bool,
 	req scanRequestOptions,
-) batch.Options {
+) task.Options {
 	scan := cfg.GetScan()
 	patterns := scan.Patterns
 	if len(req.Patterns) > 0 {
@@ -119,7 +119,7 @@ func scanBatchOptionsFromRequest(
 		unknownAsBinary = req.UnknownAsBinary
 	}
 
-	return batch.Options{
+	return task.Options{
 		InputDir:        root,
 		Patterns:        patterns,
 		FormatRules:     formatRules,
@@ -132,9 +132,9 @@ func scanBatchOptionsFromRequest(
 	}
 }
 
-func scanFilePairsFromRequest(cfg *config.Config, root, mode string, req scanRequestOptions) ([]batch.FilePair, error) {
-	opts := scanBatchOptionsFromRequest(cfg, root, mode, "", "", 1, false, false, req)
-	return batch.BuildScanFilePairs(batch.ScanOptions{
+func scanFilePairsFromRequest(cfg *config.Config, root, mode string, req scanRequestOptions) ([]task.FilePair, error) {
+	opts := scanTaskOptionsFromRequest(cfg, root, mode, "", "", 1, false, false, req)
+	return task.BuildScanFilePairs(task.ScanOptions{
 		Root:            opts.InputDir,
 		Patterns:        opts.Patterns,
 		FormatRules:     opts.FormatRules,
@@ -143,12 +143,12 @@ func scanFilePairsFromRequest(cfg *config.Config, root, mode string, req scanReq
 	})
 }
 
-func configScanPairs(cfg *config.Config, mode string, req scanRequestOptions) ([]batch.FilePair, error) {
-	opts := scanBatchOptionsFromRequest(cfg, ".", mode, "", "", 1, false, false, req)
+func configScanPairs(cfg *config.Config, mode string, req scanRequestOptions) ([]task.FilePair, error) {
+	opts := scanTaskOptionsFromRequest(cfg, ".", mode, "", "", 1, false, false, req)
 	if len(opts.Patterns) == 0 && len(opts.FormatRules) == 0 && !opts.UnknownAsBinary {
 		return nil, nil
 	}
-	return batch.BuildProjectScanFilePairs(batch.ScanOptions{
+	return task.BuildProjectScanFilePairs(task.ScanOptions{
 		Root:            opts.InputDir,
 		Patterns:        opts.Patterns,
 		FormatRules:     opts.FormatRules,

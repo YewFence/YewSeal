@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/YewFence/YewSeal/internal/batch"
 	"github.com/YewFence/YewSeal/internal/config"
 	"github.com/YewFence/YewSeal/internal/project"
+	"github.com/YewFence/YewSeal/internal/task"
 )
 
 type DecryptRequest struct {
@@ -43,7 +43,7 @@ func DecryptFiles(cfg *config.Config, req DecryptRequest) error {
 			if req.OutputSet {
 				return fmt.Errorf("--output is only supported when the path target is a file")
 			}
-			filePairs, err := scanFilePairsFromRequest(cfg, req.Target, batch.ModeDecrypt, scanRequestOptions{
+			filePairs, err := scanFilePairsFromRequest(cfg, req.Target, task.ModeDecrypt, scanRequestOptions{
 				Patterns:           req.Patterns,
 				FormatRules:        req.FormatRules,
 				UnknownAsBinary:    req.UnknownAsBinary,
@@ -52,22 +52,22 @@ func DecryptFiles(cfg *config.Config, req DecryptRequest) error {
 			if err != nil {
 				return err
 			}
-			opts := batch.Options{
+			opts := task.Options{
 				FilePairs: filePairs,
 				KeyFile:   req.KeyFile,
 				Parallel:  req.Parallel,
 				Verbose:   req.Verbose,
 				Force:     req.Force,
 			}
-			_, err = batch.Decrypt(opts)
+			_, err = task.Decrypt(opts)
 			return err
 		}
 		target, err := ResolveEncryptedTargetWithOverrides(cfg, req.Target, "decrypt", cliFormat, req.Output)
 		if err != nil {
 			return err
 		}
-		_, err = batch.Decrypt(batch.Options{
-			FilePairs: []batch.FilePair{{
+		_, err = task.Decrypt(task.Options{
+			FilePairs: []task.FilePair{{
 				PlaintextPath: target.PlaintextPath,
 				EncryptedPath: target.EncryptedPath,
 				Format:        target.FormatOverride,
@@ -95,7 +95,7 @@ func DecryptFiles(cfg *config.Config, req DecryptRequest) error {
 		}
 	}
 
-	scanPairs, err := configScanPairs(cfg, batch.ModeDecrypt, scanRequestOptions{
+	scanPairs, err := configScanPairs(cfg, task.ModeDecrypt, scanRequestOptions{
 		Patterns:           req.Patterns,
 		FormatRules:        req.FormatRules,
 		UnknownAsBinary:    req.UnknownAsBinary,
@@ -104,13 +104,13 @@ func DecryptFiles(cfg *config.Config, req DecryptRequest) error {
 	if err != nil {
 		return err
 	}
-	opts := batch.Options{
-		FilePairs: append(configFilePairsToBatch(filePairs), scanPairs...),
+	opts := task.Options{
+		FilePairs: append(configFilePairsToTasks(filePairs), scanPairs...),
 		KeyFile:   req.KeyFile,
 		Parallel:  req.Parallel,
 		Verbose:   req.Verbose,
 		Force:     req.Force,
 	}
-	_, err = batch.Decrypt(opts)
+	_, err = task.Decrypt(opts)
 	return err
 }

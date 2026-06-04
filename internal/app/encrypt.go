@@ -5,9 +5,9 @@ import (
 	"os"
 
 	"github.com/YewFence/YewSeal/internal/agekey"
-	"github.com/YewFence/YewSeal/internal/batch"
 	"github.com/YewFence/YewSeal/internal/config"
 	"github.com/YewFence/YewSeal/internal/project"
+	"github.com/YewFence/YewSeal/internal/task"
 )
 
 type EncryptRequest struct {
@@ -44,7 +44,7 @@ func EncryptFiles(cfg *config.Config, req EncryptRequest) error {
 			if req.OutputSet {
 				return fmt.Errorf("--output is only supported when the path target is a file")
 			}
-			filePairs, err := scanFilePairsFromRequest(cfg, req.Target, batch.ModeEncrypt, scanRequestOptions{
+			filePairs, err := scanFilePairsFromRequest(cfg, req.Target, task.ModeEncrypt, scanRequestOptions{
 				Patterns:           req.Patterns,
 				FormatRules:        req.FormatRules,
 				UnknownAsBinary:    req.UnknownAsBinary,
@@ -53,22 +53,22 @@ func EncryptFiles(cfg *config.Config, req EncryptRequest) error {
 			if err != nil {
 				return err
 			}
-			opts := batch.Options{
+			opts := task.Options{
 				FilePairs: filePairs,
 				KeyFile:   req.KeyFile,
 				PublicKey: req.PublicKey,
 				Parallel:  req.Parallel,
 				Verbose:   req.Verbose,
 			}
-			_, err = batch.Encrypt(opts)
+			_, err = task.Encrypt(opts)
 			return err
 		}
 		filePair, err := ResolvePlaintextTarget(cfg, req.Target, cliFormat, req.Output)
 		if err != nil {
 			return err
 		}
-		_, err = batch.Encrypt(batch.Options{
-			FilePairs: configFilePairsToBatch([]config.FilePair{filePair}),
+		_, err = task.Encrypt(task.Options{
+			FilePairs: configFilePairsToTasks([]config.FilePair{filePair}),
 			KeyFile:   req.KeyFile,
 			PublicKey: req.PublicKey,
 			Parallel:  req.Parallel,
@@ -102,7 +102,7 @@ func EncryptFiles(cfg *config.Config, req EncryptRequest) error {
 		}
 	}
 
-	scanPairs, err := configScanPairs(cfg, batch.ModeEncrypt, scanRequestOptions{
+	scanPairs, err := configScanPairs(cfg, task.ModeEncrypt, scanRequestOptions{
 		Patterns:           req.Patterns,
 		FormatRules:        req.FormatRules,
 		UnknownAsBinary:    req.UnknownAsBinary,
@@ -111,13 +111,13 @@ func EncryptFiles(cfg *config.Config, req EncryptRequest) error {
 	if err != nil {
 		return err
 	}
-	opts := batch.Options{
-		FilePairs: append(configFilePairsToBatch(filePairs), scanPairs...),
+	opts := task.Options{
+		FilePairs: append(configFilePairsToTasks(filePairs), scanPairs...),
 		KeyFile:   req.KeyFile,
 		PublicKey: resolvedPublicKey,
 		Parallel:  req.Parallel,
 		Verbose:   req.Verbose,
 	}
-	_, err = batch.Encrypt(opts)
+	_, err = task.Encrypt(opts)
 	return err
 }
