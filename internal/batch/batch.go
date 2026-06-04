@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/YewFence/YewSeal/internal/fileformat"
 	"github.com/YewFence/YewSeal/internal/seal"
 )
 
@@ -160,7 +161,7 @@ func GenerateOutputFilename(inputFile, outputDir, outputSuffix, mode string) str
 			ext := filepath.Ext(base)
 			return filepath.Join(dir, base[:len(base)-len(ext)]+outputSuffix)
 		}
-		path, err := EncryptPathForPlaintext(inputFile, "")
+		path, err := fileformat.EncryptPathForPlaintext(inputFile, "")
 		if err == nil {
 			return path
 		}
@@ -172,7 +173,7 @@ func GenerateOutputFilename(inputFile, outputDir, outputSuffix, mode string) str
 		ext := filepath.Ext(base)
 		return filepath.Join(dir, base[:len(base)-len(ext)]+outputSuffix)
 	}
-	path, _, err := PlaintextPathForEncrypted(inputFile, "")
+	path, _, err := fileformat.PlaintextPathForEncrypted(inputFile, "")
 	if err == nil {
 		return path
 	}

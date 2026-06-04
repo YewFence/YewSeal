@@ -6,6 +6,7 @@ import (
 
 	"github.com/YewFence/YewSeal/internal/batch"
 	"github.com/YewFence/YewSeal/internal/config"
+	"github.com/YewFence/YewSeal/internal/fileformat"
 	"github.com/YewFence/YewSeal/internal/project"
 	"github.com/YewFence/YewSeal/internal/seal"
 )
@@ -52,15 +53,28 @@ func DecryptFiles(cfg *config.Config, req DecryptRequest) error {
 			_, err := batch.Decrypt(opts)
 			return err
 		}
-		output, pathFormat, err := batch.PlaintextPathForEncrypted(req.Target, cliFormat)
-		if err != nil {
-			return err
+		target := ResolvedEncryptedTarget{
+			EncryptedPath: req.Target,
+		}
+		if cliFormat != "" {
+			output, pathFormat, err := fileformat.PlaintextPathForEncrypted(req.Target, cliFormat)
+			if err != nil {
+				return err
+			}
+			target.PlaintextPath = output
+			target.FormatOverride = pathFormat
+		} else {
+			resolved, err := ResolveEncryptedTarget(cfg, req.Target, "decrypt")
+			if err != nil {
+				return err
+			}
+			target = resolved
 		}
 		return seal.Decrypt(seal.DecryptOptions{
-			InputFile:      req.Target,
-			OutputFile:     output,
+			InputFile:      target.EncryptedPath,
+			OutputFile:     target.PlaintextPath,
 			KeyFile:        req.KeyFile,
-			FormatOverride: pathFormat,
+			FormatOverride: target.FormatOverride,
 			Verbose:        req.Verbose,
 			Force:          req.Force,
 		})

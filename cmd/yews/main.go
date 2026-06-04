@@ -253,6 +253,7 @@ func main() {
 				Action: func(c *cli.Context) error {
 					keyFile := c.String("key-file")
 					return yewsapp.EditEncryptedFile(yewsapp.EditRequest{
+						Config:  cfg,
 						File:    c.String("file"),
 						Editor:  c.String("editor"),
 						KeyFile: keyFile,

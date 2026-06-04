@@ -8,6 +8,7 @@ import (
 
 	"github.com/YewFence/YewSeal/internal/batch"
 	"github.com/YewFence/YewSeal/internal/config"
+	"github.com/YewFence/YewSeal/internal/fileformat"
 	"github.com/YewFence/YewSeal/internal/seal"
 	"github.com/urfave/cli/v2"
 )
@@ -135,6 +136,63 @@ func ResolveSingleTargetFilePair(cfg *config.Config, target, commandName string)
 		return config.FilePair{}, fmt.Errorf("%s requires exactly one target", commandName)
 	}
 	return filePairs[0], nil
+}
+
+type ResolvedEncryptedTarget struct {
+	PlaintextPath  string
+	EncryptedPath  string
+	FormatOverride string
+	Format         string
+}
+
+func ResolveEncryptedTarget(cfg *config.Config, target, commandName string) (ResolvedEncryptedTarget, error) {
+	target = strings.TrimSpace(target)
+	if target == "" {
+		return ResolvedEncryptedTarget{}, fmt.Errorf("%s requires exactly one target", commandName)
+	}
+
+	for _, filePair := range cfg.GetFiles() {
+		if target != filePair.PlaintextPath && target != filePair.EncryptedPath {
+			continue
+		}
+		formatOverride, err := ResolveFormatOverride("", filePair)
+		if err != nil {
+			return ResolvedEncryptedTarget{}, err
+		}
+		format, err := effectiveFormat(filePair.PlaintextPath, formatOverride)
+		if err != nil {
+			return ResolvedEncryptedTarget{}, err
+		}
+		return ResolvedEncryptedTarget{
+			PlaintextPath:  filePair.PlaintextPath,
+			EncryptedPath:  filePair.EncryptedPath,
+			FormatOverride: formatOverride,
+			Format:         format,
+		}, nil
+	}
+
+	plaintextPath, format, err := fileformat.PlaintextPathForEncrypted(target, "")
+	if err != nil {
+		return ResolvedEncryptedTarget{}, err
+	}
+
+	return ResolvedEncryptedTarget{
+		PlaintextPath:  plaintextPath,
+		EncryptedPath:  target,
+		FormatOverride: format,
+		Format:         format,
+	}, nil
+}
+
+func effectiveFormat(path, formatOverride string) (string, error) {
+	if formatOverride != "" {
+		return formatOverride, nil
+	}
+	format, ok := seal.NormalizeFormatForPath(path)
+	if !ok {
+		return "", fmt.Errorf("could not detect format for %s (supported: toml, yaml, json, env, ini, binary)", path)
+	}
+	return format, nil
 }
 
 func WriteViewedTarget(w io.Writer, cfg *config.Config, target, keyFile, cliFormat string, verbose bool) error {

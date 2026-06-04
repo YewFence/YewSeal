@@ -7,6 +7,7 @@ import (
 	"github.com/YewFence/YewSeal/internal/agekey"
 	"github.com/YewFence/YewSeal/internal/batch"
 	"github.com/YewFence/YewSeal/internal/config"
+	"github.com/YewFence/YewSeal/internal/fileformat"
 	"github.com/YewFence/YewSeal/internal/project"
 	"github.com/YewFence/YewSeal/internal/seal"
 )
@@ -53,7 +54,7 @@ func EncryptFiles(cfg *config.Config, req EncryptRequest) error {
 			_, err := batch.Encrypt(opts)
 			return err
 		}
-		output, err := batch.EncryptPathForPlaintext(req.Target, cliFormat)
+		output, err := fileformat.EncryptPathForPlaintext(req.Target, cliFormat)
 		if err != nil {
 			return err
 		}

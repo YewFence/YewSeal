@@ -6,16 +6,16 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"runtime"
-	"strings"
 
+	"github.com/YewFence/YewSeal/internal/config"
 	"github.com/YewFence/YewSeal/internal/errx"
 	"github.com/YewFence/YewSeal/internal/seal"
 	"github.com/google/shlex"
 )
 
 type EditRequest struct {
+	Config   *config.Config
 	File     string
 	Editor   string
 	KeyFile  string
@@ -26,21 +26,24 @@ type EditRequest struct {
 func EditEncryptedFile(req EditRequest) error {
 	out := outputWriter(req.Output)
 
-	if _, err := os.Stat(req.File); os.IsNotExist(err) {
-		return &errx.NotFoundError{What: "file", Path: req.File}
+	cfg := req.Config
+	if cfg == nil {
+		cfg = config.DefaultConfig()
 	}
-
-	editPlaintextPath := plaintextFormatPathForEdit(req.File)
-	formatOverride, err := editFormatOverride(editPlaintextPath)
+	target, err := ResolveEncryptedTarget(cfg, req.File, "edit")
 	if err != nil {
 		return err
 	}
 
+	if _, err := os.Stat(target.EncryptedPath); os.IsNotExist(err) {
+		return &errx.NotFoundError{What: "file", Path: target.EncryptedPath}
+	}
+
 	plainData, err := seal.DecryptToBytes(seal.DecryptBytesOptions{
-		InputFile:      req.File,
-		OutputFile:     editPlaintextPath,
+		InputFile:      target.EncryptedPath,
+		OutputFile:     target.PlaintextPath,
 		KeyFile:        req.KeyFile,
-		FormatOverride: formatOverride,
+		FormatOverride: target.FormatOverride,
 		Output:         req.Output,
 		Warnings:       req.Warnings,
 	})
@@ -48,7 +51,7 @@ func EditEncryptedFile(req EditRequest) error {
 		return err
 	}
 
-	tmpFile, err := os.CreateTemp("", "yews-edit-*."+formatOverride)
+	tmpFile, err := os.CreateTemp("", "yews-edit-*."+target.Format)
 	if err != nil {
 		return fmt.Errorf("failed to create temp file: %w", err)
 	}
@@ -68,7 +71,7 @@ func EditEncryptedFile(req EditRequest) error {
 	originalHash := sha256.Sum256(plainData)
 	editorCmd := resolveEditor(req.Editor)
 
-	_, _ = fmt.Fprintf(out, "✏️  Opening %s in %s...\n", req.File, editorCmd)
+	_, _ = fmt.Fprintf(out, "✏️  Opening %s in %s...\n", target.EncryptedPath, editorCmd)
 
 	parts, err := splitEditorCommand(editorCmd)
 	if err != nil {
@@ -95,14 +98,14 @@ func EditEncryptedFile(req EditRequest) error {
 		return nil
 	}
 
-	publicKey, err := seal.ExtractAgeRecipientFromEncryptedFile(req.File, editPlaintextPath, formatOverride)
+	publicKey, err := seal.ExtractAgeRecipientFromEncryptedFile(target.EncryptedPath, target.PlaintextPath, target.FormatOverride)
 	if err != nil {
 		return err
 	}
 
 	newEncData, err := seal.EncryptToBytes(editedData, seal.EncryptBytesOptions{
-		FormatFile:     editPlaintextPath,
-		FormatOverride: formatOverride,
+		FormatFile:     target.PlaintextPath,
+		FormatOverride: target.FormatOverride,
 		PublicKey:      publicKey,
 		Output:         req.Output,
 		Warnings:       req.Warnings,
@@ -111,49 +114,12 @@ func EditEncryptedFile(req EditRequest) error {
 		return err
 	}
 
-	if err := os.WriteFile(req.File, newEncData, 0644); err != nil {
+	if err := os.WriteFile(target.EncryptedPath, newEncData, 0644); err != nil {
 		return fmt.Errorf("failed to write encrypted file: %w", err)
 	}
 
 	_, _ = fmt.Fprintln(out, "✅ File edited and re-encrypted successfully")
 	return nil
-}
-
-func plaintextFormatPathForEdit(encryptedPath string) string {
-	dir := filepath.Dir(encryptedPath)
-	base := filepath.Base(encryptedPath)
-	lowerBase := strings.ToLower(base)
-	suffixes := []struct {
-		encrypted string
-		plain     string
-	}{
-		{".enc.toml.yaml", ".toml"},
-		{".enc.toml.yml", ".toml"},
-		{".enc.toml", ".toml"},
-		{".enc.yaml", ".yaml"},
-		{".enc.yml", ".yml"},
-		{".enc.json", ".json"},
-		{".enc.env", ".env"},
-		{".enc.ini", ".ini"},
-		{".enc.bin", ".bin"},
-		{".enc.binary", ".binary"},
-	}
-
-	for _, suffix := range suffixes {
-		if strings.HasSuffix(lowerBase, suffix.encrypted) {
-			stem := base[:len(base)-len(suffix.encrypted)]
-			return filepath.Join(dir, stem+suffix.plain)
-		}
-	}
-	return encryptedPath
-}
-
-func editFormatOverride(editPlaintextPath string) (string, error) {
-	format, ok := seal.NormalizeFormatForPath(editPlaintextPath)
-	if !ok {
-		return "", fmt.Errorf("could not detect format for %s (supported: toml, yaml, json, env, ini, binary)", editPlaintextPath)
-	}
-	return format, nil
 }
 
 func resolveEditor(editor string) string {
