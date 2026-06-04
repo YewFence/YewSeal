@@ -24,8 +24,8 @@ type Config struct {
 
 // EncryptionConfig defines encrypted file mappings.
 type EncryptionConfig struct {
-	Files []FilePair `toml:"files"`
-	Scan  ScanConfig `toml:"scan"`
+	Files []FilePair  `toml:"files"`
+	Group GroupConfig `toml:"group"`
 }
 
 // FilePair defines one plaintext/encrypted file mapping.
@@ -39,7 +39,7 @@ type FilePair struct {
 	Format string `toml:"format,omitempty"`
 }
 
-type ScanConfig struct {
+type GroupConfig struct {
 	Patterns        []string `toml:"patterns"`
 	FormatRules     []string `toml:"format_rules"`
 	UnknownAsBinary bool     `toml:"unknown_as_binary"`
@@ -136,9 +136,9 @@ func LoadConfig() (*Config, error) {
 			return nil, fmt.Errorf("invalid encryption.files[%d]: encrypted is required", i)
 		}
 	}
-	for i, rule := range config.Encryption.Scan.FormatRules {
+	for i, rule := range config.Encryption.Group.FormatRules {
 		if strings.TrimSpace(rule) == "" {
-			return nil, fmt.Errorf("invalid encryption.scan.format_rules[%d]: rule is empty", i)
+			return nil, fmt.Errorf("invalid encryption.group.format_rules[%d]: rule is empty", i)
 		}
 	}
 
@@ -223,11 +223,11 @@ func (c *Config) GetFiles() []FilePair {
 	return files
 }
 
-func (c *Config) GetScan() ScanConfig {
-	return ScanConfig{
-		Patterns:        append([]string(nil), c.Encryption.Scan.Patterns...),
-		FormatRules:     append([]string(nil), c.Encryption.Scan.FormatRules...),
-		UnknownAsBinary: c.Encryption.Scan.UnknownAsBinary,
+func (c *Config) GetGroup() GroupConfig {
+	return GroupConfig{
+		Patterns:        append([]string(nil), c.Encryption.Group.Patterns...),
+		FormatRules:     append([]string(nil), c.Encryption.Group.FormatRules...),
+		UnknownAsBinary: c.Encryption.Group.UnknownAsBinary,
 	}
 }
 

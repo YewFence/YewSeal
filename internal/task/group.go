@@ -42,7 +42,7 @@ var defaultDecryptPatterns = []string{
 	"*.enc.bin",
 }
 
-type ScanOptions struct {
+type GroupOptions struct {
 	Root            string
 	Patterns        []string
 	FormatRules     []string
@@ -56,10 +56,10 @@ type FormatRule struct {
 	Matcher PatternMatcher
 }
 
-func BuildScanFilePairs(opts ScanOptions) ([]FilePair, error) {
+func BuildGroupFilePairs(opts GroupOptions) ([]FilePair, error) {
 	mode := strings.TrimSpace(opts.Mode)
 	if mode != ModeEncrypt && mode != ModeDecrypt {
-		return nil, fmt.Errorf("invalid scan mode %q", opts.Mode)
+		return nil, fmt.Errorf("invalid group mode %q", opts.Mode)
 	}
 
 	root := strings.TrimSpace(opts.Root)
@@ -68,7 +68,7 @@ func BuildScanFilePairs(opts ScanOptions) ([]FilePair, error) {
 	}
 	info, err := os.Stat(root)
 	if err != nil {
-		return nil, fmt.Errorf("failed to stat scan path %s: %w", root, err)
+		return nil, fmt.Errorf("failed to stat group path %s: %w", root, err)
 	}
 	if !info.IsDir() {
 		return singleFilePair(root, mode, opts)
@@ -116,7 +116,7 @@ func BuildScanFilePairs(opts ScanOptions) ([]FilePair, error) {
 
 	sort.Strings(files)
 	if len(files) == 0 {
-		return nil, fmt.Errorf("no files found in %s matching scan patterns", root)
+		return nil, fmt.Errorf("no files found in %s matching group patterns", root)
 	}
 
 	pairs := make([]FilePair, 0, len(files))
@@ -125,7 +125,7 @@ func BuildScanFilePairs(opts ScanOptions) ([]FilePair, error) {
 		if err != nil {
 			return nil, err
 		}
-		pair, err := scanFilePair(file, filepath.ToSlash(rel), mode, opts, formatRules)
+		pair, err := groupFilePair(file, filepath.ToSlash(rel), mode, opts, formatRules)
 		if err != nil {
 			return nil, err
 		}
@@ -134,9 +134,9 @@ func BuildScanFilePairs(opts ScanOptions) ([]FilePair, error) {
 	return pairs, nil
 }
 
-func BuildProjectScanFilePairs(opts ScanOptions) ([]FilePair, error) {
+func BuildProjectGroupFilePairs(opts GroupOptions) ([]FilePair, error) {
 	if opts.Mode != ModeDecrypt {
-		return BuildScanFilePairs(opts)
+		return BuildGroupFilePairs(opts)
 	}
 
 	root := strings.TrimSpace(opts.Root)
@@ -145,10 +145,10 @@ func BuildProjectScanFilePairs(opts ScanOptions) ([]FilePair, error) {
 	}
 	info, err := os.Stat(root)
 	if err != nil {
-		return nil, fmt.Errorf("failed to stat scan path %s: %w", root, err)
+		return nil, fmt.Errorf("failed to stat group path %s: %w", root, err)
 	}
 	if !info.IsDir() {
-		return BuildScanFilePairs(opts)
+		return BuildGroupFilePairs(opts)
 	}
 
 	patterns := opts.Patterns
@@ -201,7 +201,7 @@ func BuildProjectScanFilePairs(opts ScanOptions) ([]FilePair, error) {
 		return pairs[i].EncryptedPath < pairs[j].EncryptedPath
 	})
 	if len(pairs) == 0 {
-		return nil, fmt.Errorf("no encrypted files found in %s matching scan patterns", root)
+		return nil, fmt.Errorf("no encrypted files found in %s matching group patterns", root)
 	}
 	return pairs, nil
 }
@@ -246,22 +246,22 @@ func projectDecryptPairForEncrypted(root, encryptedPath string, logicalMatcher P
 	return FilePair{PlaintextPath: stemPlaintext, EncryptedPath: encryptedPath, Format: formatOverride}, true, nil
 }
 
-func singleFilePair(path, mode string, opts ScanOptions) ([]FilePair, error) {
+func singleFilePair(path, mode string, opts GroupOptions) ([]FilePair, error) {
 	formatRules, err := parseFormatRules(opts.FormatRules)
 	if err != nil {
 		return nil, err
 	}
-	pair, err := scanFilePair(path, filepath.ToSlash(path), mode, opts, formatRules)
+	pair, err := groupFilePair(path, filepath.ToSlash(path), mode, opts, formatRules)
 	if err != nil {
 		return nil, err
 	}
 	return []FilePair{pair}, nil
 }
 
-func scanFilePair(path, matchPath, mode string, opts ScanOptions, formatRules []FormatRule) (FilePair, error) {
+func groupFilePair(path, matchPath, mode string, opts GroupOptions, formatRules []FormatRule) (FilePair, error) {
 	switch mode {
 	case ModeEncrypt:
-		formatOverride, err := resolveEncryptScanFormat(path, matchPath, formatRules, opts.UnknownAsBinary)
+		formatOverride, err := resolveEncryptGroupFormat(path, matchPath, formatRules, opts.UnknownAsBinary)
 		if err != nil {
 			return FilePair{}, err
 		}
@@ -278,7 +278,7 @@ func scanFilePair(path, matchPath, mode string, opts ScanOptions, formatRules []
 		}
 		return FilePair{PlaintextPath: plaintextPath, EncryptedPath: path, Format: pathFormat}, nil
 	default:
-		return FilePair{}, fmt.Errorf("invalid scan mode %q", mode)
+		return FilePair{}, fmt.Errorf("invalid group mode %q", mode)
 	}
 }
 
@@ -306,7 +306,7 @@ func parseFormatRules(values []string) ([]FormatRule, error) {
 	return rules, nil
 }
 
-func resolveEncryptScanFormat(path, matchPath string, rules []FormatRule, unknownAsBinary bool) (string, error) {
+func resolveEncryptGroupFormat(path, matchPath string, rules []FormatRule, unknownAsBinary bool) (string, error) {
 	format := resolveFormatRule(matchPath, rules)
 	if format != "" {
 		return format, nil

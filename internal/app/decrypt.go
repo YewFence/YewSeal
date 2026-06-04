@@ -43,7 +43,7 @@ func DecryptFiles(cfg *config.Config, req DecryptRequest) error {
 			if req.OutputSet {
 				return fmt.Errorf("--output is only supported when the path target is a file")
 			}
-			filePairs, err := scanFilePairsFromRequest(cfg, req.Target, task.ModeDecrypt, scanRequestOptions{
+			filePairs, err := groupFilePairsFromRequest(cfg, req.Target, task.ModeDecrypt, groupRequestOptions{
 				Patterns:           req.Patterns,
 				FormatRules:        req.FormatRules,
 				UnknownAsBinary:    req.UnknownAsBinary,
@@ -95,7 +95,7 @@ func DecryptFiles(cfg *config.Config, req DecryptRequest) error {
 		}
 	}
 
-	scanPairs, err := configScanPairs(cfg, task.ModeDecrypt, scanRequestOptions{
+	groupPairs, err := configGroupPairs(cfg, task.ModeDecrypt, groupRequestOptions{
 		Patterns:           req.Patterns,
 		FormatRules:        req.FormatRules,
 		UnknownAsBinary:    req.UnknownAsBinary,
@@ -105,7 +105,7 @@ func DecryptFiles(cfg *config.Config, req DecryptRequest) error {
 		return err
 	}
 	opts := task.Options{
-		FilePairs: append(configFilePairsToTasks(filePairs), scanPairs...),
+		FilePairs: append(configFilePairsToTasks(filePairs), groupPairs...),
 		KeyFile:   req.KeyFile,
 		Parallel:  req.Parallel,
 		Verbose:   req.Verbose,

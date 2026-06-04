@@ -83,7 +83,7 @@ func PlaintextPathForEncrypted(path, formatOverride string) (string, string, err
 			return filepath.Join(dir, name+suffix.plaintextSuffix), suffix.format, nil
 		}
 	}
-	return "", "", fmt.Errorf("encrypted filename %s does not follow the yewseal scan protocol; add a format rule to make the plaintext format unambiguous", path)
+	return "", "", fmt.Errorf("encrypted filename %s does not follow the yewseal group protocol; add a format rule to make the plaintext format unambiguous", path)
 }
 
 func PlaintextStemPathForEncrypted(path string) (string, string, bool) {

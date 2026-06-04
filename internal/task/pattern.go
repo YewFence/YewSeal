@@ -43,7 +43,7 @@ func ParsePatternRules(patterns []string) ([]PatternRule, error) {
 			rule.Negated = true
 			ruleText = strings.TrimSpace(ruleText[1:])
 			if ruleText == "" {
-				return nil, fmt.Errorf("invalid scan pattern %q: missing pattern after negation", raw)
+				return nil, fmt.Errorf("invalid group pattern %q: missing pattern after negation", raw)
 			}
 		}
 		ruleText = filepath.ToSlash(ruleText)
@@ -51,14 +51,14 @@ func ParsePatternRules(patterns []string) ([]PatternRule, error) {
 			rule.DirectoryOnly = true
 			ruleText = strings.TrimRight(ruleText, "/")
 			if ruleText == "" {
-				return nil, fmt.Errorf("invalid scan pattern %q: directory pattern is empty", raw)
+				return nil, fmt.Errorf("invalid group pattern %q: directory pattern is empty", raw)
 			}
 		}
 		if strings.HasPrefix(ruleText, "/") {
 			rule.Anchored = true
 			ruleText = strings.TrimLeft(ruleText, "/")
 			if ruleText == "" {
-				return nil, fmt.Errorf("invalid scan pattern %q: anchored pattern is empty", raw)
+				return nil, fmt.Errorf("invalid group pattern %q: anchored pattern is empty", raw)
 			}
 		}
 
@@ -66,7 +66,7 @@ func ParsePatternRules(patterns []string) ([]PatternRule, error) {
 		rule.Segments = strings.Split(ruleText, "/")
 		for _, segment := range rule.Segments {
 			if segment == "" {
-				return nil, fmt.Errorf("invalid scan pattern %q: empty path segment", raw)
+				return nil, fmt.Errorf("invalid group pattern %q: empty path segment", raw)
 			}
 		}
 		rules = append(rules, rule)
@@ -75,7 +75,7 @@ func ParsePatternRules(patterns []string) ([]PatternRule, error) {
 }
 
 func (m PatternMatcher) Decision(path string, isDir bool) (bool, bool) {
-	normalized := normalizeScanPath(path)
+	normalized := normalizePatternPath(path)
 	if normalized == "" {
 		return false, false
 	}
@@ -110,7 +110,7 @@ func (r PatternRule) matches(path string, isDir bool) bool {
 	return false
 }
 
-func normalizeScanPath(path string) string {
+func normalizePatternPath(path string) string {
 	normalized := filepath.ToSlash(path)
 	normalized = strings.TrimPrefix(normalized, "./")
 	normalized = strings.TrimPrefix(normalized, "/")

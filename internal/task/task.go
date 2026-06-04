@@ -126,7 +126,7 @@ func encryptFilePairs(opts Options) ([]FilePair, error) {
 		return opts.FilePairs, nil
 	}
 
-	return BuildScanFilePairs(ScanOptions{
+	return BuildGroupFilePairs(GroupOptions{
 		Root:            opts.InputDir,
 		Patterns:        opts.Patterns,
 		FormatRules:     opts.FormatRules,
@@ -140,7 +140,7 @@ func decryptFilePairs(opts Options) ([]FilePair, error) {
 		return opts.FilePairs, nil
 	}
 
-	return BuildScanFilePairs(ScanOptions{
+	return BuildGroupFilePairs(GroupOptions{
 		Root:            opts.InputDir,
 		Patterns:        opts.Patterns,
 		FormatRules:     opts.FormatRules,

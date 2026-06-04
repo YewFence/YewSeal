@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestScanPathProtocol(t *testing.T) {
+func TestGroupPathProtocol(t *testing.T) {
 	encryptTests := []struct {
 		input    string
 		format   string
@@ -60,5 +60,5 @@ func TestPlaintextPathForEncryptedRequiresProtocolWithoutFormatRule(t *testing.T
 	_, _, err := PlaintextPathForEncrypted("secret.sops", "")
 
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "does not follow the yewseal scan protocol")
+	assert.Contains(t, err.Error(), "does not follow the yewseal group protocol")
 }

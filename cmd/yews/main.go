@@ -100,15 +100,15 @@ func main() {
 					},
 					&cli.StringSliceFlag{
 						Name:  "pattern",
-						Usage: "Scan pattern for temporary directory mode or encryption.scan override",
+						Usage: "Group pattern for temporary directory mode or encryption.group override",
 					},
 					&cli.StringSliceFlag{
 						Name:  "format-rule",
-						Usage: "Scan format rule in <pattern>=<format> form",
+						Usage: "Group format rule in <pattern>=<format> form",
 					},
 					&cli.BoolFlag{
 						Name:  "unknown-as-binary",
-						Usage: "Allow scan mode to encrypt unknown plaintext formats as binary",
+						Usage: "Allow group mode to encrypt unknown plaintext formats as binary",
 					},
 					&cli.IntFlag{
 						Name:    "parallel",
@@ -168,15 +168,15 @@ func main() {
 					},
 					&cli.StringSliceFlag{
 						Name:  "pattern",
-						Usage: "Scan pattern for temporary directory mode or encryption.scan override",
+						Usage: "Group pattern for temporary directory mode or encryption.group override",
 					},
 					&cli.StringSliceFlag{
 						Name:  "format-rule",
-						Usage: "Scan format rule in <pattern>=<format> form",
+						Usage: "Group format rule in <pattern>=<format> form",
 					},
 					&cli.BoolFlag{
 						Name:  "unknown-as-binary",
-						Usage: "Allow scan mode to treat unknown encrypted inputs as binary when needed",
+						Usage: "Allow group mode to treat unknown encrypted inputs as binary when needed",
 					},
 					&cli.IntFlag{
 						Name:    "parallel",

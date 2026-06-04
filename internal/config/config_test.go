@@ -116,7 +116,7 @@ func TestLoadConfig_WithFile(t *testing.T) {
 
 	configContent := `[encryption]
 
-[encryption.scan]
+[encryption.group]
 patterns = ["*.toml", ".dev.vars", "!*.example.toml"]
 format_rules = [".dev.vars=env"]
 unknown_as_binary = true
@@ -156,9 +156,9 @@ environment = "prod"
 	assert.Equal(t, ".dev.vars", cfg.GetFiles()[1].PlaintextPath)
 	assert.Equal(t, ".dev.vars.enc.yaml", cfg.GetFiles()[1].EncryptedPath)
 	assert.Equal(t, "env", cfg.GetFiles()[1].Format)
-	assert.Equal(t, []string{"*.toml", ".dev.vars", "!*.example.toml"}, cfg.GetScan().Patterns)
-	assert.Equal(t, []string{".dev.vars=env"}, cfg.GetScan().FormatRules)
-	assert.True(t, cfg.GetScan().UnknownAsBinary)
+	assert.Equal(t, []string{"*.toml", ".dev.vars", "!*.example.toml"}, cfg.GetGroup().Patterns)
+	assert.Equal(t, []string{".dev.vars=env"}, cfg.GetGroup().FormatRules)
+	assert.True(t, cfg.GetGroup().UnknownAsBinary)
 	assert.Equal(t, "custom/keys.txt", cfg.Key.FilePath)
 	assert.Equal(t, "age1customkey", cfg.Key.PublicKey)
 	assert.Equal(t, "infisical", cfg.Sync.Provider)

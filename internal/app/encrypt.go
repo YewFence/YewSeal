@@ -44,7 +44,7 @@ func EncryptFiles(cfg *config.Config, req EncryptRequest) error {
 			if req.OutputSet {
 				return fmt.Errorf("--output is only supported when the path target is a file")
 			}
-			filePairs, err := scanFilePairsFromRequest(cfg, req.Target, task.ModeEncrypt, scanRequestOptions{
+			filePairs, err := groupFilePairsFromRequest(cfg, req.Target, task.ModeEncrypt, groupRequestOptions{
 				Patterns:           req.Patterns,
 				FormatRules:        req.FormatRules,
 				UnknownAsBinary:    req.UnknownAsBinary,
@@ -102,7 +102,7 @@ func EncryptFiles(cfg *config.Config, req EncryptRequest) error {
 		}
 	}
 
-	scanPairs, err := configScanPairs(cfg, task.ModeEncrypt, scanRequestOptions{
+	groupPairs, err := configGroupPairs(cfg, task.ModeEncrypt, groupRequestOptions{
 		Patterns:           req.Patterns,
 		FormatRules:        req.FormatRules,
 		UnknownAsBinary:    req.UnknownAsBinary,
@@ -112,7 +112,7 @@ func EncryptFiles(cfg *config.Config, req EncryptRequest) error {
 		return err
 	}
 	opts := task.Options{
-		FilePairs: append(configFilePairsToTasks(filePairs), scanPairs...),
+		FilePairs: append(configFilePairsToTasks(filePairs), groupPairs...),
 		KeyFile:   req.KeyFile,
 		PublicKey: resolvedPublicKey,
 		Parallel:  req.Parallel,

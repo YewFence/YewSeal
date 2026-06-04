@@ -9,13 +9,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestBuildScanFilePairsUsesPatternsAndFormatRules(t *testing.T) {
+func TestBuildGroupFilePairsUsesPatternsAndFormatRules(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "app.toml"), []byte("token = \"secret\"\n"), 0644))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "app.example.toml"), []byte("token = \"example\"\n"), 0644))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, ".dev.vars"), []byte("TOKEN=secret\n"), 0644))
 
-	pairs, err := BuildScanFilePairs(ScanOptions{
+	pairs, err := BuildGroupFilePairs(GroupOptions{
 		Root: dir,
 		Patterns: []string{
 			"*.toml",
@@ -36,13 +36,13 @@ func TestBuildScanFilePairsUsesPatternsAndFormatRules(t *testing.T) {
 	assert.Equal(t, "toml", pairs[1].Format)
 }
 
-func TestBuildProjectScanFilePairsDecryptUsesPlaintextPatterns(t *testing.T) {
+func TestBuildProjectGroupFilePairsDecryptUsesPlaintextPatterns(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, ".dev.vars.enc.env"), []byte("encrypted"), 0644))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "app.example.enc.toml.yaml"), []byte("encrypted"), 0644))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "app.enc.toml.yaml"), []byte("encrypted"), 0644))
 
-	pairs, err := BuildProjectScanFilePairs(ScanOptions{
+	pairs, err := BuildProjectGroupFilePairs(GroupOptions{
 		Root: dir,
 		Patterns: []string{
 			"*.toml",
@@ -63,11 +63,11 @@ func TestBuildProjectScanFilePairsDecryptUsesPlaintextPatterns(t *testing.T) {
 	assert.Equal(t, "toml", pairs[1].Format)
 }
 
-func TestBuildScanFilePairsAllowsUnknownAsBinary(t *testing.T) {
+func TestBuildGroupFilePairsAllowsUnknownAsBinary(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "secret.data"), []byte("secret"), 0644))
 
-	pairs, err := BuildScanFilePairs(ScanOptions{
+	pairs, err := BuildGroupFilePairs(GroupOptions{
 		Root:            dir,
 		Patterns:        []string{"*.data"},
 		UnknownAsBinary: true,

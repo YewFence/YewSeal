@@ -89,14 +89,14 @@ func configFilePairsToTasks(filePairs []config.FilePair) []task.FilePair {
 	return pairs
 }
 
-type scanRequestOptions struct {
+type groupRequestOptions struct {
 	Patterns           []string
 	FormatRules        []string
 	UnknownAsBinary    bool
 	UnknownAsBinarySet bool
 }
 
-func scanTaskOptionsFromRequest(
+func groupTaskOptionsFromRequest(
 	cfg *config.Config,
 	root,
 	mode,
@@ -105,16 +105,16 @@ func scanTaskOptionsFromRequest(
 	parallel int,
 	verbose,
 	force bool,
-	req scanRequestOptions,
+	req groupRequestOptions,
 ) task.Options {
-	scan := cfg.GetScan()
-	patterns := scan.Patterns
+	group := cfg.GetGroup()
+	patterns := group.Patterns
 	if len(req.Patterns) > 0 {
 		patterns = append([]string(nil), req.Patterns...)
 	}
-	formatRules := append([]string(nil), scan.FormatRules...)
+	formatRules := append([]string(nil), group.FormatRules...)
 	formatRules = append(formatRules, req.FormatRules...)
-	unknownAsBinary := scan.UnknownAsBinary
+	unknownAsBinary := group.UnknownAsBinary
 	if req.UnknownAsBinarySet {
 		unknownAsBinary = req.UnknownAsBinary
 	}
@@ -132,9 +132,9 @@ func scanTaskOptionsFromRequest(
 	}
 }
 
-func scanFilePairsFromRequest(cfg *config.Config, root, mode string, req scanRequestOptions) ([]task.FilePair, error) {
-	opts := scanTaskOptionsFromRequest(cfg, root, mode, "", "", 1, false, false, req)
-	return task.BuildScanFilePairs(task.ScanOptions{
+func groupFilePairsFromRequest(cfg *config.Config, root, mode string, req groupRequestOptions) ([]task.FilePair, error) {
+	opts := groupTaskOptionsFromRequest(cfg, root, mode, "", "", 1, false, false, req)
+	return task.BuildGroupFilePairs(task.GroupOptions{
 		Root:            opts.InputDir,
 		Patterns:        opts.Patterns,
 		FormatRules:     opts.FormatRules,
@@ -143,12 +143,12 @@ func scanFilePairsFromRequest(cfg *config.Config, root, mode string, req scanReq
 	})
 }
 
-func configScanPairs(cfg *config.Config, mode string, req scanRequestOptions) ([]task.FilePair, error) {
-	opts := scanTaskOptionsFromRequest(cfg, ".", mode, "", "", 1, false, false, req)
+func configGroupPairs(cfg *config.Config, mode string, req groupRequestOptions) ([]task.FilePair, error) {
+	opts := groupTaskOptionsFromRequest(cfg, ".", mode, "", "", 1, false, false, req)
 	if len(opts.Patterns) == 0 && len(opts.FormatRules) == 0 && !opts.UnknownAsBinary {
 		return nil, nil
 	}
-	return task.BuildProjectScanFilePairs(task.ScanOptions{
+	return task.BuildProjectGroupFilePairs(task.GroupOptions{
 		Root:            opts.InputDir,
 		Patterns:        opts.Patterns,
 		FormatRules:     opts.FormatRules,
