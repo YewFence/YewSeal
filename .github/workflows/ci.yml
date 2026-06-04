@@ -13,6 +13,7 @@ jobs:
     name: Go
     runs-on: ubuntu-latest
     env:
+      MISE_LOCKED: "1"
       MISE_TASK_RUN_AUTO_INSTALL: "false"
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -22,7 +23,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           install_args: go golangci-lint
           add_shims_to_path: true
-          cache_key: "mise-v1-{{platform}}-{{install_args_hash}}-{{file_hash}}"
+          cache_key: "mise-v1-{{platform}}-{{install_args_hash}}-${{ hashFiles('mise.toml', 'mise.lock') }}"
 
       - uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
@@ -50,6 +51,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       MISE_ENV: ci
+      MISE_LOCKED: "1"
       MISE_TASK_RUN_AUTO_INSTALL: "false"
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -59,7 +61,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           install_args: go go:golang.org/x/vuln/cmd/govulncheck
           add_shims_to_path: true
-          cache_key: "mise-v1-{{platform}}-{{install_args_hash}}-{{file_hash}}"
+          cache_key: "mise-v1-{{platform}}-{{install_args_hash}}-${{ hashFiles('mise.toml', 'mise.ci.toml', 'mise.lock', 'mise.ci.lock') }}"
 
       - uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
@@ -80,6 +82,7 @@ jobs:
     name: Docs
     runs-on: ubuntu-latest
     env:
+      MISE_LOCKED: "1"
       MISE_TASK_RUN_AUTO_INSTALL: "false"
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -89,7 +92,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           install_args: node pnpm
           add_shims_to_path: true
-          cache_key: "mise-v1-{{platform}}-{{install_args_hash}}-{{file_hash}}"
+          cache_key: "mise-v1-{{platform}}-{{install_args_hash}}-${{ hashFiles('mise.toml', 'mise.lock') }}"
 
       - name: Resolve pnpm store path
         id: pnpm-store
@@ -103,12 +106,16 @@ jobs:
             pnpm-${{ runner.os }}-
 
       - name: Build
-        run: mise run docs:build
+        working-directory: docs
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm build
 
   cli-docs:
     name: Generate CLI Docs
     runs-on: ubuntu-latest
     env:
+      MISE_LOCKED: "1"
       MISE_TASK_RUN_AUTO_INSTALL: "false"
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -118,7 +125,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           install_args: go
           add_shims_to_path: true
-          cache_key: "mise-v1-{{platform}}-{{install_args_hash}}-{{file_hash}}"
+          cache_key: "mise-v1-{{platform}}-{{install_args_hash}}-${{ hashFiles('mise.toml', 'mise.lock') }}"
 
       - name: Generate CLI docs
         run: mise run docs

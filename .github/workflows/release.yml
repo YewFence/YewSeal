@@ -118,6 +118,7 @@ jobs:
     needs: version
     if: ${{ needs.version.outputs.should_release == 'true' }}
     env:
+      MISE_LOCKED: "1"
       MISE_TASK_RUN_AUTO_INSTALL: "false"
     strategy:
       fail-fast: false
@@ -152,7 +153,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           install_args: go
           add_shims_to_path: true
-          cache_key: "mise-v1-{{platform}}-{{install_args_hash}}-{{file_hash}}"
+          cache_key: "mise-v1-{{platform}}-{{install_args_hash}}-${{ hashFiles('mise.toml', 'mise.lock') }}"
 
       - uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
