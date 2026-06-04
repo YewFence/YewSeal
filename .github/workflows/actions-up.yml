@@ -31,6 +31,7 @@ jobs:
         with:
           ref: ${{ github.head_ref || github.ref_name }}
           token: ${{ secrets.ACTIONS_UPDATE_TOKEN || github.token }}
+          persist-credentials: false
 
       - uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4.0.1
         with:
@@ -63,7 +64,8 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add .github/workflows
           git commit -m "chore: 自动更新 GitHub Actions 版本"
-          git push
+          branch="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
+          git push "https://x-access-token:${ACTIONS_UPDATE_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:${branch}"
 
   check:
     name: Check GitHub Actions
@@ -74,6 +76,8 @@ jobs:
       MISE_TASK_RUN_AUTO_INSTALL: "false"
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
 
       - uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4.0.1
         with:
