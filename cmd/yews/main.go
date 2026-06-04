@@ -100,7 +100,7 @@ func main() {
 					},
 					&cli.StringSliceFlag{
 						Name:  "pattern",
-						Usage: "Group pattern for temporary directory mode or encryption.group override",
+						Usage: "Group pattern for temporary directory mode or encryption.groups override",
 					},
 					&cli.StringSliceFlag{
 						Name:  "format-rule",
@@ -168,7 +168,7 @@ func main() {
 					},
 					&cli.StringSliceFlag{
 						Name:  "pattern",
-						Usage: "Group pattern for temporary directory mode or encryption.group override",
+						Usage: "Group pattern for temporary directory mode or encryption.groups override",
 					},
 					&cli.StringSliceFlag{
 						Name:  "format-rule",

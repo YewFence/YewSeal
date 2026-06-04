@@ -116,10 +116,14 @@ func TestLoadConfig_WithFile(t *testing.T) {
 
 	configContent := `[encryption]
 
-[encryption.group]
-patterns = ["*.toml", ".dev.vars", "!*.example.toml"]
+[[encryption.groups]]
+patterns = ["*.toml", "!*.example.toml"]
 format_rules = [".dev.vars=env"]
 unknown_as_binary = true
+
+[[encryption.groups]]
+patterns = [".dev.vars"]
+format_rules = [".dev.vars=env"]
 
 [[encryption.files]]
 plaintext = "custom.toml"
@@ -156,9 +160,14 @@ environment = "prod"
 	assert.Equal(t, ".dev.vars", cfg.GetFiles()[1].PlaintextPath)
 	assert.Equal(t, ".dev.vars.enc.yaml", cfg.GetFiles()[1].EncryptedPath)
 	assert.Equal(t, "env", cfg.GetFiles()[1].Format)
-	assert.Equal(t, []string{"*.toml", ".dev.vars", "!*.example.toml"}, cfg.GetGroup().Patterns)
-	assert.Equal(t, []string{".dev.vars=env"}, cfg.GetGroup().FormatRules)
-	assert.True(t, cfg.GetGroup().UnknownAsBinary)
+	groups := cfg.GetGroups()
+	require.Len(t, groups, 2)
+	assert.Equal(t, []string{"*.toml", "!*.example.toml"}, groups[0].Patterns)
+	assert.Equal(t, []string{".dev.vars=env"}, groups[0].FormatRules)
+	assert.True(t, groups[0].UnknownAsBinary)
+	assert.Equal(t, []string{".dev.vars"}, groups[1].Patterns)
+	assert.Equal(t, []string{".dev.vars=env"}, groups[1].FormatRules)
+	assert.False(t, groups[1].UnknownAsBinary)
 	assert.Equal(t, "custom/keys.txt", cfg.Key.FilePath)
 	assert.Equal(t, "age1customkey", cfg.Key.PublicKey)
 	assert.Equal(t, "infisical", cfg.Sync.Provider)
@@ -166,6 +175,30 @@ environment = "prod"
 	assert.Equal(t, "CUSTOM_AGE_KEY", cfg.Sync.SecretName)
 	assert.Equal(t, "/apps/yewseal", cfg.Sync.Path)
 	assert.Equal(t, "prod", cfg.Sync.Environment)
+}
+
+func TestLoadConfig_RejectsLegacyGroupTable(t *testing.T) {
+	tmpDir := t.TempDir()
+	oldWd, err := os.Getwd()
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, os.Chdir(oldWd))
+	}()
+
+	configContent := `[encryption]
+
+[encryption.group]
+patterns = ["*.toml"]
+`
+	err = os.WriteFile(filepath.Join(tmpDir, ".yewseal.toml"), []byte(configContent), 0644)
+	require.NoError(t, err)
+
+	err = os.Chdir(tmpDir)
+	require.NoError(t, err)
+
+	_, err = LoadConfig()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "use [[encryption.groups]] instead")
 }
 
 func TestGetSyncConfig(t *testing.T) {

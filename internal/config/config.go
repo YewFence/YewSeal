@@ -24,8 +24,8 @@ type Config struct {
 
 // EncryptionConfig defines encrypted file mappings.
 type EncryptionConfig struct {
-	Files []FilePair  `toml:"files"`
-	Group GroupConfig `toml:"group"`
+	Files  []FilePair    `toml:"files"`
+	Groups []GroupConfig `toml:"groups"`
 }
 
 // FilePair defines one plaintext/encrypted file mapping.
@@ -121,8 +121,12 @@ func LoadConfig() (*Config, error) {
 	}
 
 	config := DefaultConfig()
-	if _, err := toml.DecodeFile(configPath, config); err != nil {
+	metadata, err := toml.DecodeFile(configPath, config)
+	if err != nil {
 		return nil, fmt.Errorf("failed to parse config file %s: %w", configPath, err)
+	}
+	if metadata.IsDefined("encryption", "group") {
+		return nil, fmt.Errorf("invalid encryption.group: use [[encryption.groups]] instead")
 	}
 
 	if len(config.Encryption.Files) == 0 {
@@ -136,9 +140,11 @@ func LoadConfig() (*Config, error) {
 			return nil, fmt.Errorf("invalid encryption.files[%d]: encrypted is required", i)
 		}
 	}
-	for i, rule := range config.Encryption.Group.FormatRules {
-		if strings.TrimSpace(rule) == "" {
-			return nil, fmt.Errorf("invalid encryption.group.format_rules[%d]: rule is empty", i)
+	for groupIndex, group := range config.Encryption.Groups {
+		for ruleIndex, rule := range group.FormatRules {
+			if strings.TrimSpace(rule) == "" {
+				return nil, fmt.Errorf("invalid encryption.groups[%d].format_rules[%d]: rule is empty", groupIndex, ruleIndex)
+			}
 		}
 	}
 
@@ -223,12 +229,16 @@ func (c *Config) GetFiles() []FilePair {
 	return files
 }
 
-func (c *Config) GetGroup() GroupConfig {
-	return GroupConfig{
-		Patterns:        append([]string(nil), c.Encryption.Group.Patterns...),
-		FormatRules:     append([]string(nil), c.Encryption.Group.FormatRules...),
-		UnknownAsBinary: c.Encryption.Group.UnknownAsBinary,
+func (c *Config) GetGroups() []GroupConfig {
+	groups := make([]GroupConfig, 0, len(c.Encryption.Groups))
+	for _, group := range c.Encryption.Groups {
+		groups = append(groups, GroupConfig{
+			Patterns:        append([]string(nil), group.Patterns...),
+			FormatRules:     append([]string(nil), group.FormatRules...),
+			UnknownAsBinary: group.UnknownAsBinary,
+		})
 	}
+	return groups
 }
 
 // GetPrimaryFilePair returns the first configured file mapping.

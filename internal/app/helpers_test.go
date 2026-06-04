@@ -199,6 +199,61 @@ func TestResolveSingleTargetFilePair_MatchesPlaintextPath(t *testing.T) {
 	assert.Equal(t, "wrangler.enc.toml.yaml", filePair.EncryptedPath)
 }
 
+func TestConfigGroupPairsExpandsMultipleGroups(t *testing.T) {
+	tempDir := t.TempDir()
+	oldWd, err := os.Getwd()
+	require.NoError(t, err)
+	require.NoError(t, os.Chdir(tempDir))
+	t.Cleanup(func() {
+		require.NoError(t, os.Chdir(oldWd))
+	})
+
+	require.NoError(t, os.WriteFile("app.toml", []byte("token = \"secret\"\n"), 0644))
+	require.NoError(t, os.WriteFile(".dev.vars", []byte("TOKEN=secret\n"), 0644))
+
+	cfg := &config.Config{
+		Encryption: config.EncryptionConfig{
+			Groups: []config.GroupConfig{
+				{Patterns: []string{"*.toml"}},
+				{Patterns: []string{".dev.vars"}, FormatRules: []string{".dev.vars=env"}},
+			},
+		},
+	}
+
+	pairs, err := configGroupPairs(cfg, "encrypt", groupRequestOptions{})
+	require.NoError(t, err)
+	require.Len(t, pairs, 2)
+
+	assert.Equal(t, "app.toml", pairs[0].PlaintextPath)
+	assert.Equal(t, "app.enc.toml.yaml", pairs[0].EncryptedPath)
+	assert.Equal(t, "toml", pairs[0].Format)
+	assert.Equal(t, ".dev.vars", pairs[1].PlaintextPath)
+	assert.Equal(t, ".dev.vars.enc.env", pairs[1].EncryptedPath)
+	assert.Equal(t, "env", pairs[1].Format)
+}
+
+func TestConfigGroupPairsUsesRequestPatternsWithoutConfiguredGroups(t *testing.T) {
+	tempDir := t.TempDir()
+	oldWd, err := os.Getwd()
+	require.NoError(t, err)
+	require.NoError(t, os.Chdir(tempDir))
+	t.Cleanup(func() {
+		require.NoError(t, os.Chdir(oldWd))
+	})
+
+	require.NoError(t, os.WriteFile("app.toml", []byte("token = \"secret\"\n"), 0644))
+
+	pairs, err := configGroupPairs(config.DefaultConfig(), "encrypt", groupRequestOptions{
+		Patterns: []string{"*.toml"},
+	})
+	require.NoError(t, err)
+	require.Len(t, pairs, 1)
+
+	assert.Equal(t, "app.toml", pairs[0].PlaintextPath)
+	assert.Equal(t, "app.enc.toml.yaml", pairs[0].EncryptedPath)
+	assert.Equal(t, "toml", pairs[0].Format)
+}
+
 func TestWriteViewedTarget_WritesPlaintextToWriterOnly(t *testing.T) {
 	tempDir := t.TempDir()
 	oldWd, err := os.Getwd()

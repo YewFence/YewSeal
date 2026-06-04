@@ -97,7 +97,7 @@ type groupRequestOptions struct {
 }
 
 func groupTaskOptionsFromRequest(
-	cfg *config.Config,
+	group config.GroupConfig,
 	root,
 	mode,
 	keyFile,
@@ -107,7 +107,6 @@ func groupTaskOptionsFromRequest(
 	force bool,
 	req groupRequestOptions,
 ) task.Options {
-	group := cfg.GetGroup()
 	patterns := group.Patterns
 	if len(req.Patterns) > 0 {
 		patterns = append([]string(nil), req.Patterns...)
@@ -133,28 +132,58 @@ func groupTaskOptionsFromRequest(
 }
 
 func groupFilePairsFromRequest(cfg *config.Config, root, mode string, req groupRequestOptions) ([]task.FilePair, error) {
-	opts := groupTaskOptionsFromRequest(cfg, root, mode, "", "", 1, false, false, req)
-	return task.BuildGroupFilePairs(task.GroupOptions{
-		Root:            opts.InputDir,
-		Patterns:        opts.Patterns,
-		FormatRules:     opts.FormatRules,
-		UnknownAsBinary: opts.UnknownAsBinary,
-		Mode:            mode,
-	})
+	groups := cfg.GetGroups()
+	if len(groups) == 0 {
+		groups = []config.GroupConfig{{}}
+	}
+
+	pairs := make([]task.FilePair, 0)
+	for _, group := range groups {
+		opts := groupTaskOptionsFromRequest(group, root, mode, "", "", 1, false, false, req)
+		groupPairs, err := task.BuildGroupFilePairs(task.GroupOptions{
+			Root:            opts.InputDir,
+			Patterns:        opts.Patterns,
+			FormatRules:     opts.FormatRules,
+			UnknownAsBinary: opts.UnknownAsBinary,
+			Mode:            mode,
+		})
+		if err != nil {
+			return nil, err
+		}
+		pairs = append(pairs, groupPairs...)
+	}
+	return pairs, nil
 }
 
 func configGroupPairs(cfg *config.Config, mode string, req groupRequestOptions) ([]task.FilePair, error) {
-	opts := groupTaskOptionsFromRequest(cfg, ".", mode, "", "", 1, false, false, req)
-	if len(opts.Patterns) == 0 && len(opts.FormatRules) == 0 && !opts.UnknownAsBinary {
-		return nil, nil
+	groups := cfg.GetGroups()
+	if len(groups) == 0 {
+		if !hasGroupRequestOptions(req) {
+			return nil, nil
+		}
+		groups = []config.GroupConfig{{}}
 	}
-	return task.BuildProjectGroupFilePairs(task.GroupOptions{
-		Root:            opts.InputDir,
-		Patterns:        opts.Patterns,
-		FormatRules:     opts.FormatRules,
-		UnknownAsBinary: opts.UnknownAsBinary,
-		Mode:            mode,
-	})
+
+	pairs := make([]task.FilePair, 0)
+	for _, group := range groups {
+		opts := groupTaskOptionsFromRequest(group, ".", mode, "", "", 1, false, false, req)
+		groupPairs, err := task.BuildProjectGroupFilePairs(task.GroupOptions{
+			Root:            opts.InputDir,
+			Patterns:        opts.Patterns,
+			FormatRules:     opts.FormatRules,
+			UnknownAsBinary: opts.UnknownAsBinary,
+			Mode:            mode,
+		})
+		if err != nil {
+			return nil, err
+		}
+		pairs = append(pairs, groupPairs...)
+	}
+	return pairs, nil
+}
+
+func hasGroupRequestOptions(req groupRequestOptions) bool {
+	return len(req.Patterns) > 0 || len(req.FormatRules) > 0 || req.UnknownAsBinarySet
 }
 
 func ResolveTargetFilePairs(cfg *config.Config, target string) ([]config.FilePair, error) {
