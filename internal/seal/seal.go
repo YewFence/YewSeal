@@ -194,7 +194,11 @@ func Edit(opts EditOptions) error {
 	if editFormat == formatUnknown {
 		editFormat = formatYAML
 	}
-	sopsType := codecPlanForFormat(editFormat).sopsFormat
+	plan := codecPlanForFormat(editFormat)
+	if err := plan.checkTools(); err != nil {
+		return err
+	}
+	sopsType := plan.sopsFormat
 
 	key, err := agekey.GetAgeKey(opts.KeyFile)
 	if err != nil {
@@ -209,6 +213,10 @@ func Edit(opts EditOptions) error {
 	plainData, err := sopsx.Decrypt(encData, sopsType, key)
 	if err != nil {
 		return fmt.Errorf("failed to decrypt: %w", err)
+	}
+	plainData, err = plan.restoreDecrypt(plainData)
+	if err != nil {
+		return err
 	}
 
 	tmpFile, err := os.CreateTemp("", "yews-edit-*."+string(editFormat))
@@ -269,6 +277,10 @@ func Edit(opts EditOptions) error {
 		return fmt.Errorf("failed to extract public key from encrypted file: %w", err)
 	}
 
+	editedData, err = plan.prepareEncrypt(editedData)
+	if err != nil {
+		return err
+	}
 	newEncData, err := sopsx.Encrypt(editedData, sopsType, publicKey)
 	if err != nil {
 		return fmt.Errorf("failed to re-encrypt: %w", err)
