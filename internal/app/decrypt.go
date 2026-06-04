@@ -1,9 +1,6 @@
 package app
 
 import (
-	"fmt"
-	"os"
-
 	"github.com/YewFence/YewSeal/internal/config"
 	"github.com/YewFence/YewSeal/internal/project"
 	"github.com/YewFence/YewSeal/internal/task"
@@ -26,86 +23,40 @@ type DecryptRequest struct {
 }
 
 func DecryptFiles(cfg *config.Config, req DecryptRequest) error {
-	cliFormat, err := ValidateCLIFormatOverride(req.Format)
-	if err != nil {
-		return err
-	}
-
-	if req.Target != "" {
-		info, err := os.Stat(req.Target)
-		if err != nil && !os.IsNotExist(err) {
-			return fmt.Errorf("failed to stat %s: %w", req.Target, err)
-		}
-		if err == nil && info.IsDir() {
-			if cliFormat != "" {
-				return fmt.Errorf("--format is only supported in single-file mode")
-			}
-			if req.OutputSet {
-				return fmt.Errorf("--output is only supported when the path target is a file")
-			}
-			filePairs, err := groupFilePairsFromRequest(cfg, req.Target, task.ModeDecrypt, groupRequestOptions{
-				Patterns:           req.Patterns,
-				FormatRules:        req.FormatRules,
-				UnknownAsBinary:    req.UnknownAsBinary,
-				UnknownAsBinarySet: req.UnknownAsBinarySet,
-			})
-			if err != nil {
-				return err
-			}
-			opts := task.Options{
-				FilePairs: filePairs,
-				KeyFile:   req.KeyFile,
-				Parallel:  req.Parallel,
-				Verbose:   req.Verbose,
-				Force:     req.Force,
-			}
-			_, err = task.Decrypt(opts)
-			return err
-		}
-		target, err := ResolveEncryptedTargetWithOverrides(cfg, req.Target, "decrypt", cliFormat, req.Output)
-		if err != nil {
-			return err
-		}
-		_, err = task.Decrypt(task.Options{
-			FilePairs: []task.FilePair{{
-				PlaintextPath: target.PlaintextPath,
-				EncryptedPath: target.EncryptedPath,
-				Format:        target.FormatOverride,
-			}},
-			KeyFile:  req.KeyFile,
-			Parallel: req.Parallel,
-			Verbose:  req.Verbose,
-			Force:    req.Force,
-		})
-		return err
-	}
-
-	if req.OutputSet {
-		return fmt.Errorf("--output is only supported when the path target is a file")
-	}
-
-	if cliFormat != "" {
-		return fmt.Errorf("--format is only supported in single-file mode")
-	}
-
-	filePairs := cfg.GetFiles()
-	if req.UpdateProjectMetadata {
-		if err := project.UpdateGitignore(filePairs); err != nil {
-			return err
-		}
-	}
-
-	groupPairs, err := configGroupPairs(cfg, task.ModeDecrypt, groupRequestOptions{
-		Patterns:           req.Patterns,
-		FormatRules:        req.FormatRules,
-		UnknownAsBinary:    req.UnknownAsBinary,
-		UnknownAsBinarySet: req.UnknownAsBinarySet,
+	result, err := config.SelectFilePairs(cfg, config.SelectionOptions{
+		Command:              task.ModeDecrypt,
+		Target:               req.Target,
+		Output:               req.Output,
+		OutputSet:            req.OutputSet,
+		Format:               req.Format,
+		Patterns:             req.Patterns,
+		FormatRules:          req.FormatRules,
+		UnknownAsBinary:      req.UnknownAsBinary,
+		UnknownAsBinarySet:   req.UnknownAsBinarySet,
+		AllowEmptyTarget:     true,
+		UseConfiguredDefault: true,
 	})
 	if err != nil {
 		return err
 	}
+
+	if req.UpdateProjectMetadata {
+		metadataPairs := result.FilePairs
+		if result.ConfigMode && len(result.AllConfigPairs) > 0 {
+			metadataPairs = result.AllConfigPairs
+		}
+		if err := project.UpdateGitignore(config.DisplayFilePairs(metadataPairs, config.CurrentDir(cfg))); err != nil {
+			return err
+		}
+	}
+
+	filePairs, err := config.ValidateFilePairs(result.FilePairs)
+	if err != nil {
+		return err
+	}
+	config.PrintSelection(req.Verbose, cfg, result)
 	opts := task.Options{
-		FilePairs: append(configFilePairsToTasks(filePairs), groupPairs...),
+		FilePairs: configFilePairsToTasks(filePairs),
 		KeyFile:   req.KeyFile,
 		Parallel:  req.Parallel,
 		Verbose:   req.Verbose,

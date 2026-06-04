@@ -20,6 +20,15 @@ type Config struct {
 	Encryption EncryptionConfig `toml:"encryption"`
 	Key        KeyConfig        `toml:"key"`
 	Sync       SyncConfig       `toml:"sync"`
+
+	LoadedFiles []LoadedFile `toml:"-"`
+	CurrentDir  string       `toml:"-"`
+	UserConfig  bool         `toml:"-"`
+}
+
+type LoadedFile struct {
+	Path string
+	Dir  string
 }
 
 // EncryptionConfig defines encrypted file mappings.
@@ -37,12 +46,18 @@ type FilePair struct {
 	// Format overrides the file format detection (toml/yaml/json/env/ini/binary).
 	// Useful for files with non-standard extensions like .dev.vars.
 	Format string `toml:"format,omitempty"`
+
+	ConfigPath string `toml:"-"`
+	ConfigDir  string `toml:"-"`
 }
 
 type GroupConfig struct {
 	Patterns        []string `toml:"patterns"`
 	FormatRules     []string `toml:"format_rules"`
 	UnknownAsBinary bool     `toml:"unknown_as_binary"`
+
+	ConfigPath string `toml:"-"`
+	ConfigDir  string `toml:"-"`
 }
 
 // KeyConfig defines key file location.
@@ -100,38 +115,37 @@ func LoadConfig() (*Config, error) {
 		return nil, fmt.Errorf("failed to get working directory: %w", err)
 	}
 
-	configPaths := []string{
-		filepath.Join(cwd, ".yewseal", ".yewseal.toml"),
-		filepath.Join(cwd, ".config", ".yewseal.toml"),
-		filepath.Join(cwd, ".yewseal.toml"),
-	}
-
-	var configPath string
-	for _, path := range configPaths {
-		if _, err := os.Stat(path); err == nil {
-			configPath = path
-			break
-		} else if !os.IsNotExist(err) {
-			return nil, fmt.Errorf("failed to stat config file %s: %w", path, err)
-		}
-	}
-
-	if configPath == "" {
-		return DefaultConfig(), nil
-	}
-
-	config := DefaultConfig()
-	metadata, err := toml.DecodeFile(configPath, config)
+	configFiles, err := discoverConfigFiles(cwd)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse config file %s: %w", configPath, err)
-	}
-	if metadata.IsDefined("encryption", "group") {
-		return nil, fmt.Errorf("invalid encryption.group: use [[encryption.groups]] instead")
+		return nil, err
 	}
 
-	if len(config.Encryption.Files) == 0 {
+	if len(configFiles) == 0 {
+		config := DefaultConfig()
+		config.CurrentDir = cwd
+		return config, nil
+	}
+
+	config := &Config{
+		Key: KeyConfig{
+			FilePath: defaultKeyFile,
+		},
+		CurrentDir: cwd,
+		UserConfig: true,
+	}
+
+	for _, configFile := range configFiles {
+		partial, err := loadConfigFile(configFile)
+		if err != nil {
+			return nil, err
+		}
+		mergeConfig(config, partial)
+	}
+
+	if len(config.Encryption.Files) == 0 && len(config.Encryption.Groups) == 0 {
 		config.Encryption.Files = []FilePair{DefaultFilePair()}
 	}
+
 	for i, filePair := range config.Encryption.Files {
 		if strings.TrimSpace(filePair.PlaintextPath) == "" {
 			return nil, fmt.Errorf("invalid encryption.files[%d]: plaintext is required", i)
@@ -149,6 +163,182 @@ func LoadConfig() (*Config, error) {
 	}
 
 	return config, nil
+}
+
+func discoverConfigFiles(cwd string) ([]LoadedFile, error) {
+	searchDirs, err := configSearchDirs(cwd)
+	if err != nil {
+		return nil, err
+	}
+
+	files := make([]LoadedFile, 0, len(searchDirs))
+	for _, dir := range searchDirs {
+		configPath, err := highestPriorityConfigPath(dir)
+		if err != nil {
+			return nil, err
+		}
+		if configPath == "" {
+			continue
+		}
+		files = append(files, LoadedFile{Path: configPath, Dir: dir})
+	}
+	return files, nil
+}
+
+func configSearchDirs(cwd string) ([]string, error) {
+	root, ok, err := gitRoot(cwd)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return []string{cwd}, nil
+	}
+
+	rel, err := filepath.Rel(root, cwd)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve current directory relative to git root: %w", err)
+	}
+	dirs := []string{root}
+	if rel == "." {
+		return dirs, nil
+	}
+	for _, part := range strings.Split(rel, string(filepath.Separator)) {
+		if part == "" || part == "." {
+			continue
+		}
+		dirs = append(dirs, filepath.Join(dirs[len(dirs)-1], part))
+	}
+	return dirs, nil
+}
+
+func gitRoot(cwd string) (string, bool, error) {
+	dir := cwd
+	for {
+		gitPath := filepath.Join(dir, ".git")
+		if _, err := os.Stat(gitPath); err == nil {
+			return dir, true, nil
+		} else if !os.IsNotExist(err) {
+			return "", false, fmt.Errorf("failed to stat git marker %s: %w", gitPath, err)
+		}
+
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return "", false, nil
+		}
+		dir = parent
+	}
+}
+
+func highestPriorityConfigPath(dir string) (string, error) {
+	configPaths := []string{
+		filepath.Join(dir, ".yewseal", ".yewseal.toml"),
+		filepath.Join(dir, ".config", ".yewseal.toml"),
+		filepath.Join(dir, ".yewseal.toml"),
+	}
+	for _, path := range configPaths {
+		if _, err := os.Stat(path); err == nil {
+			return path, nil
+		} else if !os.IsNotExist(err) {
+			return "", fmt.Errorf("failed to stat config file %s: %w", path, err)
+		}
+	}
+	return "", nil
+}
+
+func loadConfigFile(configFile LoadedFile) (*Config, error) {
+	config := &Config{}
+	metadata, err := toml.DecodeFile(configFile.Path, config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse config file %s: %w", configFile.Path, err)
+	}
+	if metadata.IsDefined("encryption", "group") {
+		return nil, fmt.Errorf("invalid encryption.group: use [[encryption.groups]] instead")
+	}
+
+	configPath, err := filepath.Abs(configFile.Path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve config file %s: %w", configFile.Path, err)
+	}
+	configDir, err := filepath.Abs(configFile.Dir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve config root %s: %w", configFile.Dir, err)
+	}
+	configDir = filepath.Clean(configDir)
+	config.LoadedFiles = []LoadedFile{{Path: configPath, Dir: configDir}}
+	for i := range config.Encryption.Files {
+		config.Encryption.Files[i].ConfigPath = configPath
+		config.Encryption.Files[i].ConfigDir = configDir
+		config.Encryption.Files[i].PlaintextPath = resolveConfigPath(configDir, config.Encryption.Files[i].PlaintextPath)
+		config.Encryption.Files[i].EncryptedPath = resolveConfigPath(configDir, config.Encryption.Files[i].EncryptedPath)
+	}
+	for i := range config.Encryption.Groups {
+		config.Encryption.Groups[i].ConfigPath = configPath
+		config.Encryption.Groups[i].ConfigDir = configDir
+	}
+	return config, nil
+}
+
+func mergeConfig(dst, src *Config) {
+	dst.LoadedFiles = append(dst.LoadedFiles, src.LoadedFiles...)
+
+	if strings.TrimSpace(src.Key.FilePath) != "" {
+		dst.Key.FilePath = resolveConfigPath(src.LoadedFiles[0].Dir, src.Key.FilePath)
+	}
+	if strings.TrimSpace(src.Key.PublicKey) != "" {
+		dst.Key.PublicKey = src.Key.PublicKey
+	}
+	if strings.TrimSpace(src.Sync.Provider) != "" {
+		dst.Sync.Provider = src.Sync.Provider
+	}
+	if strings.TrimSpace(src.Sync.ProjectID) != "" {
+		dst.Sync.ProjectID = src.Sync.ProjectID
+	}
+	if strings.TrimSpace(src.Sync.SecretName) != "" {
+		dst.Sync.SecretName = src.Sync.SecretName
+	}
+	if strings.TrimSpace(src.Sync.Path) != "" {
+		dst.Sync.Path = src.Sync.Path
+	}
+	if strings.TrimSpace(src.Sync.Environment) != "" {
+		dst.Sync.Environment = src.Sync.Environment
+	}
+
+	for _, filePair := range src.Encryption.Files {
+		dst.Encryption.Files = upsertFilePair(dst.Encryption.Files, filePair)
+	}
+	dst.Encryption.Groups = append(dst.Encryption.Groups, src.Encryption.Groups...)
+}
+
+func upsertFilePair(files []FilePair, next FilePair) []FilePair {
+	nextPlaintext := cleanAbsPath(next.PlaintextPath)
+	nextEncrypted := cleanAbsPath(next.EncryptedPath)
+	filtered := files[:0]
+	for _, existing := range files {
+		if cleanAbsPath(existing.PlaintextPath) == nextPlaintext || cleanAbsPath(existing.EncryptedPath) == nextEncrypted {
+			continue
+		}
+		filtered = append(filtered, existing)
+	}
+	return append(filtered, next)
+}
+
+func resolveConfigPath(root, path string) string {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return path
+	}
+	if filepath.IsAbs(path) {
+		return filepath.Clean(path)
+	}
+	return filepath.Clean(filepath.Join(root, path))
+}
+
+func cleanAbsPath(path string) string {
+	abs, err := filepath.Abs(path)
+	if err == nil {
+		return filepath.Clean(abs)
+	}
+	return filepath.Clean(path)
 }
 
 // GetKeyFile returns the key file path.
@@ -236,6 +426,8 @@ func (c *Config) GetGroups() []GroupConfig {
 			Patterns:        append([]string(nil), group.Patterns...),
 			FormatRules:     append([]string(nil), group.FormatRules...),
 			UnknownAsBinary: group.UnknownAsBinary,
+			ConfigPath:      group.ConfigPath,
+			ConfigDir:       group.ConfigDir,
 		})
 	}
 	return groups

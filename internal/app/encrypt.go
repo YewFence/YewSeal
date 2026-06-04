@@ -1,9 +1,6 @@
 package app
 
 import (
-	"fmt"
-	"os"
-
 	"github.com/YewFence/YewSeal/internal/agekey"
 	"github.com/YewFence/YewSeal/internal/config"
 	"github.com/YewFence/YewSeal/internal/project"
@@ -27,92 +24,53 @@ type EncryptRequest struct {
 }
 
 func EncryptFiles(cfg *config.Config, req EncryptRequest) error {
-	cliFormat, err := ValidateCLIFormatOverride(req.Format)
-	if err != nil {
-		return err
-	}
-
-	if req.Target != "" {
-		info, err := os.Stat(req.Target)
-		if err != nil && !os.IsNotExist(err) {
-			return fmt.Errorf("failed to stat %s: %w", req.Target, err)
-		}
-		if err == nil && info.IsDir() {
-			if cliFormat != "" {
-				return fmt.Errorf("--format is only supported in single-file mode")
-			}
-			if req.OutputSet {
-				return fmt.Errorf("--output is only supported when the path target is a file")
-			}
-			filePairs, err := groupFilePairsFromRequest(cfg, req.Target, task.ModeEncrypt, groupRequestOptions{
-				Patterns:           req.Patterns,
-				FormatRules:        req.FormatRules,
-				UnknownAsBinary:    req.UnknownAsBinary,
-				UnknownAsBinarySet: req.UnknownAsBinarySet,
-			})
-			if err != nil {
-				return err
-			}
-			opts := task.Options{
-				FilePairs: filePairs,
-				KeyFile:   req.KeyFile,
-				PublicKey: req.PublicKey,
-				Parallel:  req.Parallel,
-				Verbose:   req.Verbose,
-			}
-			_, err = task.Encrypt(opts)
-			return err
-		}
-		filePair, err := ResolvePlaintextTarget(cfg, req.Target, cliFormat, req.Output)
-		if err != nil {
-			return err
-		}
-		_, err = task.Encrypt(task.Options{
-			FilePairs: configFilePairsToTasks([]config.FilePair{filePair}),
-			KeyFile:   req.KeyFile,
-			PublicKey: req.PublicKey,
-			Parallel:  req.Parallel,
-			Verbose:   req.Verbose,
-		})
-		return err
-	}
-
-	if req.OutputSet {
-		return fmt.Errorf("--output is only supported when the path target is a file")
-	}
-
-	if cliFormat != "" {
-		return fmt.Errorf("--format is only supported in single-file mode")
-	}
-
-	filePairs := cfg.GetFiles()
-	if req.UpdateProjectMetadata {
-		if err := project.UpdateGitignore(filePairs); err != nil {
-			return err
-		}
-	}
-
-	resolvedPublicKey, err := agekey.GetPublicKey(req.PublicKey, req.KeyFile, req.Verbose)
-	if err != nil {
-		return err
-	}
-	if req.UpdateProjectMetadata {
-		if err := project.SyncSopsYaml(filePairs, resolvedPublicKey); err != nil {
-			return err
-		}
-	}
-
-	groupPairs, err := configGroupPairs(cfg, task.ModeEncrypt, groupRequestOptions{
-		Patterns:           req.Patterns,
-		FormatRules:        req.FormatRules,
-		UnknownAsBinary:    req.UnknownAsBinary,
-		UnknownAsBinarySet: req.UnknownAsBinarySet,
+	result, err := config.SelectFilePairs(cfg, config.SelectionOptions{
+		Command:              task.ModeEncrypt,
+		Target:               req.Target,
+		Output:               req.Output,
+		OutputSet:            req.OutputSet,
+		Format:               req.Format,
+		Patterns:             req.Patterns,
+		FormatRules:          req.FormatRules,
+		UnknownAsBinary:      req.UnknownAsBinary,
+		UnknownAsBinarySet:   req.UnknownAsBinarySet,
+		AllowEmptyTarget:     true,
+		UseConfiguredDefault: true,
 	})
 	if err != nil {
 		return err
 	}
+
+	publicKeyCandidate := req.PublicKey
+	if publicKeyCandidate == "" {
+		publicKeyCandidate = cfg.GetPublicKey()
+	}
+	resolvedPublicKey, err := agekey.GetPublicKey(publicKeyCandidate, req.KeyFile, req.Verbose)
+	if err != nil {
+		return err
+	}
+
+	if req.UpdateProjectMetadata {
+		metadataPairs := result.FilePairs
+		if result.ConfigMode && len(result.AllConfigPairs) > 0 {
+			metadataPairs = result.AllConfigPairs
+		}
+		metadataDisplayPairs := config.DisplayFilePairs(metadataPairs, config.CurrentDir(cfg))
+		if err := project.UpdateGitignore(metadataDisplayPairs); err != nil {
+			return err
+		}
+		if err := project.SyncSopsYaml(metadataDisplayPairs, resolvedPublicKey); err != nil {
+			return err
+		}
+	}
+
+	filePairs, err := config.ValidateFilePairs(result.FilePairs)
+	if err != nil {
+		return err
+	}
+	config.PrintSelection(req.Verbose, cfg, result)
 	opts := task.Options{
-		FilePairs: append(configFilePairsToTasks(filePairs), groupPairs...),
+		FilePairs: configFilePairsToTasks(filePairs),
 		KeyFile:   req.KeyFile,
 		PublicKey: resolvedPublicKey,
 		Parallel:  req.Parallel,

@@ -7,6 +7,7 @@ import (
 
 	"github.com/YewFence/YewSeal/internal/config"
 	"github.com/YewFence/YewSeal/internal/diff"
+	"github.com/YewFence/YewSeal/internal/task"
 	"github.com/fatih/color"
 )
 
@@ -15,10 +16,22 @@ type DiffResult struct {
 }
 
 func DiffPlaintextAgainstEncryptedTargets(w io.Writer, cfg *config.Config, target, keyFile, cliFormat string, verbose bool, colorMode string) (DiffResult, error) {
-	filePairs, err := ResolveTargetFilePairs(cfg, target)
+	result, err := config.SelectFilePairs(cfg, config.SelectionOptions{
+		Command:              task.ModeEncrypt,
+		Target:               target,
+		Format:               cliFormat,
+		AllowEmptyTarget:     true,
+		UseConfiguredDefault: true,
+	})
 	if err != nil {
 		return DiffResult{}, err
 	}
+	filePairs, err := config.ValidateFilePairs(result.FilePairs)
+	if err != nil {
+		return DiffResult{}, err
+	}
+	config.PrintSelection(verbose, cfg, result)
+
 	colorEnabled, err := ResolveDiffColor(colorMode, w)
 	if err != nil {
 		return DiffResult{}, err
@@ -26,16 +39,11 @@ func DiffPlaintextAgainstEncryptedTargets(w io.Writer, cfg *config.Config, targe
 
 	different := false
 	for _, filePair := range filePairs {
-		formatOverride, err := ResolveFormatOverride(cliFormat, filePair)
-		if err != nil {
-			return DiffResult{}, err
-		}
-
 		result, err := diff.PlaintextAgainstEncrypted(diff.Options{
 			PlaintextFile:  filePair.PlaintextPath,
 			EncryptedFile:  filePair.EncryptedPath,
 			KeyFile:        keyFile,
-			FormatOverride: formatOverride,
+			FormatOverride: filePair.Format,
 			Verbose:        verbose,
 		})
 		if err != nil {

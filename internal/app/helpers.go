@@ -15,27 +15,11 @@ import (
 )
 
 func ValidateCLIFormatOverride(format string) (string, error) {
-	if strings.TrimSpace(format) == "" {
-		return "", nil
-	}
-
-	parsed, ok := seal.NormalizeFormatOverride(format)
-	if !ok {
-		return "", fmt.Errorf("unsupported format %q (supported: toml, yaml, json, env, ini, binary)", format)
-	}
-
-	return parsed, nil
+	return config.ValidateFormatOverride(format)
 }
 
 func ResolveFormatOverride(cliFormat string, filePair config.FilePair) (string, error) {
-	validatedFormat, err := ValidateCLIFormatOverride(cliFormat)
-	if err != nil {
-		return "", err
-	}
-	if validatedFormat != "" {
-		return validatedFormat, nil
-	}
-	return filePair.Format, nil
+	return config.ResolveFormatOverride(cliFormat, filePair)
 }
 
 func ResolvePlaintextTarget(cfg *config.Config, target, cliFormat, output string) (config.FilePair, error) {
@@ -129,30 +113,6 @@ func groupTaskOptionsFromRequest(
 		Verbose:         verbose,
 		Force:           force,
 	}
-}
-
-func groupFilePairsFromRequest(cfg *config.Config, root, mode string, req groupRequestOptions) ([]task.FilePair, error) {
-	groups := cfg.GetGroups()
-	if len(groups) == 0 {
-		groups = []config.GroupConfig{{}}
-	}
-
-	pairs := make([]task.FilePair, 0)
-	for _, group := range groups {
-		opts := groupTaskOptionsFromRequest(group, root, mode, "", "", 1, false, false, req)
-		groupPairs, err := task.BuildGroupFilePairs(task.GroupOptions{
-			Root:            opts.InputDir,
-			Patterns:        opts.Patterns,
-			FormatRules:     opts.FormatRules,
-			UnknownAsBinary: opts.UnknownAsBinary,
-			Mode:            mode,
-		})
-		if err != nil {
-			return nil, err
-		}
-		pairs = append(pairs, groupPairs...)
-	}
-	return pairs, nil
 }
 
 func configGroupPairs(cfg *config.Config, mode string, req groupRequestOptions) ([]task.FilePair, error) {
@@ -307,21 +267,27 @@ func effectiveFormat(path, formatOverride string) (string, error) {
 }
 
 func WriteViewedTarget(w io.Writer, cfg *config.Config, target, keyFile, cliFormat string, verbose bool) error {
-	filePair, err := ResolveSingleTargetFilePair(cfg, target, "view")
+	result, err := config.SelectFilePairs(cfg, config.SelectionOptions{
+		Command:             task.ModeDecrypt,
+		Target:              target,
+		Format:              cliFormat,
+		RequireSingleTarget: true,
+	})
 	if err != nil {
 		return err
 	}
-
-	formatOverride, err := ResolveFormatOverride(cliFormat, filePair)
+	filePairs, err := config.ValidateFilePairs(result.FilePairs)
 	if err != nil {
 		return err
 	}
+	filePair := filePairs[0]
+	config.PrintSelection(verbose, cfg, result)
 
 	plainData, err := seal.DecryptToBytes(seal.DecryptBytesOptions{
 		InputFile:      filePair.EncryptedPath,
 		OutputFile:     filePair.PlaintextPath,
 		KeyFile:        keyFile,
-		FormatOverride: formatOverride,
+		FormatOverride: filePair.Format,
 		Verbose:        verbose,
 		Output:         os.Stderr,
 		Warnings:       os.Stderr,
