@@ -51,6 +51,78 @@ func TestResolveFormatOverride_PrefersCLIValue(t *testing.T) {
 	assert.Equal(t, "json", format)
 }
 
+func TestResolvePlaintextTarget_UsesConfiguredPair(t *testing.T) {
+	cfg := &config.Config{
+		Encryption: config.EncryptionConfig{
+			Files: []config.FilePair{
+				{PlaintextPath: ".dev.vars", EncryptedPath: ".dev.vars.enc.yaml", Format: "env"},
+			},
+		},
+	}
+
+	filePair, err := ResolvePlaintextTarget(cfg, ".dev.vars", "", "")
+	require.NoError(t, err)
+	assert.Equal(t, ".dev.vars", filePair.PlaintextPath)
+	assert.Equal(t, ".dev.vars.enc.yaml", filePair.EncryptedPath)
+	assert.Equal(t, "env", filePair.Format)
+}
+
+func TestResolvePlaintextTarget_FormatOverridesConfiguredFormat(t *testing.T) {
+	cfg := &config.Config{
+		Encryption: config.EncryptionConfig{
+			Files: []config.FilePair{
+				{PlaintextPath: "config.yaml", EncryptedPath: "config.enc.yaml", Format: "yaml"},
+			},
+		},
+	}
+
+	filePair, err := ResolvePlaintextTarget(cfg, "config.yaml", "json", "")
+	require.NoError(t, err)
+	assert.Equal(t, "config.yaml", filePair.PlaintextPath)
+	assert.Equal(t, "config.enc.yaml", filePair.EncryptedPath)
+	assert.Equal(t, "json", filePair.Format)
+}
+
+func TestResolvePlaintextTarget_AcceptsConfiguredEncryptedSide(t *testing.T) {
+	cfg := &config.Config{
+		Encryption: config.EncryptionConfig{
+			Files: []config.FilePair{
+				{PlaintextPath: ".dev.vars", EncryptedPath: ".dev.vars.enc.yaml", Format: "env"},
+			},
+		},
+	}
+
+	filePair, err := ResolvePlaintextTarget(cfg, ".dev.vars.enc.yaml", "", "")
+	require.NoError(t, err)
+	assert.Equal(t, ".dev.vars", filePair.PlaintextPath)
+	assert.Equal(t, ".dev.vars.enc.yaml", filePair.EncryptedPath)
+	assert.Equal(t, "env", filePair.Format)
+}
+
+func TestResolvePlaintextTarget_OutputOverridesConfiguredEncryptedPath(t *testing.T) {
+	cfg := &config.Config{
+		Encryption: config.EncryptionConfig{
+			Files: []config.FilePair{
+				{PlaintextPath: ".dev.vars", EncryptedPath: ".dev.vars.enc.yaml", Format: "env"},
+			},
+		},
+	}
+
+	filePair, err := ResolvePlaintextTarget(cfg, ".dev.vars", "", "custom.enc.env")
+	require.NoError(t, err)
+	assert.Equal(t, ".dev.vars", filePair.PlaintextPath)
+	assert.Equal(t, "custom.enc.env", filePair.EncryptedPath)
+	assert.Equal(t, "env", filePair.Format)
+}
+
+func TestResolvePlaintextTarget_InferredPairUsesOutput(t *testing.T) {
+	filePair, err := ResolvePlaintextTarget(config.DefaultConfig(), "config.yaml", "", "out.enc.yaml")
+	require.NoError(t, err)
+	assert.Equal(t, "config.yaml", filePair.PlaintextPath)
+	assert.Equal(t, "out.enc.yaml", filePair.EncryptedPath)
+	assert.Equal(t, "", filePair.Format)
+}
+
 func TestResolveTargetFilePairs_EmptyUsesAllConfiguredFiles(t *testing.T) {
 	cfg := &config.Config{
 		Encryption: config.EncryptionConfig{

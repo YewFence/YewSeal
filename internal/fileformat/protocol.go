@@ -136,6 +136,12 @@ func plaintextPathForEncryptedWithFormat(path, format string) (string, error) {
 		}
 		return filepath.Join(dir, name+"."+plaintextFormatSuffix(format)), nil
 	}
+	if stem, _, ok := EncryptedStemAndFormat(base); ok {
+		if filepath.Ext(stem) != "" {
+			return filepath.Join(dir, stem), nil
+		}
+		return filepath.Join(dir, stem+"."+plaintextFormatSuffix(format)), nil
+	}
 	ext := filepath.Ext(base)
 	name := strings.TrimSuffix(base, ext)
 	if strings.HasSuffix(strings.ToLower(name), ".enc") {

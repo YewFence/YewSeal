@@ -7,17 +7,13 @@ import (
 	"github.com/YewFence/YewSeal/internal/agekey"
 	"github.com/YewFence/YewSeal/internal/batch"
 	"github.com/YewFence/YewSeal/internal/config"
-	"github.com/YewFence/YewSeal/internal/fileformat"
 	"github.com/YewFence/YewSeal/internal/project"
-	"github.com/YewFence/YewSeal/internal/seal"
 )
 
 type EncryptRequest struct {
 	KeyFile               string
 	PublicKey             string
 	Verbose               bool
-	Input                 string
-	InputSet              bool
 	Output                string
 	OutputSet             bool
 	Format                string
@@ -38,56 +34,51 @@ func EncryptFiles(cfg *config.Config, req EncryptRequest) error {
 
 	if req.Target != "" {
 		info, err := os.Stat(req.Target)
-		if err != nil {
+		if err != nil && !os.IsNotExist(err) {
 			return fmt.Errorf("failed to stat %s: %w", req.Target, err)
 		}
-		if info.IsDir() {
+		if err == nil && info.IsDir() {
 			if cliFormat != "" {
 				return fmt.Errorf("--format is only supported in single-file mode")
 			}
-			opts := scanBatchOptionsFromRequest(cfg, req.Target, batch.ModeEncrypt, req.KeyFile, req.PublicKey, req.Parallel, req.Verbose, false, scanRequestOptions{
+			if req.OutputSet {
+				return fmt.Errorf("--output is only supported when the path target is a file")
+			}
+			filePairs, err := scanFilePairsFromRequest(cfg, req.Target, batch.ModeEncrypt, scanRequestOptions{
 				Patterns:           req.Patterns,
 				FormatRules:        req.FormatRules,
 				UnknownAsBinary:    req.UnknownAsBinary,
 				UnknownAsBinarySet: req.UnknownAsBinarySet,
 			})
-			_, err := batch.Encrypt(opts)
+			if err != nil {
+				return err
+			}
+			opts := batch.Options{
+				FilePairs: filePairs,
+				KeyFile:   req.KeyFile,
+				PublicKey: req.PublicKey,
+				Parallel:  req.Parallel,
+				Verbose:   req.Verbose,
+			}
+			_, err = batch.Encrypt(opts)
 			return err
 		}
-		output, err := fileformat.EncryptPathForPlaintext(req.Target, cliFormat)
+		filePair, err := ResolvePlaintextTarget(cfg, req.Target, cliFormat, req.Output)
 		if err != nil {
 			return err
 		}
-		return seal.Encrypt(seal.EncryptOptions{
-			InputFile:      req.Target,
-			OutputFile:     output,
-			KeyFile:        req.KeyFile,
-			PublicKey:      req.PublicKey,
-			FormatOverride: cliFormat,
-			Verbose:        req.Verbose,
+		_, err = batch.Encrypt(batch.Options{
+			FilePairs: configFilePairsToBatch([]config.FilePair{filePair}),
+			KeyFile:   req.KeyFile,
+			PublicKey: req.PublicKey,
+			Parallel:  req.Parallel,
+			Verbose:   req.Verbose,
 		})
+		return err
 	}
 
-	if req.InputSet || req.OutputSet {
-		filePair := cfg.GetPrimaryFilePair()
-		if req.InputSet {
-			filePair.PlaintextPath = req.Input
-		}
-		if req.OutputSet {
-			filePair.EncryptedPath = req.Output
-		}
-		formatOverride, err := ResolveFormatOverride(cliFormat, filePair)
-		if err != nil {
-			return err
-		}
-		return seal.Encrypt(seal.EncryptOptions{
-			InputFile:      filePair.PlaintextPath,
-			OutputFile:     filePair.EncryptedPath,
-			KeyFile:        req.KeyFile,
-			PublicKey:      req.PublicKey,
-			FormatOverride: formatOverride,
-			Verbose:        req.Verbose,
-		})
+	if req.OutputSet {
+		return fmt.Errorf("--output is only supported when the path target is a file")
 	}
 
 	if cliFormat != "" {

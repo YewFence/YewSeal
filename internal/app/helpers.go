@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/YewFence/YewSeal/internal/batch"
@@ -35,6 +36,45 @@ func ResolveFormatOverride(cliFormat string, filePair config.FilePair) (string, 
 		return validatedFormat, nil
 	}
 	return filePair.Format, nil
+}
+
+func ResolvePlaintextTarget(cfg *config.Config, target, cliFormat, output string) (config.FilePair, error) {
+	target = strings.TrimSpace(target)
+	if target == "" {
+		return config.FilePair{}, fmt.Errorf("encrypt requires exactly one target")
+	}
+
+	for _, filePair := range cfg.GetFiles() {
+		if !sameCleanPath(target, filePair.PlaintextPath) && !sameCleanPath(target, filePair.EncryptedPath) {
+			continue
+		}
+		formatOverride, err := ResolveFormatOverride(cliFormat, filePair)
+		if err != nil {
+			return config.FilePair{}, err
+		}
+		if output != "" {
+			filePair.EncryptedPath = output
+		}
+		filePair.Format = formatOverride
+		return filePair, nil
+	}
+
+	formatOverride, err := ValidateCLIFormatOverride(cliFormat)
+	if err != nil {
+		return config.FilePair{}, err
+	}
+	encryptedPath := output
+	if encryptedPath == "" {
+		encryptedPath, err = fileformat.EncryptPathForPlaintext(target, formatOverride)
+		if err != nil {
+			return config.FilePair{}, err
+		}
+	}
+	return config.FilePair{
+		PlaintextPath: target,
+		EncryptedPath: encryptedPath,
+		Format:        formatOverride,
+	}, nil
 }
 
 func configFilePairsToBatch(filePairs []config.FilePair) []batch.FilePair {
@@ -92,6 +132,17 @@ func scanBatchOptionsFromRequest(
 	}
 }
 
+func scanFilePairsFromRequest(cfg *config.Config, root, mode string, req scanRequestOptions) ([]batch.FilePair, error) {
+	opts := scanBatchOptionsFromRequest(cfg, root, mode, "", "", 1, false, false, req)
+	return batch.BuildScanFilePairs(batch.ScanOptions{
+		Root:            opts.InputDir,
+		Patterns:        opts.Patterns,
+		FormatRules:     opts.FormatRules,
+		UnknownAsBinary: opts.UnknownAsBinary,
+		Mode:            mode,
+	})
+}
+
 func configScanPairs(cfg *config.Config, mode string, req scanRequestOptions) ([]batch.FilePair, error) {
 	opts := scanBatchOptionsFromRequest(cfg, ".", mode, "", "", 1, false, false, req)
 	if len(opts.Patterns) == 0 && len(opts.FormatRules) == 0 && !opts.UnknownAsBinary {
@@ -146,22 +197,33 @@ type ResolvedEncryptedTarget struct {
 }
 
 func ResolveEncryptedTarget(cfg *config.Config, target, commandName string) (ResolvedEncryptedTarget, error) {
+	return ResolveEncryptedTargetWithOverrides(cfg, target, commandName, "", "")
+}
+
+func ResolveEncryptedTargetWithOverrides(cfg *config.Config, target, commandName, cliFormat, output string) (ResolvedEncryptedTarget, error) {
 	target = strings.TrimSpace(target)
 	if target == "" {
 		return ResolvedEncryptedTarget{}, fmt.Errorf("%s requires exactly one target", commandName)
 	}
 
 	for _, filePair := range cfg.GetFiles() {
-		if target != filePair.PlaintextPath && target != filePair.EncryptedPath {
+		if !sameCleanPath(target, filePair.PlaintextPath) && !sameCleanPath(target, filePair.EncryptedPath) {
 			continue
 		}
-		formatOverride, err := ResolveFormatOverride("", filePair)
+		formatOverride, err := ResolveFormatOverride(cliFormat, filePair)
 		if err != nil {
 			return ResolvedEncryptedTarget{}, err
 		}
-		format, err := effectiveFormat(filePair.PlaintextPath, formatOverride)
+		formatPath := filePair.PlaintextPath
+		format, err := effectiveFormat(formatPath, formatOverride)
 		if err != nil {
 			return ResolvedEncryptedTarget{}, err
+		}
+		if formatOverride == "" {
+			formatOverride = format
+		}
+		if output != "" {
+			filePair.PlaintextPath = output
 		}
 		return ResolvedEncryptedTarget{
 			PlaintextPath:  filePair.PlaintextPath,
@@ -171,7 +233,23 @@ func ResolveEncryptedTarget(cfg *config.Config, target, commandName string) (Res
 		}, nil
 	}
 
-	plaintextPath, format, err := fileformat.PlaintextPathForEncrypted(target, "")
+	formatOverride, err := ValidateCLIFormatOverride(cliFormat)
+	if err != nil {
+		return ResolvedEncryptedTarget{}, err
+	}
+	plaintextPath := output
+	pathFormat := ""
+	inferredPlaintextPath, pathFormat, err := fileformat.PlaintextPathForEncrypted(target, formatOverride)
+	if err != nil {
+		return ResolvedEncryptedTarget{}, err
+	}
+	if formatOverride == "" {
+		formatOverride = pathFormat
+	}
+	if plaintextPath == "" {
+		plaintextPath = inferredPlaintextPath
+	}
+	format, err := effectiveFormat(plaintextPath, formatOverride)
 	if err != nil {
 		return ResolvedEncryptedTarget{}, err
 	}
@@ -179,9 +257,13 @@ func ResolveEncryptedTarget(cfg *config.Config, target, commandName string) (Res
 	return ResolvedEncryptedTarget{
 		PlaintextPath:  plaintextPath,
 		EncryptedPath:  target,
-		FormatOverride: format,
+		FormatOverride: formatOverride,
 		Format:         format,
 	}, nil
+}
+
+func sameCleanPath(a, b string) bool {
+	return filepath.Clean(a) == filepath.Clean(b)
 }
 
 func effectiveFormat(path, formatOverride string) (string, error) {

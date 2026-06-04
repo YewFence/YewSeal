@@ -22,6 +22,7 @@ func TestScanPathProtocol(t *testing.T) {
 		{input: "config.bin", expected: "config.enc.bin"},
 		{input: "config.binary", expected: "config.enc.bin"},
 		{input: ".dev.vars", format: "env", expected: ".dev.vars.enc.env"},
+		{input: "secret", format: "env", expected: "secret.enc.env"},
 	}
 
 	for _, tt := range encryptTests {

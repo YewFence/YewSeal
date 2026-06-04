@@ -138,6 +138,75 @@ func TestResolveEncryptedTarget(t *testing.T) {
 	assert.Equal(t, "toml", inferred.Format)
 }
 
+func TestResolveEncryptedTargetWithOverrides_OutputOverridesConfiguredPlaintextPath(t *testing.T) {
+	cfg := &config.Config{
+		Encryption: config.EncryptionConfig{
+			Files: []config.FilePair{
+				{PlaintextPath: ".dev.vars", EncryptedPath: ".dev.vars.enc.yaml", Format: "env"},
+			},
+		},
+	}
+
+	target, err := ResolveEncryptedTargetWithOverrides(cfg, ".dev.vars.enc.yaml", "decrypt", "", "local.env")
+	require.NoError(t, err)
+	assert.Equal(t, "local.env", target.PlaintextPath)
+	assert.Equal(t, ".dev.vars.enc.yaml", target.EncryptedPath)
+	assert.Equal(t, "env", target.FormatOverride)
+	assert.Equal(t, "env", target.Format)
+}
+
+func TestResolveEncryptedTargetWithOverrides_OutputDoesNotChangeConfiguredFormat(t *testing.T) {
+	cfg := &config.Config{
+		Encryption: config.EncryptionConfig{
+			Files: []config.FilePair{
+				{PlaintextPath: "config.yaml", EncryptedPath: "config.enc.yaml"},
+			},
+		},
+	}
+
+	target, err := ResolveEncryptedTargetWithOverrides(cfg, "config.enc.yaml", "decrypt", "", "custom")
+	require.NoError(t, err)
+	assert.Equal(t, "custom", target.PlaintextPath)
+	assert.Equal(t, "config.enc.yaml", target.EncryptedPath)
+	assert.Equal(t, "yaml", target.FormatOverride)
+	assert.Equal(t, "yaml", target.Format)
+}
+
+func TestResolveEncryptedTargetWithOverrides_AcceptsConfiguredPlaintextSide(t *testing.T) {
+	cfg := &config.Config{
+		Encryption: config.EncryptionConfig{
+			Files: []config.FilePair{
+				{PlaintextPath: ".dev.vars", EncryptedPath: ".dev.vars.enc.yaml", Format: "env"},
+			},
+		},
+	}
+
+	target, err := ResolveEncryptedTargetWithOverrides(cfg, ".dev.vars", "decrypt", "", "")
+	require.NoError(t, err)
+	assert.Equal(t, ".dev.vars", target.PlaintextPath)
+	assert.Equal(t, ".dev.vars.enc.yaml", target.EncryptedPath)
+	assert.Equal(t, "env", target.FormatOverride)
+	assert.Equal(t, "env", target.Format)
+}
+
+func TestResolveEncryptedTargetWithOverrides_FormatOverridesProtocol(t *testing.T) {
+	target, err := ResolveEncryptedTargetWithOverrides(config.DefaultConfig(), "config.enc.yaml", "decrypt", "toml", "")
+	require.NoError(t, err)
+	assert.Equal(t, "config.toml", target.PlaintextPath)
+	assert.Equal(t, "config.enc.yaml", target.EncryptedPath)
+	assert.Equal(t, "toml", target.FormatOverride)
+	assert.Equal(t, "toml", target.Format)
+}
+
+func TestResolveEncryptedTargetWithOverrides_OutputDoesNotChangeProtocolFormat(t *testing.T) {
+	target, err := ResolveEncryptedTargetWithOverrides(config.DefaultConfig(), "config.enc.yaml", "decrypt", "", "custom")
+	require.NoError(t, err)
+	assert.Equal(t, "custom", target.PlaintextPath)
+	assert.Equal(t, "config.enc.yaml", target.EncryptedPath)
+	assert.Equal(t, "yaml", target.FormatOverride)
+	assert.Equal(t, "yaml", target.Format)
+}
+
 func skipIfToolMissing(t *testing.T, tool string) {
 	t.Helper()
 

@@ -18,8 +18,7 @@ func TestEncryptFiles_SingleFileOverrideUsesProvidedPathsAndFormat(t *testing.T)
 	err := EncryptFiles(cfg, EncryptRequest{
 		KeyFile:   env.keyFile,
 		PublicKey: env.publicKey,
-		Input:     "secrets.vars",
-		InputSet:  true,
+		Target:    "secrets.vars",
 		Output:    "secrets.vars.enc.yaml",
 		OutputSet: true,
 		Format:    "env",
@@ -30,8 +29,7 @@ func TestEncryptFiles_SingleFileOverrideUsesProvidedPathsAndFormat(t *testing.T)
 	require.NoError(t, os.Remove("secrets.vars"))
 	err = DecryptFiles(cfg, DecryptRequest{
 		KeyFile:   env.keyFile,
-		Input:     "secrets.vars.enc.yaml",
-		InputSet:  true,
+		Target:    "secrets.vars.enc.yaml",
 		Output:    "secrets.vars",
 		OutputSet: true,
 		Format:    "env",
@@ -55,6 +53,106 @@ func TestEncryptFiles_DirModeRejectsFormatOverride(t *testing.T) {
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "--format is only supported in single-file mode")
+}
+
+func TestEncryptFiles_DirModeRejectsOutput(t *testing.T) {
+	cfg := config.DefaultConfig()
+	tempDir := t.TempDir()
+
+	err := EncryptFiles(cfg, EncryptRequest{
+		Target:    tempDir,
+		Output:    "out.enc.yaml",
+		OutputSet: true,
+	})
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "--output is only supported when the path target is a file")
+}
+
+func TestDecryptFiles_DirModeRejectsOutput(t *testing.T) {
+	cfg := config.DefaultConfig()
+	tempDir := t.TempDir()
+
+	err := DecryptFiles(cfg, DecryptRequest{
+		Target:    tempDir,
+		Output:    "out.yaml",
+		OutputSet: true,
+	})
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "--output is only supported when the path target is a file")
+}
+
+func TestEncryptFiles_TargetFileUsesConfiguredPair(t *testing.T) {
+	env := newAppCryptoTestEnv(t)
+	require.NoError(t, os.WriteFile(".dev.vars", []byte("TOKEN=secret\n"), 0644))
+
+	cfg := &config.Config{
+		Encryption: config.EncryptionConfig{
+			Files: []config.FilePair{
+				{PlaintextPath: ".dev.vars", EncryptedPath: "configured.enc.yaml", Format: "env"},
+			},
+		},
+	}
+
+	err := EncryptFiles(cfg, EncryptRequest{
+		KeyFile:   env.keyFile,
+		PublicKey: env.publicKey,
+		Target:    ".dev.vars",
+		Parallel:  1,
+	})
+	require.NoError(t, err)
+
+	_, err = os.Stat("configured.enc.yaml")
+	require.NoError(t, err)
+	_, err = os.Stat(".dev.vars.enc.env")
+	assert.True(t, os.IsNotExist(err))
+}
+
+func TestEncryptFiles_TargetFileFormatOverrideDeterminesGeneratedOutput(t *testing.T) {
+	env := newAppCryptoTestEnv(t)
+	require.NoError(t, os.WriteFile("secret", []byte("TOKEN=secret\n"), 0644))
+
+	err := EncryptFiles(config.DefaultConfig(), EncryptRequest{
+		KeyFile:   env.keyFile,
+		PublicKey: env.publicKey,
+		Target:    "secret",
+		Format:    "env",
+		Parallel:  1,
+	})
+	require.NoError(t, err)
+
+	_, err = os.Stat("secret.enc.env")
+	require.NoError(t, err)
+}
+
+func TestDecryptFiles_TargetFileOutputOverride(t *testing.T) {
+	env := newAppCryptoTestEnv(t)
+	require.NoError(t, os.WriteFile("config.yaml", []byte("token: secret\n"), 0644))
+
+	err := EncryptFiles(config.DefaultConfig(), EncryptRequest{
+		KeyFile:   env.keyFile,
+		PublicKey: env.publicKey,
+		Target:    "config.yaml",
+		Parallel:  1,
+	})
+	require.NoError(t, err)
+	require.NoError(t, os.Remove("config.yaml"))
+
+	err = DecryptFiles(config.DefaultConfig(), DecryptRequest{
+		KeyFile:   env.keyFile,
+		Target:    "config.enc.yaml",
+		Output:    "custom.yaml",
+		OutputSet: true,
+		Parallel:  1,
+	})
+	require.NoError(t, err)
+
+	content, err := os.ReadFile("custom.yaml")
+	require.NoError(t, err)
+	assert.Equal(t, "token: secret\n", string(content))
+	_, err = os.Stat("config.yaml")
+	assert.True(t, os.IsNotExist(err))
 }
 
 func TestDecryptFiles_ConfigModeRejectsFormatOverride(t *testing.T) {

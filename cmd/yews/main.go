@@ -88,22 +88,15 @@ func main() {
 				UsageText: `yews encrypt [command options] [path]`,
 				Flags: []cli.Flag{
 					&cli.StringFlag{
-						Name:    "input",
-						Aliases: []string{"i"},
-						Value:   "wrangler.toml",
-						Usage:   "Input file to encrypt (single file mode)",
-						EnvVars: []string{"SOPS_INPUT_FILE"},
-					},
-					&cli.StringFlag{
 						Name:    "output",
 						Aliases: []string{"o"},
-						Value:   "wrangler.enc.toml.yaml",
-						Usage:   "Output encrypted file (single file mode only)",
+						Usage:   "Output encrypted file for a single file target",
 						EnvVars: []string{"SOPS_OUTPUT_FILE"},
 					},
 					&cli.StringFlag{
-						Name:  "format",
-						Usage: "Format override for single-file mode (toml/yaml/json/env/ini/binary)",
+						Name:    "format",
+						Usage:   "Format override for file targets (toml/yaml/json/env/ini/binary)",
+						EnvVars: []string{"YEWSEAL_FORMAT", "SOPS_FORMAT"},
 					},
 					&cli.StringSliceFlag{
 						Name:  "pattern",
@@ -143,8 +136,6 @@ func main() {
 						KeyFile:               cfg.GetKeyFile(c.String("key-file")),
 						PublicKey:             c.String("public-key"),
 						Verbose:               c.Bool("verbose"),
-						Input:                 c.String("input"),
-						InputSet:              c.IsSet("input"),
 						Output:                c.String("output"),
 						OutputSet:             c.IsSet("output"),
 						Format:                c.String("format"),
@@ -165,22 +156,15 @@ func main() {
 				UsageText: `yews decrypt [command options] [path]`,
 				Flags: []cli.Flag{
 					&cli.StringFlag{
-						Name:    "input",
-						Aliases: []string{"i"},
-						Value:   "wrangler.enc.toml.yaml",
-						Usage:   "Input encrypted file (single file mode)",
-						EnvVars: []string{"SOPS_INPUT_FILE"},
-					},
-					&cli.StringFlag{
 						Name:    "output",
 						Aliases: []string{"o"},
-						Value:   "wrangler.toml",
-						Usage:   "Output decrypted file (single file mode only)",
+						Usage:   "Output plaintext file for a single file target",
 						EnvVars: []string{"SOPS_OUTPUT_FILE"},
 					},
 					&cli.StringFlag{
-						Name:  "format",
-						Usage: "Format override for single-file mode (toml/yaml/json/env/ini/binary)",
+						Name:    "format",
+						Usage:   "Format override for file targets (toml/yaml/json/env/ini/binary)",
+						EnvVars: []string{"YEWSEAL_FORMAT", "SOPS_FORMAT"},
 					},
 					&cli.StringSliceFlag{
 						Name:  "pattern",
@@ -218,8 +202,6 @@ func main() {
 					return yewsapp.DecryptFiles(cfg, yewsapp.DecryptRequest{
 						KeyFile:               cfg.GetKeyFile(c.String("key-file")),
 						Verbose:               c.Bool("verbose"),
-						Input:                 c.String("input"),
-						InputSet:              c.IsSet("input"),
 						Output:                c.String("output"),
 						OutputSet:             c.IsSet("output"),
 						Format:                c.String("format"),
