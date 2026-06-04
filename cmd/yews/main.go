@@ -86,7 +86,7 @@ func main() {
 				Name:      "encrypt",
 				Aliases:   []string{"e"},
 				Usage:     "Encrypt configuration file (supports .toml, .yaml, .yml, .json, .env, .ini)",
-				UsageText: `yews encrypt [command options]`,
+				UsageText: `yews encrypt [command options] [path]`,
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:    "input",
@@ -106,23 +106,17 @@ func main() {
 						Name:  "format",
 						Usage: "Format override for single-file mode (toml/yaml/json/env/ini/binary)",
 					},
-					&cli.StringFlag{
-						Name:  "dir",
-						Usage: "Directory to scan for files (enables batch mode)",
-					},
-					&cli.StringFlag{
+					&cli.StringSliceFlag{
 						Name:  "pattern",
-						Value: "*.toml",
-						Usage: "Glob pattern for matching files in directory",
+						Usage: "Scan pattern for temporary directory mode or encryption.scan override",
 					},
-					&cli.StringFlag{
-						Name:  "output-dir",
-						Usage: "Output directory for encrypted files (batch mode)",
+					&cli.StringSliceFlag{
+						Name:  "format-rule",
+						Usage: "Scan format rule in <pattern>=<format> form",
 					},
-					&cli.StringFlag{
-						Name:  "output-suffix",
-						Value: ".enc.toml.yaml",
-						Usage: "Suffix for output files (batch mode)",
+					&cli.BoolFlag{
+						Name:  "unknown-as-binary",
+						Usage: "Allow scan mode to encrypt unknown plaintext formats as binary",
 					},
 					&cli.IntFlag{
 						Name:    "parallel",
@@ -143,6 +137,9 @@ func main() {
 					},
 				},
 				Action: func(c *cli.Context) error {
+					if c.Args().Len() > 1 {
+						return cli.Exit("encrypt accepts at most one path", 2)
+					}
 					return yewsapp.EncryptFiles(cfg, yewsapp.EncryptRequest{
 						KeyFile:               cfg.GetKeyFile(c.String("key-file")),
 						PublicKey:             c.String("public-key"),
@@ -152,10 +149,11 @@ func main() {
 						Output:                c.String("output"),
 						OutputSet:             c.IsSet("output"),
 						Format:                c.String("format"),
-						Dir:                   c.String("dir"),
-						Pattern:               c.String("pattern"),
-						OutputDir:             c.String("output-dir"),
-						OutputSuffix:          c.String("output-suffix"),
+						Target:                c.Args().First(),
+						Patterns:              c.StringSlice("pattern"),
+						FormatRules:           c.StringSlice("format-rule"),
+						UnknownAsBinary:       c.Bool("unknown-as-binary"),
+						UnknownAsBinarySet:    c.IsSet("unknown-as-binary"),
 						Parallel:              c.Int("parallel"),
 						UpdateProjectMetadata: true,
 					})
@@ -165,7 +163,7 @@ func main() {
 				Name:      "decrypt",
 				Aliases:   []string{"d"},
 				Usage:     "Decrypt encrypted file (output format determined by extension)",
-				UsageText: `yews decrypt [command options]`,
+				UsageText: `yews decrypt [command options] [path]`,
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:    "input",
@@ -185,23 +183,17 @@ func main() {
 						Name:  "format",
 						Usage: "Format override for single-file mode (toml/yaml/json/env/ini/binary)",
 					},
-					&cli.StringFlag{
-						Name:  "dir",
-						Usage: "Directory to scan for encrypted files (enables batch mode)",
-					},
-					&cli.StringFlag{
+					&cli.StringSliceFlag{
 						Name:  "pattern",
-						Value: "*.enc.toml.yaml",
-						Usage: "Glob pattern for matching encrypted files",
+						Usage: "Scan pattern for temporary directory mode or encryption.scan override",
 					},
-					&cli.StringFlag{
-						Name:  "output-dir",
-						Usage: "Output directory for decrypted files (batch mode)",
+					&cli.StringSliceFlag{
+						Name:  "format-rule",
+						Usage: "Scan format rule in <pattern>=<format> form",
 					},
-					&cli.StringFlag{
-						Name:  "output-suffix",
-						Value: ".toml",
-						Usage: "Suffix for output files (batch mode)",
+					&cli.BoolFlag{
+						Name:  "unknown-as-binary",
+						Usage: "Allow scan mode to treat unknown encrypted inputs as binary when needed",
 					},
 					&cli.IntFlag{
 						Name:    "parallel",
@@ -221,6 +213,9 @@ func main() {
 					},
 				},
 				Action: func(c *cli.Context) error {
+					if c.Args().Len() > 1 {
+						return cli.Exit("decrypt accepts at most one path", 2)
+					}
 					return yewsapp.DecryptFiles(cfg, yewsapp.DecryptRequest{
 						KeyFile:               cfg.GetKeyFile(c.String("key-file")),
 						Verbose:               c.Bool("verbose"),
@@ -229,10 +224,11 @@ func main() {
 						Output:                c.String("output"),
 						OutputSet:             c.IsSet("output"),
 						Format:                c.String("format"),
-						Dir:                   c.String("dir"),
-						Pattern:               c.String("pattern"),
-						OutputDir:             c.String("output-dir"),
-						OutputSuffix:          c.String("output-suffix"),
+						Target:                c.Args().First(),
+						Patterns:              c.StringSlice("pattern"),
+						FormatRules:           c.StringSlice("format-rule"),
+						UnknownAsBinary:       c.Bool("unknown-as-binary"),
+						UnknownAsBinarySet:    c.IsSet("unknown-as-binary"),
 						Parallel:              c.Int("parallel"),
 						Force:                 c.Bool("force"),
 						UpdateProjectMetadata: true,

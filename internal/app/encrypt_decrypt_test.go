@@ -46,12 +46,11 @@ func TestEncryptFiles_SingleFileOverrideUsesProvidedPathsAndFormat(t *testing.T)
 
 func TestEncryptFiles_DirModeRejectsFormatOverride(t *testing.T) {
 	cfg := config.DefaultConfig()
+	tempDir := t.TempDir()
 
 	err := EncryptFiles(cfg, EncryptRequest{
-		Dir:          ".",
-		Pattern:      "*.yaml",
-		OutputSuffix: ".enc.yaml",
-		Format:       "yaml",
+		Target: tempDir,
+		Format: "yaml",
 	})
 
 	require.Error(t, err)

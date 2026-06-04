@@ -49,25 +49,23 @@ Initialize project with Age keys and YewSeal config entries
 
 Encrypt configuration file (supports .toml, .yaml, .yml, .json, .env, .ini)
 
->yews encrypt [command options]
-
-**--dir**="": Directory to scan for files (enables batch mode)
+>yews encrypt [command options] [path]
 
 **--format**="": Format override for single-file mode (toml/yaml/json/env/ini/binary)
+
+**--format-rule**="": Scan format rule in <pattern>=<format> form
 
 **--input, -i**="": Input file to encrypt (single file mode) (default: "wrangler.toml")
 
 **--output, -o**="": Output encrypted file (single file mode only) (default: "wrangler.enc.toml.yaml")
 
-**--output-dir**="": Output directory for encrypted files (batch mode)
-
-**--output-suffix**="": Suffix for output files (batch mode) (default: ".enc.toml.yaml")
-
 **--parallel, -P**="": Number of parallel workers for batch mode (default: 1)
 
-**--pattern**="": Glob pattern for matching files in directory (default: "*.toml")
+**--pattern**="": Scan pattern for temporary directory mode or encryption.scan override
 
 **--public-key, -p**="": Age public key for encryption
+
+**--unknown-as-binary**: Allow scan mode to encrypt unknown plaintext formats as binary
 
 **--verbose, -v**: Enable verbose output
 
@@ -75,25 +73,23 @@ Encrypt configuration file (supports .toml, .yaml, .yml, .json, .env, .ini)
 
 Decrypt encrypted file (output format determined by extension)
 
->yews decrypt [command options]
-
-**--dir**="": Directory to scan for encrypted files (enables batch mode)
+>yews decrypt [command options] [path]
 
 **--force, -f**: Force overwrite existing plaintext file when it differs from decrypted content
 
 **--format**="": Format override for single-file mode (toml/yaml/json/env/ini/binary)
 
+**--format-rule**="": Scan format rule in <pattern>=<format> form
+
 **--input, -i**="": Input encrypted file (single file mode) (default: "wrangler.enc.toml.yaml")
 
 **--output, -o**="": Output decrypted file (single file mode only) (default: "wrangler.toml")
 
-**--output-dir**="": Output directory for decrypted files (batch mode)
-
-**--output-suffix**="": Suffix for output files (batch mode) (default: ".toml")
-
 **--parallel, -P**="": Number of parallel workers for batch mode (default: 1)
 
-**--pattern**="": Glob pattern for matching encrypted files (default: "*.enc.toml.yaml")
+**--pattern**="": Scan pattern for temporary directory mode or encryption.scan override
+
+**--unknown-as-binary**: Allow scan mode to treat unknown encrypted inputs as binary when needed
 
 **--verbose, -v**: Enable verbose output
 

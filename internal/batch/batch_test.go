@@ -21,10 +21,10 @@ func TestGenerateOutputFilename(t *testing.T) {
 		mode         string
 		expected     string
 	}{
-		{name: "encrypt_toml", inputFile: "config.toml", outputSuffix: ".enc.toml.yaml", mode: "encrypt", expected: "config.enc.toml.yaml"},
-		{name: "encrypt_output_dir", inputFile: "config.yaml", outputDir: "encrypted", outputSuffix: ".enc.yaml", mode: "encrypt", expected: filepath.Join("encrypted", "config.enc.yaml")},
-		{name: "decrypt_enc_toml_yaml", inputFile: "config.enc.toml.yaml", outputSuffix: ".toml", mode: "decrypt", expected: "config.toml"},
-		{name: "decrypt_output_dir", inputFile: "config.enc.yaml", outputDir: "decrypted", outputSuffix: ".yaml", mode: "decrypt", expected: filepath.Join("decrypted", "config.yaml")},
+		{name: "encrypt_toml", inputFile: "config.toml", mode: "encrypt", expected: "config.enc.toml.yaml"},
+		{name: "encrypt_yaml_output_dir", inputFile: "config.yaml", outputDir: "encrypted", mode: "encrypt", expected: filepath.Join("encrypted", "config.enc.yaml")},
+		{name: "decrypt_enc_toml_yaml", inputFile: "config.enc.toml.yaml", mode: "decrypt", expected: "config.toml"},
+		{name: "decrypt_output_dir", inputFile: "config.enc.yaml", outputDir: "decrypted", mode: "decrypt", expected: filepath.Join("decrypted", "config.yaml")},
 	}
 
 	for _, tt := range tests {

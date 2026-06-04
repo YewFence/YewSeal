@@ -48,6 +48,63 @@ func configFilePairsToBatch(filePairs []config.FilePair) []batch.FilePair {
 	return pairs
 }
 
+type scanRequestOptions struct {
+	Patterns           []string
+	FormatRules        []string
+	UnknownAsBinary    bool
+	UnknownAsBinarySet bool
+}
+
+func scanBatchOptionsFromRequest(
+	cfg *config.Config,
+	root,
+	mode,
+	keyFile,
+	publicKey string,
+	parallel int,
+	verbose,
+	force bool,
+	req scanRequestOptions,
+) batch.Options {
+	scan := cfg.GetScan()
+	patterns := scan.Patterns
+	if len(req.Patterns) > 0 {
+		patterns = append([]string(nil), req.Patterns...)
+	}
+	formatRules := append([]string(nil), scan.FormatRules...)
+	formatRules = append(formatRules, req.FormatRules...)
+	unknownAsBinary := scan.UnknownAsBinary
+	if req.UnknownAsBinarySet {
+		unknownAsBinary = req.UnknownAsBinary
+	}
+
+	return batch.Options{
+		InputDir:        root,
+		Patterns:        patterns,
+		FormatRules:     formatRules,
+		UnknownAsBinary: unknownAsBinary,
+		KeyFile:         keyFile,
+		PublicKey:       publicKey,
+		Parallel:        parallel,
+		Verbose:         verbose,
+		Force:           force,
+	}
+}
+
+func configScanPairs(cfg *config.Config, mode string, req scanRequestOptions) ([]batch.FilePair, error) {
+	opts := scanBatchOptionsFromRequest(cfg, ".", mode, "", "", 1, false, false, req)
+	if len(opts.Patterns) == 0 && len(opts.FormatRules) == 0 && !opts.UnknownAsBinary {
+		return nil, nil
+	}
+	return batch.BuildProjectScanFilePairs(batch.ScanOptions{
+		Root:            opts.InputDir,
+		Patterns:        opts.Patterns,
+		FormatRules:     opts.FormatRules,
+		UnknownAsBinary: opts.UnknownAsBinary,
+		Mode:            mode,
+	})
+}
+
 func ResolveTargetFilePairs(cfg *config.Config, target string) ([]config.FilePair, error) {
 	target = strings.TrimSpace(target)
 	files := cfg.GetFiles()

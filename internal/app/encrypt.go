@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/YewFence/YewSeal/internal/agekey"
 	"github.com/YewFence/YewSeal/internal/batch"
@@ -19,10 +20,11 @@ type EncryptRequest struct {
 	Output                string
 	OutputSet             bool
 	Format                string
-	Dir                   string
-	Pattern               string
-	OutputDir             string
-	OutputSuffix          string
+	Target                string
+	Patterns              []string
+	FormatRules           []string
+	UnknownAsBinary       bool
+	UnknownAsBinarySet    bool
 	Parallel              int
 	UpdateProjectMetadata bool
 }
@@ -33,22 +35,36 @@ func EncryptFiles(cfg *config.Config, req EncryptRequest) error {
 		return err
 	}
 
-	if req.Dir != "" {
-		if cliFormat != "" {
-			return fmt.Errorf("--format is only supported in single-file mode")
+	if req.Target != "" {
+		info, err := os.Stat(req.Target)
+		if err != nil {
+			return fmt.Errorf("failed to stat %s: %w", req.Target, err)
 		}
-		opts := batch.Options{
-			InputDir:     req.Dir,
-			Pattern:      req.Pattern,
-			OutputDir:    req.OutputDir,
-			OutputSuffix: req.OutputSuffix,
-			KeyFile:      req.KeyFile,
-			PublicKey:    req.PublicKey,
-			Parallel:     req.Parallel,
-			Verbose:      req.Verbose,
+		if info.IsDir() {
+			if cliFormat != "" {
+				return fmt.Errorf("--format is only supported in single-file mode")
+			}
+			opts := scanBatchOptionsFromRequest(cfg, req.Target, batch.ModeEncrypt, req.KeyFile, req.PublicKey, req.Parallel, req.Verbose, false, scanRequestOptions{
+				Patterns:           req.Patterns,
+				FormatRules:        req.FormatRules,
+				UnknownAsBinary:    req.UnknownAsBinary,
+				UnknownAsBinarySet: req.UnknownAsBinarySet,
+			})
+			_, err := batch.Encrypt(opts)
+			return err
 		}
-		_, err := batch.Encrypt(opts)
-		return err
+		output, err := batch.EncryptPathForPlaintext(req.Target, cliFormat)
+		if err != nil {
+			return err
+		}
+		return seal.Encrypt(seal.EncryptOptions{
+			InputFile:      req.Target,
+			OutputFile:     output,
+			KeyFile:        req.KeyFile,
+			PublicKey:      req.PublicKey,
+			FormatOverride: cliFormat,
+			Verbose:        req.Verbose,
+		})
 	}
 
 	if req.InputSet || req.OutputSet {
@@ -94,8 +110,17 @@ func EncryptFiles(cfg *config.Config, req EncryptRequest) error {
 		}
 	}
 
+	scanPairs, err := configScanPairs(cfg, batch.ModeEncrypt, scanRequestOptions{
+		Patterns:           req.Patterns,
+		FormatRules:        req.FormatRules,
+		UnknownAsBinary:    req.UnknownAsBinary,
+		UnknownAsBinarySet: req.UnknownAsBinarySet,
+	})
+	if err != nil {
+		return err
+	}
 	opts := batch.Options{
-		FilePairs: configFilePairsToBatch(filePairs),
+		FilePairs: append(configFilePairsToBatch(filePairs), scanPairs...),
 		KeyFile:   req.KeyFile,
 		PublicKey: resolvedPublicKey,
 		Parallel:  req.Parallel,

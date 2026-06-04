@@ -25,6 +25,7 @@ type Config struct {
 // EncryptionConfig defines encrypted file mappings.
 type EncryptionConfig struct {
 	Files []FilePair `toml:"files"`
+	Scan  ScanConfig `toml:"scan"`
 }
 
 // FilePair defines one plaintext/encrypted file mapping.
@@ -36,6 +37,12 @@ type FilePair struct {
 	// Format overrides the file format detection (toml/yaml/json/env/ini/binary).
 	// Useful for files with non-standard extensions like .dev.vars.
 	Format string `toml:"format,omitempty"`
+}
+
+type ScanConfig struct {
+	Patterns        []string `toml:"patterns"`
+	FormatRules     []string `toml:"format_rules"`
+	UnknownAsBinary bool     `toml:"unknown_as_binary"`
 }
 
 // KeyConfig defines key file location.
@@ -129,6 +136,11 @@ func LoadConfig() (*Config, error) {
 			return nil, fmt.Errorf("invalid encryption.files[%d]: encrypted is required", i)
 		}
 	}
+	for i, rule := range config.Encryption.Scan.FormatRules {
+		if strings.TrimSpace(rule) == "" {
+			return nil, fmt.Errorf("invalid encryption.scan.format_rules[%d]: rule is empty", i)
+		}
+	}
 
 	return config, nil
 }
@@ -209,6 +221,14 @@ func (c *Config) GetFiles() []FilePair {
 	files := make([]FilePair, len(c.Encryption.Files))
 	copy(files, c.Encryption.Files)
 	return files
+}
+
+func (c *Config) GetScan() ScanConfig {
+	return ScanConfig{
+		Patterns:        append([]string(nil), c.Encryption.Scan.Patterns...),
+		FormatRules:     append([]string(nil), c.Encryption.Scan.FormatRules...),
+		UnknownAsBinary: c.Encryption.Scan.UnknownAsBinary,
+	}
 }
 
 // GetPrimaryFilePair returns the first configured file mapping.
