@@ -2,17 +2,13 @@ package seal
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
-	"runtime"
 
 	"github.com/YewFence/YewSeal/internal/agekey"
 	"github.com/YewFence/YewSeal/internal/errx"
 	"github.com/YewFence/YewSeal/internal/sopsx"
-	"github.com/google/shlex"
 )
 
 type EncryptOptions struct {
@@ -47,12 +43,13 @@ type DecryptBytesOptions struct {
 	Warnings       io.Writer
 }
 
-type EditOptions struct {
-	File     string
-	Editor   string
-	KeyFile  string
-	Output   io.Writer
-	Warnings io.Writer
+type EncryptBytesOptions struct {
+	FormatFile     string
+	FormatOverride string
+	PublicKey      string
+	Verbose        bool
+	Output         io.Writer
+	Warnings       io.Writer
 }
 
 func Encrypt(opts EncryptOptions) error {
@@ -79,28 +76,21 @@ func Encrypt(opts EncryptOptions) error {
 		return fmt.Errorf("failed to read input file: %w", err)
 	}
 
-	if plan.needsRemarshal {
-		if opts.Verbose {
-			_, _ = fmt.Fprintln(out, plan.encryptAction)
-		}
-	}
-	plainData, err = plan.prepareEncrypt(plainData)
-	if err != nil {
-		return err
-	}
-
-	if opts.Verbose {
-		_, _ = fmt.Fprintln(out, "🔐 Encrypting with SOPS...")
-	}
-
 	publicKey, err := agekey.GetPublicKeyWithOutput(opts.PublicKey, opts.KeyFile, opts.Verbose, out)
 	if err != nil {
 		return err
 	}
 
-	encData, err := sopsx.Encrypt(plainData, plan.sopsFormat, publicKey)
+	encData, err := encryptBytesWithPlan(plainData, plan, EncryptBytesOptions{
+		FormatFile:     opts.InputFile,
+		FormatOverride: opts.FormatOverride,
+		PublicKey:      publicKey,
+		Verbose:        opts.Verbose,
+		Output:         opts.Output,
+		Warnings:       opts.Warnings,
+	})
 	if err != nil {
-		return fmt.Errorf("failed to encrypt: %w", err)
+		return err
 	}
 
 	if err := os.WriteFile(opts.OutputFile, encData, 0644); err != nil {
@@ -109,6 +99,39 @@ func Encrypt(opts EncryptOptions) error {
 
 	_, _ = fmt.Fprintf(out, "✅ Encrypted %s → %s\n", opts.InputFile, opts.OutputFile)
 	return nil
+}
+
+func EncryptToBytes(plainData []byte, opts EncryptBytesOptions) ([]byte, error) {
+	plan, err := newCodecPlan(opts.FormatFile, opts.FormatOverride)
+	if err != nil {
+		return nil, err
+	}
+	if err := plan.checkTools(); err != nil {
+		return nil, err
+	}
+	return encryptBytesWithPlan(plainData, plan, opts)
+}
+
+func encryptBytesWithPlan(plainData []byte, plan codecPlan, opts EncryptBytesOptions) ([]byte, error) {
+	out := outputWriter(opts.Output)
+
+	if plan.needsRemarshal && opts.Verbose {
+		_, _ = fmt.Fprintln(out, plan.encryptAction)
+	}
+	preparedData, err := plan.prepareEncrypt(plainData)
+	if err != nil {
+		return nil, err
+	}
+
+	if opts.Verbose {
+		_, _ = fmt.Fprintln(out, "🔐 Encrypting with SOPS...")
+	}
+
+	encData, err := sopsx.Encrypt(preparedData, plan.sopsFormat, opts.PublicKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encrypt: %w", err)
+	}
+	return encData, nil
 }
 
 func Decrypt(opts DecryptOptions) error {
@@ -183,115 +206,28 @@ func DecryptToBytes(opts DecryptBytesOptions) ([]byte, error) {
 	return plainData, nil
 }
 
-func Edit(opts EditOptions) error {
-	out := outputWriter(opts.Output)
-
-	if _, err := os.Stat(opts.File); os.IsNotExist(err) {
-		return &errx.NotFoundError{What: "file", Path: opts.File}
-	}
-
-	editFormat := detectFormat(opts.File)
-	if editFormat == formatUnknown {
-		editFormat = formatYAML
-	}
-	plan := codecPlanForFormat(editFormat)
-	if err := plan.checkTools(); err != nil {
-		return err
-	}
-	sopsType := plan.sopsFormat
-
-	key, err := agekey.GetAgeKey(opts.KeyFile)
+func ExtractAgeRecipientFromEncryptedFile(encryptedFile, formatFile, formatOverride string) (string, error) {
+	plan, err := newCodecPlan(formatFile, formatOverride)
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	encData, err := os.ReadFile(opts.File)
+	encData, err := os.ReadFile(encryptedFile)
 	if err != nil {
-		return fmt.Errorf("failed to read encrypted file: %w", err)
+		return "", fmt.Errorf("failed to read encrypted file: %w", err)
 	}
 
-	plainData, err := sopsx.Decrypt(encData, sopsType, key)
-	if err != nil {
-		return fmt.Errorf("failed to decrypt: %w", err)
-	}
-	plainData, err = plan.restoreDecrypt(plainData)
-	if err != nil {
-		return err
-	}
-
-	tmpFile, err := os.CreateTemp("", "yews-edit-*."+string(editFormat))
-	if err != nil {
-		return fmt.Errorf("failed to create temp file: %w", err)
-	}
-	tmpPath := tmpFile.Name()
-	defer func() {
-		_ = os.Remove(tmpPath)
-	}()
-
-	if _, err := tmpFile.Write(plainData); err != nil {
-		_ = tmpFile.Close()
-		return fmt.Errorf("failed to write temp file: %w", err)
-	}
-	if err := tmpFile.Close(); err != nil {
-		return fmt.Errorf("failed to close temp file: %w", err)
-	}
-
-	originalHash := sha256.Sum256(plainData)
-	editorCmd := resolveEditor(opts.Editor)
-
-	_, _ = fmt.Fprintf(out, "✏️  Opening %s in %s...\n", opts.File, editorCmd)
-
-	parts, err := splitEditorCommand(editorCmd)
-	if err != nil {
-		return err
-	}
-	args := append(parts[1:], tmpPath)
-	cmd := exec.Command(parts[0], args...)
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("editor exited with error: %w", err)
-	}
-
-	editedData, err := os.ReadFile(tmpPath)
-	if err != nil {
-		return fmt.Errorf("failed to read edited file: %w", err)
-	}
-
-	editedHash := sha256.Sum256(editedData)
-	if originalHash == editedHash {
-		_, _ = fmt.Fprintln(out, "⏭️  No changes detected, skipping re-encryption")
-		return nil
-	}
-
-	store := sopsx.StoreForFormat(sopsType)
+	store := sopsx.StoreForFormat(plan.sopsFormat)
 	tree, err := store.LoadEncryptedFile(encData)
 	if err != nil {
-		return fmt.Errorf("failed to parse encrypted file metadata: %w", err)
+		return "", fmt.Errorf("failed to parse encrypted file metadata: %w", err)
 	}
 
 	publicKey, err := sopsx.ExtractAgeRecipientFromTree(tree)
 	if err != nil {
-		return fmt.Errorf("failed to extract public key from encrypted file: %w", err)
+		return "", fmt.Errorf("failed to extract public key from encrypted file: %w", err)
 	}
-
-	editedData, err = plan.prepareEncrypt(editedData)
-	if err != nil {
-		return err
-	}
-	newEncData, err := sopsx.Encrypt(editedData, sopsType, publicKey)
-	if err != nil {
-		return fmt.Errorf("failed to re-encrypt: %w", err)
-	}
-
-	if err := os.WriteFile(opts.File, newEncData, 0644); err != nil {
-		return fmt.Errorf("failed to write encrypted file: %w", err)
-	}
-
-	_, _ = fmt.Fprintln(out, "✅ File edited and re-encrypted successfully")
-	return nil
+	return publicKey, nil
 }
 
 func writeDecryptedFile(inputFile, outputFile string, plainData []byte, force bool) error {
@@ -320,43 +256,6 @@ func writeDecryptedFile(inputFile, outputFile string, plainData []byte, force bo
 		return fmt.Errorf("failed to set output file permissions: %w", err)
 	}
 	return nil
-}
-
-func resolveEditor(editor string) string {
-	if editor != "" {
-		return editor
-	}
-	if e := os.Getenv("EDITOR"); e != "" {
-		return e
-	}
-	if e := os.Getenv("VISUAL"); e != "" {
-		return e
-	}
-	if runtime.GOOS == "windows" {
-		for _, candidate := range []string{"code -w", "notepad"} {
-			parts, err := splitEditorCommand(candidate)
-			if err != nil || len(parts) == 0 {
-				continue
-			}
-			name := parts[0]
-			if p, _ := exec.LookPath(name); p != "" {
-				return candidate
-			}
-		}
-		return "notepad"
-	}
-	return "vi"
-}
-
-func splitEditorCommand(editorCmd string) ([]string, error) {
-	parts, err := shlex.Split(editorCmd)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse editor command: %w", err)
-	}
-	if len(parts) == 0 {
-		return nil, fmt.Errorf("editor command is empty")
-	}
-	return parts, nil
 }
 
 func outputWriter(w io.Writer) io.Writer {

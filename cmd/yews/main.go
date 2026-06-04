@@ -10,7 +10,6 @@ import (
 	"github.com/YewFence/YewSeal/internal/config"
 	tools "github.com/YewFence/YewSeal/internal/doctor"
 	"github.com/YewFence/YewSeal/internal/project"
-	"github.com/YewFence/YewSeal/internal/seal"
 	"github.com/YewFence/YewSeal/internal/sync"
 
 	"github.com/urfave/cli/v2"
@@ -253,7 +252,7 @@ func main() {
 				},
 				Action: func(c *cli.Context) error {
 					keyFile := c.String("key-file")
-					return seal.Edit(seal.EditOptions{
+					return yewsapp.EditEncryptedFile(yewsapp.EditRequest{
 						File:    c.String("file"),
 						Editor:  c.String("editor"),
 						KeyFile: keyFile,
