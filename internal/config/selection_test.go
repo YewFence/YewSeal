@@ -1,6 +1,7 @@
 package config
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -126,4 +127,52 @@ func TestSelectFilePairs_PatternFiltersPlaintextAndEncryptedPaths(t *testing.T) 
 	require.NoError(t, err)
 	require.Len(t, result.FilePairs, 1)
 	assert.Equal(t, filepath.Join(root, "packages", "api", ".env"), result.FilePairs[0].PlaintextPath)
+}
+
+func TestResolvePlanSelection_TargetShowsArgumentAndProtocolSources(t *testing.T) {
+	root := t.TempDir()
+	target := filepath.Join(root, ".dev.vars")
+	require.NoError(t, os.WriteFile(target, []byte("TOKEN=secret\n"), 0644))
+	cfg := &Config{CurrentDir: root}
+
+	result, err := ResolvePlanSelection(cfg, SelectionOptions{
+		Target: target,
+		Format: "env",
+	})
+	require.NoError(t, err)
+	require.Len(t, result.FilePairs, 1)
+
+	pair := result.FilePairs[0]
+	assert.Equal(t, "plan", result.Command)
+	assert.Equal(t, ValueSourceArgument, pair.PlaintextSource.Kind)
+	assert.Equal(t, ValueSourceProtocol, pair.EncryptedSource.Kind)
+	assert.Equal(t, ValueSourceArgument, pair.FormatSource.Kind)
+	assert.Equal(t, SelectedByPathTarget, pair.SelectedBy)
+	assert.Equal(t, filepath.Join(root, ".dev.vars.enc.env"), pair.EncryptedPath)
+}
+
+func TestResolvePlanSelection_NoTargetUsesEitherSideCurrentScope(t *testing.T) {
+	root := t.TempDir()
+	apiDir := filepath.Join(root, "packages", "api")
+	cfg := &Config{
+		CurrentDir: apiDir,
+		UserConfig: true,
+		Encryption: EncryptionConfig{
+			Files: []FilePair{
+				{
+					PlaintextPath: filepath.Join(root, "outside", ".env"),
+					EncryptedPath: filepath.Join(apiDir, ".env.enc.yaml"),
+					Format:        "env",
+					ConfigPath:    filepath.Join(root, ".yewseal.toml"),
+					Source:        "exact",
+				},
+			},
+		},
+	}
+
+	result, err := ResolvePlanSelection(cfg, SelectionOptions{})
+	require.NoError(t, err)
+	require.Len(t, result.FilePairs, 1)
+	assert.Equal(t, filepath.Join(apiDir, ".env.enc.yaml"), result.FilePairs[0].EncryptedPath)
+	assert.Equal(t, SelectedByCurrentDirectory, result.FilePairs[0].SelectedBy)
 }

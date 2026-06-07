@@ -49,6 +49,7 @@ type FilePair struct {
 
 	ConfigPath string `toml:"-"`
 	ConfigDir  string `toml:"-"`
+	Source     string `toml:"-"`
 }
 
 type GroupConfig struct {
@@ -88,6 +89,7 @@ func DefaultFilePair() FilePair {
 	return FilePair{
 		PlaintextPath: defaultDecryptedFile,
 		EncryptedPath: defaultEncryptedFile,
+		Source:        "default",
 	}
 }
 
@@ -268,6 +270,7 @@ func loadConfigFile(configFile LoadedFile) (*Config, error) {
 	for i := range config.Encryption.Files {
 		config.Encryption.Files[i].ConfigPath = configPath
 		config.Encryption.Files[i].ConfigDir = configDir
+		config.Encryption.Files[i].Source = "exact"
 		config.Encryption.Files[i].PlaintextPath = resolveConfigPath(configDir, config.Encryption.Files[i].PlaintextPath)
 		config.Encryption.Files[i].EncryptedPath = resolveConfigPath(configDir, config.Encryption.Files[i].EncryptedPath)
 	}

@@ -61,18 +61,6 @@ func ResolvePlaintextTarget(cfg *config.Config, target, cliFormat, output string
 	}, nil
 }
 
-func configFilePairsToTasks(filePairs []config.FilePair) []task.FilePair {
-	pairs := make([]task.FilePair, 0, len(filePairs))
-	for _, filePair := range filePairs {
-		pairs = append(pairs, task.FilePair{
-			PlaintextPath: filePair.PlaintextPath,
-			EncryptedPath: filePair.EncryptedPath,
-			Format:        filePair.Format,
-		})
-	}
-	return pairs
-}
-
 type groupRequestOptions struct {
 	Patterns           []string
 	FormatRules        []string

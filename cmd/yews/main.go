@@ -86,67 +86,12 @@ func main() {
 				Aliases:   []string{"e"},
 				Usage:     "Encrypt configuration file (supports .toml, .yaml, .yml, .json, .env, .ini)",
 				UsageText: `yews encrypt [command options] [path]`,
-				Flags: []cli.Flag{
-					&cli.StringFlag{
-						Name:    "output",
-						Aliases: []string{"o"},
-						Usage:   "Output encrypted file for a single file target",
-						EnvVars: []string{"SOPS_OUTPUT_FILE"},
-					},
-					&cli.StringFlag{
-						Name:    "format",
-						Usage:   "Format override for file targets (toml/yaml/json/env/ini/binary)",
-						EnvVars: []string{"YEWSEAL_FORMAT", "SOPS_FORMAT"},
-					},
-					&cli.StringSliceFlag{
-						Name:  "pattern",
-						Usage: "Group pattern for temporary directory mode or encryption.groups override",
-					},
-					&cli.StringSliceFlag{
-						Name:  "format-rule",
-						Usage: "Group format rule in <pattern>=<format> form",
-					},
-					&cli.BoolFlag{
-						Name:  "unknown-as-binary",
-						Usage: "Allow group mode to encrypt unknown plaintext formats as binary",
-					},
-					&cli.IntFlag{
-						Name:    "parallel",
-						Aliases: []string{"P"},
-						Value:   1,
-						Usage:   "Number of parallel workers for batch mode",
-					},
-					&cli.StringFlag{
-						Name:    "public-key",
-						Aliases: []string{"p"},
-						Usage:   "Age public key for encryption",
-						EnvVars: []string{"SOPS_AGE_RECIPIENTS"},
-					},
-					&cli.BoolFlag{
-						Name:    "verbose",
-						Aliases: []string{"v"},
-						Usage:   "Enable verbose output",
-					},
-				},
+				Flags:     encryptFlags(),
 				Action: func(c *cli.Context) error {
-					if c.Args().Len() > 1 {
-						return cli.Exit("encrypt accepts at most one path", 2)
+					if err := validateAtMostOnePath(c, "encrypt"); err != nil {
+						return err
 					}
-					return yewsapp.EncryptFiles(cfg, yewsapp.EncryptRequest{
-						KeyFile:               cfg.GetKeyFile(c.String("key-file")),
-						PublicKey:             c.String("public-key"),
-						Verbose:               c.Bool("verbose"),
-						Output:                c.String("output"),
-						OutputSet:             c.IsSet("output"),
-						Format:                c.String("format"),
-						Target:                c.Args().First(),
-						Patterns:              c.StringSlice("pattern"),
-						FormatRules:           c.StringSlice("format-rule"),
-						UnknownAsBinary:       c.Bool("unknown-as-binary"),
-						UnknownAsBinarySet:    c.IsSet("unknown-as-binary"),
-						Parallel:              c.Int("parallel"),
-						UpdateProjectMetadata: true,
-					})
+					return yewsapp.EncryptFiles(cfg, encryptRequestFromContext(c, cfg, true))
 				},
 			},
 			{
@@ -154,65 +99,26 @@ func main() {
 				Aliases:   []string{"d"},
 				Usage:     "Decrypt encrypted file (output format determined by extension)",
 				UsageText: `yews decrypt [command options] [path]`,
-				Flags: []cli.Flag{
-					&cli.StringFlag{
-						Name:    "output",
-						Aliases: []string{"o"},
-						Usage:   "Output plaintext file for a single file target",
-						EnvVars: []string{"SOPS_OUTPUT_FILE"},
-					},
-					&cli.StringFlag{
-						Name:    "format",
-						Usage:   "Format override for file targets (toml/yaml/json/env/ini/binary)",
-						EnvVars: []string{"YEWSEAL_FORMAT", "SOPS_FORMAT"},
-					},
-					&cli.StringSliceFlag{
-						Name:  "pattern",
-						Usage: "Group pattern for temporary directory mode or encryption.groups override",
-					},
-					&cli.StringSliceFlag{
-						Name:  "format-rule",
-						Usage: "Group format rule in <pattern>=<format> form",
-					},
-					&cli.BoolFlag{
-						Name:  "unknown-as-binary",
-						Usage: "Allow group mode to treat unknown encrypted inputs as binary when needed",
-					},
-					&cli.IntFlag{
-						Name:    "parallel",
-						Aliases: []string{"P"},
-						Value:   1,
-						Usage:   "Number of parallel workers for batch mode",
-					},
-					&cli.BoolFlag{
-						Name:    "force",
-						Aliases: []string{"f"},
-						Usage:   "Force overwrite existing plaintext file when it differs from decrypted content",
-					},
-					&cli.BoolFlag{
-						Name:    "verbose",
-						Aliases: []string{"v"},
-						Usage:   "Enable verbose output",
-					},
+				Flags:     decryptFlags(),
+				Action: func(c *cli.Context) error {
+					if err := validateAtMostOnePath(c, "decrypt"); err != nil {
+						return err
+					}
+					return yewsapp.DecryptFiles(cfg, decryptRequestFromContext(c, cfg, true))
 				},
+			},
+			{
+				Name:      "plan",
+				Usage:     "Run preflight and print the resolved file selection without writing files",
+				UsageText: `yews plan [command options] [path]`,
+				Flags:     planFlags(),
 				Action: func(c *cli.Context) error {
 					if c.Args().Len() > 1 {
-						return cli.Exit("decrypt accepts at most one path", 2)
+						return cli.Exit("plan accepts at most one path", 2)
 					}
-					return yewsapp.DecryptFiles(cfg, yewsapp.DecryptRequest{
-						KeyFile:               cfg.GetKeyFile(c.String("key-file")),
-						Verbose:               c.Bool("verbose"),
-						Output:                c.String("output"),
-						OutputSet:             c.IsSet("output"),
-						Format:                c.String("format"),
-						Target:                c.Args().First(),
-						Patterns:              c.StringSlice("pattern"),
-						FormatRules:           c.StringSlice("format-rule"),
-						UnknownAsBinary:       c.Bool("unknown-as-binary"),
-						UnknownAsBinarySet:    c.IsSet("unknown-as-binary"),
-						Parallel:              c.Int("parallel"),
-						Force:                 c.Bool("force"),
-						UpdateProjectMetadata: true,
+					return yewsapp.PrintPlan(os.Stdout, cfg, planRequestFromContext(c), yewsapp.PreflightPrintOptions{
+						JSON:    c.Bool("json"),
+						Verbose: c.Bool("verbose"),
 					})
 				},
 			},
@@ -453,7 +359,7 @@ func main() {
 		Before: func(c *cli.Context) error {
 			// Skip tool check for commands that don't need them
 			cmd := c.Args().First()
-			if cmd == "check" || cmd == "doctor" || cmd == "sync" || cmd == "docs" {
+			if cmd == "check" || cmd == "doctor" || cmd == "sync" || cmd == "docs" || cmd == "plan" {
 				return nil
 			}
 			return tools.CheckTools()
@@ -471,4 +377,194 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+func encryptFlags() []cli.Flag {
+	return []cli.Flag{
+		&cli.StringFlag{
+			Name:    "output",
+			Aliases: []string{"o"},
+			Usage:   "Output encrypted file for a single file target",
+			EnvVars: []string{"SOPS_OUTPUT_FILE"},
+		},
+		&cli.StringFlag{
+			Name:    "format",
+			Usage:   "Format override for file targets (toml/yaml/json/env/ini/binary)",
+			EnvVars: []string{"YEWSEAL_FORMAT", "SOPS_FORMAT"},
+		},
+		&cli.StringSliceFlag{
+			Name:  "pattern",
+			Usage: "Group pattern for temporary directory mode or encryption.groups override",
+		},
+		&cli.StringSliceFlag{
+			Name:  "format-rule",
+			Usage: "Group format rule in <pattern>=<format> form",
+		},
+		&cli.BoolFlag{
+			Name:  "unknown-as-binary",
+			Usage: "Allow group mode to encrypt unknown plaintext formats as binary",
+		},
+		&cli.IntFlag{
+			Name:    "parallel",
+			Aliases: []string{"P"},
+			Value:   1,
+			Usage:   "Number of parallel workers for batch mode",
+		},
+		&cli.StringFlag{
+			Name:    "public-key",
+			Aliases: []string{"p"},
+			Usage:   "Age public key for encryption",
+			EnvVars: []string{"SOPS_AGE_RECIPIENTS"},
+		},
+		&cli.BoolFlag{
+			Name:    "verbose",
+			Aliases: []string{"v"},
+			Usage:   "Enable verbose output",
+		},
+	}
+}
+
+func decryptFlags() []cli.Flag {
+	return []cli.Flag{
+		&cli.StringFlag{
+			Name:    "output",
+			Aliases: []string{"o"},
+			Usage:   "Output plaintext file for a single file target",
+			EnvVars: []string{"SOPS_OUTPUT_FILE"},
+		},
+		&cli.StringFlag{
+			Name:    "format",
+			Usage:   "Format override for file targets (toml/yaml/json/env/ini/binary)",
+			EnvVars: []string{"YEWSEAL_FORMAT", "SOPS_FORMAT"},
+		},
+		&cli.StringSliceFlag{
+			Name:  "pattern",
+			Usage: "Group pattern for temporary directory mode or encryption.groups override",
+		},
+		&cli.StringSliceFlag{
+			Name:  "format-rule",
+			Usage: "Group format rule in <pattern>=<format> form",
+		},
+		&cli.BoolFlag{
+			Name:  "unknown-as-binary",
+			Usage: "Allow group mode to treat unknown encrypted inputs as binary when needed",
+		},
+		&cli.IntFlag{
+			Name:    "parallel",
+			Aliases: []string{"P"},
+			Value:   1,
+			Usage:   "Number of parallel workers for batch mode",
+		},
+		&cli.BoolFlag{
+			Name:    "force",
+			Aliases: []string{"f"},
+			Usage:   "Force overwrite existing plaintext file when it differs from decrypted content",
+		},
+		&cli.BoolFlag{
+			Name:    "verbose",
+			Aliases: []string{"v"},
+			Usage:   "Enable verbose output",
+		},
+	}
+}
+
+func planFlags() []cli.Flag {
+	return []cli.Flag{
+		&cli.StringFlag{
+			Name:    "output",
+			Aliases: []string{"o"},
+			Usage:   "Output file for a single file target",
+			EnvVars: []string{"SOPS_OUTPUT_FILE"},
+		},
+		&cli.StringFlag{
+			Name:    "format",
+			Usage:   "Format override for file targets (toml/yaml/json/env/ini/binary)",
+			EnvVars: []string{"YEWSEAL_FORMAT", "SOPS_FORMAT"},
+		},
+		&cli.StringSliceFlag{
+			Name:  "pattern",
+			Usage: "Group pattern for directory mode or encryption.groups override",
+		},
+		&cli.StringSliceFlag{
+			Name:  "format-rule",
+			Usage: "Group format rule in <pattern>=<format> form",
+		},
+		&cli.BoolFlag{
+			Name:  "unknown-as-binary",
+			Usage: "Allow group mode to treat unknown formats as binary",
+		},
+		&cli.IntFlag{
+			Name:    "parallel",
+			Aliases: []string{"P"},
+			Value:   1,
+			Usage:   "Number of parallel workers for batch mode",
+		},
+		&cli.BoolFlag{
+			Name:    "verbose",
+			Aliases: []string{"v"},
+			Usage:   "Enable verbose output",
+		},
+		&cli.BoolFlag{
+			Name:  "json",
+			Usage: "Print preflight result as JSON",
+		},
+	}
+}
+
+func planRequestFromContext(c *cli.Context) yewsapp.PlanRequest {
+	return yewsapp.PlanRequest{
+		Verbose:            c.Bool("verbose"),
+		Output:             c.String("output"),
+		OutputSet:          c.IsSet("output"),
+		Format:             c.String("format"),
+		Target:             c.Args().First(),
+		Patterns:           c.StringSlice("pattern"),
+		FormatRules:        c.StringSlice("format-rule"),
+		UnknownAsBinary:    c.Bool("unknown-as-binary"),
+		UnknownAsBinarySet: c.IsSet("unknown-as-binary"),
+		Parallel:           c.Int("parallel"),
+	}
+}
+
+func encryptRequestFromContext(c *cli.Context, cfg *config.Config, updateProjectMetadata bool) yewsapp.EncryptRequest {
+	return yewsapp.EncryptRequest{
+		KeyFile:               cfg.GetKeyFile(c.String("key-file")),
+		PublicKey:             c.String("public-key"),
+		Verbose:               c.Bool("verbose"),
+		Output:                c.String("output"),
+		OutputSet:             c.IsSet("output"),
+		Format:                c.String("format"),
+		Target:                c.Args().First(),
+		Patterns:              c.StringSlice("pattern"),
+		FormatRules:           c.StringSlice("format-rule"),
+		UnknownAsBinary:       c.Bool("unknown-as-binary"),
+		UnknownAsBinarySet:    c.IsSet("unknown-as-binary"),
+		Parallel:              c.Int("parallel"),
+		UpdateProjectMetadata: updateProjectMetadata,
+	}
+}
+
+func decryptRequestFromContext(c *cli.Context, cfg *config.Config, updateProjectMetadata bool) yewsapp.DecryptRequest {
+	return yewsapp.DecryptRequest{
+		KeyFile:               cfg.GetKeyFile(c.String("key-file")),
+		Verbose:               c.Bool("verbose"),
+		Output:                c.String("output"),
+		OutputSet:             c.IsSet("output"),
+		Format:                c.String("format"),
+		Target:                c.Args().First(),
+		Patterns:              c.StringSlice("pattern"),
+		FormatRules:           c.StringSlice("format-rule"),
+		UnknownAsBinary:       c.Bool("unknown-as-binary"),
+		UnknownAsBinarySet:    c.IsSet("unknown-as-binary"),
+		Parallel:              c.Int("parallel"),
+		Force:                 c.Bool("force"),
+		UpdateProjectMetadata: updateProjectMetadata,
+	}
+}
+
+func validateAtMostOnePath(c *cli.Context, command string) error {
+	if c.Args().Len() > 1 {
+		return cli.Exit(command+" accepts at most one path", 2)
+	}
+	return nil
 }

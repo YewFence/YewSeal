@@ -23,40 +23,21 @@ type DecryptRequest struct {
 }
 
 func DecryptFiles(cfg *config.Config, req DecryptRequest) error {
-	result, err := config.SelectFilePairs(cfg, config.SelectionOptions{
-		Command:              task.ModeDecrypt,
-		Target:               req.Target,
-		Output:               req.Output,
-		OutputSet:            req.OutputSet,
-		Format:               req.Format,
-		Patterns:             req.Patterns,
-		FormatRules:          req.FormatRules,
-		UnknownAsBinary:      req.UnknownAsBinary,
-		UnknownAsBinarySet:   req.UnknownAsBinarySet,
-		AllowEmptyTarget:     true,
-		UseConfiguredDefault: true,
-	})
+	preflight, err := PreflightDecrypt(cfg, req)
 	if err != nil {
 		return err
 	}
 
 	if req.UpdateProjectMetadata {
-		metadataPairs := result.FilePairs
-		if result.ConfigMode && len(result.AllConfigPairs) > 0 {
-			metadataPairs = result.AllConfigPairs
-		}
+		metadataPairs := config.ResolvedFilePairsToFilePairs(preflight.MetadataPairs)
 		if err := project.UpdateGitignore(config.DisplayFilePairs(metadataPairs, config.CurrentDir(cfg))); err != nil {
 			return err
 		}
 	}
 
-	filePairs, err := config.ValidateFilePairs(result.FilePairs)
-	if err != nil {
-		return err
-	}
-	config.PrintSelection(req.Verbose, cfg, result)
+	printResolvedSelection(req.Verbose, cfg, preflight.Selection)
 	opts := task.Options{
-		FilePairs: configFilePairsToTasks(filePairs),
+		FilePairs: config.ResolvedFilePairsToTaskPairs(preflight.Selection.FilePairs),
 		KeyFile:   req.KeyFile,
 		Parallel:  req.Parallel,
 		Verbose:   req.Verbose,

@@ -1,7 +1,6 @@
 package app
 
 import (
-	"github.com/YewFence/YewSeal/internal/agekey"
 	"github.com/YewFence/YewSeal/internal/config"
 	"github.com/YewFence/YewSeal/internal/project"
 	"github.com/YewFence/YewSeal/internal/task"
@@ -24,55 +23,26 @@ type EncryptRequest struct {
 }
 
 func EncryptFiles(cfg *config.Config, req EncryptRequest) error {
-	result, err := config.SelectFilePairs(cfg, config.SelectionOptions{
-		Command:              task.ModeEncrypt,
-		Target:               req.Target,
-		Output:               req.Output,
-		OutputSet:            req.OutputSet,
-		Format:               req.Format,
-		Patterns:             req.Patterns,
-		FormatRules:          req.FormatRules,
-		UnknownAsBinary:      req.UnknownAsBinary,
-		UnknownAsBinarySet:   req.UnknownAsBinarySet,
-		AllowEmptyTarget:     true,
-		UseConfiguredDefault: true,
-	})
-	if err != nil {
-		return err
-	}
-
-	publicKeyCandidate := req.PublicKey
-	if publicKeyCandidate == "" {
-		publicKeyCandidate = cfg.GetPublicKey()
-	}
-	resolvedPublicKey, err := agekey.GetPublicKey(publicKeyCandidate, req.KeyFile, req.Verbose)
+	preflight, err := PreflightEncrypt(cfg, req)
 	if err != nil {
 		return err
 	}
 
 	if req.UpdateProjectMetadata {
-		metadataPairs := result.FilePairs
-		if result.ConfigMode && len(result.AllConfigPairs) > 0 {
-			metadataPairs = result.AllConfigPairs
-		}
-		metadataDisplayPairs := config.DisplayFilePairs(metadataPairs, config.CurrentDir(cfg))
+		metadataDisplayPairs := config.DisplayFilePairs(config.ResolvedFilePairsToFilePairs(preflight.MetadataPairs), config.CurrentDir(cfg))
 		if err := project.UpdateGitignore(metadataDisplayPairs); err != nil {
 			return err
 		}
-		if err := project.SyncSopsYaml(metadataDisplayPairs, resolvedPublicKey); err != nil {
+		if err := project.SyncSopsYaml(metadataDisplayPairs, preflight.PublicKey); err != nil {
 			return err
 		}
 	}
 
-	filePairs, err := config.ValidateFilePairs(result.FilePairs)
-	if err != nil {
-		return err
-	}
-	config.PrintSelection(req.Verbose, cfg, result)
+	printResolvedSelection(req.Verbose, cfg, preflight.Selection)
 	opts := task.Options{
-		FilePairs: configFilePairsToTasks(filePairs),
+		FilePairs: config.ResolvedFilePairsToTaskPairs(preflight.Selection.FilePairs),
 		KeyFile:   req.KeyFile,
-		PublicKey: resolvedPublicKey,
+		PublicKey: preflight.PublicKey,
 		Parallel:  req.Parallel,
 		Verbose:   req.Verbose,
 	}

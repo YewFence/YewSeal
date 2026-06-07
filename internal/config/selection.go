@@ -286,6 +286,7 @@ func scopedConfigGroupPairs(cfg *Config, mode string, req groupRequestOptions) (
 				Format:        taskPair.Format,
 				ConfigPath:    group.ConfigPath,
 				ConfigDir:     root,
+				Source:        "scan",
 			})
 		}
 	}
@@ -308,6 +309,7 @@ func directoryTargetPairs(cfg *Config, root string, opts SelectionOptions) ([]Fi
 			PlaintextPath: taskPair.PlaintextPath,
 			EncryptedPath: taskPair.EncryptedPath,
 			Format:        taskPair.Format,
+			Source:        "scan",
 		})
 	}
 
@@ -374,6 +376,7 @@ func unconfiguredFileTargetPair(cfg *Config, opts SelectionOptions, cliFormat, t
 			PlaintextPath: targetAbs,
 			EncryptedPath: encryptedPath,
 			Format:        cliFormat,
+			Source:        "file-target",
 		}, nil
 	}
 
@@ -393,6 +396,7 @@ func unconfiguredFileTargetPair(cfg *Config, opts SelectionOptions, cliFormat, t
 		PlaintextPath: plaintextPath,
 		EncryptedPath: targetAbs,
 		Format:        formatOverride,
+		Source:        "file-target",
 	}, nil
 }
 
