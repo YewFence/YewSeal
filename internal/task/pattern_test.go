@@ -32,7 +32,8 @@ func TestPatternMatcherDecision(t *testing.T) {
 		{name: "anchored match", path: "root.yaml", wantDecided: true, wantIncluded: true},
 		{name: "anchored miss", path: "config/root.yaml", wantDecided: false, wantIncluded: false},
 		{name: "directory only", path: "secrets", isDir: true, wantDecided: true, wantIncluded: true},
-		{name: "directory only misses file", path: "secrets", wantDecided: false, wantIncluded: false},
+		{name: "directory only includes descendant", path: "secrets/app.toml", wantDecided: true, wantIncluded: true},
+		{name: "directory only misses same named file", path: "secrets", wantDecided: false, wantIncluded: false},
 		{name: "literal hash", path: "#literal", wantDecided: true, wantIncluded: true},
 	}
 
@@ -50,4 +51,27 @@ func TestParsePatternRulesRejectsInvalidNegation(t *testing.T) {
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "missing pattern after negation")
+}
+
+func TestPatternMatcherDirectoryOnlyExcludesDescendants(t *testing.T) {
+	matcher, err := NewPatternMatcher([]string{
+		"*.toml",
+		"!node_modules/",
+	})
+	require.NoError(t, err)
+
+	decided, included := matcher.Decision("node_modules/pkg/config.toml", false)
+
+	assert.True(t, decided)
+	assert.False(t, included)
+}
+
+func TestPatternMatcherHandlesUTF8QuestionMark(t *testing.T) {
+	matcher, err := NewPatternMatcher([]string{"配置?.toml"})
+	require.NoError(t, err)
+
+	decided, included := matcher.Decision("配置一.toml", false)
+
+	assert.True(t, decided)
+	assert.True(t, included)
 }

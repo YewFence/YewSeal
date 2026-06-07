@@ -20,7 +20,7 @@ func encryptCommand(cfg *config.Config, keyFile *string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "encrypt [command options] [path]",
 		Aliases: []string{"e"},
-		Short:   "Encrypt configuration file (supports .toml, .yaml, .yml, .json, .env, .ini)",
+		Short:   "Encrypt configuration file (supports .toml, .yaml, .yml, .json, .env, .ini, and binary output)",
 		Args:    cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			target := firstArg(args)

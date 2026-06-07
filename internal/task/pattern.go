@@ -93,17 +93,28 @@ func (m PatternMatcher) Decision(path string, isDir bool) (bool, bool) {
 }
 
 func (r PatternRule) matches(path string, isDir bool) bool {
-	if r.DirectoryOnly && !isDir {
-		return false
-	}
-
 	pathSegments := strings.Split(path, "/")
 	if r.Anchored || r.HasSlash {
+		if r.DirectoryOnly {
+			return (isDir && matchSegments(r.Segments, pathSegments)) || r.matchesDirectoryDescendant(pathSegments, isDir)
+		}
 		return matchSegments(r.Segments, pathSegments)
 	}
 
-	for _, segment := range pathSegments {
+	for i, segment := range pathSegments {
 		if matchSegment(r.Segments[0], segment) {
+			return !r.DirectoryOnly || isDir || i < len(pathSegments)-1
+		}
+	}
+	return false
+}
+
+func (r PatternRule) matchesDirectoryDescendant(pathSegments []string, isDir bool) bool {
+	if !r.DirectoryOnly || isDir {
+		return false
+	}
+	for i := 1; i < len(pathSegments); i++ {
+		if matchSegments(r.Segments, pathSegments[:i]) {
 			return true
 		}
 	}
@@ -140,10 +151,10 @@ func matchSegments(pattern, path []string) bool {
 }
 
 func matchSegment(pattern, value string) bool {
-	return matchSegmentFrom(pattern, value, 0, 0)
+	return matchSegmentFrom([]rune(pattern), []rune(value), 0, 0)
 }
 
-func matchSegmentFrom(pattern, value string, patternIndex, valueIndex int) bool {
+func matchSegmentFrom(pattern, value []rune, patternIndex, valueIndex int) bool {
 	for patternIndex < len(pattern) {
 		switch pattern[patternIndex] {
 		case '*':

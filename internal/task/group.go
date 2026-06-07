@@ -103,6 +103,9 @@ func BuildGroupFilePairs(opts GroupOptions) ([]FilePair, error) {
 		rel = filepath.ToSlash(rel)
 		decided, included := matcher.Decision(rel, entry.IsDir())
 		if entry.IsDir() {
+			if decided && !included {
+				return filepath.SkipDir
+			}
 			return nil
 		}
 		if !decided || !included {
@@ -173,7 +176,18 @@ func BuildProjectGroupFilePairs(opts GroupOptions) ([]FilePair, error) {
 		if walkErr != nil {
 			return walkErr
 		}
-		if path == root || entry.IsDir() {
+		if path == root {
+			return nil
+		}
+		if entry.IsDir() {
+			rel, err := filepath.Rel(root, path)
+			if err != nil {
+				return err
+			}
+			decided, included := logicalMatcher.Decision(filepath.ToSlash(rel), true)
+			if decided && !included {
+				return filepath.SkipDir
+			}
 			return nil
 		}
 		encryptedRel, err := filepath.Rel(root, path)

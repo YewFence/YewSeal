@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/cobra/doc"
@@ -42,8 +43,17 @@ func writeMarkdownDocs(w io.Writer, rootCmd *cobra.Command) error {
 			return nil
 		}
 		cmd.DisableAutoGenTag = true
-		return doc.GenMarkdownCustom(cmd, w, func(link string) string { return link })
+		return doc.GenMarkdownCustom(cmd, w, markdownDocLinkHandler)
 	})
+}
+
+func markdownDocLinkHandler(link string) string {
+	if strings.HasSuffix(link, ".md") {
+		anchor := strings.TrimSuffix(link, ".md")
+		anchor = strings.ReplaceAll(anchor, "_", "-")
+		return "#" + anchor
+	}
+	return link
 }
 
 func walkCommands(cmd *cobra.Command, fn func(*cobra.Command) error) error {

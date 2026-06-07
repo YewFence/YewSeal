@@ -99,6 +99,35 @@ func TestResolvePlaintextTarget_AcceptsConfiguredEncryptedSide(t *testing.T) {
 	assert.Equal(t, "env", filePair.Format)
 }
 
+func TestResolvePlaintextTarget_MatchesAbsoluteConfiguredPairWithRelativeTarget(t *testing.T) {
+	tempDir := t.TempDir()
+	oldWd, err := os.Getwd()
+	require.NoError(t, err)
+	require.NoError(t, os.Chdir(tempDir))
+	t.Cleanup(func() {
+		require.NoError(t, os.Chdir(oldWd))
+	})
+
+	cfg := &config.Config{
+		Encryption: config.EncryptionConfig{
+			Files: []config.FilePair{
+				{
+					PlaintextPath: filepath.Join(tempDir, ".dev.vars"),
+					EncryptedPath: filepath.Join(tempDir, ".dev.vars.enc.env"),
+					Format:        "env",
+				},
+			},
+		},
+	}
+
+	filePair, err := ResolvePlaintextTarget(cfg, ".dev.vars", "", "")
+	require.NoError(t, err)
+
+	assert.Equal(t, filepath.Join(tempDir, ".dev.vars"), filePair.PlaintextPath)
+	assert.Equal(t, filepath.Join(tempDir, ".dev.vars.enc.env"), filePair.EncryptedPath)
+	assert.Equal(t, "env", filePair.Format)
+}
+
 func TestResolvePlaintextTarget_OutputOverridesConfiguredEncryptedPath(t *testing.T) {
 	cfg := &config.Config{
 		Encryption: config.EncryptionConfig{

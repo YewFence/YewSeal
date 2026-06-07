@@ -239,7 +239,15 @@ func ResolveEncryptedTargetWithOverrides(cfg *config.Config, target, commandName
 }
 
 func sameCleanPath(a, b string) bool {
-	return filepath.Clean(a) == filepath.Clean(b)
+	return appCleanAbsPath(a) == appCleanAbsPath(b)
+}
+
+func appCleanAbsPath(path string) string {
+	abs, err := filepath.Abs(path)
+	if err == nil {
+		return filepath.Clean(abs)
+	}
+	return filepath.Clean(path)
 }
 
 func effectiveFormat(path, formatOverride string) (string, error) {

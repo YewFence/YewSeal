@@ -79,3 +79,43 @@ func TestBuildGroupFilePairsAllowsUnknownAsBinary(t *testing.T) {
 	assert.Equal(t, "binary", pairs[0].Format)
 	assert.Equal(t, filepath.Join(dir, "secret.data.enc.bin"), pairs[0].EncryptedPath)
 }
+
+func TestBuildGroupFilePairsDirectoryPatternIncludesDescendants(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "secrets"), 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "secrets", "app.toml"), []byte("token = \"secret\"\n"), 0644))
+
+	pairs, err := BuildGroupFilePairs(GroupOptions{
+		Root:     dir,
+		Patterns: []string{"secrets/"},
+		Mode:     ModeEncrypt,
+	})
+	require.NoError(t, err)
+	require.Len(t, pairs, 1)
+
+	assert.Equal(t, filepath.Join(dir, "secrets", "app.toml"), pairs[0].PlaintextPath)
+}
+
+func TestBuildGroupFilePairsSkipsExcludedDirectories(t *testing.T) {
+	dir := t.TempDir()
+	ignored := filepath.Join(dir, "ignored")
+	require.NoError(t, os.MkdirAll(ignored, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "app.toml"), []byte("token = \"secret\"\n"), 0644))
+	require.NoError(t, os.Chmod(ignored, 0000))
+	t.Cleanup(func() {
+		_ = os.Chmod(ignored, 0755)
+	})
+
+	pairs, err := BuildGroupFilePairs(GroupOptions{
+		Root: dir,
+		Patterns: []string{
+			"*.toml",
+			"!ignored/",
+		},
+		Mode: ModeEncrypt,
+	})
+	require.NoError(t, err)
+	require.Len(t, pairs, 1)
+
+	assert.Equal(t, filepath.Join(dir, "app.toml"), pairs[0].PlaintextPath)
+}

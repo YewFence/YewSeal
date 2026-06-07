@@ -542,5 +542,6 @@ func pathWithin(root, path string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return rel == "." || (!strings.HasPrefix(rel, ".."+string(filepath.Separator)) && rel != ".."), nil
+	rel = filepath.ToSlash(rel)
+	return rel == "." || (!strings.HasPrefix(rel, "../") && rel != ".."), nil
 }

@@ -379,7 +379,10 @@ func checkWriteConflicts(command string, filePairs []ResolvedFilePair) error {
 		}
 		target = cleanAbsPath(target)
 		if existing, ok := seen[target]; ok {
-			return fmt.Errorf("multiple file pairs write to %s: %s and %s", target, existing.PlaintextPath, filePair.PlaintextPath)
+			if command == task.ModeDecrypt {
+				return fmt.Errorf("multiple file pairs write to %s: decrypted from %s and %s", target, existing.EncryptedPath, filePair.EncryptedPath)
+			}
+			return fmt.Errorf("multiple file pairs write to %s: encrypted from %s and %s", target, existing.PlaintextPath, filePair.PlaintextPath)
 		}
 		seen[target] = filePair
 	}

@@ -4,7 +4,7 @@ layout: home
 hero:
   name: YewSeal
   text: 加密配置文件管理工具
-  tagline: 通过 SOPS 和 Age 加密仓库中的 TOML、YAML、JSON、ENV、INI 配置文件允许配置文件安全提交。
+  tagline: 通过 SOPS 和 Age 加密仓库中的 TOML、YAML、JSON、ENV、INI 配置文件，让敏感配置可以安全提交。
   actions:
     - theme: brand
       text: 快速开始

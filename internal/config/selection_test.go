@@ -129,6 +129,17 @@ func TestSelectFilePairs_PatternFiltersPlaintextAndEncryptedPaths(t *testing.T) 
 	assert.Equal(t, filepath.Join(root, "packages", "api", ".env"), result.FilePairs[0].PlaintextPath)
 }
 
+func TestPathWithinHandlesMixedSeparators(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "packages", "api", ".env")
+	mixedPath := filepath.ToSlash(path)
+
+	inside, err := pathWithin(root, mixedPath)
+	require.NoError(t, err)
+
+	assert.True(t, inside)
+}
+
 func TestResolvePlanSelection_TargetShowsArgumentAndProtocolSources(t *testing.T) {
 	root := t.TempDir()
 	target := filepath.Join(root, ".dev.vars")
@@ -175,4 +186,21 @@ func TestResolvePlanSelection_NoTargetUsesEitherSideCurrentScope(t *testing.T) {
 	require.Len(t, result.FilePairs, 1)
 	assert.Equal(t, filepath.Join(apiDir, ".env.enc.yaml"), result.FilePairs[0].EncryptedPath)
 	assert.Equal(t, SelectedByCurrentDirectory, result.FilePairs[0].SelectedBy)
+}
+
+func TestCheckWriteConflictsDecryptReportsEncryptedSources(t *testing.T) {
+	target := filepath.Join(t.TempDir(), "plain.toml")
+	err := checkWriteConflicts(task.ModeDecrypt, []ResolvedFilePair{
+		{
+			PlaintextPath: target,
+			EncryptedPath: "first.enc.toml.yaml",
+		},
+		{
+			PlaintextPath: target,
+			EncryptedPath: "second.enc.toml.yaml",
+		},
+	})
+	require.Error(t, err)
+
+	assert.Contains(t, err.Error(), "decrypted from first.enc.toml.yaml and second.enc.toml.yaml")
 }
