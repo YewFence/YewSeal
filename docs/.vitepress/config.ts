@@ -18,8 +18,7 @@ export default defineConfig({
         text: '指南',
         items: [
           { text: '快速开始', link: '/guide/getting-started' },
-          { text: '配置说明', link: '/guide/configuration' },
-          { text: 'Shell 补全', link: '/guide/completion' }
+          { text: '配置说明', link: '/guide/configuration' }
         ]
       },
       {
@@ -28,6 +27,7 @@ export default defineConfig({
           { text: 'init - 初始化项目', link: '/commands/init' },
           { text: 'encrypt - 加密文件', link: '/commands/encrypt' },
           { text: 'decrypt - 解密文件', link: '/commands/decrypt' },
+          { text: 'plan - 预览选择', link: '/commands/plan' },
           { text: 'edit - 编辑加密文件', link: '/commands/edit' },
           { text: 'view - 查看加密文件', link: '/commands/view' },
           { text: 'diff - 比较差异', link: '/commands/diff' },

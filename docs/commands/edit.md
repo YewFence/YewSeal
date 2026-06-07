@@ -1,111 +1,55 @@
 # edit - 编辑加密文件
 
-使用 SOPS 编辑加密的配置文件。
+`edit` 会把加密文件解密到临时文件，打开编辑器，保存后再重新加密写回原文件。
 
 ## 语法
 
 ```bash
-yews edit [选项]
+yews edit [command options]
 ```
 
 ## 选项
 
 ### --file, -f
 
-要编辑的加密文件路径。
-
-默认值：`wrangler.enc.toml.yaml`
+指定要编辑的加密文件，默认值是 `wrangler.enc.toml.yaml`。
 
 ```bash
 yews edit -f config.enc.toml.yaml
 ```
+
+这个目标也可以是 `.yewseal.toml` 中声明过的明文路径，YewSeal 会找到对应的加密文件。
 
 ### --editor, -e
 
-指定编辑器命令（例如 'code -w', 'vim'）。
+指定编辑器命令。
 
 ```bash
 yews edit -f config.enc.toml.yaml -e "code -w"
 ```
 
-如果不指定，会使用以下顺序查找编辑器：
-1. `--editor` 选项
-2. `EDITOR` 环境变量
-3. 系统默认编辑器
-
-## 工作原理
-
-`edit` 命令会：
-1. 使用 SOPS 解密文件到临时文件
-2. 在编辑器中打开临时文件
-3. 保存后自动重新加密
-4. 更新原始加密文件
+如果没有传入 `--editor`，YewSeal 会依次使用 `EDITOR`、`VISUAL`，在 Windows 上会尝试 `code -w` 或 `notepad`，其他系统默认使用 `vi`。
 
 ## 示例
 
-### 使用默认编辑器
-
 ```bash
+# 使用默认目标
+yews edit
+
+# 编辑指定加密文件
 yews edit -f config.enc.toml.yaml
-```
 
-### 使用 VS Code
-
-```bash
+# 使用 VS Code 并等待窗口关闭
 yews edit -f config.enc.toml.yaml -e "code -w"
-```
 
-注意：`-w` 参数让 VS Code 等待文件关闭后再返回。
-
-### 使用 Vim
-
-```bash
+# 使用 Vim
 yews edit -f config.enc.toml.yaml -e vim
-```
-
-### 使用 Nano
-
-```bash
-yews edit -f config.enc.toml.yaml -e nano
-```
-
-## 编辑器配置
-
-### VS Code
-
-```bash
-# 等待文件关闭
-yews edit -f config.enc.toml.yaml -e "code -w"
-
-# 或设置环境变量
-export EDITOR="code -w"
-yews edit -f config.enc.toml.yaml
-```
-
-### Vim/Neovim
-
-```bash
-export EDITOR=vim
-yews edit -f config.enc.toml.yaml
-```
-
-### Emacs
-
-```bash
-export EDITOR="emacs -nw"
-yews edit -f config.enc.toml.yaml
 ```
 
 ## 注意事项
 
-1. **编辑器等待**：某些编辑器（如 VS Code）需要 `-w` 参数才能等待文件关闭
-2. **临时文件**：SOPS 会在系统临时目录创建解密后的临时文件，编辑完成后自动删除
-3. **格式保持**：编辑时保持原始格式（YAML），不会转换为其他格式
-4. **自动加密**：保存并关闭编辑器后，SOPS 会自动重新加密文件
+编辑器命令需要等待文件保存并关闭后再退出。比如 VS Code 需要使用 `code -w`，否则 YewSeal 可能在文件还没编辑完成时就继续执行。
 
 ## 相关命令
 
-- [view](/commands/view) - 查看加密文件内容（只读）
-- [decrypt](/commands/decrypt) - 解密文件到明文
-- [encrypt](/commands/encrypt) - 加密明文文件
-- [diff](/commands/diff) - 比较明文和加密文件
+[view](/commands/view) 可以只读查看加密文件，[decrypt](/commands/decrypt) 可以写出明文文件。
