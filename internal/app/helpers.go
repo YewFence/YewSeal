@@ -11,7 +11,6 @@ import (
 	"github.com/YewFence/YewSeal/internal/fileformat"
 	"github.com/YewFence/YewSeal/internal/seal"
 	"github.com/YewFence/YewSeal/internal/task"
-	"github.com/urfave/cli/v2"
 )
 
 func ValidateCLIFormatOverride(format string) (string, error) {
@@ -288,46 +287,4 @@ func WriteViewedTarget(w io.Writer, cfg *config.Config, target, keyFile, cliForm
 		return err
 	}
 	return nil
-}
-
-func ResolveSyncKeyFile(c *cli.Context, cfg *config.Config) string {
-	if c.IsSet("key-file") {
-		return cfg.GetKeyFile(c.String("key-file"))
-	}
-	return cfg.GetKeyFile("")
-}
-
-func ResolveSyncProvider(c *cli.Context, cfg *config.Config) string {
-	if c.IsSet("provider") {
-		return cfg.GetSyncProvider(c.String("provider"))
-	}
-	return cfg.GetSyncProvider("")
-}
-
-func ResolveSyncSecretName(c *cli.Context, cfg *config.Config) string {
-	if c.IsSet("name") {
-		return cfg.GetSyncSecretName(c.String("name"))
-	}
-	return cfg.GetSyncSecretName("")
-}
-
-func ResolveSyncProjectID(c *cli.Context, cfg *config.Config) string {
-	if c.IsSet("project-id") {
-		return cfg.GetSyncProjectID(c.String("project-id"))
-	}
-	return cfg.GetSyncProjectID("")
-}
-
-func ResolveSyncPath(c *cli.Context, cfg *config.Config) string {
-	if c.IsSet("path") {
-		return cfg.GetSyncPath(c.String("path"))
-	}
-	return cfg.GetSyncPath("")
-}
-
-func ResolveSyncEnvironment(c *cli.Context, cfg *config.Config) string {
-	if c.IsSet("env") {
-		return cfg.GetSyncEnvironment(c.String("env"))
-	}
-	return cfg.GetSyncEnvironment("")
 }

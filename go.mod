@@ -9,8 +9,9 @@ require (
 	github.com/getsops/sops/v3 v3.12.2
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510
 	github.com/sergi/go-diff v1.4.0
+	github.com/spf13/cobra v1.10.2
+	github.com/spf13/pflag v1.0.9
 	github.com/stretchr/testify v1.11.1
-	github.com/urfave/cli/v2 v2.27.7
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -90,6 +91,7 @@ require (
 	github.com/hashicorp/hcl v1.0.1-vault-7 // indirect
 	github.com/hashicorp/vault/api v1.23.0 // indirect
 	github.com/huaweicloud/huaweicloud-sdk-go-v3 v0.1.191 // indirect
+	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/json-iterator/go v1.1.13-0.20220915233716-71ac16282d12 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/lib/pq v1.12.3 // indirect
@@ -109,7 +111,6 @@ require (
 	github.com/sirupsen/logrus v1.9.4 // indirect
 	github.com/spiffe/go-spiffe/v2 v2.6.0 // indirect
 	github.com/tjfoc/gmsm v1.4.1 // indirect
-	github.com/xrash/smetrics v0.0.0-20250705151800-55b8f293f342 // indirect
 	go.mongodb.org/mongo-driver v1.17.9 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/detectors/gcp v1.42.0 // indirect
