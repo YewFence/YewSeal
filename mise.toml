@@ -3,6 +3,8 @@
 go = "1"
 # https://nodejs.org/
 node = "24"
+# https://www.python.org/
+python = "3"
 # https://infisical.com/docs/cli/overview
 infisical = "latest"
 # https://github.com/azat-io/actions-up

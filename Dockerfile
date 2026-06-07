@@ -27,7 +27,7 @@ RUN --mount=type=cache,target=/mise/cache \
 
 COPY go.mod go.sum ./
 RUN --mount=type=cache,target=/root/go/pkg/mod \
-    mise exec -- go mod download
+    mise exec go -- go mod download
 
 COPY . .
 
@@ -38,7 +38,7 @@ ENV CGO_ENABLED=0
 
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/root/go/pkg/mod \
-    GOOS=${TARGETOS} GOARCH=${TARGETARCH} mise exec -- go build \
+    GOOS=${TARGETOS} GOARCH=${TARGETARCH} mise exec go -- go build \
     -trimpath \
     -ldflags="-s -w -X main.Version=${VERSION}" \
     -o /out/yews \
@@ -46,14 +46,13 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
 
 FROM mise-base AS remarshal-builder
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    pipx \
-    python3 \
-    && rm -rf /var/lib/apt/lists/*
-
 COPY mise.toml mise.lock ./
 RUN --mount=type=cache,target=/mise/cache \
-    mise trust mise.toml && mise install pipx:remarshal
+    mise trust mise.toml && mise install python uv
+
+RUN --mount=type=cache,target=/mise/cache \
+    UV_PYTHON="$(mise where python)/bin/python" \
+    mise exec python uv -- mise install pipx:remarshal
 
 RUN mkdir -p /usr/local/remarshal/bin \
     && ln -s "$(mise where pipx:remarshal)/bin/toml2yaml" /usr/local/remarshal/bin/toml2yaml \
@@ -64,7 +63,6 @@ FROM debian:bookworm-slim AS full
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
-    python3 \
     && rm -rf /var/lib/apt/lists/*
 
 ENV PATH=/usr/local/remarshal/bin:$PATH \
