@@ -11,16 +11,16 @@ YewSeal - Encrypt/decrypt configuration files using SOPS and Age (supports TOML,
 
 ### SEE ALSO
 
-* [yews check](yews_check.md)	 - Check if required external tools are installed
-* [yews completion](yews_completion.md)	 - Generate the autocompletion script for the specified shell
-* [yews decrypt](yews_decrypt.md)	 - Decrypt encrypted file (output format determined by extension)
-* [yews diff](yews_diff.md)	 - Compare plaintext file with decrypted encrypted file
-* [yews edit](yews_edit.md)	 - Edit encrypted configuration file using SOPS
-* [yews encrypt](yews_encrypt.md)	 - Encrypt configuration file (supports .toml, .yaml, .yml, .json, .env, .ini)
-* [yews init](yews_init.md)	 - Initialize project with Age keys and YewSeal config entries
-* [yews plan](yews_plan.md)	 - Run preflight and print the resolved file selection without writing files
-* [yews sync](yews_sync.md)	 - Sync sensitive files to secret management service
-* [yews view](yews_view.md)	 - Print decrypted plaintext to standard output without writing files
+* [yews check](#yews-check)	 - Check if required external tools are installed
+* [yews completion](#yews-completion)	 - Generate the autocompletion script for the specified shell
+* [yews decrypt](#yews-decrypt)	 - Decrypt encrypted file (output format determined by extension)
+* [yews diff](#yews-diff)	 - Compare plaintext file with decrypted encrypted file
+* [yews edit](#yews-edit)	 - Edit encrypted configuration file using SOPS
+* [yews encrypt](#yews-encrypt)	 - Encrypt configuration file (supports .toml, .yaml, .yml, .json, .env, .ini, and binary output)
+* [yews init](#yews-init)	 - Initialize project with Age keys and YewSeal config entries
+* [yews plan](#yews-plan)	 - Run preflight and print the resolved file selection without writing files
+* [yews sync](#yews-sync)	 - Sync sensitive files to secret management service
+* [yews view](#yews-view)	 - Print decrypted plaintext to standard output without writing files
 
 ## yews check
 
@@ -44,7 +44,7 @@ yews check [flags]
 
 ### SEE ALSO
 
-* [yews](yews.md)	 - YewSeal - Encrypt/decrypt configuration files using SOPS and Age (supports TOML, YAML, JSON, ENV, INI)
+* [yews](#yews)	 - YewSeal - Encrypt/decrypt configuration files using SOPS and Age (supports TOML, YAML, JSON, ENV, INI)
 
 ## yews completion
 
@@ -70,11 +70,11 @@ See each sub-command's help for details on how to use the generated script.
 
 ### SEE ALSO
 
-* [yews](yews.md)	 - YewSeal - Encrypt/decrypt configuration files using SOPS and Age (supports TOML, YAML, JSON, ENV, INI)
-* [yews completion bash](yews_completion_bash.md)	 - Generate the autocompletion script for bash
-* [yews completion fish](yews_completion_fish.md)	 - Generate the autocompletion script for fish
-* [yews completion powershell](yews_completion_powershell.md)	 - Generate the autocompletion script for powershell
-* [yews completion zsh](yews_completion_zsh.md)	 - Generate the autocompletion script for zsh
+* [yews](#yews)	 - YewSeal - Encrypt/decrypt configuration files using SOPS and Age (supports TOML, YAML, JSON, ENV, INI)
+* [yews completion bash](#yews-completion-bash)	 - Generate the autocompletion script for bash
+* [yews completion fish](#yews-completion-fish)	 - Generate the autocompletion script for fish
+* [yews completion powershell](#yews-completion-powershell)	 - Generate the autocompletion script for powershell
+* [yews completion zsh](#yews-completion-zsh)	 - Generate the autocompletion script for zsh
 
 ## yews completion bash
 
@@ -123,7 +123,7 @@ yews completion bash
 
 ### SEE ALSO
 
-* [yews completion](yews_completion.md)	 - Generate the autocompletion script for the specified shell
+* [yews completion](#yews-completion)	 - Generate the autocompletion script for the specified shell
 
 ## yews completion fish
 
@@ -163,7 +163,7 @@ yews completion fish [flags]
 
 ### SEE ALSO
 
-* [yews completion](yews_completion.md)	 - Generate the autocompletion script for the specified shell
+* [yews completion](#yews-completion)	 - Generate the autocompletion script for the specified shell
 
 ## yews completion help
 
@@ -192,7 +192,7 @@ yews completion help [command] [flags]
 
 ### SEE ALSO
 
-* [yews completion](yews_completion.md)	 - Generate the autocompletion script for the specified shell
+* [yews completion](#yews-completion)	 - Generate the autocompletion script for the specified shell
 
 ## yews completion powershell
 
@@ -229,7 +229,7 @@ yews completion powershell [flags]
 
 ### SEE ALSO
 
-* [yews completion](yews_completion.md)	 - Generate the autocompletion script for the specified shell
+* [yews completion](#yews-completion)	 - Generate the autocompletion script for the specified shell
 
 ## yews completion zsh
 
@@ -280,7 +280,7 @@ yews completion zsh [flags]
 
 ### SEE ALSO
 
-* [yews completion](yews_completion.md)	 - Generate the autocompletion script for the specified shell
+* [yews completion](#yews-completion)	 - Generate the autocompletion script for the specified shell
 
 ## yews decrypt
 
@@ -312,7 +312,7 @@ yews decrypt [command options] [path] [flags]
 
 ### SEE ALSO
 
-* [yews](yews.md)	 - YewSeal - Encrypt/decrypt configuration files using SOPS and Age (supports TOML, YAML, JSON, ENV, INI)
+* [yews](#yews)	 - YewSeal - Encrypt/decrypt configuration files using SOPS and Age (supports TOML, YAML, JSON, ENV, INI)
 
 ## yews diff
 
@@ -339,7 +339,7 @@ yews diff [target] [flags]
 
 ### SEE ALSO
 
-* [yews](yews.md)	 - YewSeal - Encrypt/decrypt configuration files using SOPS and Age (supports TOML, YAML, JSON, ENV, INI)
+* [yews](#yews)	 - YewSeal - Encrypt/decrypt configuration files using SOPS and Age (supports TOML, YAML, JSON, ENV, INI)
 
 ## yews edit
 
@@ -365,11 +365,11 @@ yews edit [flags]
 
 ### SEE ALSO
 
-* [yews](yews.md)	 - YewSeal - Encrypt/decrypt configuration files using SOPS and Age (supports TOML, YAML, JSON, ENV, INI)
+* [yews](#yews)	 - YewSeal - Encrypt/decrypt configuration files using SOPS and Age (supports TOML, YAML, JSON, ENV, INI)
 
 ## yews encrypt
 
-Encrypt configuration file (supports .toml, .yaml, .yml, .json, .env, .ini)
+Encrypt configuration file (supports .toml, .yaml, .yml, .json, .env, .ini, and binary output)
 
 ```
 yews encrypt [command options] [path] [flags]
@@ -397,7 +397,7 @@ yews encrypt [command options] [path] [flags]
 
 ### SEE ALSO
 
-* [yews](yews.md)	 - YewSeal - Encrypt/decrypt configuration files using SOPS and Age (supports TOML, YAML, JSON, ENV, INI)
+* [yews](#yews)	 - YewSeal - Encrypt/decrypt configuration files using SOPS and Age (supports TOML, YAML, JSON, ENV, INI)
 
 ## yews help
 
@@ -426,7 +426,7 @@ yews help [command] [flags]
 
 ### SEE ALSO
 
-* [yews](yews.md)	 - YewSeal - Encrypt/decrypt configuration files using SOPS and Age (supports TOML, YAML, JSON, ENV, INI)
+* [yews](#yews)	 - YewSeal - Encrypt/decrypt configuration files using SOPS and Age (supports TOML, YAML, JSON, ENV, INI)
 
 ## yews init
 
@@ -456,7 +456,7 @@ yews init [flags]
 
 ### SEE ALSO
 
-* [yews](yews.md)	 - YewSeal - Encrypt/decrypt configuration files using SOPS and Age (supports TOML, YAML, JSON, ENV, INI)
+* [yews](#yews)	 - YewSeal - Encrypt/decrypt configuration files using SOPS and Age (supports TOML, YAML, JSON, ENV, INI)
 
 ## yews plan
 
@@ -488,7 +488,7 @@ yews plan [command options] [path] [flags]
 
 ### SEE ALSO
 
-* [yews](yews.md)	 - YewSeal - Encrypt/decrypt configuration files using SOPS and Age (supports TOML, YAML, JSON, ENV, INI)
+* [yews](#yews)	 - YewSeal - Encrypt/decrypt configuration files using SOPS and Age (supports TOML, YAML, JSON, ENV, INI)
 
 ## yews sync
 
@@ -512,8 +512,8 @@ yews sync [flags]
 
 ### SEE ALSO
 
-* [yews](yews.md)	 - YewSeal - Encrypt/decrypt configuration files using SOPS and Age (supports TOML, YAML, JSON, ENV, INI)
-* [yews sync pull](yews_sync_pull.md)	 - Pull key from secret management service to local file
+* [yews](#yews)	 - YewSeal - Encrypt/decrypt configuration files using SOPS and Age (supports TOML, YAML, JSON, ENV, INI)
+* [yews sync pull](#yews-sync-pull)	 - Pull key from secret management service to local file
 
 ## yews sync help
 
@@ -542,7 +542,7 @@ yews sync help [command] [flags]
 
 ### SEE ALSO
 
-* [yews sync](yews_sync.md)	 - Sync sensitive files to secret management service
+* [yews sync](#yews-sync)	 - Sync sensitive files to secret management service
 
 ## yews sync pull
 
@@ -566,7 +566,7 @@ yews sync pull [flags]
 
 ### SEE ALSO
 
-* [yews sync](yews_sync.md)	 - Sync sensitive files to secret management service
+* [yews sync](#yews-sync)	 - Sync sensitive files to secret management service
 
 ## yews view
 
@@ -592,5 +592,5 @@ yews view [command options] <target> [flags]
 
 ### SEE ALSO
 
-* [yews](yews.md)	 - YewSeal - Encrypt/decrypt configuration files using SOPS and Age (supports TOML, YAML, JSON, ENV, INI)
+* [yews](#yews)	 - YewSeal - Encrypt/decrypt configuration files using SOPS and Age (supports TOML, YAML, JSON, ENV, INI)
 
