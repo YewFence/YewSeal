@@ -115,7 +115,7 @@ AGE-SECRET-KEY-1QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ`
 }
 
 func TestReadKeyFile_NotExists(t *testing.T) {
-	_, err := GetAgeKey("/nonexistent/path/to/keys.txt")
+	_, err := readKeyFile("/nonexistent/path/to/keys.txt")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to read key file")
 }
@@ -214,6 +214,29 @@ AGE-SECRET-KEY-1FILEFILEFILEFILEFILEFILEFILEFILEFILEFILEFILEFILE`
 	assert.Equal(t, "AGE-SECRET-KEY-1FILEFILEFILEFILEFILEFILEFILEFILEFILEFILEFILEFILE", key)
 }
 
+func TestGetAgeKey_MissingKeyFileFallsBackToEnvVar(t *testing.T) {
+	expectedKey := "AGE-SECRET-KEY-1ENVENVENVENVENVENVENVENVENVENVENVENVENVENV"
+	t.Setenv("SOPS_AGE_KEY", expectedKey)
+
+	key, err := GetAgeKey("/nonexistent/path/to/keys.txt")
+	require.NoError(t, err)
+	assert.Equal(t, expectedKey, key)
+}
+
+func TestGetAgeKey_MissingKeyFileFallsBackToEnvFilePath(t *testing.T) {
+	t.Setenv("SOPS_AGE_KEY", "")
+
+	tmpDir := t.TempDir()
+	envKeyFile := filepath.Join(tmpDir, "env-keys.txt")
+	content := `AGE-SECRET-KEY-1ENVFILEENVFILEENVFILEENVFILEENVFILEENVFILE`
+	require.NoError(t, os.WriteFile(envKeyFile, []byte(content), 0600))
+	t.Setenv("SOPS_AGE_KEY_FILE", envKeyFile)
+
+	key, err := GetAgeKey(filepath.Join(tmpDir, "missing-keys.txt"))
+	require.NoError(t, err)
+	assert.Equal(t, "AGE-SECRET-KEY-1ENVFILEENVFILEENVFILEENVFILEENVFILEENVFILE", key)
+}
+
 func TestGetAgeKey_Priority(t *testing.T) {
 	t.Setenv("SOPS_AGE_KEY", "AGE-SECRET-KEY-1ENVENVENVENVENVENVENVENVENVENVENVENVENVENV")
 
@@ -228,6 +251,18 @@ func TestGetAgeKey_Priority(t *testing.T) {
 	key, err := GetAgeKey(keyFile)
 	require.NoError(t, err)
 	assert.Equal(t, "AGE-SECRET-KEY-1FILEPARAMFILEPARAMFILEPARAMFILEPARAMFILEPARAMFILEPARAMFILE", key)
+}
+
+func TestGetAgeKey_InvalidKeyFileDoesNotFallBackToEnvVar(t *testing.T) {
+	t.Setenv("SOPS_AGE_KEY", "AGE-SECRET-KEY-1ENVENVENVENVENVENVENVENVENVENVENVENVENVENV")
+
+	tmpDir := t.TempDir()
+	keyFile := filepath.Join(tmpDir, "keys.txt")
+	require.NoError(t, os.WriteFile(keyFile, []byte("invalid key content"), 0600))
+
+	_, err := GetAgeKey(keyFile)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "no valid Age secret key found")
 }
 
 func TestGetAgeKey_NoKeyFound(t *testing.T) {

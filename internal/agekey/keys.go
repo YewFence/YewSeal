@@ -1,6 +1,7 @@
 package agekey
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -33,7 +34,13 @@ func ExtractPublicKey(output string) string {
 func GetAgeKey(keyFile string) (string, error) {
 	// Priority 1: Command-line parameter
 	if keyFile != "" {
-		return readKeyFile(keyFile)
+		key, err := readKeyFile(keyFile)
+		if err == nil {
+			return key, nil
+		}
+		if !isKeyFileNotExist(err) {
+			return "", err
+		}
 	}
 
 	// Priority 2: SOPS_AGE_KEY environment variable (direct key value)
@@ -43,7 +50,13 @@ func GetAgeKey(keyFile string) (string, error) {
 
 	// Priority 3: SOPS_AGE_KEY_FILE environment variable (path to key file)
 	if keyFilePath := os.Getenv("SOPS_AGE_KEY_FILE"); keyFilePath != "" {
-		return readKeyFile(keyFilePath)
+		key, err := readKeyFile(keyFilePath)
+		if err == nil {
+			return key, nil
+		}
+		if !isKeyFileNotExist(err) {
+			return "", err
+		}
 	}
 
 	// Priority 4: SOPS_AGE_KEY_CMD environment variable (command to output key)
@@ -73,6 +86,10 @@ func GetAgeKey(keyFile string) (string, error) {
 	}
 
 	return "", &errx.AgeKeyNotFoundError{Options: []string{"--key-file", "SOPS_AGE_KEY", "SOPS_AGE_KEY_FILE", "SOPS_AGE_KEY_CMD", "or .age/keys.txt"}}
+}
+
+func isKeyFileNotExist(err error) bool {
+	return errors.Is(err, os.ErrNotExist)
 }
 
 // GetPublicKey returns the Age public key with priority:
