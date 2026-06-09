@@ -1,12 +1,12 @@
-package batch
+package task
 
 import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 
+	"github.com/YewFence/YewSeal/internal/fileformat"
 	"github.com/YewFence/YewSeal/internal/seal"
 )
 
@@ -17,16 +17,16 @@ type FilePair struct {
 }
 
 type Options struct {
-	InputDir     string
-	Pattern      string
-	OutputDir    string
-	OutputSuffix string
-	KeyFile      string
-	PublicKey    string
-	Parallel     int
-	Verbose      bool
-	Force        bool
-	FilePairs    []FilePair
+	InputDir        string
+	Patterns        []string
+	FormatRules     []string
+	UnknownAsBinary bool
+	KeyFile         string
+	PublicKey       string
+	Parallel        int
+	Verbose         bool
+	Force           bool
+	FilePairs       []FilePair
 }
 
 type Result struct {
@@ -55,7 +55,7 @@ func Encrypt(opts Options) (*Summary, error) {
 		fmt.Printf("Encrypting %d files from %s...\n", len(filePairs), opts.InputDir)
 	}
 
-	if err := ensureOutputDir(opts.OutputDir); err != nil {
+	if err := ensureOutputDirs(filePairs, func(pair FilePair) string { return pair.EncryptedPath }); err != nil {
 		return nil, err
 	}
 
@@ -94,7 +94,7 @@ func Decrypt(opts Options) (*Summary, error) {
 		fmt.Printf("Decrypting %d files from %s...\n", len(filePairs), opts.InputDir)
 	}
 
-	if err := ensureOutputDir(opts.OutputDir); err != nil {
+	if err := ensureOutputDirs(filePairs, func(pair FilePair) string { return pair.PlaintextPath }); err != nil {
 		return nil, err
 	}
 
@@ -126,19 +126,13 @@ func encryptFilePairs(opts Options) ([]FilePair, error) {
 		return opts.FilePairs, nil
 	}
 
-	files, err := collectFiles(opts.InputDir, opts.Pattern)
-	if err != nil {
-		return nil, err
-	}
-
-	filePairs := make([]FilePair, 0, len(files))
-	for _, file := range files {
-		filePairs = append(filePairs, FilePair{
-			PlaintextPath: file,
-			EncryptedPath: GenerateOutputFilename(file, opts.OutputDir, opts.OutputSuffix, "encrypt"),
-		})
-	}
-	return filePairs, nil
+	return BuildGroupFilePairs(GroupOptions{
+		Root:            opts.InputDir,
+		Patterns:        opts.Patterns,
+		FormatRules:     opts.FormatRules,
+		UnknownAsBinary: opts.UnknownAsBinary,
+		Mode:            ModeEncrypt,
+	})
 }
 
 func decryptFilePairs(opts Options) ([]FilePair, error) {
@@ -146,69 +140,57 @@ func decryptFilePairs(opts Options) ([]FilePair, error) {
 		return opts.FilePairs, nil
 	}
 
-	files, err := collectFiles(opts.InputDir, opts.Pattern)
-	if err != nil {
-		return nil, err
-	}
-
-	filePairs := make([]FilePair, 0, len(files))
-	for _, file := range files {
-		filePairs = append(filePairs, FilePair{
-			PlaintextPath: GenerateOutputFilename(file, opts.OutputDir, opts.OutputSuffix, "decrypt"),
-			EncryptedPath: file,
-		})
-	}
-	return filePairs, nil
-}
-
-func collectFiles(dir, pattern string) ([]string, error) {
-	fullPattern := filepath.Join(dir, pattern)
-
-	files, err := filepath.Glob(fullPattern)
-	if err != nil {
-		return nil, fmt.Errorf("invalid pattern %s: %w", pattern, err)
-	}
-
-	if len(files) == 0 {
-		return nil, fmt.Errorf("no files found matching pattern %s in %s", pattern, dir)
-	}
-
-	return files, nil
+	return BuildGroupFilePairs(GroupOptions{
+		Root:            opts.InputDir,
+		Patterns:        opts.Patterns,
+		FormatRules:     opts.FormatRules,
+		UnknownAsBinary: opts.UnknownAsBinary,
+		Mode:            ModeDecrypt,
+	})
 }
 
 func GenerateOutputFilename(inputFile, outputDir, outputSuffix, mode string) string {
-	dir := filepath.Dir(inputFile)
 	if outputDir != "" {
-		dir = outputDir
+		generated := GenerateOutputFilename(inputFile, "", outputSuffix, mode)
+		return filepath.Join(outputDir, filepath.Base(generated))
 	}
-
-	base := filepath.Base(inputFile)
-
 	if mode == "encrypt" {
-		ext := filepath.Ext(base)
-		name := strings.TrimSuffix(base, ext)
-		return filepath.Join(dir, name+outputSuffix)
-	}
-
-	encSuffixes := []string{".enc.toml.yaml", ".enc.yaml", ".encrypted.yaml"}
-	for _, encSuffix := range encSuffixes {
-		if strings.HasSuffix(base, encSuffix) {
-			name := strings.TrimSuffix(base, encSuffix)
-			return filepath.Join(dir, name+outputSuffix)
+		if outputSuffix != "" {
+			dir := filepath.Dir(inputFile)
+			base := filepath.Base(inputFile)
+			ext := filepath.Ext(base)
+			return filepath.Join(dir, base[:len(base)-len(ext)]+outputSuffix)
 		}
+		path, err := fileformat.EncryptPathForPlaintext(inputFile, "")
+		if err == nil {
+			return path
+		}
+		return inputFile + ".enc.bin"
 	}
-
-	ext := filepath.Ext(base)
-	name := strings.TrimSuffix(base, ext)
-	return filepath.Join(dir, name+outputSuffix)
+	if outputSuffix != "" {
+		dir := filepath.Dir(inputFile)
+		base := filepath.Base(inputFile)
+		ext := filepath.Ext(base)
+		return filepath.Join(dir, base[:len(base)-len(ext)]+outputSuffix)
+	}
+	path, _, err := fileformat.PlaintextPathForEncrypted(inputFile, "")
+	if err == nil {
+		return path
+	}
+	return inputFile
 }
 
-func ensureOutputDir(outputDir string) error {
-	if outputDir == "" {
-		return nil
-	}
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
-		return fmt.Errorf("failed to create output directory: %w", err)
+func ensureOutputDirs(pairs []FilePair, target func(FilePair) string) error {
+	seen := map[string]bool{}
+	for _, pair := range pairs {
+		dir := filepath.Dir(target(pair))
+		if dir == "." || seen[dir] {
+			continue
+		}
+		seen[dir] = true
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return fmt.Errorf("failed to create output directory %s: %w", dir, err)
+		}
 	}
 	return nil
 }

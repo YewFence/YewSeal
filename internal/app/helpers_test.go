@@ -51,6 +51,107 @@ func TestResolveFormatOverride_PrefersCLIValue(t *testing.T) {
 	assert.Equal(t, "json", format)
 }
 
+func TestResolvePlaintextTarget_UsesConfiguredPair(t *testing.T) {
+	cfg := &config.Config{
+		Encryption: config.EncryptionConfig{
+			Files: []config.FilePair{
+				{PlaintextPath: ".dev.vars", EncryptedPath: ".dev.vars.enc.yaml", Format: "env"},
+			},
+		},
+	}
+
+	filePair, err := ResolvePlaintextTarget(cfg, ".dev.vars", "", "")
+	require.NoError(t, err)
+	assert.Equal(t, ".dev.vars", filePair.PlaintextPath)
+	assert.Equal(t, ".dev.vars.enc.yaml", filePair.EncryptedPath)
+	assert.Equal(t, "env", filePair.Format)
+}
+
+func TestResolvePlaintextTarget_FormatOverridesConfiguredFormat(t *testing.T) {
+	cfg := &config.Config{
+		Encryption: config.EncryptionConfig{
+			Files: []config.FilePair{
+				{PlaintextPath: "config.yaml", EncryptedPath: "config.enc.yaml", Format: "yaml"},
+			},
+		},
+	}
+
+	filePair, err := ResolvePlaintextTarget(cfg, "config.yaml", "json", "")
+	require.NoError(t, err)
+	assert.Equal(t, "config.yaml", filePair.PlaintextPath)
+	assert.Equal(t, "config.enc.yaml", filePair.EncryptedPath)
+	assert.Equal(t, "json", filePair.Format)
+}
+
+func TestResolvePlaintextTarget_AcceptsConfiguredEncryptedSide(t *testing.T) {
+	cfg := &config.Config{
+		Encryption: config.EncryptionConfig{
+			Files: []config.FilePair{
+				{PlaintextPath: ".dev.vars", EncryptedPath: ".dev.vars.enc.yaml", Format: "env"},
+			},
+		},
+	}
+
+	filePair, err := ResolvePlaintextTarget(cfg, ".dev.vars.enc.yaml", "", "")
+	require.NoError(t, err)
+	assert.Equal(t, ".dev.vars", filePair.PlaintextPath)
+	assert.Equal(t, ".dev.vars.enc.yaml", filePair.EncryptedPath)
+	assert.Equal(t, "env", filePair.Format)
+}
+
+func TestResolvePlaintextTarget_MatchesAbsoluteConfiguredPairWithRelativeTarget(t *testing.T) {
+	tempDir := t.TempDir()
+	oldWd, err := os.Getwd()
+	require.NoError(t, err)
+	require.NoError(t, os.Chdir(tempDir))
+	t.Cleanup(func() {
+		require.NoError(t, os.Chdir(oldWd))
+	})
+
+	cfg := &config.Config{
+		Encryption: config.EncryptionConfig{
+			Files: []config.FilePair{
+				{
+					PlaintextPath: filepath.Join(tempDir, ".dev.vars"),
+					EncryptedPath: filepath.Join(tempDir, ".dev.vars.enc.env"),
+					Format:        "env",
+				},
+			},
+		},
+	}
+
+	filePair, err := ResolvePlaintextTarget(cfg, ".dev.vars", "", "")
+	require.NoError(t, err)
+
+	assert.Equal(t, filepath.Join(tempDir, ".dev.vars"), filePair.PlaintextPath)
+	assert.Equal(t, filepath.Join(tempDir, ".dev.vars.enc.env"), filePair.EncryptedPath)
+	assert.Equal(t, "env", filePair.Format)
+}
+
+func TestResolvePlaintextTarget_OutputOverridesConfiguredEncryptedPath(t *testing.T) {
+	cfg := &config.Config{
+		Encryption: config.EncryptionConfig{
+			Files: []config.FilePair{
+				{PlaintextPath: ".dev.vars", EncryptedPath: ".dev.vars.enc.yaml", Format: "env"},
+			},
+		},
+	}
+
+	filePair, err := ResolvePlaintextTarget(cfg, ".dev.vars", "", "custom.enc.env")
+	require.NoError(t, err)
+	assert.Equal(t, ".dev.vars", filePair.PlaintextPath)
+	assert.Equal(t, "custom.enc.env", filePair.EncryptedPath)
+	assert.Equal(t, "env", filePair.Format)
+}
+
+func TestResolvePlaintextTarget_InferredPairUsesOutput(t *testing.T) {
+	filePair, err := ResolvePlaintextTarget(config.DefaultConfig(), "config.yaml", "", "out.enc.yaml")
+	require.NoError(t, err)
+	assert.Equal(t, "config.yaml", filePair.PlaintextPath)
+	assert.Equal(t, "out.enc.yaml", filePair.EncryptedPath)
+	assert.Equal(t, "", filePair.Format)
+}
+
 func TestResolveTargetFilePairs_EmptyUsesAllConfiguredFiles(t *testing.T) {
 	cfg := &config.Config{
 		Encryption: config.EncryptionConfig{
@@ -125,6 +226,61 @@ func TestResolveSingleTargetFilePair_MatchesPlaintextPath(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "wrangler.toml", filePair.PlaintextPath)
 	assert.Equal(t, "wrangler.enc.toml.yaml", filePair.EncryptedPath)
+}
+
+func TestConfigGroupPairsExpandsMultipleGroups(t *testing.T) {
+	tempDir := t.TempDir()
+	oldWd, err := os.Getwd()
+	require.NoError(t, err)
+	require.NoError(t, os.Chdir(tempDir))
+	t.Cleanup(func() {
+		require.NoError(t, os.Chdir(oldWd))
+	})
+
+	require.NoError(t, os.WriteFile("app.toml", []byte("token = \"secret\"\n"), 0644))
+	require.NoError(t, os.WriteFile(".dev.vars", []byte("TOKEN=secret\n"), 0644))
+
+	cfg := &config.Config{
+		Encryption: config.EncryptionConfig{
+			Groups: []config.GroupConfig{
+				{Patterns: []string{"*.toml"}},
+				{Patterns: []string{".dev.vars"}, FormatRules: []string{".dev.vars=env"}},
+			},
+		},
+	}
+
+	pairs, err := configGroupPairs(cfg, "encrypt", groupRequestOptions{})
+	require.NoError(t, err)
+	require.Len(t, pairs, 2)
+
+	assert.Equal(t, "app.toml", pairs[0].PlaintextPath)
+	assert.Equal(t, "app.enc.toml.yaml", pairs[0].EncryptedPath)
+	assert.Equal(t, "toml", pairs[0].Format)
+	assert.Equal(t, ".dev.vars", pairs[1].PlaintextPath)
+	assert.Equal(t, ".dev.vars.enc.env", pairs[1].EncryptedPath)
+	assert.Equal(t, "env", pairs[1].Format)
+}
+
+func TestConfigGroupPairsUsesRequestPatternsWithoutConfiguredGroups(t *testing.T) {
+	tempDir := t.TempDir()
+	oldWd, err := os.Getwd()
+	require.NoError(t, err)
+	require.NoError(t, os.Chdir(tempDir))
+	t.Cleanup(func() {
+		require.NoError(t, os.Chdir(oldWd))
+	})
+
+	require.NoError(t, os.WriteFile("app.toml", []byte("token = \"secret\"\n"), 0644))
+
+	pairs, err := configGroupPairs(config.DefaultConfig(), "encrypt", groupRequestOptions{
+		Patterns: []string{"*.toml"},
+	})
+	require.NoError(t, err)
+	require.Len(t, pairs, 1)
+
+	assert.Equal(t, "app.toml", pairs[0].PlaintextPath)
+	assert.Equal(t, "app.enc.toml.yaml", pairs[0].EncryptedPath)
+	assert.Equal(t, "toml", pairs[0].Format)
 }
 
 func TestWriteViewedTarget_WritesPlaintextToWriterOnly(t *testing.T) {

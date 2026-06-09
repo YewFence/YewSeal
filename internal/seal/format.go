@@ -25,6 +25,14 @@ func NormalizeFormatOverride(value string) (string, bool) {
 	return string(parsed), true
 }
 
+func NormalizeFormatForPath(filename string) (string, bool) {
+	detected := detectFormat(filename)
+	if detected == formatUnknown {
+		return "", false
+	}
+	return string(detected), true
+}
+
 func detectFormat(filename string) format {
 	ext := strings.ToLower(filepath.Ext(filename))
 	switch ext {

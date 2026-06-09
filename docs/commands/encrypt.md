@@ -1,211 +1,120 @@
 # encrypt - 加密配置文件
 
-加密配置文件，支持 .toml、.yaml、.yml、.json、.env、.ini 格式。
+`encrypt` 用来把明文配置文件加密成 SOPS 文件，支持 TOML、YAML、JSON、ENV、INI 和二进制文件。TOML 会先转换成 YAML，再以 YAML 形式写入加密文件。
 
 ## 语法
 
 ```bash
-yews encrypt [选项]
+yews encrypt [command options] [path]
 ```
 
-别名：`e`
+别名是 `e`。
 
-## 模式
+## 目标选择
 
-### 单文件模式
+不传 `path` 时，YewSeal 会使用 `.yewseal.toml` 中当前目录范围内的 `[[encryption.files]]` 和 `[[encryption.groups]]`。如果没有配置文件，则使用默认映射 `wrangler.toml` 到 `wrangler.enc.toml.yaml`。
 
-加密单个文件：
+传入文件路径时，YewSeal 会加密这个明文文件。如果该文件已在配置中声明，会使用配置中的加密路径和格式；如果没有配置，会根据文件名推断输出路径。
 
-```bash
-yews encrypt -i config.toml -o config.enc.toml.yaml
-```
-
-### 批量模式
-
-加密目录中的多个文件：
-
-```bash
-yews encrypt --dir ./configs --pattern "*.toml"
-```
+传入目录路径时，YewSeal 会扫描目录。没有传 `--pattern` 时会匹配 `.toml`、`.yaml`、`.yml`、`.json`、`.env`、`.ini`、`.bin` 和 `.binary`，并排除常见的 `.enc.*` 文件。
 
 ## 选项
 
-### --input, -i
-
-输入文件路径（单文件模式）。
-
-默认值：`wrangler.toml`
-
-```bash
-yews encrypt -i config.toml
-```
-
 ### --output, -o
 
-输出加密文件路径（仅单文件模式）。
-
-默认值：`wrangler.enc.toml.yaml`
+为单文件目标指定加密文件路径。
 
 ```bash
-yews encrypt -i config.toml -o config.enc.toml.yaml
+yews encrypt config.toml -o config.enc.toml.yaml
 ```
+
+`--output` 只支持文件目标，不支持配置模式或目录扫描。
 
 ### --format
 
-格式覆盖（toml/yaml/json/env/ini），用于单文件模式。
+为文件目标指定格式，支持 `toml`、`yaml`、`json`、`env`、`ini` 和 `binary`。
 
 ```bash
-yews encrypt -i config.txt --format toml
+yews encrypt .dev.vars --format env -o .dev.enc.env
 ```
 
-### --public-key, -p
+`--format` 只支持单文件模式。批量场景需要使用 `--format-rule` 或配置里的 `format_rules`。
 
-用于加密的 Age 公钥。
+### --format-rule
+
+为分组扫描指定格式规则，形式是 `<pattern>=<format>`。
 
 ```bash
-yews encrypt -i config.toml -p age1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+yews encrypt ./configs --format-rule ".dev.vars=env"
 ```
 
-### --dir
-
-要扫描的目录（启用批量模式）。
-
-```bash
-yews encrypt --dir ./configs
-```
+可以多次传入。命令行规则会追加到配置规则之后。
 
 ### --pattern
 
-目录中匹配文件的 Glob 模式。
-
-默认值：`*.toml`
+为配置模式或目录扫描指定匹配规则。
 
 ```bash
-yews encrypt --dir ./configs --pattern "*.yaml"
+yews encrypt ./configs --pattern "*.toml" --pattern "!*.enc.toml.yaml"
 ```
 
-### --output-dir
+规则支持 `*`、`?`、`**`、以 `!` 开头的排除规则、以 `/` 开头的根目录锚定规则和以 `/` 结尾的目录规则。
 
-加密文件的输出目录（批量模式）。
+### --unknown-as-binary
 
-```bash
-yews encrypt --dir ./configs --output-dir ./encrypted
-```
-
-### --output-suffix
-
-输出文件的后缀（批量模式）。
-
-默认值：`.enc.toml.yaml`
+在分组扫描中，把无法识别格式的明文文件按二进制文件加密。
 
 ```bash
-yews encrypt --dir ./configs --output-suffix ".encrypted.yaml"
+yews encrypt ./secrets --unknown-as-binary
 ```
 
 ### --parallel, -P
 
-批量模式的并行工作线程数。
-
-默认值：`1`
+设置批量模式的并行工作线程数，默认值是 `1`。
 
 ```bash
-yews encrypt --dir ./configs --parallel 4
+yews encrypt ./configs --parallel 4
+```
+
+### --public-key, -p
+
+指定 Age 公钥。没有传入时，会优先使用 `.yewseal.toml` 的 `[key].public_key`，再从私钥文件中读取公钥。
+
+```bash
+yews encrypt config.toml -p age1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
 ### --verbose, -v
 
-启用详细输出。
+输出详细的文件选择信息。
 
 ```bash
-yews encrypt -i config.toml -v
+yews encrypt -v
 ```
 
 ## 示例
 
-### 单文件加密
-
 ```bash
-# 使用默认文件名
+# 加密配置中的所有文件
 yews encrypt
 
-# 指定输入输出
-yews encrypt -i app.toml -o app.enc.toml.yaml
+# 加密单个文件，输出路径由文件名推断
+yews encrypt config.toml
 
-# 指定格式
-yews encrypt -i config.txt --format json -o config.enc.json.yaml
+# 加密单个文件，并指定输出路径
+yews encrypt config.toml -o config.enc.toml.yaml
+
+# 扫描目录并加密匹配文件
+yews encrypt ./configs --pattern "*.toml"
+
+# 为非标准扩展名指定格式
+yews encrypt .dev.vars --format env -o .dev.enc.env
 ```
 
-### 批量加密
+## 输出文件协议
 
-```bash
-# 加密目录中所有 .toml 文件
-yews encrypt --dir ./configs
-
-# 使用自定义模式
-yews encrypt --dir ./configs --pattern "*.yaml"
-
-# 指定输出目录
-yews encrypt --dir ./configs --output-dir ./encrypted
-
-# 并行处理
-yews encrypt --dir ./configs --parallel 4 -v
-```
-
-### 使用特定公钥
-
-```bash
-# 使用指定的公钥加密
-yews encrypt \
-  -i config.toml \
-  -o config.enc.toml.yaml \
-  -p age1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-```
-
-## 加密格式
-
-YewSeal 会直接按 SOPS 原生格式加密 YAML、JSON、ENV 和 INI 文件，只有 TOML 会先转换为 YAML 后再加密：
-
-```yaml
-# 原始 TOML 文件
-[database]
-host = "localhost"
-password = "secret"
-
-# 加密后的 YAML 文件
-database:
-    host: localhost
-    password: ENC[AES256_GCM,data:xxx,iv:xxx,tag:xxx,type:str]
-sops:
-    age:
-        - recipient: age1xxx
-          enc: |
-            -----BEGIN AGE ENCRYPTED FILE-----
-            ...
-            -----END AGE ENCRYPTED FILE-----
-```
-
-## 格式检测
-
-YewSeal 通过以下方式检测文件格式：
-
-1. 如果指定了 `--format`，使用指定的格式
-2. 否则根据文件扩展名检测：
-   - `.toml` → TOML
-   - `.yaml`, `.yml` → YAML
-   - `.json` → JSON
-   - `.env` → ENV
-   - `.ini` → INI
-
-## 注意事项
-
-1. **TOML 支持**：TOML 是例外，会先转换为 YAML，然后加密为 YAML 格式
-2. **批量模式**：批量模式下，输出文件名为 `原文件名 + output-suffix`
-3. **并行处理**：使用 `--parallel` 可以加速批量加密，建议值为 CPU 核心数
-4. **公钥来源**：如果不指定 `--public-key`，会从 `.sops.yaml` 中读取
+YewSeal 会按格式推断加密文件名。`config.toml` 会变成 `config.enc.toml.yaml`，`config.yaml` 会变成 `config.enc.yaml`，`config.json` 会变成 `config.enc.json`，`.env` 会变成 `.env.enc.env`，`config.ini` 会变成 `config.enc.ini`，二进制文件会变成 `.enc.bin`。
 
 ## 相关命令
 
-- [decrypt](/commands/decrypt) - 解密配置文件
-- [edit](/commands/edit) - 编辑加密文件
-- [view](/commands/view) - 查看加密文件内容
-- [init](/commands/init) - 初始化项目
+[plan](/commands/plan) 可以先预览文件选择，[decrypt](/commands/decrypt) 可以解密文件，[diff](/commands/diff) 可以比较明文和加密文件。

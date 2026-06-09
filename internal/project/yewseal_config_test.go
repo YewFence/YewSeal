@@ -2,6 +2,7 @@ package project
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/YewFence/YewSeal/internal/config"
@@ -93,8 +94,8 @@ func TestSavePublicKeyToConfig_ConfigCanBeLoaded(t *testing.T) {
 	cfg, err := config.LoadConfig()
 	require.NoError(t, err)
 	require.Len(t, cfg.GetFiles(), 1)
-	assert.Equal(t, "input.toml", cfg.GetFiles()[0].PlaintextPath)
-	assert.Equal(t, "output.yaml", cfg.GetFiles()[0].EncryptedPath)
+	assert.Equal(t, filepath.Join(tmpDir, "input.toml"), cfg.GetFiles()[0].PlaintextPath)
+	assert.Equal(t, filepath.Join(tmpDir, "output.yaml"), cfg.GetFiles()[0].EncryptedPath)
 	assert.Equal(t, "age1testkey", cfg.GetPublicKey())
 }
 

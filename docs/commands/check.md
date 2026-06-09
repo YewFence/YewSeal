@@ -1,6 +1,6 @@
 # check - 检查依赖
 
-检查是否安装了所需的外部工具。
+`check` 会显示 YewSeal 的依赖状态。
 
 ## 语法
 
@@ -9,128 +9,35 @@ yews check
 yews doctor
 ```
 
-别名：`doctor`
+别名是 `doctor`。
 
-## 功能
+## 当前依赖模型
 
-`check` 命令会检查以下工具是否已安装：
-
-1. **SOPS** - 用于加密和解密配置文件
-2. **Age** - 用于密钥生成和管理
+Age 和 SOPS 已经作为 Go 库内嵌进 YewSeal，不需要额外安装命令行工具。TOML 支持仍然需要外部的 `remarshal`，因为 YewSeal 会通过 `toml2yaml` 和 `yaml2toml` 做 TOML 与 YAML 转换。
 
 ## 示例
 
 ```bash
-# 检查依赖
 yews check
-
-# 使用别名
 yews doctor
 ```
 
-## 输出示例
+输出会列出内嵌库状态，并提示 `remarshal` 是否可用。
 
-### 所有依赖已安装
-
-```text
-✓ SOPS is installed (version 3.8.1)
-✓ Age is installed (version 1.1.1)
-
-All required tools are installed!
-```
-
-### 缺少依赖
-
-```text
-✗ SOPS is not installed
-✓ Age is installed (version 1.1.1)
-
-Missing required tools. Please install them before using YewSeal.
-```
-
-## 安装依赖
-
-### SOPS
-
-#### macOS
+## 安装 remarshal
 
 ```bash
-brew install sops
+uv tool install remarshal
 ```
 
-#### Linux
+也可以使用 `pipx` 安装。
 
 ```bash
-# 下载最新版本
-wget https://github.com/getsops/sops/releases/download/v3.8.1/sops-v3.8.1.linux.amd64
-sudo mv sops-v3.8.1.linux.amd64 /usr/local/bin/sops
-sudo chmod +x /usr/local/bin/sops
+pipx install remarshal
 ```
 
-#### Windows
-
-```powershell
-# 使用 Chocolatey
-choco install sops
-
-# 或使用 Scoop
-scoop install sops
-```
-
-### Age
-
-#### macOS
-
-```bash
-brew install age
-```
-
-#### Linux
-
-```bash
-# 下载最新版本
-wget https://github.com/FiloSottile/age/releases/download/v1.1.1/age-v1.1.1-linux-amd64.tar.gz
-tar xzf age-v1.1.1-linux-amd64.tar.gz
-sudo mv age/age /usr/local/bin/
-sudo mv age/age-keygen /usr/local/bin/
-sudo chmod +x /usr/local/bin/age*
-```
-
-#### Windows
-
-```powershell
-# 使用 Chocolatey
-choco install age.portable
-
-# 或使用 Scoop
-scoop install age
-```
-
-## 为什么需要这些工具
-
-### SOPS
-
-SOPS (Secrets OPerationS) 是 Mozilla 开发的加密工具，用于：
-- 加密和解密配置文件
-- 支持多种密钥管理系统（Age, PGP, AWS KMS, GCP KMS, Azure Key Vault）
-- 保持文件格式可读性（只加密值，不加密键）
-
-### Age
-
-Age 是一个现代化的文件加密工具，用于：
-- 生成密钥对
-- 提供简单安全的加密方案
-- 替代传统的 PGP/GPG
-
-## 注意事项
-
-1. **版本要求**：建议使用最新稳定版本
-2. **PATH 配置**：确保工具在系统 PATH 中可访问
-3. **权限问题**：Linux/macOS 上可能需要 sudo 权限安装
+如果只处理 YAML、JSON、ENV、INI 或二进制文件，不安装 `remarshal` 也可以使用核心加解密能力。
 
 ## 相关命令
 
-- [init](/commands/init) - 初始化项目（需要 Age）
-- [encrypt](/commands/encrypt) - 加密文件（需要 SOPS）
-- [decrypt](/commands/decrypt) - 解密文件（需要 SOPS）
-- [edit](/commands/edit) - 编辑加密文件（需要 SOPS）
+[encrypt](/commands/encrypt) 和 [decrypt](/commands/decrypt) 在处理 TOML 文件时会需要 `remarshal`。

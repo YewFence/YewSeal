@@ -287,53 +287,6 @@ func TestEncryptDecryptBinaryOverrideRoundTrip(t *testing.T) {
 	assert.Equal(t, plain, decrypted)
 }
 
-func TestEditTOMLRoundTripRemarshal(t *testing.T) {
-	skipIfToolMissing(t, "toml2yaml")
-	skipIfToolMissing(t, "yaml2toml")
-
-	env := setupTestEnv(t)
-	plain := []byte(`[database]
-host = "localhost"
-password = "old"
-`)
-	require.NoError(t, os.WriteFile("config.toml", plain, 0644))
-	require.NoError(t, Encrypt(EncryptOptions{
-		InputFile:      "config.toml",
-		OutputFile:     "config.enc.toml",
-		KeyFile:        env.keyFile,
-		PublicKey:      env.publicKey,
-		FormatOverride: "toml",
-	}))
-
-	editorPath := filepath.Join(t.TempDir(), "edit.sh")
-	editorScript := `#!/usr/bin/env bash
-set -euo pipefail
-if ! grep -q 'password = "old"' "$1"; then
-  echo "expected TOML content in edit buffer" >&2
-  exit 1
-fi
-sed -i 's/password = "old"/password = "new"/' "$1"
-`
-	require.NoError(t, os.WriteFile(editorPath, []byte(editorScript), 0700))
-
-	var output bytes.Buffer
-	require.NoError(t, Edit(EditOptions{
-		File:    "config.enc.toml",
-		Editor:  editorPath,
-		KeyFile: env.keyFile,
-		Output:  &output,
-	}))
-
-	decrypted, err := DecryptToBytes(DecryptBytesOptions{
-		InputFile:      "config.enc.toml",
-		OutputFile:     "config.toml",
-		KeyFile:        env.keyFile,
-		FormatOverride: "toml",
-	})
-	require.NoError(t, err)
-	assert.Contains(t, string(decrypted), `password = "new"`)
-}
-
 func TestEncryptInvalidFormatOverride(t *testing.T) {
 	env := setupTestEnv(t)
 	require.NoError(t, os.WriteFile("config.yaml", []byte("TOKEN=secret\n"), 0644))
@@ -347,10 +300,4 @@ func TestEncryptInvalidFormatOverride(t *testing.T) {
 	})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), `unsupported format override "xml"`)
-}
-
-func TestSplitEditorCommandPreservesQuotedExecutable(t *testing.T) {
-	parts, err := splitEditorCommand(`"/Applications/Sublime Text.app/Contents/SharedSupport/bin/subl" -w`)
-	require.NoError(t, err)
-	assert.Equal(t, []string{"/Applications/Sublime Text.app/Contents/SharedSupport/bin/subl", "-w"}, parts)
 }

@@ -3,6 +3,8 @@
 go = "1"
 # https://nodejs.org/
 node = "24"
+# https://www.python.org/
+python = "3"
 # https://infisical.com/docs/cli/overview
 infisical = "latest"
 # https://github.com/azat-io/actions-up
@@ -94,9 +96,9 @@ run = [
 ]
 
 [tasks.run]
-depends = ["build"]
-description = "构建并运行 CLI"
-file = ".mise/tasks/run"
+description = "直接运行 CLI"
+raw_args = true
+run = "go run ./cmd/yews"
 
 [tasks.docs]
 description = "生成 CLI 文档"

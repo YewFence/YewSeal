@@ -1,224 +1,116 @@
 # decrypt - 解密配置文件
 
-解密加密的配置文件，输出格式由扩展名决定。
+`decrypt` 用来把 SOPS 加密文件解密成明文文件，输出格式由配置、命令行格式覆盖或加密文件名协议决定。
 
 ## 语法
 
 ```bash
-yews decrypt [选项]
+yews decrypt [command options] [path]
 ```
 
-别名：`d`
+别名是 `d`。
 
-## 模式
+## 目标选择
 
-### 单文件模式
+不传 `path` 时，YewSeal 会使用 `.yewseal.toml` 中当前目录范围内的配置项。传入加密文件路径时，会解密这个文件。传入目录路径时，会扫描目录下符合加密文件名协议的文件。
 
-解密单个文件：
-
-```bash
-yews decrypt -i config.enc.toml.yaml -o config.toml
-```
-
-### 批量模式
-
-解密目录中的多个文件：
-
-```bash
-yews decrypt --dir ./encrypted --pattern "*.enc.toml.yaml"
-```
+如果目标在 `[[encryption.files]]` 中声明过，会使用配置里的明文路径和格式。如果目标没有配置，`config.enc.toml.yaml` 会解密到 `config.toml`，`config.enc.yaml` 会解密到 `config.yaml`，其他支持格式也按同样协议推断。
 
 ## 选项
 
-### --input, -i
-
-输入加密文件路径（单文件模式）。
-
-默认值：`wrangler.enc.toml.yaml`
-
-```bash
-yews decrypt -i config.enc.toml.yaml
-```
-
 ### --output, -o
 
-输出解密文件路径（仅单文件模式）。
-
-默认值：`wrangler.toml`
+为单文件目标指定明文输出路径。
 
 ```bash
-yews decrypt -i config.enc.toml.yaml -o config.toml
+yews decrypt config.enc.toml.yaml -o config.toml
 ```
+
+`--output` 只支持文件目标，不支持配置模式或目录扫描。
 
 ### --format
 
-格式覆盖（toml/yaml/json/env/ini），用于单文件模式。
+为文件目标指定输出格式，支持 `toml`、`yaml`、`json`、`env`、`ini` 和 `binary`。
 
 ```bash
-yews decrypt -i config.enc.yaml --format toml -o config.toml
+yews decrypt config.enc.yaml --format toml -o config.toml
 ```
 
-### --force, -f
+`--format` 只支持单文件模式。
 
-当明文文件存在且内容不同时，强制覆盖。
+### --format-rule
 
-```bash
-yews decrypt -i config.enc.toml.yaml -o config.toml --force
-```
-
-### --dir
-
-要扫描加密文件的目录（启用批量模式）。
+为分组扫描指定格式规则，形式是 `<pattern>=<format>`。
 
 ```bash
-yews decrypt --dir ./encrypted
+yews decrypt ./configs --format-rule ".dev.vars=env"
 ```
 
 ### --pattern
 
-匹配加密文件的 Glob 模式。
-
-默认值：`*.enc.toml.yaml`
+为配置模式或目录扫描指定匹配规则。
 
 ```bash
-yews decrypt --dir ./encrypted --pattern "*.encrypted.yaml"
+yews decrypt ./configs --pattern "*.toml"
 ```
 
-### --output-dir
+目录解密时，`--pattern` 匹配的是逻辑明文路径。比如 `--pattern "*.toml"` 可以选中 `config.enc.toml.yaml`。
 
-解密文件的输出目录（批量模式）。
+### --unknown-as-binary
 
-```bash
-yews decrypt --dir ./encrypted --output-dir ./configs
-```
-
-### --output-suffix
-
-输出文件的后缀（批量模式）。
-
-默认值：`.toml`
+在分组扫描中，允许把无法识别格式的加密输入按二进制文件处理。
 
 ```bash
-yews decrypt --dir ./encrypted --output-suffix ".yaml"
+yews decrypt ./secrets --unknown-as-binary
 ```
 
 ### --parallel, -P
 
-批量模式的并行工作线程数。
-
-默认值：`1`
+设置批量模式的并行工作线程数，默认值是 `1`。
 
 ```bash
-yews decrypt --dir ./encrypted --parallel 4
+yews decrypt ./configs --parallel 4
+```
+
+### --force, -f
+
+当明文文件已存在且内容不同的时候强制覆盖。
+
+```bash
+yews decrypt config.enc.toml.yaml --force
 ```
 
 ### --verbose, -v
 
-启用详细输出。
+输出详细的文件选择信息。
 
 ```bash
-yews decrypt -i config.enc.toml.yaml -v
+yews decrypt -v
 ```
 
 ## 示例
 
-### 单文件解密
-
 ```bash
-# 使用默认文件名
+# 解密配置中的所有文件
 yews decrypt
 
-# 指定输入输出
-yews decrypt -i app.enc.toml.yaml -o app.toml
+# 解密单个加密文件，输出路径由文件名推断
+yews decrypt config.enc.toml.yaml
 
-# 指定输出格式
-yews decrypt -i config.enc.yaml --format json -o config.json
+# 解密单个加密文件，并指定输出路径
+yews decrypt config.enc.toml.yaml -o config.toml
 
-# 强制覆盖
-yews decrypt -i config.enc.toml.yaml -o config.toml --force
+# 解密目录中匹配的加密文件
+yews decrypt ./configs --pattern "*.toml"
+
+# 输出为指定格式
+yews decrypt config.enc.yaml --format json -o config.json
 ```
-
-### 批量解密
-
-```bash
-# 解密目录中所有加密文件
-yews decrypt --dir ./encrypted
-
-# 使用自定义模式
-yews decrypt --dir ./encrypted --pattern "*.encrypted.yaml"
-
-# 指定输出目录
-yews decrypt --dir ./encrypted --output-dir ./configs
-
-# 并行处理
-yews decrypt --dir ./encrypted --parallel 4 -v
-```
-
-## 输出格式
-
-解密后的输出格式由以下方式决定：
-
-1. 如果指定了 `--format`，使用指定的格式
-2. 否则根据输出文件扩展名决定：
-   - `.toml` → TOML
-   - `.yaml`, `.yml` → YAML
-   - `.json` → JSON
-   - `.env` → ENV
-   - `.ini` → INI
 
 ## 覆盖保护
 
-默认情况下，如果输出文件已存在且内容与解密结果不同，`decrypt` 命令会报错并拒绝覆盖。
-
-使用 `--force` 选项可以强制覆盖：
-
-```bash
-yews decrypt -i config.enc.toml.yaml -o config.toml --force
-```
-
-## 格式转换
-
-YewSeal 支持在解密时进行格式转换：
-
-```bash
-# 将加密的 YAML 解密为 TOML
-yews decrypt -i config.enc.yaml --format toml -o config.toml
-
-# 将加密的 YAML 解密为 JSON
-yews decrypt -i config.enc.yaml --format json -o config.json
-
-# 将加密的 YAML 解密为 ENV
-yews decrypt -i config.enc.yaml --format env -o .env
-```
-
-## 批量模式文件名
-
-批量模式下，输出文件名的生成规则：
-
-1. 移除输入文件的 `--pattern` 匹配部分
-2. 添加 `--output-suffix` 后缀
-
-示例：
-
-```bash
-# 输入：config.enc.toml.yaml
-# 模式：*.enc.toml.yaml
-# 后缀：.toml
-# 输出：config.toml
-
-yews decrypt --dir ./encrypted --pattern "*.enc.toml.yaml" --output-suffix ".toml"
-```
-
-## 注意事项
-
-1. **密钥要求**：解密需要对应的 Age 私钥，通过 `--key-file` 或 `SOPS_AGE_KEY_FILE` 环境变量指定
-2. **格式转换**：YewSeal 支持在解密时转换格式，但需要确保数据结构兼容
-3. **并行处理**：使用 `--parallel` 可以加速批量解密，建议值为 CPU 核心数
-4. **覆盖保护**：默认不会覆盖已存在的文件，使用 `--force` 强制覆盖
+默认情况下，如果输出文件已经存在且内容与解密结果不同，`decrypt` 会拒绝覆盖。需要覆盖时传入 `--force`。
 
 ## 相关命令
 
-- [encrypt](/commands/encrypt) - 加密配置文件
-- [edit](/commands/edit) - 编辑加密文件
-- [view](/commands/view) - 查看加密文件内容
-- [diff](/commands/diff) - 比较明文和加密文件
+[plan](/commands/plan) 可以先预览文件选择，[view](/commands/view) 可以把明文打印到标准输出，[diff](/commands/diff) 可以比较明文和加密文件。

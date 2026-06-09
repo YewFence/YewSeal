@@ -7,7 +7,6 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/YewFence/YewSeal/internal/config"
 	"github.com/YewFence/YewSeal/internal/errx"
 	"github.com/YewFence/YewSeal/internal/execx"
 )
@@ -79,8 +78,7 @@ func GetAgeKey(keyFile string) (string, error) {
 // GetPublicKey returns the Age public key with priority:
 // 1. Command-line parameter (highest)
 // 2. Environment variable SOPS_AGE_RECIPIENTS
-// 3. Config file .yewseal.toml
-// 4. Extract from private key file .age/keys.txt (fallback)
+// 3. Extract from private key file .age/keys.txt (fallback)
 func GetPublicKey(providedKey, keyFile string, verbose bool) (string, error) {
 	return GetPublicKeyWithOutput(providedKey, keyFile, verbose, os.Stdout)
 }
@@ -106,38 +104,21 @@ func GetPublicKeyWithOutput(providedKey, keyFile string, verbose bool, output io
 		return envKey, nil
 	}
 
-	// Priority 3: Config file
-	cfg, err := config.LoadConfig()
-	if err != nil {
-		return "", fmt.Errorf("failed to load config: %w", err)
-	}
-	if cfg.GetPublicKey() != "" {
-		if verbose {
-			_, _ = fmt.Fprintln(output, "🔑 Using public key from .yewseal.toml")
-		}
-		return cfg.GetPublicKey(), nil
-	}
-
-	// Priority 4: Extract from private key file (fallback)
+	// Priority 3: Extract from private key file (fallback)
 	if verbose {
 		_, _ = fmt.Fprintln(output, "🔑 Attempting to extract public key from private key file...")
-	}
-
-	// Try to get the key file path
-	if keyFile == "" {
-		keyFile = cfg.GetKeyFile("")
 	}
 
 	// Read the private key file
 	keyContent, err := os.ReadFile(keyFile)
 	if err != nil {
-		return "", &errx.PublicKeyNotFoundError{KeyFile: keyFile, Cause: err, Tried: []string{"CLI parameter", "SOPS_AGE_RECIPIENTS env", ".yewseal.toml config"}}
+		return "", &errx.PublicKeyNotFoundError{KeyFile: keyFile, Cause: err, Tried: []string{"CLI parameter", "SOPS_AGE_RECIPIENTS env", "key file comment"}}
 	}
 
 	// Extract public key from the key file content
 	publicKey := ExtractPublicKey(string(keyContent))
 	if publicKey == "" {
-		return "", &errx.PublicKeyNotFoundError{KeyFile: keyFile, Tried: []string{"CLI parameter", "SOPS_AGE_RECIPIENTS env", ".yewseal.toml config"}}
+		return "", &errx.PublicKeyNotFoundError{KeyFile: keyFile, Tried: []string{"CLI parameter", "SOPS_AGE_RECIPIENTS env", "key file comment"}}
 	}
 
 	if verbose {
