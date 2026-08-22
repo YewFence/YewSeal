@@ -226,8 +226,6 @@ YewSeal 支持通过环境变量配置部分选项：
 | `config.ini` | `config.enc.ini` |
 | `secret.bin` | `secret.enc.bin` |
 
-> **从旧版迁移**：早期版本的 TOML 加密文件使用 `.enc.toml.yaml` 后缀（内容是经 YAML 转换后加密的）。新版使用原生 TOML 加密，协议与其他格式对齐为 `.enc.toml`。旧文件不会被自动识别——请先用旧版 `yews` 解密得到明文，再用新版重新加密（记得把 `.yewseal.toml` 里的 `encrypted` 路径一并改成 `.enc.toml`）。
-
 ### 版本控制
 
 建议的 `.gitignore` 配置：

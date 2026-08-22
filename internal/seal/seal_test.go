@@ -244,20 +244,17 @@ func TestDecryptToBytesUnknownFormatFailsWithBinaryHint(t *testing.T) {
 		FormatOverride: "binary",
 	}))
 
-	var warningOutput bytes.Buffer
 	var decryptErr error
 	stdout := captureStdout(t, func() {
 		_, decryptErr = DecryptToBytes(DecryptBytesOptions{
 			InputFile:  "secret.vars.enc",
 			OutputFile: "secret.vars",
 			KeyFile:    env.keyFile,
-			Warnings:   &warningOutput,
 		})
 	})
 
 	require.Error(t, decryptErr)
 	assert.Empty(t, stdout)
-	assert.Empty(t, warningOutput.String())
 	assert.Contains(t, decryptErr.Error(), "could not detect format for secret.vars")
 	assert.Contains(t, decryptErr.Error(), "Hint: pass --format binary")
 }

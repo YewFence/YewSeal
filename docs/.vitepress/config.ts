@@ -31,8 +31,7 @@ export default defineConfig({
           { text: 'edit - 编辑加密文件', link: '/commands/edit' },
           { text: 'view - 查看加密文件', link: '/commands/view' },
           { text: 'diff - 比较差异', link: '/commands/diff' },
-          { text: 'sync - 同步密钥', link: '/commands/sync' },
-          { text: 'check - 检查依赖', link: '/commands/check' }
+          { text: 'sync - 同步密钥', link: '/commands/sync' }
         ]
       }
     ],

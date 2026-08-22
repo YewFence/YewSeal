@@ -19,7 +19,6 @@ type EncryptOptions struct {
 	FormatOverride string
 	Verbose        bool
 	Output         io.Writer
-	Warnings       io.Writer
 }
 
 type DecryptOptions struct {
@@ -30,7 +29,6 @@ type DecryptOptions struct {
 	Verbose        bool
 	Force          bool
 	Output         io.Writer
-	Warnings       io.Writer
 }
 
 type DecryptBytesOptions struct {
@@ -40,7 +38,6 @@ type DecryptBytesOptions struct {
 	FormatOverride string
 	Verbose        bool
 	Output         io.Writer
-	Warnings       io.Writer
 }
 
 type EncryptBytesOptions struct {
@@ -49,7 +46,6 @@ type EncryptBytesOptions struct {
 	PublicKey      string
 	Verbose        bool
 	Output         io.Writer
-	Warnings       io.Writer
 }
 
 func Encrypt(opts EncryptOptions) error {
@@ -84,7 +80,6 @@ func Encrypt(opts EncryptOptions) error {
 		PublicKey:      publicKey,
 		Verbose:        opts.Verbose,
 		Output:         opts.Output,
-		Warnings:       opts.Warnings,
 	})
 	if err != nil {
 		return err
@@ -130,7 +125,6 @@ func Decrypt(opts DecryptOptions) error {
 		FormatOverride: opts.FormatOverride,
 		Verbose:        opts.Verbose,
 		Output:         opts.Output,
-		Warnings:       opts.Warnings,
 	})
 	if err != nil {
 		return err

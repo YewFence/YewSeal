@@ -99,22 +99,6 @@ func PreflightDecrypt(cfg *config.Config, req DecryptRequest) (PreflightResult, 
 	}, nil
 }
 
-func PrintEncryptPreflight(w io.Writer, cfg *config.Config, req EncryptRequest, opts PreflightPrintOptions) error {
-	result, err := PreflightEncrypt(cfg, req)
-	if err != nil {
-		return err
-	}
-	return PrintPreflight(w, cfg, result, opts)
-}
-
-func PrintDecryptPreflight(w io.Writer, cfg *config.Config, req DecryptRequest, opts PreflightPrintOptions) error {
-	result, err := PreflightDecrypt(cfg, req)
-	if err != nil {
-		return err
-	}
-	return PrintPreflight(w, cfg, result, opts)
-}
-
 type PlanRequest struct {
 	Output             string
 	OutputSet          bool
