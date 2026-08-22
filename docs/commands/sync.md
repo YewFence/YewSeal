@@ -63,18 +63,7 @@ yews sync --env dev
 
 ## 配置文件
 
-这些选项也可以写入 `.yewseal.toml`。
-
-```toml
-[sync]
-provider = "infisical"
-project_id = "your-project-id"
-environment = "dev"
-path = "/yewseal"
-secret_name = "AGE_KEY_FILE"
-```
-
-命令行参数优先于配置文件。
+这些选项也可以写入 `.yewseal.toml` 的 `[sync]` 节，命令行参数优先于配置文件。配置格式见[配置说明 - 密钥同步](/guide/configuration#密钥同步)。
 
 ## 示例
 

@@ -1,6 +1,6 @@
 # encrypt - 加密配置文件
 
-`encrypt` 用来把明文配置文件加密成 SOPS 文件，支持 TOML、YAML、JSON、ENV、INI 和二进制文件。TOML 会先转换成 YAML，再以 YAML 形式写入加密文件。
+`encrypt` 用来把明文配置文件加密成 SOPS 文件，支持 TOML、YAML、JSON、ENV、INI 和二进制文件。所有格式（含 TOML）都由内嵌的 SOPS 引擎原生加密，加密文件保持原格式。
 
 ## 语法
 

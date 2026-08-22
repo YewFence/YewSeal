@@ -111,6 +111,10 @@ yews decrypt config.enc.yaml --format json -o config.json
 
 默认情况下，如果输出文件已经存在且内容与解密结果不同，`decrypt` 会拒绝覆盖。需要覆盖时传入 `--force`。
 
+## TOML 输出格式
+
+TOML 由内嵌的原生 TOML store 直接解密，不经过格式转换。解密输出是规范化 TOML：字符串使用单引号字面量风格，注释会保留，内容与原文等价，但排版可能与手写格式不同。
+
 ## 相关命令
 
 [plan](/commands/plan) 可以先预览文件选择，[view](/commands/view) 可以把明文打印到标准输出，[diff](/commands/diff) 可以比较明文和加密文件。
