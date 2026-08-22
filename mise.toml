@@ -1,140 +1,169 @@
+[settings]
+lockfile = true
+minimum_release_age = "3d"
+
 [tools]
 # https://go.dev/
 go = "1"
 # https://nodejs.org/
-node = "24"
-# https://www.python.org/
-python = "3"
-# https://infisical.com/docs/cli/overview
-infisical = "latest"
-# https://github.com/azat-io/actions-up
-"npm:actions-up" = "1"
-# https://github.com/paulhatch/semantic-version
-"npm:@semanticversion/cli" = "latest"
-# https://github.com/remarshal-project/remarshal
-"pipx:remarshal" = "latest"
+node = "26"
 # https://pnpm.io/
-pnpm = "10"
+pnpm = "11"
 # https://golangci-lint.run/
 golangci-lint = "2"
-uv = "latest"
+# https://github.com/suzuki-shunsuke/nllint
+"go:github.com/suzuki-shunsuke/nllint/cmd/nllint" = "1"
+# https://github.com/suzuki-shunsuke/pinact
+pinact = "4"
+# https://github.com/crate-ci/typos
+typos = "1"
+betterleaks = "1"
+actionlint = "1"
+
+[vars]
+nllint_excludes = ""
+# example: exclude file
+# nllint_excludes = "':(top,exclude)file'"
 
 [env]
-BINARY_NAME = "yews"
-MAIN_PATH = "./cmd/yews/"
-BUILD_DIR = "./build"
-DEV_DIR = "./test"
+# the minimum release age of github actions in days
+PINACT_MIN_AGE = "3"
 
-[tasks.default]
-depends = ["build"]
-
-[tasks.install]
-description = "安装 CLI 到 GOPATH/bin"
-file = ".mise/tasks/install"
-
-[tasks.build]
-description = "构建 CLI 可执行文件"
-file = ".mise/tasks/build"
-
-[tasks.dev]
-description = "构建开发版本"
-file = ".mise/tasks/dev"
-
-[tasks.tidy]
-description = "整理 Go 模块依赖"
+[tasks."mod:tidy"]
+description = "Tidy Go module dependencies"
 run = "go mod tidy"
 
-[tasks.'tidy:check']
-description = "检查 Go 模块依赖是否已经整理"
-run = "go mod tidy && git diff --exit-code go.mod go.sum"
+[tasks."mod:tidy:check"]
+description = "Check whether Go module dependencies are tidy"
+run = "go mod tidy -diff"
 
-[tasks.'mod:verify']
-description = "验证 Go 模块依赖"
-run = "go mod verify"
-
-[tasks.update]
-description = "更新 Go 第三方库并整理模块依赖"
+[tasks."deps:update"]
+description = "Update Go dependencies and tidy modules"
 run = "go get -u ./... && go mod tidy"
 
 [tasks.test]
-description = "运行 Go 测试"
+description = "Run Go tests"
 run = "go test -v ./..."
 
-[tasks.clean]
-description = "清理构建产物"
-file = ".mise/tasks/clean"
-
-[tasks.deps]
-description = "下载 Go 依赖"
-run = "go mod download"
-
-[tasks.fmt]
-description = "检查 Go 代码格式"
+[tasks."fmt:check"]
+description = "Check Go code formatting"
 raw = true
 run = "golangci-lint fmt -E gofmt --diff"
 
-[tasks.vet]
-description = "运行 Go 静态检查"
+[tasks."fmt:fix"]
+description = "Fix Go code formatting"
 raw = true
-run = "go vet ./..."
+run = "golangci-lint fmt -E gofmt"
 
 [tasks.lint]
-description = "运行 Go lint 检查"
+description = "Run Go lint checks"
 raw = true
-run = "golangci-lint run"
+run = "golangci-lint run -E asciicheck"
+
+[tasks."leaks:check"]
+description = "Run betterleaks checks"
+run = "betterleaks git --redact --no-banner"
+
+[tasks."typos:check"]
+description = "Run Typos Lint"
+run = "typos"
+
+[tasks."typos:fix"]
+description = "Fix Typos Lint"
+run = "typos --write-changes"
+
+[tasks."newline:check"]
+description = "Check final newlines and surrounding whitespace in tracked text files"
+run = "git grep -Ilz '' -- . {{ vars.nllint_excludes }} | xargs -0 nllint --trim-space"
+
+[tasks."newline:fix"]
+description = "Fix final newlines and surrounding whitespace in tracked text files"
+run = "git grep -Ilz '' -- . {{ vars.nllint_excludes }} | xargs -0 nllint --fix --trim-space"
 
 [tasks.check]
-description = "运行所有检查任务"
+description = """
+Run read-only checks for Go modules, newlines, typos, formatting, GitHub Actions, lint, build, and tests"""
 run = [
-  { task = "fmt" },
-  { task = "vet" },
-  { task = "build" },
+  { tasks = [ "mod:tidy:check", "newline:check", "typos:check", "build:check" ] },
+  { task = "leaks:check" },
+  { task = "actions:check" },
   { task = "lint" },
-  { task = "tidy:check" },
-  { task = "mod:verify" },
-  { task = "docs" }
+  { task = "test" },
 ]
+alias = "c"
 
-[tasks.run]
-description = "直接运行 CLI"
-raw_args = true
-run = "go run ./cmd/yews"
+[tasks.fix]
+description = "Fix Go modules, newlines, typos, and formatting"
+run = [
+  { task = "mod:tidy" },
+  { task = "newline:fix" },
+  { task = "typos:fix" },
+  { task = "fmt:fix" }
+]
+alias = "f"
 
-[tasks.docs]
-description = "生成 CLI 文档"
+[tasks."cli:docs"]
+description = "Generate CLI reference documentation"
 run = "go run ./cmd/yews docs"
 
-[tasks.release]
-description = "构建所有平台并创建发布归档"
-file = ".mise/tasks/release"
+[tasks.cli]
+description = "Run the CLI"
+run = "go run ./cmd/yews"
 
-[tasks.'action:update']
-description = "交互式更新 GitHub Action 版本并默认固定为提交哈希"
-run = "actions-up"
+[tasks.'cli:install']
+description = "Install the CLI into the local Go bin directory"
+run = 'go install -trimpath -ldflags="-X main.version=${BUILD_VERSION:-dev}" ./cmd/yews'
 
-[tasks.'action:update:all']
-description = "自动更新全部 GitHub Action 版本并默认固定为提交哈希"
-run = "actions-up --yes"
+[tasks.build]
+description = "Build the CLI executable"
+run = 'go build -trimpath -ldflags="-s -w -X main.version=${BUILD_VERSION:-dev}" -o "${BUILD_OUTPUT_DIR:-bin}/" ./cmd/yews'
 
 [tasks.'docs:install']
-description = "安装文档站依赖"
+description = "Install documentation site dependencies"
 dir = "docs"
 run = "pnpm install"
 
-[tasks.'docs:dev']
-description = "启动 VitePress 文档站"
-depends = ["docs:install"]
+[tasks.'docs:lock']
+description = "Generate the documentation lockfile without installing dependencies"
 dir = "docs"
-run = "pnpm dev"
+run = "pnpm install --lockfile-only"
+
+[tasks.'docs:install:locked']
+description = "Install documentation dependencies from the committed lockfile"
+dir = "docs"
+run = "pnpm install --frozen-lockfile"
+
+[tasks.'docs:dev']
+description = "Start the VitePress documentation site"
+depends = ["docs:install:locked"]
+dir = "docs"
+run = "pnpm run dev"
 
 [tasks.'docs:build']
-description = "构建 VitePress 文档站"
-depends = ["docs:install"]
+description = "Build the VitePress documentation site"
+depends = ["docs:install:locked"]
 dir = "docs"
-run = "pnpm build"
+run = "pnpm run build"
 
 [tasks.'docs:preview']
-description = "预览 VitePress 文档站"
-depends = ["docs:install"]
+description = "Preview the VitePress documentation site"
+depends = ["docs:install:locked"]
 dir = "docs"
-run = "pnpm preview"
+run = "pnpm run preview"
+
+[tasks."build:check"]
+description = "Check whether the CLI builds"
+run = "go test -run '^$' ./cmd/..."
+
+[tasks."actions:check"]
+description = "Run actionlint"
+depends = ["actions:pin-offline:check"]
+run = "actionlint .github/workflows/*.yml"
+
+[tasks.'actions:update']
+description = "Update GitHub Action versions and pin to commit hashes"
+run = "pinact run --update"
+
+[tasks.'actions:pin-offline:check']
+description = "Check GitHub Action versions and pin to commit hashes"
+run = "unset PINACT_MIN_AGE && pinact run --fix=false --no-api"
