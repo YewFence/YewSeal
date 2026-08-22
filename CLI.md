@@ -593,4 +593,3 @@ yews view [command options] <target> [flags]
 ### SEE ALSO
 
 * [yews](#yews)	 - YewSeal - Encrypt/decrypt configuration files using SOPS and Age (supports TOML, YAML, JSON, ENV, INI)
-

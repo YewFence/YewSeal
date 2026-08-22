@@ -1,0 +1,22 @@
+# Betterleaks 配置：继承默认规则集，并过滤本仓库的已知误报。
+# 扫描时自动被发现（target path 下的 .betterleaks.toml），无需 --config。
+#
+# 注意：TOML 中 [extend] 之后的裸键会被解析为 extend 表的字段，
+# 因此顶层的 filter / prefilter 必须写在 [extend] 之前！
+
+# 误报来源：
+# - docs/ 下的示例凭据（如 password = "old_password"、ENC[AES256_GCM,...] 加密示例）
+# - *_test.go 与 testdata/ 中的测试夹具（如公开的 age 测试密钥、"secret123"）
+# 仅作用于低特异性的 generic-* 规则；github-pat 等高特异性规则在这些路径下仍然生效。
+filter = '''
+finding["rule_id"] in ["generic-password", "generic-api-key", "generic-credential-uri"]
+&&
+filter.matchesAny(attributes["path"], [
+  `(?i)(?:^|/)docs/`,
+  `_test\.go$`,
+  `(?:^|/)testdata(?:/|$)`,
+])
+'''
+
+[extend]
+useDefault = true
