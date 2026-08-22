@@ -11,7 +11,6 @@ YewSeal - Encrypt/decrypt configuration files using SOPS and Age (supports TOML,
 
 ### SEE ALSO
 
-* [yews check](#yews-check)	 - Show embedded library versions
 * [yews completion](#yews-completion)	 - Generate the autocompletion script for the specified shell
 * [yews decrypt](#yews-decrypt)	 - Decrypt encrypted file (output format determined by extension)
 * [yews diff](#yews-diff)	 - Compare plaintext file with decrypted encrypted file
@@ -21,30 +20,6 @@ YewSeal - Encrypt/decrypt configuration files using SOPS and Age (supports TOML,
 * [yews plan](#yews-plan)	 - Run preflight and print the resolved file selection without writing files
 * [yews sync](#yews-sync)	 - Sync sensitive files to secret management service
 * [yews view](#yews-view)	 - Print decrypted plaintext to standard output without writing files
-
-## yews check
-
-Show embedded library versions
-
-```
-yews check [flags]
-```
-
-### Options
-
-```
-  -h, --help   help for check
-```
-
-### Options inherited from parent commands
-
-```
-  -k, --key-file string   Path to Age private key file
-```
-
-### SEE ALSO
-
-* [yews](#yews)	 - YewSeal - Encrypt/decrypt configuration files using SOPS and Age (supports TOML, YAML, JSON, ENV, INI)
 
 ## yews completion
 

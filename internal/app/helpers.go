@@ -285,7 +285,6 @@ func WriteViewedTarget(w io.Writer, cfg *config.Config, target, keyFile, cliForm
 		FormatOverride: filePair.Format,
 		Verbose:        verbose,
 		Output:         os.Stderr,
-		Warnings:       os.Stderr,
 	})
 	if err != nil {
 		return err

@@ -4,8 +4,6 @@ YewSeal 是一个围绕 **SOPS + age** 构建的 CLI 工具，用清晰的配置
 
 它不重复造加密轮子，而是把项目初始化、文件映射登记、批量加密/解密和 age 私钥管理整合进一个友好的 CLI。
 
-> 由于 TOML 需要先转换为 YAML 再交给 SOPS 处理，因此 **TOML 注释不会被保留**。如果需要保留说明性内容，建议搭配 `*.example.toml` 使用。
-
 ## 功能特性
 
 - 🔐 基于 SOPS + age，兼容原生 `.sops.yaml` 和 age 密钥工作流
@@ -16,10 +14,6 @@ YewSeal 是一个围绕 **SOPS + age** 构建的 CLI 工具，用清晰的配置
 - 🔑 支持从环境变量、文件或配置文件读取密钥
 - 🔐 可选将私钥同步到密钥管理服务（Infisical）
 - 📝 加密/解密后保持原始数据结构
-
-## 前置要求
-
-Age 和 SOPS 已内嵌为 Go 库，**无需单独安装**，也没有任何外部工具依赖——TOML 支持是原生的。
 
 ## 快速开始
 
@@ -103,22 +97,9 @@ mise run dev        # 开发构建 → test/yews（Windows 下为 .exe）
 
 ### Docker
 
-如果你的环境里已经有 Docker，但不想额外安装 `yews`，可以直接跑容器镜像。
-
-镜像现在分成两个变体（TOML 支持是原生的，两个变体都支持全部格式）：
-
-- `ghcr.io/yewfence/yew-seal:latest`：完整镜像
-- `ghcr.io/yewfence/yew-seal:lite`：精简镜像，体积更小
+如果你的环境里已经有 Docker，但不想额外安装 `yews`，可以直接跑容器镜像 `ghcr.io/yewfence/yew-seal:latest`
 
 可以根据需要自行替换下方示例命令的镜像标签
-
-> 稳定标签说明
-> - `latest`：当前最新稳定版的完整镜像
-> - `lite`：当前最新稳定版的精简镜像
->
-> 如果需要指定镜像版本号：
-> - 完整镜像：`ghcr.io/yewfence/yew-seal:v1.0.0`（也会同步发布 `:1.0.0`）
-> - 精简镜像：`ghcr.io/yewfence/yew-seal:v1.0.0-lite`（也会同步发布 `:1.0.0-lite`）
 
 #### 初始化
 
@@ -174,13 +155,6 @@ docker run --rm \
 ```
 
 > `edit` 和 `sync` 更适合本机直接运行：前者依赖宿主编辑器，后者依赖宿主机上的 `infisical` CLI 和登录状态
-
-### Scoop（Windows）
-
-```powershell
-scoop bucket add YewNursery https://github.com/YewFence/YewNursery
-scoop install YewSeal
-```
 
 ## 使用指南
 
@@ -508,16 +482,6 @@ path = "/yewseal"
 environment = "prod"
 ```
 
-## 检查环境
-
-显示内嵌库版本（所有依赖均已内嵌，无需安装外部工具）：
-
-```bash
-yews check
-# 或
-yews doctor
-```
-
 ## Git 工作流
 
 ### ✅ 应该提交到版本控制
@@ -567,10 +531,6 @@ jobs:
 
 ## 故障排查
 
-### 找不到工具
-
-Age 和 SOPS 已内嵌，所有格式（包括 TOML）均为原生支持，无需安装任何外部工具。如果 `yews` 本身找不到，请检查安装方式或直接使用 `go run github.com/YewFence/YewSeal/cmd/yews@latest`。
-
 ### 解密失败
 
 检查密钥是否正确设置：
@@ -607,7 +567,6 @@ TOML 由内置的原生 TOML store 直接加密（不再有格式转换环节）
 | `encrypt` | `e` | 加密配置文件 |
 | `decrypt` | `d` | 解密配置文件 |
 | `edit` | - | 使用编辑器编辑加密文件 |
-| `check` | `doctor` | 显示内嵌库版本 |
 | `sync` | - | 同步密钥到密钥管理服务 |
 
 ## 工作原理
@@ -620,6 +579,8 @@ YewSeal 内嵌了成熟的加密库，没有任何外部工具依赖：
 - **Age** (`filippo.io/age`) - 现代化的加密库（内嵌）
 - **SOPS** ([`github.com/YewFence/sops/v3`](https://github.com/YewFence/sops)) - 密钥管理库（内嵌 fork，提供原生 TOML store）
 
+> **关于内嵌的 SOPS fork**：核心加解密引擎用的是我自己的 fork [YewFence/sops](https://github.com/YewFence/sops)（在上游 [getsops/sops](https://github.com/getsops/sops) 基础上新增原生 TOML store）。我还没有认真审核过它，所以也没有向上游提交 PR。如果发现引擎层面的问题，欢迎直接到我的 fork 开 Issue。
+
 ## 许可证
 
 MIT License
@@ -630,7 +591,7 @@ MIT License
 
 ## 碎碎念
 
-我写这个的原因是因为我真的不想把 `wrangler.toml` 直接放在 GitHub 上，虽然里面没有泄露就出事的敏感信息，但是会有自己的域名/项目名称/ `KV ID``D1 ID` / `R2 NAME` 之类的信息，放在公开仓库总觉得不太好。直接放在 Infisical 里又不太方便，毕竟每次改配置都得去网站上操作一遍。所以就想到使用 SOPS ，但 SOPS 原生不支持 TOML 格式，我又真的不想用 yaml，缩进地狱，所以就写了这个工具来帮忙做格式转换和加密解密的编排工作。
+我写这个的原因是因为我真的不想把 `wrangler.toml` 直接放在 GitHub 上，虽然里面没有泄露就出事的敏感信息，但是会有自己的域名/项目名称/ `KV ID``D1 ID` / `R2 NAME` 之类的信息，放在公开仓库总觉得不太好。直接放在 Infisical 里又不太方便，毕竟每次改配置都得去网站上操作一遍。所以就想到使用 SOPS ，但 SOPS 原生不支持 TOML 格式，我又真的不想用 yaml，缩进地狱，所以就写了这个工具来帮忙做加密解密的编排工作。
 
 想着来都来了，增加一个方便点的包装吧，于是就有了短命令和配置文件持久化功能，省得每次都敲一大堆参数。包装都包装了，干脆支持所有 SOPS 支持的格式吧，万一以后有别的配置文件需要加密呢。支持都支持了，不如增加一个多文件批量加密解密的功能，省得每次都得写脚本。既然有了批量处理，那就顺便加个并行处理，都用 Go 了，不些并行多可惜。总之就是越做越多功能，最后变成了现在这个样子。
 

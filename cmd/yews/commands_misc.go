@@ -6,7 +6,6 @@ import (
 
 	yewsapp "github.com/YewFence/YewSeal/internal/app"
 	"github.com/YewFence/YewSeal/internal/config"
-	tools "github.com/YewFence/YewSeal/internal/doctor"
 	"github.com/YewFence/YewSeal/internal/project"
 
 	"github.com/spf13/cobra"
@@ -111,18 +110,4 @@ func diffCommand(cfg *config.Config, keyFile *string) *cobra.Command {
 	cmd.Flags().StringVar(&color, "color", "auto", "Colorize diff output (auto/always/never)")
 	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose output")
 	return cmd
-}
-
-func checkCommand() *cobra.Command {
-	return &cobra.Command{
-		Use:     "check",
-		Aliases: []string{"doctor"},
-		Short:   "Show embedded library versions",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if !tools.CheckToolsVerbose() {
-				return errors.New("")
-			}
-			return nil
-		},
-	}
 }
