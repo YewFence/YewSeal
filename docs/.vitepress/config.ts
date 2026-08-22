@@ -18,7 +18,10 @@ export default defineConfig({
         text: '指南',
         items: [
           { text: '快速开始', link: '/guide/getting-started' },
-          { text: '配置说明', link: '/guide/configuration' }
+          { text: '配置说明', link: '/guide/configuration' },
+          { text: 'Docker 运行', link: '/guide/docker' },
+          { text: 'CI/CD 集成', link: '/guide/ci-cd' },
+          { text: 'Shell 补全', link: '/guide/completion' }
         ]
       },
       {
