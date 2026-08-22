@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/BurntSushi/toml"
+	toml "github.com/pelletier/go-toml/v2"
 )
 
 const (
@@ -34,7 +34,7 @@ type LoadedFile struct {
 // EncryptionConfig defines encrypted file mappings.
 type EncryptionConfig struct {
 	Files  []FilePair    `toml:"files"`
-	Groups []GroupConfig `toml:"groups"`
+	Groups []GroupConfig `toml:"groups,omitempty"`
 }
 
 // FilePair defines one plaintext/encrypted file mapping.
@@ -249,12 +249,24 @@ func highestPriorityConfigPath(dir string) (string, error) {
 
 func loadConfigFile(configFile LoadedFile) (*Config, error) {
 	config := &Config{}
-	metadata, err := toml.DecodeFile(configFile.Path, config)
+	data, err := os.ReadFile(configFile.Path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse config file %s: %w", configFile.Path, err)
 	}
-	if metadata.IsDefined("encryption", "group") {
+	// Probe for the deprecated singular key to report a friendly error.
+	var probe struct {
+		Encryption struct {
+			Group any `toml:"group"`
+		} `toml:"encryption"`
+	}
+	if err := toml.Unmarshal(data, &probe); err != nil {
+		return nil, fmt.Errorf("failed to parse config file %s: %w", configFile.Path, err)
+	}
+	if probe.Encryption.Group != nil {
 		return nil, fmt.Errorf("invalid encryption.group: use [[encryption.groups]] instead")
+	}
+	if err := toml.Unmarshal(data, config); err != nil {
+		return nil, fmt.Errorf("failed to parse config file %s: %w", configFile.Path, err)
 	}
 
 	configPath, err := filepath.Abs(configFile.Path)

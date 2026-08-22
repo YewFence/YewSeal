@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"filippo.io/age"
+	toml "github.com/pelletier/go-toml/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -79,6 +80,49 @@ func TestEncryptTomlEmbedsSopsMetadataNatively(t *testing.T) {
 	assert.NotContains(t, content, "secret123")
 }
 
+// TestEncryptDecryptTomlSemanticRoundTrip locks in native-TOML fidelity beyond
+// strings: comments, arrays of tables, nesting, and typed values (int, float,
+// bool, datetime) must all survive the encrypt/decrypt round trip. Documents
+// are compared semantically so key order and quoting style may differ.
+func TestEncryptDecryptTomlSemanticRoundTrip(t *testing.T) {
+	key := newTestKey(t)
+	plain := []byte(`# top-level comment
+name = "my-worker"
+workers = 3
+ratio = 0.75
+enabled = true
+birthday = 1979-05-27T07:32:00Z
+tags = ["alpha", "beta"]
+
+[vars]
+API_KEY = "super-secret"
+RETRIES = 5
+
+# namespace comment
+[[kv_namespaces]]
+id = "abc123"
+
+[[kv_namespaces]]
+id = "def456"
+
+[owner.contact]
+email = "yew@example.com"
+`)
+
+	encData, err := Encrypt(plain, "toml", key.recipient)
+	require.NoError(t, err)
+
+	decrypted, err := Decrypt(encData, "toml", key.identity)
+	require.NoError(t, err)
+
+	// Comments survive the type:comment round trip.
+	assert.Contains(t, string(decrypted), "# namespace comment")
+
+	var want, got map[string]any
+	require.NoError(t, toml.Unmarshal(plain, &want))
+	require.NoError(t, toml.Unmarshal(decrypted, &got))
+	assert.Equal(t, want, got)
+}
 func TestDecryptRejectsWrongIdentity(t *testing.T) {
 	key := newTestKey(t)
 	other := newTestKey(t)

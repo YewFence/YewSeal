@@ -4,10 +4,10 @@ go 1.26.3
 
 require (
 	filippo.io/age v1.3.1
-	github.com/BurntSushi/toml v1.6.0
 	github.com/YewFence/sops/v3 v3.0.0-20260822074904-6fb6287244fa
 	github.com/fatih/color v1.19.0
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510
+	github.com/pelletier/go-toml/v2 v2.4.4-0.20260711173024-cbe6f88bcc08
 	github.com/sergi/go-diff v1.4.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
@@ -101,7 +101,6 @@ require (
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
-	github.com/pelletier/go-toml/v2 v2.4.4-0.20260711173024-cbe6f88bcc08 // indirect
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10 // indirect
