@@ -6,8 +6,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/BurntSushi/toml"
 	"github.com/YewFence/YewSeal/internal/config"
+	toml "github.com/pelletier/go-toml/v2"
 )
 
 // SavePublicKeyToConfig creates or overwrites .yewseal.toml with canonical config content.
@@ -40,7 +40,6 @@ func SavePublicKeyToConfig(publicKey string, filePairs []config.FilePair) error 
 `)
 
 	encoder := toml.NewEncoder(&buffer)
-	encoder.Indent = ""
 	if err := encoder.Encode(cfg); err != nil {
 		return fmt.Errorf("failed to encode config: %w", err)
 	}
