@@ -32,10 +32,7 @@ func EncryptPathForPlaintext(path, formatOverride string) (string, error) {
 
 	switch format {
 	case "toml":
-		if ext == "" {
-			name = base
-		}
-		return filepath.Join(dir, name+".enc.toml.yaml"), nil
+		return filepath.Join(dir, name+".enc.toml"), nil
 	case "yaml":
 		if strings.EqualFold(ext, ".yml") {
 			name = strings.TrimSuffix(base, ext)
@@ -70,7 +67,7 @@ func PlaintextPathForEncrypted(path, formatOverride string) (string, string, err
 		plaintextSuffix string
 		format          string
 	}{
-		{".enc.toml.yaml", ".toml", "toml"},
+		{".enc.toml", ".toml", "toml"},
 		{".enc.yaml", ".yaml", "yaml"},
 		{".enc.json", ".json", "json"},
 		{".enc.env", ".env", "env"},
@@ -101,7 +98,7 @@ func EncryptedStemAndFormat(base string) (string, string, bool) {
 		encryptedSuffix string
 		format          string
 	}{
-		{".enc.toml.yaml", "toml"},
+		{".enc.toml", "toml"},
 		{".enc.yaml", "yaml"},
 		{".enc.json", "json"},
 		{".enc.env", "env"},
@@ -129,13 +126,6 @@ func plaintextPathForEncryptedWithFormat(path, format string) (string, error) {
 		}
 		return filepath.Join(dir, name+"."+plaintextFormatSuffix(format)), nil
 	}
-	if strings.HasSuffix(lowerBase, ".enc.toml.yaml") {
-		name := base[:len(base)-len(".enc.toml.yaml")]
-		if filepath.Ext(name) != "" {
-			return filepath.Join(dir, name), nil
-		}
-		return filepath.Join(dir, name+"."+plaintextFormatSuffix(format)), nil
-	}
 	if stem, _, ok := EncryptedStemAndFormat(base); ok {
 		if filepath.Ext(stem) != "" {
 			return filepath.Join(dir, stem), nil
@@ -151,9 +141,6 @@ func plaintextPathForEncryptedWithFormat(path, format string) (string, error) {
 }
 
 func encryptedFormatSuffix(format string) string {
-	if format == "toml" || format == "yaml" {
-		return "yaml"
-	}
 	if format == "binary" {
 		return "bin"
 	}

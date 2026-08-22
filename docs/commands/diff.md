@@ -52,7 +52,7 @@ yews diff
 yews diff config.toml
 
 # 比较单个加密文件对应的明文
-yews diff config.enc.toml.yaml
+yews diff config.enc.toml
 
 # 在脚本中禁用颜色
 yews diff --color never

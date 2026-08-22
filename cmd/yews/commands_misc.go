@@ -52,7 +52,7 @@ func editCommand(cfg *config.Config, keyFile *string) *cobra.Command {
 			})
 		},
 	}
-	cmd.Flags().StringVarP(&file, "file", "f", "wrangler.enc.toml.yaml", "Encrypted file to edit")
+	cmd.Flags().StringVarP(&file, "file", "f", "wrangler.enc.toml", "Encrypted file to edit")
 	cmd.Flags().StringVarP(&editor, "editor", "e", "", "Editor command to use (e.g., 'code -w', 'vim')")
 	return cmd
 }
@@ -117,7 +117,7 @@ func checkCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:     "check",
 		Aliases: []string{"doctor"},
-		Short:   "Check if required external tools are installed",
+		Short:   "Show embedded library versions",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if !tools.CheckToolsVerbose() {
 				return errors.New("")

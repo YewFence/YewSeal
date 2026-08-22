@@ -1,3 +1,8 @@
+// Package sopsx is YewSeal's encryption engine facade. It wraps the sops
+// library (the github.com/YewFence/sops/v3 fork, which adds a native TOML
+// store) behind a small, stable API so that the rest of the codebase never
+// touches sops types. All functions accept YewSeal format names:
+// "toml", "yaml", "json", "env", "ini", "binary".
 package sopsx
 
 import (
@@ -5,41 +10,55 @@ import (
 	"fmt"
 	"time"
 
-	sops "github.com/getsops/sops/v3"
-	"github.com/getsops/sops/v3/aes"
-	sopsage "github.com/getsops/sops/v3/age"
-	sopsconfig "github.com/getsops/sops/v3/config"
-	"github.com/getsops/sops/v3/stores/dotenv"
-	"github.com/getsops/sops/v3/stores/ini"
-	"github.com/getsops/sops/v3/stores/json"
-	"github.com/getsops/sops/v3/stores/yaml"
+	sops "github.com/YewFence/sops/v3"
+	"github.com/YewFence/sops/v3/aes"
+	sopsage "github.com/YewFence/sops/v3/age"
+	sopsconfig "github.com/YewFence/sops/v3/config"
+	"github.com/YewFence/sops/v3/stores/dotenv"
+	"github.com/YewFence/sops/v3/stores/ini"
+	"github.com/YewFence/sops/v3/stores/json"
+	"github.com/YewFence/sops/v3/stores/toml"
+	"github.com/YewFence/sops/v3/stores/yaml"
 )
 
-const sopsVersion = "3.12.1"
+// sopsVersion matches the fork's version.Version. It is hardcoded because
+// importing the version package would pull CLI-only dependencies (urfave/cli).
+const sopsVersion = "3.13.3"
 
-// StoreForFormat returns the appropriate sops store for the given format string.
-func StoreForFormat(format string) sops.Store {
+// Info describes an encrypted file's sops metadata, readable without a key.
+type Info struct {
+	AgeRecipients []string
+	LastModified  time.Time
+	Version       string
+}
+
+// storeForFormat maps YewSeal format names to sops store implementations.
+// Unknown formats are an error; the caller is expected to validate first.
+func storeForFormat(format string) (sops.Store, error) {
 	switch format {
+	case "toml":
+		return toml.NewStore(&sopsconfig.TOMLStoreConfig{}), nil
 	case "yaml":
-		return &yaml.Store{}
+		return &yaml.Store{}, nil
 	case "json":
-		return &json.Store{}
-	case "dotenv":
-		return &dotenv.Store{}
+		return &json.Store{}, nil
+	case "env":
+		return &dotenv.Store{}, nil
 	case "ini":
-		return &ini.Store{}
+		return &ini.Store{}, nil
 	case "binary":
-		return json.NewBinaryStore(&sopsconfig.JSONBinaryStoreConfig{})
+		return json.NewBinaryStore(&sopsconfig.JSONBinaryStoreConfig{}), nil
 	default:
-		return &yaml.Store{}
+		return nil, fmt.Errorf("unsupported format %q (supported: toml, yaml, json, env, ini, binary)", format)
 	}
 }
 
-// sopsEncryptData encrypts plain data using the sops library.
-// format: "yaml", "json", "dotenv", "ini", "binary"
-// agePublicKey: age recipient public key string (age1...)
-func Encrypt(plainData []byte, format string, agePublicKey string) ([]byte, error) {
-	store := StoreForFormat(format)
+// Encrypt encrypts plain data for a single age recipient.
+func Encrypt(plainData []byte, format, ageRecipient string) ([]byte, error) {
+	store, err := storeForFormat(format)
+	if err != nil {
+		return nil, err
+	}
 
 	// Load plain data into tree branches
 	branches, err := store.LoadPlainFile(plainData)
@@ -48,7 +67,7 @@ func Encrypt(plainData []byte, format string, agePublicKey string) ([]byte, erro
 	}
 
 	// Create age master key from recipient
-	masterKey, err := sopsage.MasterKeyFromRecipient(agePublicKey)
+	masterKey, err := sopsage.MasterKeyFromRecipient(ageRecipient)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create age master key: %w", err)
 	}
@@ -93,13 +112,115 @@ func Encrypt(plainData []byte, format string, agePublicKey string) ([]byte, erro
 	return encData, nil
 }
 
-// sopsDecryptData decrypts encrypted data using the sops library.
-// format: "yaml", "json", "dotenv", "ini", "binary"
-// agePrivateKey: age identity private key string (AGE-SECRET-KEY-...)
-func Decrypt(encData []byte, format string, agePrivateKey string) ([]byte, error) {
-	store := StoreForFormat(format)
+// Decrypt decrypts encrypted data with an age identity
+// (AGE-SECRET-KEY-...) and verifies the MAC.
+func Decrypt(encData []byte, format, ageIdentity string) ([]byte, error) {
+	store, err := storeForFormat(format)
+	if err != nil {
+		return nil, err
+	}
 
-	// Load encrypted file into tree
+	tree, err := loadAndDecryptTree(store, encData, ageIdentity)
+	if err != nil {
+		return nil, err
+	}
+
+	// Emit plain file
+	plainData, err := store.EmitPlainFile(tree.Branches)
+	if err != nil {
+		return nil, fmt.Errorf("failed to emit plain file: %w", err)
+	}
+
+	return plainData, nil
+}
+
+// Inspect reads an encrypted file's metadata without requiring a private key.
+func Inspect(encData []byte, format string) (Info, error) {
+	store, err := storeForFormat(format)
+	if err != nil {
+		return Info{}, err
+	}
+
+	tree, err := store.LoadEncryptedFile(encData)
+	if err != nil {
+		return Info{}, fmt.Errorf("failed to load encrypted file: %w", err)
+	}
+
+	return Info{
+		AgeRecipients: ageRecipientsFromTree(tree),
+		LastModified:  tree.Metadata.LastModified,
+		Version:       tree.Metadata.Version,
+	}, nil
+}
+
+// ExtractAgeRecipients returns all age recipients of an encrypted file.
+func ExtractAgeRecipients(encData []byte, format string) ([]string, error) {
+	info, err := Inspect(encData, format)
+	if err != nil {
+		return nil, err
+	}
+	if len(info.AgeRecipients) == 0 {
+		return nil, fmt.Errorf("no age recipient found in encrypted file metadata")
+	}
+	return info.AgeRecipients, nil
+}
+
+// Rekey re-encrypts encData for newRecipients. The data key is rotated: the
+// old identity unwraps the current data key, all values are re-encrypted with
+// a fresh data key, and the fresh key is wrapped for every new recipient.
+func Rekey(encData []byte, format, ageIdentity string, newRecipients []string) ([]byte, error) {
+	if len(newRecipients) == 0 {
+		return nil, fmt.Errorf("at least one new recipient is required")
+	}
+
+	store, err := storeForFormat(format)
+	if err != nil {
+		return nil, err
+	}
+
+	// Decrypt values in place with the old data key (also verifies the MAC)
+	tree, err := loadAndDecryptTree(store, encData, ageIdentity)
+	if err != nil {
+		return nil, err
+	}
+
+	// Wrap a fresh data key for every new recipient
+	dataKey := make([]byte, 32)
+	if _, err := rand.Read(dataKey); err != nil {
+		return nil, fmt.Errorf("failed to generate data key: %w", err)
+	}
+	group := make(sops.KeyGroup, 0, len(newRecipients))
+	for _, recipient := range newRecipients {
+		masterKey, err := sopsage.MasterKeyFromRecipient(recipient)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create age master key for recipient %q: %w", recipient, err)
+		}
+		if err := masterKey.Encrypt(dataKey); err != nil {
+			return nil, fmt.Errorf("failed to encrypt data key with age: %w", err)
+		}
+		group = append(group, masterKey)
+	}
+
+	// Re-encrypt the decrypted values with the fresh data key
+	mac, err := tree.Encrypt(dataKey, aes.NewCipher())
+	if err != nil {
+		return nil, fmt.Errorf("failed to encrypt tree: %w", err)
+	}
+
+	tree.Metadata.KeyGroups = []sops.KeyGroup{group}
+	tree.Metadata.MessageAuthenticationCode = mac
+	tree.Metadata.LastModified = time.Now().UTC()
+
+	out, err := store.EmitEncryptedFile(*tree)
+	if err != nil {
+		return nil, fmt.Errorf("failed to emit encrypted file: %w", err)
+	}
+	return out, nil
+}
+
+// loadAndDecryptTree loads an encrypted file and decrypts its values in place
+// using the age identity, verifying the MAC before returning.
+func loadAndDecryptTree(store sops.Store, encData []byte, ageIdentity string) (*sops.Tree, error) {
 	tree, err := store.LoadEncryptedFile(encData)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load encrypted file: %w", err)
@@ -107,7 +228,7 @@ func Decrypt(encData []byte, format string, agePrivateKey string) ([]byte, error
 
 	// Parse age identity and decrypt data key
 	var identities sopsage.ParsedIdentities
-	if err := identities.Import(agePrivateKey); err != nil {
+	if err := identities.Import(ageIdentity); err != nil {
 		return nil, fmt.Errorf("failed to parse age identity: %w", err)
 	}
 
@@ -128,13 +249,7 @@ func Decrypt(encData []byte, format string, agePrivateKey string) ([]byte, error
 		return nil, fmt.Errorf("MAC mismatch: file may have been tampered with")
 	}
 
-	// Emit plain file
-	plainData, err := store.EmitPlainFile(tree.Branches)
-	if err != nil {
-		return nil, fmt.Errorf("failed to emit plain file: %w", err)
-	}
-
-	return plainData, nil
+	return &tree, nil
 }
 
 // decryptTreeDataKey iterates age master keys in metadata, injects identities,
@@ -156,9 +271,9 @@ func decryptTreeDataKey(tree *sops.Tree, identities sopsage.ParsedIdentities) ([
 	return nil, fmt.Errorf("failed to decrypt data key: no matching age key found")
 }
 
-// extractAgeRecipientFromTree extracts the age public key from encrypted file metadata.
-// Used by Edit to re-encrypt with the same key after editing.
-func ExtractAgeRecipientFromTree(tree sops.Tree) (string, error) {
+// ageRecipientsFromTree collects all age recipients from the file metadata.
+func ageRecipientsFromTree(tree sops.Tree) []string {
+	var recipients []string
 	for _, group := range tree.Metadata.KeyGroups {
 		for _, key := range group {
 			ageMK, ok := key.(*sopsage.MasterKey)
@@ -166,9 +281,9 @@ func ExtractAgeRecipientFromTree(tree sops.Tree) (string, error) {
 				continue
 			}
 			if ageMK.Recipient != "" {
-				return ageMK.Recipient, nil
+				recipients = append(recipients, ageMK.Recipient)
 			}
 		}
 	}
-	return "", fmt.Errorf("no age recipient found in encrypted file metadata")
+	return recipients
 }

@@ -83,7 +83,7 @@ func TestUpdateGitignore_Create(t *testing.T) {
 	withProjectWorkingDir(t, tempDir)
 
 	err := UpdateGitignore([]config.FilePair{
-		{PlaintextPath: "wrangler.toml", EncryptedPath: "wrangler.enc.toml.yaml"},
+		{PlaintextPath: "wrangler.toml", EncryptedPath: "wrangler.enc.toml"},
 	})
 	require.NoError(t, err)
 
@@ -109,7 +109,7 @@ node_modules/
 	require.NoError(t, err)
 
 	err = UpdateGitignore([]config.FilePair{
-		{PlaintextPath: "config.toml", EncryptedPath: "config.enc.toml.yaml"},
+		{PlaintextPath: "config.toml", EncryptedPath: "config.enc.toml"},
 		{PlaintextPath: ".dev.vars", EncryptedPath: ".dev.vars.enc.yaml"},
 	})
 	require.NoError(t, err)
@@ -144,8 +144,8 @@ wrangler.toml
 	require.NoError(t, err)
 
 	err = UpdateGitignore([]config.FilePair{
-		{PlaintextPath: "wrangler.toml", EncryptedPath: "wrangler.enc.toml.yaml"},
-		{PlaintextPath: "different.toml", EncryptedPath: "different.enc.toml.yaml"},
+		{PlaintextPath: "wrangler.toml", EncryptedPath: "wrangler.enc.toml"},
+		{PlaintextPath: "different.toml", EncryptedPath: "different.enc.toml"},
 	})
 	require.NoError(t, err)
 
@@ -163,7 +163,7 @@ func TestCollectInitFilePairs_NonInteractiveDefaultsEncryptedName(t *testing.T) 
 
 	require.Len(t, filePairs, 1)
 	assert.Equal(t, "app.toml", filePairs[0].PlaintextPath)
-	assert.Equal(t, "app.enc.toml.yaml", filePairs[0].EncryptedPath)
+	assert.Equal(t, "app.enc.toml", filePairs[0].EncryptedPath)
 }
 
 func TestCollectInitFilePairs_NonInteractiveWithFormatOverride(t *testing.T) {
@@ -194,7 +194,7 @@ func TestDefaultEncryptedOutputNameForFile(t *testing.T) {
 		{
 			name:     "toml_adds_yaml_suffix",
 			input:    "app.toml",
-			expected: "app.enc.toml.yaml",
+			expected: "app.enc.toml",
 		},
 		{
 			name:     "yaml_keeps_native_extension",
@@ -258,7 +258,7 @@ func TestCollectInitFilePairs_InteractiveMultiple(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, filePairs, 2)
 	assert.Equal(t, "app.toml", filePairs[0].PlaintextPath)
-	assert.Equal(t, "app.enc.toml.yaml", filePairs[0].EncryptedPath)
+	assert.Equal(t, "app.enc.toml", filePairs[0].EncryptedPath)
 	assert.Equal(t, ".dev.vars", filePairs[1].PlaintextPath)
 	assert.Equal(t, ".dev.vars.enc.yaml", filePairs[1].EncryptedPath)
 	assert.Equal(t, "env", filePairs[1].Format)
@@ -284,7 +284,7 @@ func TestCollectInitSelections_InteractiveExamplePerFile(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, selections.FilePairs, 2)
 	assert.Equal(t, "app.toml", selections.FilePairs[0].PlaintextPath)
-	assert.Equal(t, "app.enc.toml.yaml", selections.FilePairs[0].EncryptedPath)
+	assert.Equal(t, "app.enc.toml", selections.FilePairs[0].EncryptedPath)
 	assert.Equal(t, ".dev.vars", selections.FilePairs[1].PlaintextPath)
 	assert.Equal(t, ".dev.vars.enc.yaml", selections.FilePairs[1].EncryptedPath)
 	assert.Equal(t, "env", selections.FilePairs[1].Format)
@@ -297,7 +297,7 @@ func TestCollectInitSelections_NonInteractiveCreateExampleFlag(t *testing.T) {
 
 	require.Len(t, selections.FilePairs, 1)
 	assert.Equal(t, "app.toml", selections.FilePairs[0].PlaintextPath)
-	assert.Equal(t, "app.enc.toml.yaml", selections.FilePairs[0].EncryptedPath)
+	assert.Equal(t, "app.enc.toml", selections.FilePairs[0].EncryptedPath)
 	assert.Equal(t, []string{"app.toml"}, selections.ExampleFiles)
 }
 

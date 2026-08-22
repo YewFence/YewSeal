@@ -19,10 +19,10 @@ public_key = "age1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 
 [[encryption.files]]
 plaintext = "config.toml"
-encrypted = "config.enc.toml.yaml"
+encrypted = "config.enc.toml"
 ```
 
-如果没有配置文件，YewSeal 会使用默认映射 `wrangler.toml` 到 `wrangler.enc.toml.yaml`，默认私钥文件是 `.age/keys.txt`。
+如果没有配置文件，YewSeal 会使用默认映射 `wrangler.toml` 到 `wrangler.enc.toml`，默认私钥文件是 `.age/keys.txt`。
 
 ### 文件映射
 
@@ -31,7 +31,7 @@ encrypted = "config.enc.toml.yaml"
 ```toml
 [[encryption.files]]
 plaintext = "config.toml"
-encrypted = "config.enc.toml.yaml"
+encrypted = "config.enc.toml"
 
 [[encryption.files]]
 plaintext = ".dev.vars"
@@ -51,7 +51,7 @@ patterns = [
   "*.toml",
   "*.yaml",
   "secrets/**/*.json",
-  "!*.enc.toml.yaml",
+  "!*.enc.toml",
   "!*.enc.yaml",
   "!*.enc.json",
 ]
@@ -62,7 +62,7 @@ format_rules = [
 unknown_as_binary = false
 ```
 
-`patterns` 支持 `*`、`?`、`**`、以 `!` 开头的排除规则、以 `/` 开头的根目录锚定规则和以 `/` 结尾的目录规则。没有配置 `patterns` 时，加密会默认扫描 `.toml`、`.yaml`、`.yml`、`.json`、`.env`、`.ini`、`.bin`、`.binary`，并排除常见的 `.enc.*` 文件，解密会默认扫描 `.enc.toml.yaml`、`.enc.yaml`、`.enc.json`、`.enc.env`、`.enc.ini` 和 `.enc.bin`。
+`patterns` 支持 `*`、`?`、`**`、以 `!` 开头的排除规则、以 `/` 开头的根目录锚定规则和以 `/` 结尾的目录规则。没有配置 `patterns` 时，加密会默认扫描 `.toml`、`.yaml`、`.yml`、`.json`、`.env`、`.ini`、`.bin`、`.binary`，并排除常见的 `.enc.*` 文件，解密会默认扫描 `.enc.toml`、`.enc.yaml`、`.enc.json`、`.enc.env`、`.enc.ini` 和 `.enc.bin`。
 
 `format_rules` 使用 `<pattern>=<format>` 形式，会按匹配顺序决定格式，命令行传入的 `--format-rule` 会追加到配置规则之后。`unknown_as_binary` 为 `true` 时，分组加密中无法识别格式的文件会按二进制文件处理。
 
@@ -117,7 +117,7 @@ creation_rules:
 可以通过全局选项 `--key-file` 或 `-k` 指定其他位置，也可以在 `.yewseal.toml` 中设置：
 
 ```bash
-yews --key-file ~/.age/my-key.txt decrypt config.enc.toml.yaml
+yews --key-file ~/.age/my-key.txt decrypt config.enc.toml
 ```
 
 ```toml
@@ -174,7 +174,7 @@ yews sync pull \
 指定 Age 私钥文件路径：
 
 ```bash
-yews -k ~/.age/prod-key.txt decrypt config.enc.toml.yaml
+yews -k ~/.age/prod-key.txt decrypt config.enc.toml
 ```
 
 ### --help, -h
@@ -219,12 +219,14 @@ YewSeal 支持通过环境变量配置部分选项：
 
 | 明文格式 | 加密文件命名 |
 | --- | --- |
-| `config.toml` | `config.enc.toml.yaml` |
+| `config.toml` | `config.enc.toml` |
 | `config.yaml` | `config.enc.yaml` |
 | `config.json` | `config.enc.json` |
 | `.env` | `.env.enc.env` |
 | `config.ini` | `config.enc.ini` |
 | `secret.bin` | `secret.enc.bin` |
+
+> **从旧版迁移**：早期版本的 TOML 加密文件使用 `.enc.toml.yaml` 后缀（内容是经 YAML 转换后加密的）。新版使用原生 TOML 加密，协议与其他格式对齐为 `.enc.toml`。旧文件不会被自动识别——请先用旧版 `yews` 解密得到明文，再用新版重新加密（记得把 `.yewseal.toml` 里的 `encrypted` 路径一并改成 `.enc.toml`）。
 
 ### 版本控制
 
@@ -244,7 +246,7 @@ YewSeal 支持通过环境变量配置部分选项：
 # 但保留加密文件
 !.sops.yaml
 !.yewseal.toml
-!*.enc.toml.yaml
+!*.enc.toml
 !*.enc.yaml
 !*.enc.json
 !*.enc.env

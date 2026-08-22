@@ -31,7 +31,7 @@ yews init --input config.toml
 为第一个配置条目指定加密文件。
 
 ```bash
-yews init --input config.toml --output config.enc.toml.yaml
+yews init --input config.toml --output config.enc.toml
 ```
 
 ### --format
@@ -75,11 +75,11 @@ yews init
 ```bash
 yews init \
   --input config.toml \
-  --output config.enc.toml.yaml \
+  --output config.enc.toml \
   --format toml
 ```
 
-如果只传 `--input`，加密文件名会自动推断。`config.toml` 会推断为 `config.enc.toml.yaml`，其他格式会使用对应的 `.enc.*` 后缀。
+如果只传 `--input`，加密文件名会自动推断。`config.toml` 会推断为 `config.enc.toml`，其他格式会使用对应的 `.enc.*` 后缀。
 
 ## 生成的文件
 
@@ -94,7 +94,7 @@ public_key = "age1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 
 [[encryption.files]]
 plaintext = "config.toml"
-encrypted = "config.enc.toml.yaml"
+encrypted = "config.enc.toml"
 ```
 
 ### .age/keys.txt

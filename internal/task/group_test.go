@@ -32,15 +32,15 @@ func TestBuildGroupFilePairsUsesPatternsAndFormatRules(t *testing.T) {
 	assert.Equal(t, filepath.Join(dir, ".dev.vars.enc.env"), pairs[0].EncryptedPath)
 	assert.Equal(t, "env", pairs[0].Format)
 	assert.Equal(t, filepath.Join(dir, "app.toml"), pairs[1].PlaintextPath)
-	assert.Equal(t, filepath.Join(dir, "app.enc.toml.yaml"), pairs[1].EncryptedPath)
+	assert.Equal(t, filepath.Join(dir, "app.enc.toml"), pairs[1].EncryptedPath)
 	assert.Equal(t, "toml", pairs[1].Format)
 }
 
 func TestBuildProjectGroupFilePairsDecryptUsesPlaintextPatterns(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, ".dev.vars.enc.env"), []byte("encrypted"), 0644))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "app.example.enc.toml.yaml"), []byte("encrypted"), 0644))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "app.enc.toml.yaml"), []byte("encrypted"), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "app.example.enc.toml"), []byte("encrypted"), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "app.enc.toml"), []byte("encrypted"), 0644))
 
 	pairs, err := BuildProjectGroupFilePairs(GroupOptions{
 		Root: dir,
@@ -59,7 +59,7 @@ func TestBuildProjectGroupFilePairsDecryptUsesPlaintextPatterns(t *testing.T) {
 	assert.Equal(t, filepath.Join(dir, ".dev.vars.enc.env"), pairs[0].EncryptedPath)
 	assert.Equal(t, "env", pairs[0].Format)
 	assert.Equal(t, filepath.Join(dir, "app.toml"), pairs[1].PlaintextPath)
-	assert.Equal(t, filepath.Join(dir, "app.enc.toml.yaml"), pairs[1].EncryptedPath)
+	assert.Equal(t, filepath.Join(dir, "app.enc.toml"), pairs[1].EncryptedPath)
 	assert.Equal(t, "toml", pairs[1].Format)
 }
 

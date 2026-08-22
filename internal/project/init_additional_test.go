@@ -130,7 +130,7 @@ func TestNewInitFilePair(t *testing.T) {
 		filePair, err := newInitFilePair("app.toml", "", "", false)
 		require.NoError(t, err)
 		assert.Equal(t, "app.toml", filePair.PlaintextPath)
-		assert.Equal(t, "app.enc.toml.yaml", filePair.EncryptedPath)
+		assert.Equal(t, "app.enc.toml", filePair.EncryptedPath)
 		assert.Empty(t, filePair.Format)
 	})
 

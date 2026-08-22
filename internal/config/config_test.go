@@ -32,15 +32,15 @@ func TestGetPrimaryFilePair(t *testing.T) {
 	cfg := &Config{
 		Encryption: EncryptionConfig{
 			Files: []FilePair{
-				{PlaintextPath: "app.toml", EncryptedPath: "app.enc.toml.yaml"},
-				{PlaintextPath: "db.toml", EncryptedPath: "db.enc.toml.yaml"},
+				{PlaintextPath: "app.toml", EncryptedPath: "app.enc.toml"},
+				{PlaintextPath: "db.toml", EncryptedPath: "db.enc.toml"},
 			},
 		},
 	}
 
 	pair := cfg.GetPrimaryFilePair()
 	assert.Equal(t, "app.toml", pair.PlaintextPath)
-	assert.Equal(t, "app.enc.toml.yaml", pair.EncryptedPath)
+	assert.Equal(t, "app.enc.toml", pair.EncryptedPath)
 }
 
 func TestGetKeyFile(t *testing.T) {
@@ -267,7 +267,7 @@ func TestLoadConfig_MultipleLocations(t *testing.T) {
 
 [[encryption.files]]
 plaintext = "high-priority.toml"
-encrypted = "high-priority.enc.toml.yaml"
+encrypted = "high-priority.enc.toml"
 `
 	err = os.WriteFile(filepath.Join(yewsealDir, ".yewseal.toml"), []byte(highPriorityConfig), 0644)
 	require.NoError(t, err)
@@ -276,7 +276,7 @@ encrypted = "high-priority.enc.toml.yaml"
 
 [[encryption.files]]
 plaintext = "low-priority.toml"
-encrypted = "low-priority.enc.toml.yaml"
+encrypted = "low-priority.enc.toml"
 `
 	err = os.WriteFile(filepath.Join(tmpDir, ".yewseal.toml"), []byte(lowPriorityConfig), 0644)
 	require.NoError(t, err)
@@ -288,7 +288,7 @@ encrypted = "low-priority.enc.toml.yaml"
 	require.NoError(t, err)
 
 	assert.Equal(t, filepath.Join(tmpDir, "high-priority.toml"), cfg.GetFiles()[0].PlaintextPath)
-	assert.Equal(t, filepath.Join(tmpDir, "high-priority.enc.toml.yaml"), cfg.GetFiles()[0].EncryptedPath)
+	assert.Equal(t, filepath.Join(tmpDir, "high-priority.enc.toml"), cfg.GetFiles()[0].EncryptedPath)
 }
 
 func TestLoadConfig_DiscoversAndMergesToGitRoot(t *testing.T) {
@@ -312,7 +312,7 @@ format = "env"
 
 [[encryption.files]]
 plaintext = "shared.toml"
-encrypted = "shared.enc.toml.yaml"
+encrypted = "shared.enc.toml"
 
 [key]
 file_path = ".age/root.txt"
@@ -365,7 +365,7 @@ func TestLoadConfig_StopsAtNearestGitRoot(t *testing.T) {
 
 [[encryption.files]]
 plaintext = "parent.toml"
-encrypted = "parent.enc.toml.yaml"
+encrypted = "parent.enc.toml"
 `
 	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, ".yewseal.toml"), []byte(parentConfig), 0644))
 	require.NoError(t, os.Chdir(childDir))
@@ -393,7 +393,7 @@ func TestLoadConfig_NonGitUsesCurrentDirectoryConfig(t *testing.T) {
 
 [[encryption.files]]
 plaintext = "local.toml"
-encrypted = "local.enc.toml.yaml"
+encrypted = "local.enc.toml"
 `
 	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, ".yewseal.toml"), []byte(configContent), 0644))
 	require.NoError(t, os.Chdir(tmpDir))

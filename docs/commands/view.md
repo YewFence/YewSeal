@@ -13,7 +13,7 @@ yews view [command options] <target>
 `target` 必须是一个目标文件，可以是配置里声明的明文路径或加密路径，也可以是符合文件名协议的加密文件路径。
 
 ```bash
-yews view config.enc.toml.yaml
+yews view config.enc.toml
 ```
 
 ## 选项
@@ -31,14 +31,14 @@ yews view config.enc.yaml --format toml
 输出详细的文件选择信息。
 
 ```bash
-yews view config.enc.toml.yaml -v
+yews view config.enc.toml -v
 ```
 
 ## 示例
 
 ```bash
 # 查看加密文件
-yews view config.enc.toml.yaml
+yews view config.enc.toml
 
 # 转换为 TOML 输出
 yews view config.enc.yaml --format toml
