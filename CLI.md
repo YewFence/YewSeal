@@ -11,7 +11,7 @@ YewSeal - Encrypt/decrypt configuration files using SOPS and Age (supports TOML,
 
 ### SEE ALSO
 
-* [yews check](#yews-check)	 - Check if required external tools are installed
+* [yews check](#yews-check)	 - Show embedded library versions
 * [yews completion](#yews-completion)	 - Generate the autocompletion script for the specified shell
 * [yews decrypt](#yews-decrypt)	 - Decrypt encrypted file (output format determined by extension)
 * [yews diff](#yews-diff)	 - Compare plaintext file with decrypted encrypted file
@@ -24,7 +24,7 @@ YewSeal - Encrypt/decrypt configuration files using SOPS and Age (supports TOML,
 
 ## yews check
 
-Check if required external tools are installed
+Show embedded library versions
 
 ```
 yews check [flags]
@@ -353,7 +353,7 @@ yews edit [flags]
 
 ```
   -e, --editor string   Editor command to use (e.g., 'code -w', 'vim')
-  -f, --file string     Encrypted file to edit (default "wrangler.enc.toml.yaml")
+  -f, --file string     Encrypted file to edit (default "wrangler.enc.toml")
   -h, --help            help for edit
 ```
 
@@ -593,4 +593,3 @@ yews view [command options] <target> [flags]
 ### SEE ALSO
 
 * [yews](#yews)	 - YewSeal - Encrypt/decrypt configuration files using SOPS and Age (supports TOML, YAML, JSON, ENV, INI)
-

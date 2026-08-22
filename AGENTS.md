@@ -1,6 +1,6 @@
 ## 项目概述
 
-YewSeal 是一个 Go CLI 工具，用于管理加密配置文件。核心功能是通过 SOPS + Age 加密，支持多种配置格式（TOML/YAML/JSON/ENV/INI）。由于 SOPS 不原生支持 TOML 格式，本工具通过 TOML ↔ YAML 转换来实现。
+YewSeal 是一个 Go CLI 工具，用于管理加密配置文件。核心功能是通过 SOPS + Age 加密，支持多种配置格式（TOML/YAML/JSON/ENV/INI）。TOML 由内置的原生 TOML store 直接支持（来自 `github.com/YewFence/sops/v3` fork），不再需要格式转换。
 
 ## 常用命令
 
@@ -20,13 +20,15 @@ mise run test       # 运行所有测试 (go test -v ./...)
 
 **配置优先级**：CLI 参数 > 环境变量 > 配置文件 > 默认值
 
-**内嵌库依赖**：`filippo.io/age`（密钥生成）、`github.com/getsops/sops/v3`（加解密引擎）
+**内嵌库依赖**：`filippo.io/age`（密钥生成）、`github.com/YewFence/sops/v3`（加解密引擎，带原生 TOML store 的 fork）
 
-**外部工具依赖**：仅 `toml2yaml`/`yaml2toml` (remarshal)，且仅 TOML 格式需要
+**外部工具依赖**：无
+
+**加密引擎边界**：`internal/sopsx` 是 engine facade，对外暴露 `Encrypt`/`Decrypt`/`Inspect`/`Rekey`/`ExtractAgeRecipients`，格式参数使用 YewSeal 命名（`toml/yaml/json/env/ini/binary`）。其余包只允许通过 facade 调用，不直接 import sops 类型。
 
 **格式支持**：
-- SOPS 原生格式（YAML/JSON/ENV/INI）：直接加密
-- TOML：转换为 YAML 后加密（TOML → YAML → 加密）
+- 所有格式（TOML/YAML/JSON/ENV/INI/binary）均由 sops store 原生加密
+- TOML 加密文件协议与其他格式对齐：`wrangler.toml` → `wrangler.enc.toml`（旧版 `.enc.toml.yaml` 转换协议已废弃，遇到会报迁移提示）
 
 **密钥同步**：通过 Provider 接口扩展，目前支持 Infisical
 

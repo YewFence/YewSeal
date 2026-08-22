@@ -43,7 +43,7 @@ yews init
 ```bash
 yews init \
   --input config.toml \
-  --output config.enc.toml.yaml \
+  --output config.enc.toml \
   --format toml \
   --create-example
 ```
@@ -60,7 +60,7 @@ yews encrypt
 yews encrypt config.toml
 
 # 加密单个明文文件，并指定输出路径
-yews encrypt config.toml -o config.enc.toml.yaml
+yews encrypt config.toml -o config.enc.toml
 
 # 扫描目录并加密匹配的文件
 yews encrypt ./configs --pattern "*.toml"
@@ -73,10 +73,10 @@ yews encrypt ./configs --pattern "*.toml"
 yews decrypt
 
 # 解密单个加密文件，输出路径会按文件名推断
-yews decrypt config.enc.toml.yaml
+yews decrypt config.enc.toml
 
 # 解密单个加密文件，并指定输出路径
-yews decrypt config.enc.toml.yaml -o config.toml
+yews decrypt config.enc.toml -o config.toml
 
 # 扫描目录并解密匹配的加密文件
 yews decrypt ./configs --pattern "*.toml"
@@ -98,17 +98,17 @@ yews plan --json
 
 ```bash
 # 使用默认编辑器
-yews edit -f config.enc.toml.yaml
+yews edit -f config.enc.toml
 
 # 指定编辑器
-yews edit -f config.enc.toml.yaml -e "code -w"
+yews edit -f config.enc.toml -e "code -w"
 ```
 
 ### 查看加密文件内容
 
 ```bash
 # 输出到标准输出
-yews view config.enc.toml.yaml
+yews view config.enc.toml
 ```
 
 ### 比较差异
@@ -129,14 +129,14 @@ public_key = "age1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 
 [[encryption.files]]
 plaintext = "config.toml"
-encrypted = "config.enc.toml.yaml"
+encrypted = "config.enc.toml"
 ```
 
 也可以用分组配置让 YewSeal 扫描一批文件：
 
 ```toml
 [[encryption.groups]]
-patterns = ["*.toml", "*.yaml", "!*.enc.toml.yaml", "!*.enc.yaml"]
+patterns = ["*.toml", "*.yaml", "!*.enc.toml", "!*.enc.yaml"]
 format_rules = [".dev.vars=env"]
 unknown_as_binary = false
 ```

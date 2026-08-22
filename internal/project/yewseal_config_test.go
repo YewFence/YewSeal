@@ -67,7 +67,7 @@ func TestSavePublicKeyToConfig_MultipleFilePairs(t *testing.T) {
 	withProjectWorkingDir(t, tmpDir)
 
 	err := SavePublicKeyToConfig("age1test", []config.FilePair{
-		{PlaintextPath: "app.toml", EncryptedPath: "app.enc.toml.yaml"},
+		{PlaintextPath: "app.toml", EncryptedPath: "app.enc.toml"},
 		{PlaintextPath: ".dev.vars", EncryptedPath: ".dev.vars.enc.yaml", Format: "env"},
 	})
 	require.NoError(t, err)
@@ -76,7 +76,7 @@ func TestSavePublicKeyToConfig_MultipleFilePairs(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Contains(t, string(content), "plaintext = \"app.toml\"")
-	assert.Contains(t, string(content), "encrypted = \"app.enc.toml.yaml\"")
+	assert.Contains(t, string(content), "encrypted = \"app.enc.toml\"")
 	assert.Contains(t, string(content), "plaintext = \".dev.vars\"")
 	assert.Contains(t, string(content), "encrypted = \".dev.vars.enc.yaml\"")
 	assert.Contains(t, string(content), "format = \"env\"")
@@ -104,7 +104,7 @@ func TestSavePublicKeyToConfig_WritesWithoutIndentation(t *testing.T) {
 	withProjectWorkingDir(t, tmpDir)
 
 	err := SavePublicKeyToConfig("age1test", []config.FilePair{
-		{PlaintextPath: "app.toml", EncryptedPath: "app.enc.toml.yaml"},
+		{PlaintextPath: "app.toml", EncryptedPath: "app.enc.toml"},
 	})
 	require.NoError(t, err)
 
@@ -112,7 +112,7 @@ func TestSavePublicKeyToConfig_WritesWithoutIndentation(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Contains(t, string(content), "plaintext = \"app.toml\"")
-	assert.Contains(t, string(content), "encrypted = \"app.enc.toml.yaml\"")
+	assert.Contains(t, string(content), "encrypted = \"app.enc.toml\"")
 	assert.NotContains(t, string(content), "\n  plaintext =")
 	assert.NotContains(t, string(content), "\n  encrypted =")
 	assert.NotContains(t, string(content), "\n  file_path =")

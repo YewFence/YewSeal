@@ -25,7 +25,7 @@ var defaultEncryptPatterns = []string{
 	"*.ini",
 	"*.bin",
 	"*.binary",
-	"!*.enc.toml.yaml",
+	"!*.enc.toml",
 	"!*.enc.yaml",
 	"!*.enc.json",
 	"!*.enc.env",
@@ -34,7 +34,7 @@ var defaultEncryptPatterns = []string{
 }
 
 var defaultDecryptPatterns = []string{
-	"*.enc.toml.yaml",
+	"*.enc.toml",
 	"*.enc.yaml",
 	"*.enc.json",
 	"*.enc.env",

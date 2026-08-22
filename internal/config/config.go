@@ -11,7 +11,7 @@ import (
 
 const (
 	defaultDecryptedFile = "wrangler.toml"
-	defaultEncryptedFile = "wrangler.enc.toml.yaml"
+	defaultEncryptedFile = "wrangler.enc.toml"
 	defaultKeyFile       = ".age/keys.txt"
 )
 

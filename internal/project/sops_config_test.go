@@ -154,7 +154,7 @@ func TestSyncSopsYaml_ReplacesWithConfiguredRules(t *testing.T) {
 	require.NoError(t, err)
 
 	err = SyncSopsYaml([]config.FilePair{
-		{PlaintextPath: "app.toml", EncryptedPath: "app.enc.toml.yaml"},
+		{PlaintextPath: "app.toml", EncryptedPath: "app.enc.toml"},
 		{PlaintextPath: ".dev.vars", EncryptedPath: ".dev.vars.enc.yaml"},
 	}, "age1test")
 	require.NoError(t, err)
@@ -163,7 +163,7 @@ func TestSyncSopsYaml_ReplacesWithConfiguredRules(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.NotContains(t, string(content), "legacy\\.enc\\.yaml")
-	assert.Contains(t, string(content), "app\\.enc\\.toml\\.yaml")
+	assert.Contains(t, string(content), "app\\.enc\\.toml$")
 	assert.Contains(t, string(content), "\\.dev\\.vars\\.enc\\.yaml")
 	assert.Contains(t, string(content), "age1test")
 }

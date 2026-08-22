@@ -3,7 +3,6 @@ package app
 import (
 	"bytes"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -13,10 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestEditEncryptedFileTOMLRoundTripRemarshal(t *testing.T) {
-	skipIfToolMissing(t, "toml2yaml")
-	skipIfToolMissing(t, "yaml2toml")
-
+func TestEditEncryptedFileTOMLRoundTrip(t *testing.T) {
 	env := newAppCryptoTestEnv(t)
 	plain := []byte(`[database]
 host = "localhost"
@@ -25,7 +21,7 @@ password = "old"
 	require.NoError(t, os.WriteFile("config.toml", plain, 0644))
 	require.NoError(t, seal.Encrypt(seal.EncryptOptions{
 		InputFile:      "config.toml",
-		OutputFile:     "config.enc.toml.yaml",
+		OutputFile:     "config.enc.toml",
 		KeyFile:        env.keyFile,
 		PublicKey:      env.publicKey,
 		FormatOverride: "toml",
@@ -34,31 +30,31 @@ password = "old"
 	editorPath := filepath.Join(t.TempDir(), "edit.sh")
 	editorScript := `#!/usr/bin/env bash
 set -euo pipefail
-if ! grep -q 'password = "old"' "$1"; then
+if ! grep -q "password = 'old'" "$1"; then
   echo "expected TOML content in edit buffer" >&2
   exit 1
 fi
-sed -i 's/password = "old"/password = "new"/' "$1"
+sed -i "s/password = 'old'/password = 'new'/" "$1"
 `
 	require.NoError(t, os.WriteFile(editorPath, []byte(editorScript), 0700))
 
 	var output bytes.Buffer
 	require.NoError(t, EditEncryptedFile(EditRequest{
 		Config:  config.DefaultConfig(),
-		File:    "config.enc.toml.yaml",
+		File:    "config.enc.toml",
 		Editor:  editorPath,
 		KeyFile: env.keyFile,
 		Output:  &output,
 	}))
 
 	decrypted, err := seal.DecryptToBytes(seal.DecryptBytesOptions{
-		InputFile:      "config.enc.toml.yaml",
+		InputFile:      "config.enc.toml",
 		OutputFile:     "config.toml",
 		KeyFile:        env.keyFile,
 		FormatOverride: "toml",
 	})
 	require.NoError(t, err)
-	assert.Contains(t, string(decrypted), `password = "new"`)
+	assert.Contains(t, string(decrypted), `password = 'new'`)
 }
 
 func TestEditEncryptedFileUsesConfiguredFormat(t *testing.T) {
@@ -130,10 +126,10 @@ func TestResolveEncryptedTarget(t *testing.T) {
 	assert.Equal(t, "env", configured.FormatOverride)
 	assert.Equal(t, "env", configured.Format)
 
-	inferred, err := ResolveEncryptedTarget(config.DefaultConfig(), "config.enc.toml.yaml", "edit")
+	inferred, err := ResolveEncryptedTarget(config.DefaultConfig(), "config.enc.toml", "edit")
 	require.NoError(t, err)
 	assert.Equal(t, "config.toml", inferred.PlaintextPath)
-	assert.Equal(t, "config.enc.toml.yaml", inferred.EncryptedPath)
+	assert.Equal(t, "config.enc.toml", inferred.EncryptedPath)
 	assert.Equal(t, "toml", inferred.FormatOverride)
 	assert.Equal(t, "toml", inferred.Format)
 }
@@ -205,21 +201,4 @@ func TestResolveEncryptedTargetWithOverrides_OutputDoesNotChangeProtocolFormat(t
 	assert.Equal(t, "config.enc.yaml", target.EncryptedPath)
 	assert.Equal(t, "yaml", target.FormatOverride)
 	assert.Equal(t, "yaml", target.Format)
-}
-
-func skipIfToolMissing(t *testing.T, tool string) {
-	t.Helper()
-
-	if _, err := os.Stat(tool); err == nil {
-		return
-	}
-	if _, err := os.Stat(filepath.Join("/usr/bin", tool)); err == nil {
-		return
-	}
-	if _, err := os.Stat(filepath.Join("/usr/local/bin", tool)); err == nil {
-		return
-	}
-	if _, err := exec.LookPath(tool); err != nil {
-		t.Skipf("Skipping test: %s not found", tool)
-	}
 }
