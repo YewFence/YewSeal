@@ -1,4 +1,4 @@
-package main
+package cli
 
 import (
 	"github.com/YewFence/YewSeal/internal/config"
@@ -6,13 +6,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func rootCommand(cfg *config.Config) *cobra.Command {
+// NewRootCommand 构建 yews 的根命令。version 由二进制在构建期注入。
+func NewRootCommand(cfg *config.Config, version string) *cobra.Command {
 	var keyFile string
 
 	rootCmd := &cobra.Command{
 		Use:           "yews",
 		Short:         "YewSeal - Encrypt/decrypt configuration files using SOPS and Age (supports TOML, YAML, JSON, ENV, INI)",
-		Version:       Version,
+		Version:       version,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
@@ -27,7 +28,6 @@ func rootCommand(cfg *config.Config) *cobra.Command {
 		editCommand(cfg, &keyFile),
 		viewCommand(cfg, &keyFile),
 		diffCommand(cfg, &keyFile),
-		docsCommand(rootCmd),
 		syncCommand(cfg),
 	)
 

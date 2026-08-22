@@ -1,4 +1,4 @@
-package main
+package cli
 
 func firstArg(args []string) string {
 	if len(args) == 0 {

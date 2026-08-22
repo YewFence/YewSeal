@@ -33,6 +33,22 @@ export default defineConfig({
           { text: 'diff - 比较差异', link: '/commands/diff' },
           { text: 'sync - 同步密钥', link: '/commands/sync' }
         ]
+      },
+      {
+        text: 'CLI 参考（自动生成）',
+        collapsed: true,
+        items: [
+          { text: 'yews', link: '/references/yews' },
+          { text: 'yews init', link: '/references/yews_init' },
+          { text: 'yews encrypt', link: '/references/yews_encrypt' },
+          { text: 'yews decrypt', link: '/references/yews_decrypt' },
+          { text: 'yews plan', link: '/references/yews_plan' },
+          { text: 'yews edit', link: '/references/yews_edit' },
+          { text: 'yews view', link: '/references/yews_view' },
+          { text: 'yews diff', link: '/references/yews_diff' },
+          { text: 'yews sync', link: '/references/yews_sync' },
+          { text: 'yews completion', link: '/references/yews_completion' }
+        ]
       }
     ],
 
