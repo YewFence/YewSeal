@@ -104,7 +104,7 @@ alias = "f"
 
 [tasks."cli:docs"]
 description = "Generate CLI reference documentation"
-run = "go run ./cmd/yews docs"
+run = "go run ./cmd/gendocs"
 
 [tasks.cli]
 description = "Run the CLI"
