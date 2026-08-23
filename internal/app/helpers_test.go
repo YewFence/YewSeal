@@ -156,7 +156,7 @@ func TestResolveTargetFilePairs_EmptyUsesAllConfiguredFiles(t *testing.T) {
 	cfg := &config.Config{
 		Encryption: config.EncryptionConfig{
 			Files: []config.FilePair{
-				{PlaintextPath: "wrangler.toml", EncryptedPath: "wrangler.enc.toml.yaml"},
+				{PlaintextPath: "wrangler.toml", EncryptedPath: "wrangler.enc.toml"},
 				{PlaintextPath: ".dev.vars", EncryptedPath: ".dev.vars.enc.yaml", Format: "env"},
 			},
 		},
@@ -171,7 +171,7 @@ func TestResolveTargetFilePairs_MatchesPlaintextPath(t *testing.T) {
 	cfg := &config.Config{
 		Encryption: config.EncryptionConfig{
 			Files: []config.FilePair{
-				{PlaintextPath: "wrangler.toml", EncryptedPath: "wrangler.enc.toml.yaml"},
+				{PlaintextPath: "wrangler.toml", EncryptedPath: "wrangler.enc.toml"},
 			},
 		},
 	}
@@ -179,19 +179,19 @@ func TestResolveTargetFilePairs_MatchesPlaintextPath(t *testing.T) {
 	filePairs, err := ResolveTargetFilePairs(cfg, "wrangler.toml")
 	require.NoError(t, err)
 	require.Len(t, filePairs, 1)
-	assert.Equal(t, "wrangler.enc.toml.yaml", filePairs[0].EncryptedPath)
+	assert.Equal(t, "wrangler.enc.toml", filePairs[0].EncryptedPath)
 }
 
 func TestResolveTargetFilePairs_MatchesEncryptedPath(t *testing.T) {
 	cfg := &config.Config{
 		Encryption: config.EncryptionConfig{
 			Files: []config.FilePair{
-				{PlaintextPath: "wrangler.toml", EncryptedPath: "wrangler.enc.toml.yaml"},
+				{PlaintextPath: "wrangler.toml", EncryptedPath: "wrangler.enc.toml"},
 			},
 		},
 	}
 
-	filePairs, err := ResolveTargetFilePairs(cfg, "wrangler.enc.toml.yaml")
+	filePairs, err := ResolveTargetFilePairs(cfg, "wrangler.enc.toml")
 	require.NoError(t, err)
 	require.Len(t, filePairs, 1)
 	assert.Equal(t, "wrangler.toml", filePairs[0].PlaintextPath)
@@ -217,7 +217,7 @@ func TestResolveSingleTargetFilePair_MatchesPlaintextPath(t *testing.T) {
 	cfg := &config.Config{
 		Encryption: config.EncryptionConfig{
 			Files: []config.FilePair{
-				{PlaintextPath: "wrangler.toml", EncryptedPath: "wrangler.enc.toml.yaml"},
+				{PlaintextPath: "wrangler.toml", EncryptedPath: "wrangler.enc.toml"},
 			},
 		},
 	}
@@ -225,7 +225,7 @@ func TestResolveSingleTargetFilePair_MatchesPlaintextPath(t *testing.T) {
 	filePair, err := ResolveSingleTargetFilePair(cfg, "wrangler.toml", "view")
 	require.NoError(t, err)
 	assert.Equal(t, "wrangler.toml", filePair.PlaintextPath)
-	assert.Equal(t, "wrangler.enc.toml.yaml", filePair.EncryptedPath)
+	assert.Equal(t, "wrangler.enc.toml", filePair.EncryptedPath)
 }
 
 func TestConfigGroupPairsExpandsMultipleGroups(t *testing.T) {
@@ -254,7 +254,7 @@ func TestConfigGroupPairsExpandsMultipleGroups(t *testing.T) {
 	require.Len(t, pairs, 2)
 
 	assert.Equal(t, "app.toml", pairs[0].PlaintextPath)
-	assert.Equal(t, "app.enc.toml.yaml", pairs[0].EncryptedPath)
+	assert.Equal(t, "app.enc.toml", pairs[0].EncryptedPath)
 	assert.Equal(t, "toml", pairs[0].Format)
 	assert.Equal(t, ".dev.vars", pairs[1].PlaintextPath)
 	assert.Equal(t, ".dev.vars.enc.env", pairs[1].EncryptedPath)
@@ -279,7 +279,7 @@ func TestConfigGroupPairsUsesRequestPatternsWithoutConfiguredGroups(t *testing.T
 	require.Len(t, pairs, 1)
 
 	assert.Equal(t, "app.toml", pairs[0].PlaintextPath)
-	assert.Equal(t, "app.enc.toml.yaml", pairs[0].EncryptedPath)
+	assert.Equal(t, "app.enc.toml", pairs[0].EncryptedPath)
 	assert.Equal(t, "toml", pairs[0].Format)
 }
 

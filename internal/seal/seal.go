@@ -19,7 +19,6 @@ type EncryptOptions struct {
 	FormatOverride string
 	Verbose        bool
 	Output         io.Writer
-	Warnings       io.Writer
 }
 
 type DecryptOptions struct {
@@ -30,7 +29,6 @@ type DecryptOptions struct {
 	Verbose        bool
 	Force          bool
 	Output         io.Writer
-	Warnings       io.Writer
 }
 
 type DecryptBytesOptions struct {
@@ -40,7 +38,6 @@ type DecryptBytesOptions struct {
 	FormatOverride string
 	Verbose        bool
 	Output         io.Writer
-	Warnings       io.Writer
 }
 
 type EncryptBytesOptions struct {
@@ -49,7 +46,6 @@ type EncryptBytesOptions struct {
 	PublicKey      string
 	Verbose        bool
 	Output         io.Writer
-	Warnings       io.Writer
 }
 
 func Encrypt(opts EncryptOptions) error {
@@ -59,11 +55,8 @@ func Encrypt(opts EncryptOptions) error {
 		return &errx.NotFoundError{What: "input file", Path: opts.InputFile}
 	}
 
-	plan, err := newCodecPlan(opts.InputFile, opts.FormatOverride)
+	format, err := resolveFormat(opts.InputFile, opts.FormatOverride)
 	if err != nil {
-		return err
-	}
-	if err := plan.checkTools(); err != nil {
 		return err
 	}
 
@@ -81,13 +74,12 @@ func Encrypt(opts EncryptOptions) error {
 		return err
 	}
 
-	encData, err := encryptBytesWithPlan(plainData, plan, EncryptBytesOptions{
+	encData, err := encryptBytes(plainData, format, EncryptBytesOptions{
 		FormatFile:     opts.InputFile,
 		FormatOverride: opts.FormatOverride,
 		PublicKey:      publicKey,
 		Verbose:        opts.Verbose,
 		Output:         opts.Output,
-		Warnings:       opts.Warnings,
 	})
 	if err != nil {
 		return err
@@ -102,32 +94,21 @@ func Encrypt(opts EncryptOptions) error {
 }
 
 func EncryptToBytes(plainData []byte, opts EncryptBytesOptions) ([]byte, error) {
-	plan, err := newCodecPlan(opts.FormatFile, opts.FormatOverride)
+	format, err := resolveFormat(opts.FormatFile, opts.FormatOverride)
 	if err != nil {
 		return nil, err
 	}
-	if err := plan.checkTools(); err != nil {
-		return nil, err
-	}
-	return encryptBytesWithPlan(plainData, plan, opts)
+	return encryptBytes(plainData, format, opts)
 }
 
-func encryptBytesWithPlan(plainData []byte, plan codecPlan, opts EncryptBytesOptions) ([]byte, error) {
+func encryptBytes(plainData []byte, format string, opts EncryptBytesOptions) ([]byte, error) {
 	out := outputWriter(opts.Output)
-
-	if plan.needsRemarshal && opts.Verbose {
-		_, _ = fmt.Fprintln(out, plan.encryptAction)
-	}
-	preparedData, err := plan.prepareEncrypt(plainData)
-	if err != nil {
-		return nil, err
-	}
 
 	if opts.Verbose {
 		_, _ = fmt.Fprintln(out, "🔐 Encrypting with SOPS...")
 	}
 
-	encData, err := sopsx.Encrypt(preparedData, plan.sopsFormat, opts.PublicKey)
+	encData, err := sopsx.Encrypt(plainData, format, opts.PublicKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encrypt: %w", err)
 	}
@@ -144,7 +125,6 @@ func Decrypt(opts DecryptOptions) error {
 		FormatOverride: opts.FormatOverride,
 		Verbose:        opts.Verbose,
 		Output:         opts.Output,
-		Warnings:       opts.Warnings,
 	})
 	if err != nil {
 		return err
@@ -165,11 +145,8 @@ func DecryptToBytes(opts DecryptBytesOptions) ([]byte, error) {
 		return nil, &errx.NotFoundError{What: "input file", Path: opts.InputFile}
 	}
 
-	plan, err := newCodecPlan(opts.OutputFile, opts.FormatOverride)
+	format, err := resolveFormat(opts.OutputFile, opts.FormatOverride)
 	if err != nil {
-		return nil, err
-	}
-	if err := plan.checkTools(); err != nil {
 		return nil, err
 	}
 
@@ -188,26 +165,16 @@ func DecryptToBytes(opts DecryptBytesOptions) ([]byte, error) {
 		return nil, fmt.Errorf("failed to read input file: %w", err)
 	}
 
-	plainData, err := sopsx.Decrypt(encData, plan.sopsFormat, privateKey)
+	plainData, err := sopsx.Decrypt(encData, format, privateKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decrypt: %w", err)
-	}
-
-	if plan.needsRemarshal {
-		if opts.Verbose {
-			_, _ = fmt.Fprintln(out, plan.decryptAction)
-		}
-	}
-	plainData, err = plan.restoreDecrypt(plainData)
-	if err != nil {
-		return nil, err
 	}
 
 	return plainData, nil
 }
 
 func ExtractAgeRecipientFromEncryptedFile(encryptedFile, formatFile, formatOverride string) (string, error) {
-	plan, err := newCodecPlan(formatFile, formatOverride)
+	format, err := resolveFormat(formatFile, formatOverride)
 	if err != nil {
 		return "", err
 	}
@@ -217,17 +184,11 @@ func ExtractAgeRecipientFromEncryptedFile(encryptedFile, formatFile, formatOverr
 		return "", fmt.Errorf("failed to read encrypted file: %w", err)
 	}
 
-	store := sopsx.StoreForFormat(plan.sopsFormat)
-	tree, err := store.LoadEncryptedFile(encData)
-	if err != nil {
-		return "", fmt.Errorf("failed to parse encrypted file metadata: %w", err)
-	}
-
-	publicKey, err := sopsx.ExtractAgeRecipientFromTree(tree)
+	recipients, err := sopsx.ExtractAgeRecipients(encData, format)
 	if err != nil {
 		return "", fmt.Errorf("failed to extract public key from encrypted file: %w", err)
 	}
-	return publicKey, nil
+	return recipients[0], nil
 }
 
 func writeDecryptedFile(inputFile, outputFile string, plainData []byte, force bool) error {

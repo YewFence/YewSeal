@@ -12,10 +12,10 @@ yews edit [command options]
 
 ### --file, -f
 
-指定要编辑的加密文件，默认值是 `wrangler.enc.toml.yaml`。
+指定要编辑的加密文件，默认值是 `wrangler.enc.toml`。
 
 ```bash
-yews edit -f config.enc.toml.yaml
+yews edit -f config.enc.toml
 ```
 
 这个目标也可以是 `.yewseal.toml` 中声明过的明文路径，YewSeal 会找到对应的加密文件。
@@ -25,7 +25,7 @@ yews edit -f config.enc.toml.yaml
 指定编辑器命令。
 
 ```bash
-yews edit -f config.enc.toml.yaml -e "code -w"
+yews edit -f config.enc.toml -e "code -w"
 ```
 
 如果没有传入 `--editor`，YewSeal 会依次使用 `EDITOR`、`VISUAL`，在 Windows 上会尝试 `code -w` 或 `notepad`，其他系统默认使用 `vi`。
@@ -37,13 +37,13 @@ yews edit -f config.enc.toml.yaml -e "code -w"
 yews edit
 
 # 编辑指定加密文件
-yews edit -f config.enc.toml.yaml
+yews edit -f config.enc.toml
 
 # 使用 VS Code 并等待窗口关闭
-yews edit -f config.enc.toml.yaml -e "code -w"
+yews edit -f config.enc.toml -e "code -w"
 
 # 使用 Vim
-yews edit -f config.enc.toml.yaml -e vim
+yews edit -f config.enc.toml -e vim
 ```
 
 ## 注意事项

@@ -203,9 +203,6 @@ func defaultEncryptedOutputNameForFile(inputFile string) string {
 }
 
 func defaultEncryptedOutputName(inputBase, inputExt string) string {
-	if strings.EqualFold(inputExt, ".toml") {
-		return inputBase + ".enc" + inputExt + ".yaml"
-	}
 	return inputBase + ".enc" + inputExt
 }
 

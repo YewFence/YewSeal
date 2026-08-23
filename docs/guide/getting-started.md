@@ -1,30 +1,44 @@
 # 快速开始
 
-YewSeal 是一个基于 SOPS 和 Age 的配置文件加密管理工具，支持 TOML、YAML、JSON、ENV、INI 和二进制文件。TOML 文件会先转换为 YAML，再交给 SOPS 加密。
+YewSeal 是一个基于 SOPS 和 Age 的配置文件加密管理工具，支持 TOML、YAML、JSON、ENV、INI 和二进制文件。所有格式（含 TOML）都由内嵌的 SOPS 引擎原生加密，不需要格式转换。
 
 ## 安装
+
+### mise（推荐）
+
+通过 [mise](https://mise.jdx.dev/) 的 [github backend](https://mise.jdx.dev/dev-tools/backends/github.html) 直接安装 release 中的预构建可执行文件：
+
+```bash
+mise use --global github:YewFence/YewSeal
+yews --version
+```
+
+也可以在项目的 `mise.toml` 中声明 `github:YewFence/YewSeal` 依赖，让团队成员和 CI 使用同一版本。
+
+### go install
+
+```bash
+go install github.com/YewFence/YewSeal/cmd/yews@latest
+```
+
+需要 `$GOPATH/bin` 在 `$PATH` 中。
+
+### GitHub Release
+
+从 [Releases 页面](https://github.com/YewFence/YewSeal/releases)下载适合你系统的预编译二进制文件。可执行文件名固定为 `yews`（Windows 下为 `yews.exe`）。
 
 ### 从源码构建
 
 ```bash
 git clone https://github.com/YewFence/YewSeal.git
 cd YewSeal
-mise run build
+mise run install    # 安装到 $GOPATH/bin
+# 或只构建：mise run build → build/yews
 ```
 
-构建完成后，二进制文件位于 `build/yews`。
+### Docker
 
-### 添加到 PATH
-
-```bash
-# 复制到系统路径
-sudo cp build/yews /usr/local/bin/
-
-# 或者添加到用户路径
-mkdir -p ~/.local/bin
-cp build/yews ~/.local/bin/
-export PATH="$HOME/.local/bin:$PATH"
-```
+不想安装二进制时，可以直接运行容器镜像 `ghcr.io/yewfence/yew-seal`，详见 [Docker 运行](/guide/docker)。
 
 ## 初始化项目
 
@@ -43,7 +57,7 @@ yews init
 ```bash
 yews init \
   --input config.toml \
-  --output config.enc.toml.yaml \
+  --output config.enc.toml \
   --format toml \
   --create-example
 ```
@@ -60,7 +74,7 @@ yews encrypt
 yews encrypt config.toml
 
 # 加密单个明文文件，并指定输出路径
-yews encrypt config.toml -o config.enc.toml.yaml
+yews encrypt config.toml -o config.enc.toml
 
 # 扫描目录并加密匹配的文件
 yews encrypt ./configs --pattern "*.toml"
@@ -73,10 +87,10 @@ yews encrypt ./configs --pattern "*.toml"
 yews decrypt
 
 # 解密单个加密文件，输出路径会按文件名推断
-yews decrypt config.enc.toml.yaml
+yews decrypt config.enc.toml
 
 # 解密单个加密文件，并指定输出路径
-yews decrypt config.enc.toml.yaml -o config.toml
+yews decrypt config.enc.toml -o config.toml
 
 # 扫描目录并解密匹配的加密文件
 yews decrypt ./configs --pattern "*.toml"
@@ -98,17 +112,17 @@ yews plan --json
 
 ```bash
 # 使用默认编辑器
-yews edit -f config.enc.toml.yaml
+yews edit -f config.enc.toml
 
 # 指定编辑器
-yews edit -f config.enc.toml.yaml -e "code -w"
+yews edit -f config.enc.toml -e "code -w"
 ```
 
 ### 查看加密文件内容
 
 ```bash
 # 输出到标准输出
-yews view config.enc.toml.yaml
+yews view config.enc.toml
 ```
 
 ### 比较差异
@@ -129,17 +143,10 @@ public_key = "age1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 
 [[encryption.files]]
 plaintext = "config.toml"
-encrypted = "config.enc.toml.yaml"
+encrypted = "config.enc.toml"
 ```
 
-也可以用分组配置让 YewSeal 扫描一批文件：
-
-```toml
-[[encryption.groups]]
-patterns = ["*.toml", "*.yaml", "!*.enc.toml.yaml", "!*.enc.yaml"]
-format_rules = [".dev.vars=env"]
-unknown_as_binary = false
-```
+也可以用分组配置让 YewSeal 按模式扫描一批文件，详见[配置说明 - 分组扫描](/guide/configuration#分组扫描)。
 
 ## 下一步
 

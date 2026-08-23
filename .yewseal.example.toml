@@ -14,7 +14,7 @@
 
 [[encryption.files]]
 plaintext = "wrangler.toml"
-encrypted = "wrangler.enc.toml.yaml"
+encrypted = "wrangler.enc.toml"
 
 [key]
 file_path = ".age/keys.txt"

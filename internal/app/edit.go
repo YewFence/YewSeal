@@ -15,12 +15,11 @@ import (
 )
 
 type EditRequest struct {
-	Config   *config.Config
-	File     string
-	Editor   string
-	KeyFile  string
-	Output   io.Writer
-	Warnings io.Writer
+	Config  *config.Config
+	File    string
+	Editor  string
+	KeyFile string
+	Output  io.Writer
 }
 
 func EditEncryptedFile(req EditRequest) error {
@@ -45,7 +44,6 @@ func EditEncryptedFile(req EditRequest) error {
 		KeyFile:        req.KeyFile,
 		FormatOverride: target.FormatOverride,
 		Output:         req.Output,
-		Warnings:       req.Warnings,
 	})
 	if err != nil {
 		return err
@@ -108,7 +106,6 @@ func EditEncryptedFile(req EditRequest) error {
 		FormatOverride: target.FormatOverride,
 		PublicKey:      publicKey,
 		Output:         req.Output,
-		Warnings:       req.Warnings,
 	})
 	if err != nil {
 		return err

@@ -19,7 +19,7 @@ yews plan [command options] [path]
 为单文件目标预览输出路径。
 
 ```bash
-yews plan config.toml -o config.enc.toml.yaml
+yews plan config.toml -o config.enc.toml
 ```
 
 ### --format

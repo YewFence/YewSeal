@@ -1,6 +1,6 @@
 # encrypt - 加密配置文件
 
-`encrypt` 用来把明文配置文件加密成 SOPS 文件，支持 TOML、YAML、JSON、ENV、INI 和二进制文件。TOML 会先转换成 YAML，再以 YAML 形式写入加密文件。
+`encrypt` 用来把明文配置文件加密成 SOPS 文件，支持 TOML、YAML、JSON、ENV、INI 和二进制文件。所有格式（含 TOML）都由内嵌的 SOPS 引擎原生加密，加密文件保持原格式。
 
 ## 语法
 
@@ -12,7 +12,7 @@ yews encrypt [command options] [path]
 
 ## 目标选择
 
-不传 `path` 时，YewSeal 会使用 `.yewseal.toml` 中当前目录范围内的 `[[encryption.files]]` 和 `[[encryption.groups]]`。如果没有配置文件，则使用默认映射 `wrangler.toml` 到 `wrangler.enc.toml.yaml`。
+不传 `path` 时，YewSeal 会使用 `.yewseal.toml` 中当前目录范围内的 `[[encryption.files]]` 和 `[[encryption.groups]]`。如果没有配置文件，则使用默认映射 `wrangler.toml` 到 `wrangler.enc.toml`。
 
 传入文件路径时，YewSeal 会加密这个明文文件。如果该文件已在配置中声明，会使用配置中的加密路径和格式；如果没有配置，会根据文件名推断输出路径。
 
@@ -25,7 +25,7 @@ yews encrypt [command options] [path]
 为单文件目标指定加密文件路径。
 
 ```bash
-yews encrypt config.toml -o config.enc.toml.yaml
+yews encrypt config.toml -o config.enc.toml
 ```
 
 `--output` 只支持文件目标，不支持配置模式或目录扫描。
@@ -55,7 +55,7 @@ yews encrypt ./configs --format-rule ".dev.vars=env"
 为配置模式或目录扫描指定匹配规则。
 
 ```bash
-yews encrypt ./configs --pattern "*.toml" --pattern "!*.enc.toml.yaml"
+yews encrypt ./configs --pattern "*.toml" --pattern "!*.enc.toml"
 ```
 
 规则支持 `*`、`?`、`**`、以 `!` 开头的排除规则、以 `/` 开头的根目录锚定规则和以 `/` 结尾的目录规则。
@@ -102,7 +102,7 @@ yews encrypt
 yews encrypt config.toml
 
 # 加密单个文件，并指定输出路径
-yews encrypt config.toml -o config.enc.toml.yaml
+yews encrypt config.toml -o config.enc.toml
 
 # 扫描目录并加密匹配文件
 yews encrypt ./configs --pattern "*.toml"
@@ -113,7 +113,7 @@ yews encrypt .dev.vars --format env -o .dev.enc.env
 
 ## 输出文件协议
 
-YewSeal 会按格式推断加密文件名。`config.toml` 会变成 `config.enc.toml.yaml`，`config.yaml` 会变成 `config.enc.yaml`，`config.json` 会变成 `config.enc.json`，`.env` 会变成 `.env.enc.env`，`config.ini` 会变成 `config.enc.ini`，二进制文件会变成 `.enc.bin`。
+YewSeal 会按格式推断加密文件名。`config.toml` 会变成 `config.enc.toml`，`config.yaml` 会变成 `config.enc.yaml`，`config.json` 会变成 `config.enc.json`，`.env` 会变成 `.env.enc.env`，`config.ini` 会变成 `config.enc.ini`，二进制文件会变成 `.enc.bin`。
 
 ## 相关命令
 

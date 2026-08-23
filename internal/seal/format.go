@@ -1,6 +1,7 @@
 package seal
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 )
@@ -23,6 +24,28 @@ func NormalizeFormatOverride(value string) (string, bool) {
 		return "", false
 	}
 	return string(parsed), true
+}
+
+// resolveFormat determines the YewSeal format name for a path, honoring an
+// explicit format override when given.
+func resolveFormat(path, override string) (string, error) {
+	if strings.TrimSpace(override) != "" {
+		userFormat := parseFormat(override)
+		if userFormat == formatUnknown {
+			return "", fmt.Errorf("unsupported format override %q (supported: %s)", override, supportedFormats())
+		}
+		return string(userFormat), nil
+	}
+
+	userFormat := detectFormat(path)
+	if userFormat == formatUnknown {
+		return "", fmt.Errorf("could not detect format for %s (supported: %s). Hint: pass --format binary if this should be encrypted as a binary file", path, supportedFormats())
+	}
+	return string(userFormat), nil
+}
+
+func supportedFormats() string {
+	return "toml, yaml, json, env, ini, binary"
 }
 
 func NormalizeFormatForPath(filename string) (string, bool) {

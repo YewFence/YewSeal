@@ -23,11 +23,11 @@ func TestSavePublicKeyToConfig_CreateNew(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Contains(t, string(content), "[[encryption.files]]")
-	assert.Contains(t, string(content), "plaintext = \"secrets.toml\"")
-	assert.Contains(t, string(content), "encrypted = \"secrets.enc.yaml\"")
+	assert.Contains(t, string(content), "plaintext = 'secrets.toml'")
+	assert.Contains(t, string(content), "encrypted = 'secrets.enc.yaml'")
 	assert.Contains(t, string(content), "[key]")
-	assert.Contains(t, string(content), "file_path = \".age/keys.txt\"")
-	assert.Contains(t, string(content), "public_key = \"age1testpublickey\"")
+	assert.Contains(t, string(content), "file_path = '.age/keys.txt'")
+	assert.Contains(t, string(content), "public_key = 'age1testpublickey'")
 }
 
 func TestSavePublicKeyToConfig_OverwriteExisting(t *testing.T) {
@@ -67,7 +67,7 @@ func TestSavePublicKeyToConfig_MultipleFilePairs(t *testing.T) {
 	withProjectWorkingDir(t, tmpDir)
 
 	err := SavePublicKeyToConfig("age1test", []config.FilePair{
-		{PlaintextPath: "app.toml", EncryptedPath: "app.enc.toml.yaml"},
+		{PlaintextPath: "app.toml", EncryptedPath: "app.enc.toml"},
 		{PlaintextPath: ".dev.vars", EncryptedPath: ".dev.vars.enc.yaml", Format: "env"},
 	})
 	require.NoError(t, err)
@@ -75,11 +75,11 @@ func TestSavePublicKeyToConfig_MultipleFilePairs(t *testing.T) {
 	content, err := os.ReadFile(".yewseal.toml")
 	require.NoError(t, err)
 
-	assert.Contains(t, string(content), "plaintext = \"app.toml\"")
-	assert.Contains(t, string(content), "encrypted = \"app.enc.toml.yaml\"")
-	assert.Contains(t, string(content), "plaintext = \".dev.vars\"")
-	assert.Contains(t, string(content), "encrypted = \".dev.vars.enc.yaml\"")
-	assert.Contains(t, string(content), "format = \"env\"")
+	assert.Contains(t, string(content), "plaintext = 'app.toml'")
+	assert.Contains(t, string(content), "encrypted = 'app.enc.toml'")
+	assert.Contains(t, string(content), "plaintext = '.dev.vars'")
+	assert.Contains(t, string(content), "encrypted = '.dev.vars.enc.yaml'")
+	assert.Contains(t, string(content), "format = 'env'")
 }
 
 func TestSavePublicKeyToConfig_ConfigCanBeLoaded(t *testing.T) {
@@ -104,15 +104,15 @@ func TestSavePublicKeyToConfig_WritesWithoutIndentation(t *testing.T) {
 	withProjectWorkingDir(t, tmpDir)
 
 	err := SavePublicKeyToConfig("age1test", []config.FilePair{
-		{PlaintextPath: "app.toml", EncryptedPath: "app.enc.toml.yaml"},
+		{PlaintextPath: "app.toml", EncryptedPath: "app.enc.toml"},
 	})
 	require.NoError(t, err)
 
 	content, err := os.ReadFile(".yewseal.toml")
 	require.NoError(t, err)
 
-	assert.Contains(t, string(content), "plaintext = \"app.toml\"")
-	assert.Contains(t, string(content), "encrypted = \"app.enc.toml.yaml\"")
+	assert.Contains(t, string(content), "plaintext = 'app.toml'")
+	assert.Contains(t, string(content), "encrypted = 'app.enc.toml'")
 	assert.NotContains(t, string(content), "\n  plaintext =")
 	assert.NotContains(t, string(content), "\n  encrypted =")
 	assert.NotContains(t, string(content), "\n  file_path =")

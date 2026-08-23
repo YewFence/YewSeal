@@ -15,7 +15,7 @@ hero:
 
 features:
   - title: 多格式配置
-    details: 原生处理 YAML、JSON、ENV、INI，并通过 TOML 与 YAML 转换支持 TOML 文件。
+    details: 原生处理 TOML、YAML、JSON、ENV、INI，无需任何格式转换或外部工具。
   - title: 内嵌加密能力
     details: 使用 SOPS 加解密引擎和 Age 密钥生成能力，减少外部工具依赖。
   - title: 配置化批量处理

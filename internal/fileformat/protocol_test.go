@@ -13,7 +13,7 @@ func TestGroupPathProtocol(t *testing.T) {
 		format   string
 		expected string
 	}{
-		{input: "config.toml", expected: "config.enc.toml.yaml"},
+		{input: "config.toml", expected: "config.enc.toml"},
 		{input: "config.yaml", expected: "config.enc.yaml"},
 		{input: "config.yml", expected: "config.enc.yaml"},
 		{input: "config.json", expected: "config.enc.json"},
@@ -38,7 +38,7 @@ func TestGroupPathProtocol(t *testing.T) {
 		expected string
 		format   string
 	}{
-		{input: "config.enc.toml.yaml", expected: "config.toml", format: "toml"},
+		{input: "config.enc.toml", expected: "config.toml", format: "toml"},
 		{input: "config.enc.yaml", expected: "config.yaml", format: "yaml"},
 		{input: "config.enc.json", expected: "config.json", format: "json"},
 		{input: "config.enc.env", expected: "config.env", format: "env"},

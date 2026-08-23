@@ -193,14 +193,14 @@ func TestCheckWriteConflictsDecryptReportsEncryptedSources(t *testing.T) {
 	err := checkWriteConflicts(task.ModeDecrypt, []ResolvedFilePair{
 		{
 			PlaintextPath: target,
-			EncryptedPath: "first.enc.toml.yaml",
+			EncryptedPath: "first.enc.toml",
 		},
 		{
 			PlaintextPath: target,
-			EncryptedPath: "second.enc.toml.yaml",
+			EncryptedPath: "second.enc.toml",
 		},
 	})
 	require.Error(t, err)
 
-	assert.Contains(t, err.Error(), "decrypted from first.enc.toml.yaml and second.enc.toml.yaml")
+	assert.Contains(t, err.Error(), "decrypted from first.enc.toml and second.enc.toml")
 }
