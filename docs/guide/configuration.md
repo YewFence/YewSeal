@@ -51,7 +51,7 @@ encrypted = ".dev.enc.env"
 format = "env"
 ```
 
-`format` 是可选字段，支持 `toml`、`yaml`、`json`、`env`、`ini` 和 `binary`，适合 `.dev.vars` 这种无法从扩展名判断格式的文件。
+`format` 是可选字段，支持 `toml`、`yaml`、`json`、`env`、`ini` 和 `binary`（也接受别名 `yml`、`dotenv`、`bin`，运行时会归一化为规范名），适合 `.dev.vars` 这种无法从扩展名判断格式的文件。
 
 ### 分组扫描
 
@@ -76,7 +76,7 @@ unknown_as_binary = false
 
 `patterns` 支持 `*`、`?`、`**`、以 `!` 开头的排除规则、以 `/` 开头的根目录锚定规则和以 `/` 结尾的目录规则。没有配置 `patterns` 时，加密会默认扫描 `.toml`、`.yaml`、`.yml`、`.json`、`.env`、`.ini`、`.bin`、`.binary`，并排除常见的 `.enc.*` 文件，解密会默认扫描 `.enc.toml`、`.enc.yaml`、`.enc.json`、`.enc.env`、`.enc.ini` 和 `.enc.bin`。
 
-`format_rules` 使用 `<pattern>=<format>` 形式，会按匹配顺序决定格式，命令行传入的 `--format-rule` 会追加到配置规则之后。`unknown_as_binary` 为 `true` 时，分组加密中无法识别格式的文件会按二进制文件处理。
+`format_rules` 使用 `<pattern>=<format>` 形式，会按匹配顺序决定格式，命令行传入的 `--format-rule` 会追加到配置规则之后。格式取值与 `format` 相同。`unknown_as_binary` 为 `true` 时，分组加密中无法识别格式的文件会按二进制文件处理。
 
 ## .sops.yaml 配置
 

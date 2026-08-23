@@ -62,14 +62,17 @@
             ]
         },
         "Format": {
-            "description": "#Format 是 YewSeal 支持的加密文件格式。",
+            "description": "#Format 是 YewSeal 支持的加密文件格式。\n规范名之外还接受运行时别名(yml→yaml、dotenv→env、bin→binary),\n与 internal/seal 的 parseFormat 保持一致;运行时会归一化为规范名。",
             "enum": [
                 "toml",
                 "yaml",
+                "yml",
                 "json",
                 "env",
+                "dotenv",
                 "ini",
-                "binary"
+                "binary",
+                "bin"
             ]
         },
         "GroupConfig": {
@@ -79,15 +82,15 @@
             "properties": {
                 "format_rules": {
                     "type": "array",
-                    "description": "格式覆盖规则,语法为 \"<glob>=<format>\",如 \"*.dev.vars=env\"。\nformat 仅接受小写(Go 运行时对大小写宽容,schema 引导规范写法)。",
+                    "description": "格式覆盖规则,语法为 \"<glob>=<format>\",如 \"*.dev.vars=env\"。\nformat 仅接受小写(Go 运行时对大小写宽容,schema 引导规范写法),\n与 #Format 一样接受 yml/dotenv/bin 别名。",
                     "items": {
                         "type": "string",
-                        "pattern": "^.+=(toml|yaml|json|env|ini|binary)$"
+                        "pattern": "^.+=(toml|yaml|yml|json|env|dotenv|ini|binary|bin)$"
                     }
                 },
                 "patterns": {
                     "type": "array",
-                    "description": "glob 模式列表,如 \"config/**/*.toml\"。",
+                    "description": "glob 模式列表,如 \"config/**/*.toml\"。缺省时使用内置默认模式:\n加密扫描常见配置扩展名并排除 *.enc.*,解密扫描 *.enc.* 文件。",
                     "items": {
                         "type": "string"
                     }
@@ -96,10 +99,7 @@
                     "type": "boolean",
                     "description": "无法探测格式的文件按 binary 处理。"
                 }
-            },
-            "required": [
-                "patterns"
-            ]
+            }
         },
         "KeyConfig": {
             "type": "object",
@@ -145,6 +145,6 @@
         }
     },
     "type": "object",
-    "description": "Package schema 是 .yewseal.toml 的权威 schema,与 internal/config 的 Go struct 保持同步。\n\n三向锚定防漂移:\n  - mise run schema:check 用 cue vet 校验 example.yewseal.toml 符合本 schema\n  - internal/config 的 Go 测试 strict-unmarshal 同一 example(Go 不认识的字段会报错)\n  - 反射 tripwire 测试要求 Go struct 的每个 toml 字段名都出现在本文件中",
+    "description": "Package schema 是 .yewseal.toml 的权威 schema,与 internal/config 的 Go struct 保持同步。\n\n三向锚定防漂移:\n  - mise run schema:check 用 cue vet 校验 example.yewseal.toml 符合本 schema\n  - internal/config 的 Go 测试 strict-unmarshal 同一 example(Go 不认识的字段会报错)\n  - 反射 tripwire 测试将 Go struct 与导出的 JSON Schema 逐字段结构对齐\n    (父级、类型、必填性),schema:check 的 diff 保证导出与本文件一致",
     "$ref": "#/$defs/Config"
 }

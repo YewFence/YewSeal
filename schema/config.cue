@@ -3,7 +3,8 @@
 // 三向锚定防漂移:
 //   - mise run schema:check 用 cue vet 校验 example.yewseal.toml 符合本 schema
 //   - internal/config 的 Go 测试 strict-unmarshal 同一 example(Go 不认识的字段会报错)
-//   - 反射 tripwire 测试要求 Go struct 的每个 toml 字段名都出现在本文件中
+//   - 反射 tripwire 测试将 Go struct 与导出的 JSON Schema 逐字段结构对齐
+//     (父级、类型、必填性),schema:check 的 diff 保证导出与本文件一致
 package schema
 
 // #Config 是 .yewseal.toml 的顶层结构。所有段落都可缺省,
@@ -15,7 +16,9 @@ package schema
 }
 
 // #Format 是 YewSeal 支持的加密文件格式。
-#Format: "toml" | "yaml" | "json" | "env" | "ini" | "binary"
+// 规范名之外还接受运行时别名(yml→yaml、dotenv→env、bin→binary),
+// 与 internal/seal 的 parseFormat 保持一致;运行时会归一化为规范名。
+#Format: "toml" | "yaml" | "yml" | "json" | "env" | "dotenv" | "ini" | "binary" | "bin"
 
 // #EncryptionConfig 定义加密文件映射。
 #EncryptionConfig: {
@@ -41,12 +44,14 @@ package schema
 
 // #GroupConfig 定义一组按模式匹配的加密文件。
 #GroupConfig: {
-	// glob 模式列表,如 "config/**/*.toml"。
-	patterns!: [...string]
+	// glob 模式列表,如 "config/**/*.toml"。缺省时使用内置默认模式:
+	// 加密扫描常见配置扩展名并排除 *.enc.*,解密扫描 *.enc.* 文件。
+	patterns?: [...string]
 
 	// 格式覆盖规则,语法为 "<glob>=<format>",如 "*.dev.vars=env"。
-	// format 仅接受小写(Go 运行时对大小写宽容,schema 引导规范写法)。
-	format_rules?: [...=~"^.+=(toml|yaml|json|env|ini|binary)$"]
+	// format 仅接受小写(Go 运行时对大小写宽容,schema 引导规范写法),
+	// 与 #Format 一样接受 yml/dotenv/bin 别名。
+	format_rules?: [...=~"^.+=(toml|yaml|yml|json|env|dotenv|ini|binary|bin)$"]
 
 	// 无法探测格式的文件按 binary 处理。
 	unknown_as_binary?: bool

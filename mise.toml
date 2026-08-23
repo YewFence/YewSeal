@@ -113,7 +113,7 @@ run = [
 
 [tasks."schema:export"]
 description = "Export JSON Schema (for Taplo/SchemaStore) from the CUE schema"
-run = "cue def ./schema --out jsonschema -o schema/yewseal.schema.json"
+run = "cue def ./schema --out jsonschema -f -o schema/yewseal.schema.json"
 
 [tasks."cli:docs"]
 description = "Generate CLI reference documentation"

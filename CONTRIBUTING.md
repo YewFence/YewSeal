@@ -42,7 +42,7 @@ mise run docs:dev
 
 ### Configuration Schema Maintenance
 
-The authoritative schema for `.yewseal.toml` is `schema/config.cue` (CUE), exported as JSON Schema for editor integrations. When changing configuration structs in `internal/config`, update `schema/config.cue` accordingly — the tripwire tests in `internal/config/schema_sync_test.go` will fail on missing fields.
+The authoritative schema for `.yewseal.toml` is `schema/config.cue` (CUE), exported as JSON Schema for editor integrations. When changing configuration structs in `internal/config`, update `schema/config.cue` accordingly — the tripwire tests in `internal/config/schema_sync_test.go` compare the Go structs against the exported JSON Schema field by field (parent, type, requiredness) and fail on structural drift.
 
 ```bash
 # Validate the example config against the schema and check export freshness (included in `mise run check`)
