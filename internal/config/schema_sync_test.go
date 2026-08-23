@@ -151,33 +151,25 @@ func isStringSchema(defs map[string]jsonSchema, schema jsonSchema) bool {
 	return schema.Type == "string" || len(schema.Enum) > 0 || schema.Const != ""
 }
 
-// runtimeFormats 是 internal/seal parseFormat 接受的全部格式拼写(规范名+别名)。
-// parseFormat 新增或移除拼写时必须同步更新本表与 schema/config.cue。
-var runtimeFormats = []string{"toml", "yaml", "yml", "json", "env", "dotenv", "ini", "binary", "bin"}
-
-// TestSchemaFormatsMatchRuntime 校验 schema 与运行时的格式契约一致:
-//   - FilePair.format 引用的枚举恰好覆盖运行时接受的拼写
-//     (schema 拒绝运行时接受的值会让可执行配置被判无效;反之则误导用户)
+// TestSchemaFormatsMatchRuntime 校验 schema 与运行时的格式契约一致,
+// 运行时一侧的唯一事实来源是 seal.FormatSpellings:
+//   - FilePair.format 引用的枚举恰好覆盖运行时接受的拼写(双向:
+//     schema 缺少运行时接受的值会让可执行配置被判无效,多出则误导用户)
 //   - GroupConfig.format_rules 的正则接受同样的拼写,并拒绝未知格式
 func TestSchemaFormatsMatchRuntime(t *testing.T) {
 	schema := loadJSONSchema(t)
-
-	// 先确认硬编码的 runtimeFormats 与运行时实现一致,防止运行时单方面漂移
-	for _, format := range runtimeFormats {
-		_, ok := seal.NormalizeFormatOverride(format)
-		require.True(t, ok, "运行时不再接受格式 %q,同步更新 runtimeFormats 与 schema/config.cue", format)
-	}
+	spellings := seal.FormatSpellings()
 
 	formatRef := schema.Defs["FilePair"].Properties["format"].Ref
 	formatDef, ok := schema.Defs[strings.TrimPrefix(formatRef, "#/$defs/")]
 	require.True(t, ok, "FilePair.format 应引用格式定义(当前: %q)", formatRef)
-	require.ElementsMatch(t, runtimeFormats, formatDef.Enum, "#Format 枚举与运行时接受的格式拼写不一致")
+	require.ElementsMatch(t, spellings, formatDef.Enum, "#Format 枚举与运行时接受的格式拼写不一致")
 
 	rule := schema.Defs["GroupConfig"].Properties["format_rules"]
 	require.NotNil(t, rule.Items, "GroupConfig.format_rules 缺少 items")
 	pattern, err := regexp.Compile(rule.Items.Pattern)
 	require.NoError(t, err)
-	for _, format := range runtimeFormats {
+	for _, format := range spellings {
 		require.True(t, pattern.MatchString("*.x="+format), "format_rules 正则应接受格式 %q", format)
 	}
 	require.False(t, pattern.MatchString("*.x=bogus"), "format_rules 正则不应接受未知格式")

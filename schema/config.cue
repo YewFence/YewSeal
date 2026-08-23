@@ -17,7 +17,7 @@ package schema
 
 // #Format 是 YewSeal 支持的加密文件格式。
 // 规范名之外还接受运行时别名(yml→yaml、dotenv→env、bin→binary),
-// 与 internal/seal 的 parseFormat 保持一致;运行时会归一化为规范名。
+// 与 internal/seal.FormatSpellings 保持一致(有 Go 测试强制);运行时归一化为规范名。
 #Format: "toml" | "yaml" | "yml" | "json" | "env" | "dotenv" | "ini" | "binary" | "bin"
 
 // #EncryptionConfig 定义加密文件映射。

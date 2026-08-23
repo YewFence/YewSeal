@@ -62,7 +62,7 @@
             ]
         },
         "Format": {
-            "description": "#Format 是 YewSeal 支持的加密文件格式。\n规范名之外还接受运行时别名(yml→yaml、dotenv→env、bin→binary),\n与 internal/seal 的 parseFormat 保持一致;运行时会归一化为规范名。",
+            "description": "#Format 是 YewSeal 支持的加密文件格式。\n规范名之外还接受运行时别名(yml→yaml、dotenv→env、bin→binary),\n与 internal/seal.FormatSpellings 保持一致(有 Go 测试强制);运行时归一化为规范名。",
             "enum": [
                 "toml",
                 "yaml",
