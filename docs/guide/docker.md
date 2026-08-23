@@ -55,7 +55,9 @@ docker run --rm \
 手动使用 Infisical CLI 导出私钥至本地的参考命令：
 
 ```bash
-mkdir .age && infisical secrets get AGE_KEY_FILE --plain > ./.age/keys.txt
+umask 077
+mkdir -p .age
+infisical secrets get AGE_KEY_FILE --plain > ./.age/keys.txt
 ```
 
 ## 限制

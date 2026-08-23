@@ -71,7 +71,7 @@ cd YewSeal
 mise run install    # 安装到 $GOPATH/bin，可全局使用
 
 # 或手动安装
-go install -ldflags "-s -w -X main.Version=$(git describe --tags --always --dirty 2>/dev/null || echo dev)" ./cmd/yews
+go install -ldflags "-s -w -X main.version=$(git describe --tags --always --dirty 2>/dev/null || echo dev)" ./cmd/yews
 ```
 
 ### Github Release
@@ -93,7 +93,9 @@ docker run --rm -it \
 
 手动使用 infisical cli 导出私钥至本地的参考命令如下
 ```bash
-mkdir .age && infisical secrets get AGE_KEY_FILE --plain > ./.age/keys.txt
+umask 077
+mkdir -p .age
+infisical secrets get AGE_KEY_FILE --plain > ./.age/keys.txt
 ```
 
 > `edit` 和 `sync` 不建议通过 Docker 运行：前者依赖宿主编辑器，后者依赖宿主机上的 `infisical` CLI 和登录状态
@@ -175,7 +177,14 @@ yews edit -f ./path/to/file
 
 ## 密钥读取
 
-工具支持多种方式读取 Age 密钥，优先级从高到低：命令行参数 → 配置文件 → 环境变量 → 默认位置。
+工具支持多种方式读取 Age 密钥，优先级从高到低：
+
+1. 全局选项 `--key-file` / `-k`（默认值来自 `AGE_KEY_FILE` 环境变量）
+2. `SOPS_AGE_KEY` 环境变量（直接传私钥值，适合 CI/CD）
+3. `SOPS_AGE_KEY_FILE` 环境变量（私钥文件路径）
+4. `SOPS_AGE_KEY_CMD` 环境变量（执行命令获取私钥）
+5. `.yewseal.toml` 的 `[key].file_path`
+6. 默认路径 `.age/keys.txt`
 
 ### 命令行参数
 

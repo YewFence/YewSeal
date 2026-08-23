@@ -117,10 +117,10 @@ creation_rules:
 解密时，Age 私钥按以下优先级解析（从高到低）：
 
 1. 全局选项 `--key-file` / `-k`（默认值来自 `AGE_KEY_FILE` 环境变量）
-2. `.yewseal.toml` 的 `[key].file_path`
-3. `SOPS_AGE_KEY` 环境变量（直接传私钥值，适合 CI/CD）
-4. `SOPS_AGE_KEY_FILE` 环境变量（私钥文件路径）
-5. `SOPS_AGE_KEY_CMD` 环境变量（执行命令获取私钥）
+2. `SOPS_AGE_KEY` 环境变量（直接传私钥值，适合 CI/CD）
+3. `SOPS_AGE_KEY_FILE` 环境变量（私钥文件路径）
+4. `SOPS_AGE_KEY_CMD` 环境变量（执行命令获取私钥）
+5. `.yewseal.toml` 的 `[key].file_path`
 6. 默认路径 `.age/keys.txt`
 
 ```bash
