@@ -15,6 +15,8 @@ golangci-lint = "2"
 "go:github.com/suzuki-shunsuke/nllint/cmd/nllint" = "1"
 # https://github.com/suzuki-shunsuke/pinact
 pinact = "4"
+# https://github.com/cue-lang/cue
+cue = "0"
 # https://github.com/crate-ci/typos
 typos = "1"
 betterleaks = "1"
@@ -84,7 +86,7 @@ run = "git grep -Ilz '' -- . {{ vars.nllint_excludes }} | xargs -0 nllint --fix 
 description = """
 Run read-only checks for Go modules, newlines, typos, formatting, GitHub Actions, lint, build, and tests"""
 run = [
-  { tasks = [ "mod:tidy:check", "newline:check", "typos:check", "build:check" ] },
+  { tasks = [ "mod:tidy:check", "newline:check", "typos:check", "build:check", "schema:check" ] },
   { task = "leaks:check" },
   { task = "actions:check" },
   { task = "lint" },
@@ -101,6 +103,17 @@ run = [
   { task = "fmt:fix" }
 ]
 alias = "f"
+
+[tasks."schema:check"]
+description = "Validate config example against CUE schema and check JSON Schema export freshness"
+run = [
+  "cue vet ./schema schema/example.yewseal.toml",
+  "cue def ./schema --out jsonschema | diff - schema/yewseal.schema.json",
+]
+
+[tasks."schema:export"]
+description = "Export JSON Schema (for Taplo/SchemaStore) from the CUE schema"
+run = "cue def ./schema --out jsonschema -f -o schema/yewseal.schema.json"
 
 [tasks."cli:docs"]
 description = "Generate CLI reference documentation"
