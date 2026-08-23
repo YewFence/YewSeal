@@ -40,6 +40,17 @@ mise run build
 mise run docs:dev
 ```
 
+### Configuration Schema Maintenance
+
+The authoritative schema for `.yewseal.toml` is `schema/config.cue` (CUE), exported as JSON Schema for editor integrations. When changing configuration structs in `internal/config`, update `schema/config.cue` accordingly — the tripwire tests in `internal/config/schema_sync_test.go` will fail on missing fields.
+
+```bash
+# Validate the example config against the schema and check export freshness (included in `mise run check`)
+mise run schema:check
+# Re-export schema/yewseal.schema.json after changing the CUE schema
+mise run schema:export
+```
+
 ### GitHub Actions Maintenance
 
 Run mise tasks to update GitHub Actions workflows and actions.

@@ -1,0 +1,41 @@
+# YewSeal 完整配置示例,覆盖 .yewseal.toml 的全部字段。
+#
+# 本文件是 schema 与 Go 代码的对齐锚点:
+#   - schema/config.cue 通过 cue vet 校验本文件
+#   - internal/config 的 Go 测试以严格模式反序列化本文件
+#
+# 真实项目中通常只需要其中一部分字段;配置优先级:
+# 命令行参数 > 环境变量 > 配置文件 > 默认值
+
+[encryption]
+
+# 显式文件对:plaintext 是明文,encrypted 是加密产物
+[[encryption.files]]
+plaintext = "wrangler.toml"
+encrypted = "wrangler.enc.toml"
+
+# 扩展名不标准的文件用 format 显式指定格式
+[[encryption.files]]
+plaintext = ".dev.vars"
+encrypted = ".dev.vars.enc"
+format = "env"
+
+# 按 glob 模式批量管理一组文件
+[[encryption.groups]]
+patterns = ["config/**/*.toml", "secrets/*.yaml"]
+format_rules = ["*.dev.vars=env", "**/*.conf=ini"]
+unknown_as_binary = true
+
+[key]
+# Age 私钥文件路径(默认值 ".age/keys.txt"),不要把私钥内容写在这里
+file_path = ".age/keys.txt"
+# Age 公钥,可以安全提交
+public_key = "age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmr3752kgargmsqqqpra5"
+
+# Age 私钥的远程同步设置(当前支持 infisical)
+[sync]
+provider = "infisical"
+project_id = "8f3a2b1c-4d5e-6f7a-8b9c-0d1e2f3a4b5c"
+secret_name = "AGE_KEY_FILE"
+path = "/yewseal"
+environment = "production"

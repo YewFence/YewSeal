@@ -12,6 +12,8 @@ This project is in early development and does not require backward compatibility
 
 **配置优先级**：CLI 参数 > 环境变量 > 配置文件 > 默认值
 
+**配置 Schema**：`.yewseal.toml` 的权威 schema 是 `schema/config.cue`（CUE），`schema/yewseal.schema.json` 由它导出（不要手改，用 `mise run schema:export` 重新导出）。修改 `internal/config` 的配置 struct 时，必须同步更新 `schema/config.cue` 和全字段锚点 `schema/example.yewseal.toml` 并重新导出；`internal/config/schema_sync_test.go` 的 tripwire 测试和 `mise run schema:check`（已含在 `mise run check`）会强制这一约定。
+
 **内嵌库依赖**：`filippo.io/age`（密钥生成）、`github.com/YewFence/sops/v3`（加解密引擎——作者的个人 fork，带原生 TOML store；引擎层问题应在 fork 仓库开 Issue 或修复） 
 
 **加密引擎边界**：`internal/sopsx` 是 engine facade，对外暴露 `Encrypt`/`Decrypt`/`Inspect`/`Rekey`/`ExtractAgeRecipients`，格式参数使用 YewSeal 命名（`toml/yaml/json/env/ini/binary`）。其余包只允许通过 facade 调用，不直接 import sops 类型。

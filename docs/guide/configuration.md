@@ -10,6 +10,18 @@ YewSeal 会从当前 Git 仓库根目录开始，一路加载到当前目录，�
 
 ## .yewseal.toml
 
+### 编辑器补全与校验
+
+YewSeal 为 `.yewseal.toml` 维护一份 JSON Schema，由仓库中的 `schema/config.cue` 生成，CI 保证其与实现同步。使用 Taplo 或 VSCode 的 Even Better TOML 扩展时，在配置文件顶部加一行注释关联 schema，即可获得自动补全、悬停文档和即时校验：
+
+```toml
+#:schema https://raw.githubusercontent.com/YewFence/YewSeal/main/schema/yewseal.schema.json
+
+[encryption]
+```
+
+仓库中的 [schema/example.yewseal.toml](https://github.com/YewFence/YewSeal/blob/main/schema/example.yewseal.toml) 是覆盖全部字段的完整示例，同样由 CI 保证不过期。后续计划将 schema 提交到 SchemaStore，收录后编辑器会自动识别 `.yewseal.toml`，无需手动关联。
+
 ### 基本结构
 
 ```toml
