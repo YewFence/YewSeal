@@ -1,0 +1,14 @@
+# git-cliff configuration
+# https://git-cliff.org/docs/configuration
+#
+# Only the [bump] section is overridden here. Everything else
+# (changelog template, commit parsers, tag pattern, ...) is inherited
+# from git-cliff's built-in default configuration.
+
+[bump]
+# While the project is in 0.x, a breaking change must not bump the major
+# version (i.e. jump to 1.0.0). Commits of type `feat` (including breaking
+# ones like `feat!:`) still bump the minor version; releases without any
+# feature commit bump the patch version.
+features_always_bump_minor = true
+breaking_always_bump_major = false
