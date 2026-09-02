@@ -14,6 +14,7 @@ type FilePair struct {
 	PlaintextPath string
 	EncryptedPath string
 	Format        string
+	Recipients    []string
 }
 
 type Options struct {
@@ -65,6 +66,7 @@ func Encrypt(opts Options) (*Summary, error) {
 			OutputFile:     pair.EncryptedPath,
 			KeyFile:        opts.KeyFile,
 			PublicKey:      opts.PublicKey,
+			Recipients:     pair.Recipients,
 			FormatOverride: pair.Format,
 			Verbose:        opts.Verbose,
 		})

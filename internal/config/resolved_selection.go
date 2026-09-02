@@ -46,6 +46,10 @@ type ResolvedFilePair struct {
 	PlaintextSource ValueSource
 	EncryptedSource ValueSource
 	FormatSource    ValueSource
+
+	RecipientAliases []string
+	Recipients       []string
+	RecipientInfo    RecipientProvenance
 }
 
 type ResolvedSelection struct {
@@ -75,10 +79,7 @@ func ResolvePlanSelection(cfg *Config, opts SelectionOptions) (ResolvedSelection
 		if err != nil {
 			return ResolvedSelection{}, err
 		}
-		if len(allConfigPairs) == 0 && opts.UseConfiguredDefault {
-			allConfigPairs = cfg.GetFiles()
-		}
-		allResolved, err := resolveFilePairs(allConfigPairs, opts, SelectionResult{}, true)
+		allResolved, err := resolveFilePairs(cfg, allConfigPairs, opts, SelectionResult{}, true)
 		if err != nil {
 			return ResolvedSelection{}, err
 		}
@@ -132,11 +133,11 @@ func ResolveSelection(cfg *Config, opts SelectionOptions) (ResolvedSelection, er
 		return ResolvedSelection{}, err
 	}
 
-	allConfigPairs, err := resolveFilePairs(result.AllConfigPairs, opts, result, true)
+	allConfigPairs, err := resolveFilePairs(cfg, result.AllConfigPairs, opts, result, true)
 	if err != nil {
 		return ResolvedSelection{}, err
 	}
-	selected, err := resolveFilePairs(result.FilePairs, opts, result, false)
+	selected, err := resolveFilePairs(cfg, result.FilePairs, opts, result, false)
 	if err != nil {
 		return ResolvedSelection{}, err
 	}
@@ -175,6 +176,7 @@ func ResolvedFilePairsToFilePairs(filePairs []ResolvedFilePair) []FilePair {
 			PlaintextPath: filePair.PlaintextPath,
 			EncryptedPath: filePair.EncryptedPath,
 			Format:        filePair.Format,
+			Recipients:    cloneStringSlicePtr(filePair.RecipientAliases),
 			ConfigPath:    filePair.ConfigPath,
 		})
 	}
@@ -188,6 +190,7 @@ func ResolvedFilePairsToTaskPairs(filePairs []ResolvedFilePair) []task.FilePair 
 			PlaintextPath: filePair.PlaintextPath,
 			EncryptedPath: filePair.EncryptedPath,
 			Format:        filePair.Format,
+			Recipients:    append([]string(nil), filePair.Recipients...),
 		})
 	}
 	return pairs
@@ -225,10 +228,10 @@ func FormatValueSource(source ValueSource, cwd string) string {
 	return kind
 }
 
-func resolveFilePairs(filePairs []FilePair, opts SelectionOptions, result SelectionResult, allConfig bool) ([]ResolvedFilePair, error) {
+func resolveFilePairs(cfg *Config, filePairs []FilePair, opts SelectionOptions, result SelectionResult, allConfig bool) ([]ResolvedFilePair, error) {
 	resolved := make([]ResolvedFilePair, 0, len(filePairs))
 	for _, filePair := range filePairs {
-		next, err := resolveFilePair(filePair, opts, result, allConfig)
+		next, err := resolveFilePair(cfg, filePair, opts, result, allConfig)
 		if err != nil {
 			return nil, err
 		}
@@ -237,7 +240,7 @@ func resolveFilePairs(filePairs []FilePair, opts SelectionOptions, result Select
 	return resolved, nil
 }
 
-func resolveFilePair(filePair FilePair, opts SelectionOptions, result SelectionResult, allConfig bool) (ResolvedFilePair, error) {
+func resolveFilePair(cfg *Config, filePair FilePair, opts SelectionOptions, result SelectionResult, allConfig bool) (ResolvedFilePair, error) {
 	plainAbs := cleanAbsPath(filePair.PlaintextPath)
 	encAbs := cleanAbsPath(filePair.EncryptedPath)
 	filePair.PlaintextPath = plainAbs
@@ -251,17 +254,27 @@ func resolveFilePair(filePair FilePair, opts SelectionOptions, result SelectionR
 	source := pairSource(filePair, opts, result)
 	selectedBy := selectedBy(opts, result, allConfig, source)
 	plainSource, encSource := pathSources(filePair, opts, result, source)
+	var resolvedRecipients ResolvedRecipients
+	if opts.Command != task.ModeDecrypt && (hasRecipientPolicy(cfg) || filePair.Recipients != nil) {
+		resolvedRecipients, err = cfg.ResolveFileRecipients(filePair)
+		if err != nil {
+			return ResolvedFilePair{}, err
+		}
+	}
 
 	return ResolvedFilePair{
-		PlaintextPath:   plainAbs,
-		EncryptedPath:   encAbs,
-		Format:          format,
-		ConfigPath:      filePair.ConfigPath,
-		Source:          source,
-		SelectedBy:      selectedBy,
-		PlaintextSource: plainSource,
-		EncryptedSource: encSource,
-		FormatSource:    formatSource,
+		PlaintextPath:    plainAbs,
+		EncryptedPath:    encAbs,
+		Format:           format,
+		ConfigPath:       filePair.ConfigPath,
+		Source:           source,
+		SelectedBy:       selectedBy,
+		PlaintextSource:  plainSource,
+		EncryptedSource:  encSource,
+		FormatSource:     formatSource,
+		RecipientAliases: resolvedRecipients.Aliases,
+		Recipients:       resolvedRecipients.Recipients,
+		RecipientInfo:    resolvedRecipients.Provenance,
 	}, nil
 }
 

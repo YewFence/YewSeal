@@ -63,7 +63,7 @@ type jsonSchema struct {
 	Enum                 []string              `json:"enum"`
 	Const                string                `json:"const"`
 	Pattern              string                `json:"pattern"`
-	AdditionalProperties *bool                 `json:"additionalProperties"`
+	AdditionalProperties *json.RawMessage      `json:"additionalProperties"`
 	Defs                 map[string]jsonSchema `json:"$defs"`
 }
 
@@ -102,7 +102,9 @@ func assertDefMatchesStruct(t *testing.T, defs map[string]jsonSchema, defName st
 	require.True(t, ok, "JSON Schema 缺少 $defs/%s(Go struct %s);更新 schema/config.cue 后需重新导出", defName, goType.Name())
 	require.Equal(t, "object", def.Type, "$defs/%s 应为 object", defName)
 	require.NotNil(t, def.AdditionalProperties, "$defs/%s 应声明 additionalProperties:false 保持闭合", defName)
-	require.False(t, *def.AdditionalProperties, "$defs/%s 应闭合(additionalProperties:false)", defName)
+	var closed bool
+	require.NoError(t, json.Unmarshal(*def.AdditionalProperties, &closed), "$defs/%s 的 additionalProperties 应为 boolean", defName)
+	require.False(t, closed, "$defs/%s 应闭合(additionalProperties:false)", defName)
 
 	fields := tomlFields(goType)
 	require.Equal(t, sortedKeys(fields), sortedKeys(def.Properties), "$defs/%s 与 Go struct %s 的字段集合不一致", defName, goType.Name())
@@ -115,6 +117,9 @@ func assertDefMatchesStruct(t *testing.T, defs map[string]jsonSchema, defName st
 
 // assertFieldType 校验单个字段的 Go 类型与 JSON Schema 声明兼容。
 func assertFieldType(t *testing.T, defs map[string]jsonSchema, path string, goType reflect.Type, schema jsonSchema) {
+	if goType.Kind() == reflect.Pointer {
+		goType = goType.Elem()
+	}
 	t.Helper()
 	switch {
 	case goType.Kind() == reflect.String:
@@ -130,6 +135,8 @@ func assertFieldType(t *testing.T, defs map[string]jsonSchema, path string, goTy
 		require.NotNil(t, schema.Items, "%s: array 缺少 items", path)
 		require.Equal(t, "#/$defs/"+goType.Elem().Name(), schema.Items.Ref, "%s: items 应引用 Go struct 对应的定义", path)
 		assertDefMatchesStruct(t, defs, goType.Elem().Name(), goType.Elem())
+	case goType.Kind() == reflect.Map && goType.Key().Kind() == reflect.String && goType.Elem().Kind() == reflect.String:
+		require.Equal(t, "object", schema.Type, "%s: map[string]string 应对应 object", path)
 	case goType.Kind() == reflect.Struct:
 		require.Equal(t, "#/$defs/"+goType.Name(), schema.Ref, "%s: Go struct 应对应同名 $defs 引用", path)
 		assertDefMatchesStruct(t, defs, goType.Name(), goType)

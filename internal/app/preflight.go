@@ -14,7 +14,7 @@ import (
 type PreflightResult struct {
 	Selection     config.ResolvedSelection
 	KeyFile       string
-	PublicKey     string
+	PublicKey     string // Deprecated compatibility field; use configured recipients.
 	Parallel      int
 	Force         bool
 	Verbose       bool
@@ -45,20 +45,9 @@ func PreflightEncrypt(cfg *config.Config, req EncryptRequest) (PreflightResult, 
 		return PreflightResult{}, err
 	}
 
-	publicKeyCandidate := req.PublicKey
-	if publicKeyCandidate == "" {
-		publicKeyCandidate = cfg.GetPublicKey()
-	}
-	resolvedPublicKey, err := agekey.GetPublicKey(publicKeyCandidate, req.KeyFile, req.Verbose)
-	if err != nil {
-		return PreflightResult{}, err
-	}
-
 	metadataPairs, metadataScope := metadataPairsForSelection(selection)
 	return PreflightResult{
 		Selection:     selection,
-		KeyFile:       req.KeyFile,
-		PublicKey:     resolvedPublicKey,
 		Parallel:      req.Parallel,
 		Verbose:       req.Verbose,
 		MetadataPairs: metadataPairs,

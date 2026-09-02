@@ -12,6 +12,7 @@ package schema
 #Config: {
 	encryption?: #EncryptionConfig
 	key?:        #KeyConfig
+	recipients?: #RecipientConfig
 	sync?:       #SyncConfig
 }
 
@@ -30,6 +31,16 @@ package schema
 	groups?: [...#GroupConfig]
 }
 
+// #RecipientConfig 定义公开 recipient 授权策略。
+// registry 只包含公开 Age recipient,不包含私钥。
+#RecipientConfig: {
+	// 默认 alias 集合。缺省时每个 file/group 都必须显式声明 recipients。
+	defaults?: [...string]
+
+	// alias 到 Age recipient 公钥的映射。
+	registry?: {[string]: string}
+}
+
 // #FilePair 定义一对明文/加密文件映射。
 #FilePair: {
 	// 明文文件路径,用作 encrypt 的输入和 decrypt 的输出。
@@ -40,6 +51,9 @@ package schema
 
 	// 覆盖文件格式探测,用于扩展名不标准的文件(如 .dev.vars)。
 	format?: #Format
+
+// 授权 alias 集合。省略时继承 group 或顶层 defaults。
+recipients?: [...string]
 }
 
 // #GroupConfig 定义一组按模式匹配的加密文件。
@@ -55,6 +69,9 @@ package schema
 
 	// 无法探测格式的文件按 binary 处理。
 	unknown_as_binary?: bool
+
+// 扫描结果的授权 alias 集合。省略时继承顶层 defaults。
+recipients?: [...string]
 }
 
 // #KeyConfig 定义 Age 密钥位置。切勿把私钥内容写进配置文件。
@@ -62,8 +79,8 @@ package schema
 	// Age 私钥文件路径。
 	file_path?: string | *".age/keys.txt"
 
-	// Age 公钥,用于加密(可以安全提交)。
-	public_key?: string
+// Deprecated: use recipients.registry and aliases instead.
+public_key?: string
 }
 
 // #SyncConfig 定义 Age 密钥同步设置。

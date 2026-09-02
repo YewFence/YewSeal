@@ -11,10 +11,9 @@ import (
 
 func encryptCommand(cfg *config.Config, keyFile *string) *cobra.Command {
 	opts := encryptOptions{
-		Output:    envValue("SOPS_OUTPUT_FILE"),
-		Format:    envValue("YEWSEAL_FORMAT", "SOPS_FORMAT"),
-		PublicKey: envValue("SOPS_AGE_RECIPIENTS"),
-		Parallel:  1,
+		Output:   envValue("SOPS_OUTPUT_FILE"),
+		Format:   envValue("YEWSEAL_FORMAT", "SOPS_FORMAT"),
+		Parallel: 1,
 	}
 
 	cmd := &cobra.Command{
@@ -26,7 +25,6 @@ func encryptCommand(cfg *config.Config, keyFile *string) *cobra.Command {
 			target := firstArg(args)
 			return yewsapp.EncryptFiles(cfg, yewsapp.EncryptRequest{
 				KeyFile:               cfg.GetKeyFile(*keyFile),
-				PublicKey:             opts.PublicKey,
 				Verbose:               opts.Verbose,
 				Output:                opts.Output,
 				OutputSet:             flagChangedOrEnvSet(cmd.Flags(), "output", "SOPS_OUTPUT_FILE"),

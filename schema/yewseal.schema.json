@@ -12,6 +12,9 @@
                 "key": {
                     "$ref": "#/$defs/KeyConfig"
                 },
+                "recipients": {
+                    "$ref": "#/$defs/RecipientConfig"
+                },
                 "sync": {
                     "$ref": "#/$defs/SyncConfig"
                 }
@@ -54,6 +57,13 @@
                 "plaintext": {
                     "type": "string",
                     "description": "明文文件路径,用作 encrypt 的输入和 decrypt 的输出。"
+                },
+                "recipients": {
+                    "type": "array",
+                    "description": "授权 alias 集合。省略时继承 group 或顶层 defaults。",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             },
             "required": [
@@ -95,6 +105,13 @@
                         "type": "string"
                     }
                 },
+                "recipients": {
+                    "type": "array",
+                    "description": "扫描结果的授权 alias 集合。省略时继承顶层 defaults。",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "unknown_as_binary": {
                     "type": "boolean",
                     "description": "无法探测格式的文件按 binary 处理。"
@@ -112,7 +129,28 @@
                 },
                 "public_key": {
                     "type": "string",
-                    "description": "Age 公钥,用于加密(可以安全提交)。"
+                    "description": "Deprecated: use recipients.registry and aliases instead."
+                }
+            }
+        },
+        "RecipientConfig": {
+            "type": "object",
+            "description": "#RecipientConfig 定义公开 recipient 授权策略。\nregistry 只包含公开 Age recipient,不包含私钥。",
+            "additionalProperties": false,
+            "properties": {
+                "defaults": {
+                    "type": "array",
+                    "description": "默认 alias 集合。缺省时每个 file/group 都必须显式声明 recipients。",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "registry": {
+                    "type": "object",
+                    "description": "alias 到 Age recipient 公钥的映射。",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 }
             }
         },

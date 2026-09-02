@@ -8,7 +8,7 @@ import (
 
 type EncryptRequest struct {
 	KeyFile               string
-	PublicKey             string
+	PublicKey             string // Deprecated compatibility field; use configured recipients.
 	Verbose               bool
 	Output                string
 	OutputSet             bool
@@ -33,7 +33,7 @@ func EncryptFiles(cfg *config.Config, req EncryptRequest) error {
 		if err := project.UpdateGitignore(metadataDisplayPairs); err != nil {
 			return err
 		}
-		if err := project.SyncSopsYaml(metadataDisplayPairs, preflight.PublicKey); err != nil {
+		if err := project.SyncResolvedSopsYaml(preflight.MetadataPairs); err != nil {
 			return err
 		}
 	}
@@ -41,9 +41,8 @@ func EncryptFiles(cfg *config.Config, req EncryptRequest) error {
 	printResolvedSelection(req.Verbose, cfg, preflight.Selection)
 	opts := task.Options{
 		FilePairs: config.ResolvedFilePairsToTaskPairs(preflight.Selection.FilePairs),
-		KeyFile:   req.KeyFile,
-		PublicKey: preflight.PublicKey,
 		Parallel:  req.Parallel,
+		PublicKey: req.PublicKey,
 		Verbose:   req.Verbose,
 	}
 	_, err = task.Encrypt(opts)

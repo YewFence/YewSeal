@@ -27,7 +27,8 @@ func TestSavePublicKeyToConfig_CreateNew(t *testing.T) {
 	assert.Contains(t, string(content), "encrypted = 'secrets.enc.yaml'")
 	assert.Contains(t, string(content), "[key]")
 	assert.Contains(t, string(content), "file_path = '.age/keys.txt'")
-	assert.Contains(t, string(content), "public_key = 'age1testpublickey'")
+	assert.Contains(t, string(content), "defaults = ['owner']")
+	assert.Contains(t, string(content), "owner = 'age1testpublickey'")
 }
 
 func TestSavePublicKeyToConfig_OverwriteExisting(t *testing.T) {
@@ -86,7 +87,7 @@ func TestSavePublicKeyToConfig_ConfigCanBeLoaded(t *testing.T) {
 	tmpDir := t.TempDir()
 	withProjectWorkingDir(t, tmpDir)
 
-	err := SavePublicKeyToConfig("age1testkey", []config.FilePair{
+	err := SavePublicKeyToConfig("age1r09mha3l82nt25r3kujgkpw4ts60ezntwcj74vnk0t3e9elyu3rswkx08j", []config.FilePair{
 		{PlaintextPath: "input.toml", EncryptedPath: "output.yaml"},
 	})
 	require.NoError(t, err)
@@ -96,7 +97,7 @@ func TestSavePublicKeyToConfig_ConfigCanBeLoaded(t *testing.T) {
 	require.Len(t, cfg.GetFiles(), 1)
 	assert.Equal(t, filepath.Join(tmpDir, "input.toml"), cfg.GetFiles()[0].PlaintextPath)
 	assert.Equal(t, filepath.Join(tmpDir, "output.yaml"), cfg.GetFiles()[0].EncryptedPath)
-	assert.Equal(t, "age1testkey", cfg.GetPublicKey())
+	assert.Equal(t, "age1r09mha3l82nt25r3kujgkpw4ts60ezntwcj74vnk0t3e9elyu3rswkx08j", cfg.Recipients.Registry["owner"])
 }
 
 func TestSavePublicKeyToConfig_WritesWithoutIndentation(t *testing.T) {

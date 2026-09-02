@@ -12,20 +12,14 @@ import (
 func TestDefaultConfig(t *testing.T) {
 	cfg := DefaultConfig()
 
-	require.Len(t, cfg.GetFiles(), 1)
-	assert.Equal(t, defaultDecryptedFile, cfg.GetFiles()[0].PlaintextPath)
-	assert.Equal(t, defaultEncryptedFile, cfg.GetFiles()[0].EncryptedPath)
+	assert.Empty(t, cfg.GetFiles())
 	assert.Equal(t, defaultKeyFile, cfg.Key.FilePath)
-	assert.Empty(t, cfg.Key.PublicKey)
 }
 
-func TestGetFilesFallsBackToDefault(t *testing.T) {
+func TestGetFilesDoesNotFallBackToDefault(t *testing.T) {
 	cfg := &Config{}
 
-	files := cfg.GetFiles()
-	require.Len(t, files, 1)
-	assert.Equal(t, defaultDecryptedFile, files[0].PlaintextPath)
-	assert.Equal(t, defaultEncryptedFile, files[0].EncryptedPath)
+	assert.Empty(t, cfg.GetFiles())
 }
 
 func TestGetPrimaryFilePair(t *testing.T) {
@@ -99,10 +93,7 @@ func TestLoadConfig_NoFile(t *testing.T) {
 
 	cfg, err := LoadConfig()
 	require.NoError(t, err)
-	require.Len(t, cfg.GetFiles(), 1)
-
-	assert.Equal(t, defaultDecryptedFile, cfg.GetFiles()[0].PlaintextPath)
-	assert.Equal(t, defaultEncryptedFile, cfg.GetFiles()[0].EncryptedPath)
+	assert.Empty(t, cfg.GetFiles())
 	assert.Equal(t, defaultKeyFile, cfg.Key.FilePath)
 }
 
@@ -372,8 +363,7 @@ encrypted = "parent.enc.toml"
 
 	cfg, err := LoadConfig()
 	require.NoError(t, err)
-	require.Len(t, cfg.GetFiles(), 1)
-	assert.Equal(t, defaultDecryptedFile, cfg.GetFiles()[0].PlaintextPath)
+	assert.Empty(t, cfg.GetFiles())
 	assert.False(t, cfg.UserConfig)
 }
 

@@ -1,7 +1,6 @@
 package config
 
 import (
-	"os"
 	"path/filepath"
 	"testing"
 
@@ -140,26 +139,16 @@ func TestPathWithinHandlesMixedSeparators(t *testing.T) {
 	assert.True(t, inside)
 }
 
-func TestResolvePlanSelection_TargetShowsArgumentAndProtocolSources(t *testing.T) {
+func TestResolvePlanSelection_RejectsUnconfiguredTarget(t *testing.T) {
 	root := t.TempDir()
-	target := filepath.Join(root, ".dev.vars")
-	require.NoError(t, os.WriteFile(target, []byte("TOKEN=secret\n"), 0644))
 	cfg := &Config{CurrentDir: root}
 
-	result, err := ResolvePlanSelection(cfg, SelectionOptions{
-		Target: target,
+	_, err := ResolvePlanSelection(cfg, SelectionOptions{
+		Target: filepath.Join(root, ".dev.vars"),
 		Format: "env",
 	})
-	require.NoError(t, err)
-	require.Len(t, result.FilePairs, 1)
-
-	pair := result.FilePairs[0]
-	assert.Equal(t, "plan", result.Command)
-	assert.Equal(t, ValueSourceArgument, pair.PlaintextSource.Kind)
-	assert.Equal(t, ValueSourceProtocol, pair.EncryptedSource.Kind)
-	assert.Equal(t, ValueSourceArgument, pair.FormatSource.Kind)
-	assert.Equal(t, SelectedByPathTarget, pair.SelectedBy)
-	assert.Equal(t, filepath.Join(root, ".dev.vars.enc.env"), pair.EncryptedPath)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "does not exist")
 }
 
 func TestResolvePlanSelection_NoTargetUsesEitherSideCurrentScope(t *testing.T) {

@@ -96,15 +96,14 @@ func EditEncryptedFile(req EditRequest) error {
 		return nil
 	}
 
-	publicKey, err := seal.ExtractAgeRecipientFromEncryptedFile(target.EncryptedPath, target.PlaintextPath, target.FormatOverride)
+	recipients, err := seal.ExtractAgeRecipientsFromEncryptedFile(target.EncryptedPath, target.PlaintextPath, target.FormatOverride)
 	if err != nil {
 		return err
 	}
-
 	newEncData, err := seal.EncryptToBytes(editedData, seal.EncryptBytesOptions{
 		FormatFile:     target.PlaintextPath,
 		FormatOverride: target.FormatOverride,
-		PublicKey:      publicKey,
+		Recipients:     recipients,
 		Output:         req.Output,
 	})
 	if err != nil {

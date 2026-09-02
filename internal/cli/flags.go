@@ -13,7 +13,6 @@ type encryptOptions struct {
 	FormatRules     []string
 	UnknownAsBinary bool
 	Parallel        int
-	PublicKey       string
 	Verbose         bool
 }
 
@@ -55,7 +54,6 @@ func addEncryptFlags(flags *pflag.FlagSet, opts *encryptOptions) {
 	flags.StringSliceVar(&opts.FormatRules, "format-rule", nil, "Group format rule in <pattern>=<format> form")
 	flags.BoolVar(&opts.UnknownAsBinary, "unknown-as-binary", false, "Allow group mode to encrypt unknown plaintext formats as binary")
 	flags.IntVarP(&opts.Parallel, "parallel", "P", opts.Parallel, "Number of parallel workers for batch mode")
-	flags.StringVarP(&opts.PublicKey, "public-key", "p", opts.PublicKey, "Age public key for encryption")
 	flags.BoolVarP(&opts.Verbose, "verbose", "v", false, "Enable verbose output")
 }
 

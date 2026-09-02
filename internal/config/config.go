@@ -20,6 +20,7 @@ type Config struct {
 	Encryption EncryptionConfig `toml:"encryption"`
 	Key        KeyConfig        `toml:"key"`
 	Sync       SyncConfig       `toml:"sync"`
+	Recipients RecipientConfig  `toml:"recipients"`
 
 	LoadedFiles []LoadedFile `toml:"-"`
 	CurrentDir  string       `toml:"-"`
@@ -46,16 +47,28 @@ type FilePair struct {
 	// Format overrides the file format detection (toml/yaml/json/env/ini/binary).
 	// Useful for files with non-standard extensions like .dev.vars.
 	Format string `toml:"format,omitempty"`
+	// Recipients is the explicit authorization set. A nil pointer means the field was omitted.
+	Recipients *[]string `toml:"recipients,omitempty"`
 
 	ConfigPath string `toml:"-"`
 	ConfigDir  string `toml:"-"`
 	Source     string `toml:"-"`
 }
 
+// RecipientConfig defines the public authorization policy.
+type RecipientConfig struct {
+	// Defaults is the optional default alias set. A nil pointer means omitted.
+	Defaults *[]string `toml:"defaults,omitempty"`
+	// Registry maps stable aliases to public Age recipients.
+	Registry map[string]string `toml:"registry,omitempty"`
+}
+
 type GroupConfig struct {
 	Patterns        []string `toml:"patterns"`
 	FormatRules     []string `toml:"format_rules"`
 	UnknownAsBinary bool     `toml:"unknown_as_binary"`
+	// Recipients is the optional group authorization set.
+	Recipients *[]string `toml:"recipients,omitempty"`
 
 	ConfigPath string `toml:"-"`
 	ConfigDir  string `toml:"-"`
@@ -66,8 +79,8 @@ type KeyConfig struct {
 	// FilePath is the path to Age private key file.
 	// Do NOT store the actual key value here to avoid leaking secrets.
 	FilePath string `toml:"file_path"`
-	// PublicKey is the Age public key for encryption (safe to commit).
-	PublicKey string `toml:"public_key"`
+	// PublicKey is deprecated; use recipients.registry and file-level aliases instead.
+	PublicKey string `toml:"public_key,omitempty"`
 }
 
 // SyncConfig defines Age key synchronization settings.
@@ -96,9 +109,6 @@ func DefaultFilePair() FilePair {
 // DefaultConfig returns a config with default values.
 func DefaultConfig() *Config {
 	return &Config{
-		Encryption: EncryptionConfig{
-			Files: []FilePair{DefaultFilePair()},
-		},
 		Key: KeyConfig{
 			FilePath: defaultKeyFile,
 		},
@@ -141,11 +151,14 @@ func LoadConfig() (*Config, error) {
 		if err != nil {
 			return nil, err
 		}
-		mergeConfig(config, partial)
+		if err := mergeConfig(config, partial); err != nil {
+			return nil, err
+		}
 	}
-
-	if len(config.Encryption.Files) == 0 && len(config.Encryption.Groups) == 0 {
-		config.Encryption.Files = []FilePair{DefaultFilePair()}
+	if hasRecipientPolicy(config) {
+		if err := config.ValidateRecipientConfig(); err != nil {
+			return nil, err
+		}
 	}
 
 	for i, filePair := range config.Encryption.Files {
@@ -293,7 +306,7 @@ func loadConfigFile(configFile LoadedFile) (*Config, error) {
 	return config, nil
 }
 
-func mergeConfig(dst, src *Config) {
+func mergeConfig(dst, src *Config) error {
 	dst.LoadedFiles = append(dst.LoadedFiles, src.LoadedFiles...)
 
 	if strings.TrimSpace(src.Key.FilePath) != "" {
@@ -302,6 +315,23 @@ func mergeConfig(dst, src *Config) {
 	if strings.TrimSpace(src.Key.PublicKey) != "" {
 		dst.Key.PublicKey = src.Key.PublicKey
 	}
+	if src.Recipients.Defaults != nil {
+		if dst.Recipients.Defaults != nil {
+			return fmt.Errorf("recipient defaults are defined more than once")
+		}
+		defaults := append([]string(nil), (*src.Recipients.Defaults)...)
+		dst.Recipients.Defaults = &defaults
+	}
+	if dst.Recipients.Registry == nil {
+		dst.Recipients.Registry = make(map[string]string)
+	}
+	for alias, recipient := range src.Recipients.Registry {
+		if _, exists := dst.Recipients.Registry[alias]; exists {
+			return fmt.Errorf("duplicate recipient alias %q", alias)
+		}
+		dst.Recipients.Registry[alias] = recipient
+	}
+
 	if strings.TrimSpace(src.Sync.Provider) != "" {
 		dst.Sync.Provider = src.Sync.Provider
 	}
@@ -322,6 +352,7 @@ func mergeConfig(dst, src *Config) {
 		dst.Encryption.Files = upsertFilePair(dst.Encryption.Files, filePair)
 	}
 	dst.Encryption.Groups = append(dst.Encryption.Groups, src.Encryption.Groups...)
+	return nil
 }
 
 func upsertFilePair(files []FilePair, next FilePair) []FilePair {
@@ -368,12 +399,11 @@ func (c *Config) GetKeyFile(provided string) string {
 	return defaultKeyFile
 }
 
-// GetPublicKey returns the Age public key.
+// GetPublicKey returns the deprecated Age public key.
 func (c *Config) GetPublicKey() string {
 	return c.Key.PublicKey
 }
 
-// GetSyncProvider returns the key sync provider.
 // Priority: provided value > config file > default.
 func (c *Config) GetSyncProvider(provided string) string {
 	if provided != "" {
@@ -426,9 +456,6 @@ func (c *Config) GetSyncEnvironment(provided string) string {
 
 // GetFiles returns configured file mappings.
 func (c *Config) GetFiles() []FilePair {
-	if len(c.Encryption.Files) == 0 {
-		return []FilePair{DefaultFilePair()}
-	}
 	files := make([]FilePair, len(c.Encryption.Files))
 	copy(files, c.Encryption.Files)
 	return files
@@ -441,6 +468,7 @@ func (c *Config) GetGroups() []GroupConfig {
 			Patterns:        append([]string(nil), group.Patterns...),
 			FormatRules:     append([]string(nil), group.FormatRules...),
 			UnknownAsBinary: group.UnknownAsBinary,
+			Recipients:      cloneOptionalStrings(group.Recipients),
 			ConfigPath:      group.ConfigPath,
 			ConfigDir:       group.ConfigDir,
 		})

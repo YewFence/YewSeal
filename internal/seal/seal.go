@@ -15,7 +15,8 @@ type EncryptOptions struct {
 	InputFile      string
 	OutputFile     string
 	KeyFile        string
-	PublicKey      string
+	PublicKey      string // Deprecated compatibility field; use Recipients.
+	Recipients     []string
 	FormatOverride string
 	Verbose        bool
 	Output         io.Writer
@@ -43,7 +44,8 @@ type DecryptBytesOptions struct {
 type EncryptBytesOptions struct {
 	FormatFile     string
 	FormatOverride string
-	PublicKey      string
+	PublicKey      string // Deprecated compatibility field; use Recipients.
+	Recipients     []string
 	Verbose        bool
 	Output         io.Writer
 }
@@ -69,15 +71,21 @@ func Encrypt(opts EncryptOptions) error {
 		return fmt.Errorf("failed to read input file: %w", err)
 	}
 
-	publicKey, err := agekey.GetPublicKeyWithOutput(opts.PublicKey, opts.KeyFile, opts.Verbose, out)
-	if err != nil {
-		return err
+	recipients := append([]string(nil), opts.Recipients...)
+	if len(recipients) == 0 && opts.PublicKey != "" {
+		if opts.PublicKey != "" && opts.Verbose {
+			_, _ = fmt.Fprintln(out, "🔑 Using public key from command-line parameter")
+		}
+		recipients = []string{opts.PublicKey}
+	}
+	if len(recipients) == 0 {
+		return fmt.Errorf("at least one age recipient is required")
 	}
 
 	encData, err := encryptBytes(plainData, format, EncryptBytesOptions{
 		FormatFile:     opts.InputFile,
 		FormatOverride: opts.FormatOverride,
-		PublicKey:      publicKey,
+		Recipients:     recipients,
 		Verbose:        opts.Verbose,
 		Output:         opts.Output,
 	})
@@ -108,7 +116,7 @@ func encryptBytes(plainData []byte, format string, opts EncryptBytesOptions) ([]
 		_, _ = fmt.Fprintln(out, "🔐 Encrypting with SOPS...")
 	}
 
-	encData, err := sopsx.Encrypt(plainData, format, opts.PublicKey)
+	encData, err := sopsx.Encrypt(plainData, format, opts.Recipients)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encrypt: %w", err)
 	}
@@ -155,10 +163,11 @@ func DecryptToBytes(opts DecryptBytesOptions) ([]byte, error) {
 		_, _ = fmt.Fprintln(out, "🔓 Decrypting with SOPS...")
 	}
 
-	privateKey, err := agekey.GetAgeKey(opts.KeyFile)
+	identityBundle, err := agekey.GetIdentityBundle(opts.KeyFile)
 	if err != nil {
 		return nil, err
 	}
+	privateKey := identityBundle.String()
 
 	encData, err := os.ReadFile(opts.InputFile)
 	if err != nil {
@@ -173,20 +182,28 @@ func DecryptToBytes(opts DecryptBytesOptions) ([]byte, error) {
 	return plainData, nil
 }
 
-func ExtractAgeRecipientFromEncryptedFile(encryptedFile, formatFile, formatOverride string) (string, error) {
+func ExtractAgeRecipientsFromEncryptedFile(encryptedFile, formatFile, formatOverride string) ([]string, error) {
 	format, err := resolveFormat(formatFile, formatOverride)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	encData, err := os.ReadFile(encryptedFile)
 	if err != nil {
-		return "", fmt.Errorf("failed to read encrypted file: %w", err)
+		return nil, fmt.Errorf("failed to read encrypted file: %w", err)
 	}
 
 	recipients, err := sopsx.ExtractAgeRecipients(encData, format)
 	if err != nil {
-		return "", fmt.Errorf("failed to extract public key from encrypted file: %w", err)
+		return nil, fmt.Errorf("failed to extract public keys from encrypted file: %w", err)
+	}
+	return recipients, nil
+}
+
+func ExtractAgeRecipientFromEncryptedFile(encryptedFile, formatFile, formatOverride string) (string, error) {
+	recipients, err := ExtractAgeRecipientsFromEncryptedFile(encryptedFile, formatFile, formatOverride)
+	if err != nil {
+		return "", err
 	}
 	return recipients[0], nil
 }
