@@ -14,8 +14,6 @@ import (
 type EncryptOptions struct {
 	InputFile      string
 	OutputFile     string
-	KeyFile        string
-	PublicKey      string // Deprecated compatibility field; use Recipients.
 	Recipients     []string
 	FormatOverride string
 	Verbose        bool
@@ -26,6 +24,7 @@ type DecryptOptions struct {
 	InputFile      string
 	OutputFile     string
 	KeyFile        string
+	IdentityBundle string
 	FormatOverride string
 	Verbose        bool
 	Force          bool
@@ -36,6 +35,7 @@ type DecryptBytesOptions struct {
 	InputFile      string
 	OutputFile     string
 	KeyFile        string
+	IdentityBundle string
 	FormatOverride string
 	Verbose        bool
 	Output         io.Writer
@@ -44,7 +44,6 @@ type DecryptBytesOptions struct {
 type EncryptBytesOptions struct {
 	FormatFile     string
 	FormatOverride string
-	PublicKey      string // Deprecated compatibility field; use Recipients.
 	Recipients     []string
 	Verbose        bool
 	Output         io.Writer
@@ -72,14 +71,8 @@ func Encrypt(opts EncryptOptions) error {
 	}
 
 	recipients := append([]string(nil), opts.Recipients...)
-	if len(recipients) == 0 && opts.PublicKey != "" {
-		if opts.PublicKey != "" && opts.Verbose {
-			_, _ = fmt.Fprintln(out, "🔑 Using public key from command-line parameter")
-		}
-		recipients = []string{opts.PublicKey}
-	}
 	if len(recipients) == 0 {
-		return fmt.Errorf("at least one age recipient is required")
+		return fmt.Errorf("at least one configured age recipient is required")
 	}
 
 	encData, err := encryptBytes(plainData, format, EncryptBytesOptions{
@@ -130,6 +123,7 @@ func Decrypt(opts DecryptOptions) error {
 		InputFile:      opts.InputFile,
 		OutputFile:     opts.OutputFile,
 		KeyFile:        opts.KeyFile,
+		IdentityBundle: opts.IdentityBundle,
 		FormatOverride: opts.FormatOverride,
 		Verbose:        opts.Verbose,
 		Output:         opts.Output,
@@ -163,11 +157,14 @@ func DecryptToBytes(opts DecryptBytesOptions) ([]byte, error) {
 		_, _ = fmt.Fprintln(out, "🔓 Decrypting with SOPS...")
 	}
 
-	identityBundle, err := agekey.GetIdentityBundle(opts.KeyFile)
-	if err != nil {
-		return nil, err
+	privateKey := opts.IdentityBundle
+	if privateKey == "" {
+		identityBundle, err := agekey.GetIdentityBundle(opts.KeyFile)
+		if err != nil {
+			return nil, err
+		}
+		privateKey = identityBundle.String()
 	}
-	privateKey := identityBundle.String()
 
 	encData, err := os.ReadFile(opts.InputFile)
 	if err != nil {
@@ -198,14 +195,6 @@ func ExtractAgeRecipientsFromEncryptedFile(encryptedFile, formatFile, formatOver
 		return nil, fmt.Errorf("failed to extract public keys from encrypted file: %w", err)
 	}
 	return recipients, nil
-}
-
-func ExtractAgeRecipientFromEncryptedFile(encryptedFile, formatFile, formatOverride string) (string, error) {
-	recipients, err := ExtractAgeRecipientsFromEncryptedFile(encryptedFile, formatFile, formatOverride)
-	if err != nil {
-		return "", err
-	}
-	return recipients[0], nil
 }
 
 func writeDecryptedFile(inputFile, outputFile string, plainData []byte, force bool) error {

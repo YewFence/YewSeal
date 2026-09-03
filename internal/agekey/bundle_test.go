@@ -53,3 +53,26 @@ func TestGetIdentityBundleExplicitFileDoesNotFallBack(t *testing.T) {
 	require.Error(t, err)
 	require.NotContains(t, err.Error(), first.String())
 }
+
+func TestGetIdentityBundleEnvironmentPrecedesConfiguredFallback(t *testing.T) {
+	environmentIdentity, err := age.GenerateX25519Identity()
+	require.NoError(t, err)
+	fallbackIdentity, err := age.GenerateX25519Identity()
+	require.NoError(t, err)
+	fallbackPath := t.TempDir() + "/keys.txt"
+	require.NoError(t, os.WriteFile(fallbackPath, []byte(fallbackIdentity.String()+"\n"), 0600))
+	t.Setenv("YEWSEAL_AGE_IDENTITIES", environmentIdentity.String())
+	bundle, err := GetIdentityBundleWithFallback("", fallbackPath)
+	require.NoError(t, err)
+	require.Equal(t, []string{environmentIdentity.String()}, bundle.Identities())
+}
+
+func TestGetIdentityBundleUsesConfiguredFallback(t *testing.T) {
+	identity, err := age.GenerateX25519Identity()
+	require.NoError(t, err)
+	path := t.TempDir() + "/keys.txt"
+	require.NoError(t, os.WriteFile(path, []byte(identity.String()+"\n"), 0600))
+	bundle, err := GetIdentityBundleWithFallback("", path)
+	require.NoError(t, err)
+	require.Equal(t, []string{identity.String()}, bundle.Identities())
+}

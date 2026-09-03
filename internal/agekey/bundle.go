@@ -47,14 +47,16 @@ func (b IdentityBundle) Identities() []string {
 	return append([]string(nil), b.identities...)
 }
 
-// GetIdentityBundle resolves all supported identity sources.
+// GetIdentityBundle resolves identities without a configured fallback path.
 func GetIdentityBundle(keyFile string) (IdentityBundle, error) {
+	return GetIdentityBundleWithFallback(keyFile, "")
+}
+
+// GetIdentityBundleWithFallback resolves an explicit key file first, then environment sources,
+// then the configured key file before using the built-in default path.
+func GetIdentityBundleWithFallback(keyFile, fallbackKeyFile string) (IdentityBundle, error) {
 	if keyFile != "" {
-		content, err := os.ReadFile(keyFile)
-		if err != nil {
-			return IdentityBundle{}, &keyFileReadError{path: keyFile, err: err}
-		}
-		return parseIdentityFile(string(content))
+		return readIdentityBundle(keyFile)
 	}
 
 	if value := os.Getenv("YEWSEAL_AGE_IDENTITIES"); value != "" {
@@ -78,11 +80,29 @@ func GetIdentityBundle(keyFile string) (IdentityBundle, error) {
 			return IdentityBundle{}, &keyFileReadError{path: path, err: err}
 		}
 	}
+	if os.Getenv("SOPS_AGE_KEY_CMD") != "" {
+		value, err := GetAgeKey("")
+		if err != nil {
+			return IdentityBundle{}, err
+		}
+		return parseIdentityFile(value)
+	}
+	if fallbackKeyFile != "" {
+		return readIdentityBundle(fallbackKeyFile)
+	}
 	value, err := GetAgeKey("")
 	if err != nil {
 		return IdentityBundle{}, err
 	}
 	return parseIdentityFile(value)
+}
+
+func readIdentityBundle(path string) (IdentityBundle, error) {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return IdentityBundle{}, &keyFileReadError{path: path, err: err}
+	}
+	return parseIdentityFile(string(content))
 }
 
 func parseIdentityFile(content string) (IdentityBundle, error) {
