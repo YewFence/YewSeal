@@ -14,8 +14,8 @@ func stringSlicePtr(values []string) *[]string {
 	return &values
 }
 
-// SavePublicKeyToConfig creates or overwrites .yewseal.toml with canonical config content.
-func SavePublicKeyToConfig(publicKey string, filePairs []config.FilePair) error {
+// SaveBootstrapConfig creates or overwrites .yewseal.toml with the owner policy.
+func SaveBootstrapConfig(ownerRecipient string, filePairs []config.FilePair) error {
 	const configPath = ".yewseal.toml"
 
 	cfg := config.Config{
@@ -27,7 +27,7 @@ func SavePublicKeyToConfig(publicKey string, filePairs []config.FilePair) error 
 		},
 		Recipients: config.RecipientConfig{
 			Defaults: stringSlicePtr([]string{"owner"}),
-			Registry: map[string]string{"owner": publicKey},
+			Registry: map[string]string{"owner": ownerRecipient},
 		},
 	}
 

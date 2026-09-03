@@ -10,11 +10,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestSavePublicKeyToConfig_CreateNew(t *testing.T) {
+func TestSaveBootstrapConfigCreateNew(t *testing.T) {
 	tmpDir := t.TempDir()
 	withProjectWorkingDir(t, tmpDir)
 
-	err := SavePublicKeyToConfig("age1testpublickey", []config.FilePair{
+	err := SaveBootstrapConfig("age1testpublickey", []config.FilePair{
 		{PlaintextPath: "secrets.toml", EncryptedPath: "secrets.enc.yaml"},
 	})
 	require.NoError(t, err)
@@ -31,7 +31,7 @@ func TestSavePublicKeyToConfig_CreateNew(t *testing.T) {
 	assert.Contains(t, string(content), "owner = 'age1testpublickey'")
 }
 
-func TestSavePublicKeyToConfig_OverwriteExisting(t *testing.T) {
+func TestSaveBootstrapConfigOverwritesExisting(t *testing.T) {
 	tmpDir := t.TempDir()
 	withProjectWorkingDir(t, tmpDir)
 
@@ -48,7 +48,7 @@ public_key = "age1existingkey"
 	err := os.WriteFile(".yewseal.toml", []byte(existingContent), 0644)
 	require.NoError(t, err)
 
-	err = SavePublicKeyToConfig("age1newkey", []config.FilePair{
+	err = SaveBootstrapConfig("age1newkey", []config.FilePair{
 		{PlaintextPath: "new.toml", EncryptedPath: "new.enc.yaml"},
 	})
 	require.NoError(t, err)
@@ -63,11 +63,11 @@ public_key = "age1existingkey"
 	assert.NotContains(t, string(content), "old.toml")
 }
 
-func TestSavePublicKeyToConfig_MultipleFilePairs(t *testing.T) {
+func TestSaveBootstrapConfigMultipleFilePairs(t *testing.T) {
 	tmpDir := t.TempDir()
 	withProjectWorkingDir(t, tmpDir)
 
-	err := SavePublicKeyToConfig("age1test", []config.FilePair{
+	err := SaveBootstrapConfig("age1test", []config.FilePair{
 		{PlaintextPath: "app.toml", EncryptedPath: "app.enc.toml"},
 		{PlaintextPath: ".dev.vars", EncryptedPath: ".dev.vars.enc.yaml", Format: "env"},
 	})
@@ -83,11 +83,11 @@ func TestSavePublicKeyToConfig_MultipleFilePairs(t *testing.T) {
 	assert.Contains(t, string(content), "format = 'env'")
 }
 
-func TestSavePublicKeyToConfig_ConfigCanBeLoaded(t *testing.T) {
+func TestSaveBootstrapConfigCanBeLoaded(t *testing.T) {
 	tmpDir := t.TempDir()
 	withProjectWorkingDir(t, tmpDir)
 
-	err := SavePublicKeyToConfig("age1r09mha3l82nt25r3kujgkpw4ts60ezntwcj74vnk0t3e9elyu3rswkx08j", []config.FilePair{
+	err := SaveBootstrapConfig("age1r09mha3l82nt25r3kujgkpw4ts60ezntwcj74vnk0t3e9elyu3rswkx08j", []config.FilePair{
 		{PlaintextPath: "input.toml", EncryptedPath: "output.yaml"},
 	})
 	require.NoError(t, err)
@@ -100,11 +100,11 @@ func TestSavePublicKeyToConfig_ConfigCanBeLoaded(t *testing.T) {
 	assert.Equal(t, "age1r09mha3l82nt25r3kujgkpw4ts60ezntwcj74vnk0t3e9elyu3rswkx08j", cfg.Recipients.Registry["owner"])
 }
 
-func TestSavePublicKeyToConfig_WritesWithoutIndentation(t *testing.T) {
+func TestSaveBootstrapConfigWritesWithoutIndentation(t *testing.T) {
 	tmpDir := t.TempDir()
 	withProjectWorkingDir(t, tmpDir)
 
-	err := SavePublicKeyToConfig("age1test", []config.FilePair{
+	err := SaveBootstrapConfig("age1test", []config.FilePair{
 		{PlaintextPath: "app.toml", EncryptedPath: "app.enc.toml"},
 	})
 	require.NoError(t, err)

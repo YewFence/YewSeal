@@ -4,6 +4,7 @@ import (
 	"os"
 	"testing"
 
+	"filippo.io/age"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -143,15 +144,16 @@ func TestNewInitFilePair(t *testing.T) {
 	})
 }
 
-func TestExtractPublicKey(t *testing.T) {
-	t.Run("extracts key from generated output", func(t *testing.T) {
-		output := "# created: 2026-04-05T00:00:00Z\n# public key: age1testpublickey\nAGE-SECRET-KEY-1TEST\n"
-		assert.Equal(t, "age1testpublickey", extractPublicKey(output))
-	})
-
-	t.Run("returns empty when key line is missing", func(t *testing.T) {
-		assert.Empty(t, extractPublicKey("AGE-SECRET-KEY-1TEST\n"))
-	})
+func TestSetupAgeKeyUsesIdentityWithoutPublicKeyComment(t *testing.T) {
+	tempDir := t.TempDir()
+	withProjectWorkingDir(t, tempDir)
+	identity, err := age.GenerateX25519Identity()
+	require.NoError(t, err)
+	require.NoError(t, os.MkdirAll(".age", 0o700))
+	require.NoError(t, os.WriteFile(".age/keys.txt", []byte(identity.String()+"\n"), 0o600))
+	publicKey, err := setupAgeKey(false)
+	require.NoError(t, err)
+	assert.Equal(t, identity.Recipient().String(), publicKey)
 }
 
 func TestSetupAgeKey_ForceRemovesPreviousKeyFile(t *testing.T) {
@@ -208,4 +210,27 @@ func TestInitProject_NonInteractiveCreatesSopsConfig(t *testing.T) {
 	assert.NoError(t, err)
 	_, err = os.Stat("config.example.toml")
 	assert.True(t, os.IsNotExist(err))
+}
+
+func TestInitProjectForceRebuildsPolicyAndRemovesSkippedSopsConfig(t *testing.T) {
+	tempDir := t.TempDir()
+	withProjectWorkingDir(t, tempDir)
+	require.NoError(t, os.MkdirAll(".age", 0o700))
+	oldIdentity, err := age.GenerateX25519Identity()
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(".age/keys.txt", []byte(oldIdentity.String()+"\n"), 0o600))
+	require.NoError(t, os.WriteFile(".yewseal.toml", []byte("[recipients.registry]\nbackup = \""+oldIdentity.Recipient().String()+"\"\n"), 0o644))
+	require.NoError(t, os.WriteFile(".sops.yaml", []byte("stale: true\n"), 0o644))
+	require.NoError(t, os.WriteFile("app.toml", []byte("value = true\n"), 0o644))
+	require.NoError(t, InitProject(true, "app.toml", "app.enc.toml", "", false, true))
+	keyData, err := os.ReadFile(".age/keys.txt")
+	require.NoError(t, err)
+	assert.NotContains(t, string(keyData), oldIdentity.String())
+	configData, err := os.ReadFile(".yewseal.toml")
+	require.NoError(t, err)
+	assert.NotContains(t, string(configData), "backup")
+	assert.Contains(t, string(configData), "owner")
+	assert.Contains(t, string(configData), `recipients = ['owner']`)
+	_, err = os.Stat(".sops.yaml")
+	require.ErrorIs(t, err, os.ErrNotExist)
 }
