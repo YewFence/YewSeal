@@ -3,7 +3,7 @@
     "$defs": {
         "Config": {
             "type": "object",
-            "description": "#Config 是 .yewseal.toml 的顶层结构。所有段落都可缺省,\n缺省时由 CLI 参数、环境变量或内置默认值兜底。",
+            "description": "#Config 是 .yewseal.toml 的顶层结构。所有段落都可缺省。\n加密和 plan 选择阶段要求路径来自 files/groups,并要求最终授权集合非空。",
             "additionalProperties": false,
             "properties": {
                 "encryption": {
@@ -27,7 +27,7 @@
             "properties": {
                 "files": {
                     "type": "array",
-                    "description": "显式的明文/加密文件对。缺省且无 groups 时使用\n默认映射 wrangler.toml <-> wrangler.enc.toml。",
+                    "description": "显式的明文/加密文件对。所有运行时处理的路径都必须来自这里或 groups。",
                     "items": {
                         "$ref": "#/$defs/FilePair"
                     }
@@ -100,7 +100,7 @@
                 },
                 "patterns": {
                     "type": "array",
-                    "description": "glob 模式列表,如 \"config/**/*.toml\"。缺省时使用内置默认模式:\n加密扫描常见配置扩展名并排除 *.enc.*,解密扫描 *.enc.* 文件。",
+                    "description": "glob 模式列表,如 \"config/**/*.toml\"。缺省时使用默认扫描模式:\n加密扫描常见配置扩展名并排除 *.enc.*,解密扫描 *.enc.* 文件。",
                     "items": {
                         "type": "string"
                     }
@@ -126,10 +126,6 @@
                 "file_path": {
                     "type": "string",
                     "description": "Age 私钥文件路径。"
-                },
-                "public_key": {
-                    "type": "string",
-                    "description": "Deprecated: use recipients.registry and aliases instead."
                 }
             }
         },

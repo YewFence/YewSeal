@@ -16,6 +16,15 @@ type RecipientProvenance struct {
 	Kind       string
 	ConfigPath string
 	Aliases    []string
+
+	// RegistrySources maps each alias used by the set to its defining config file.
+	RegistrySources map[string]string
+
+	// DeclarationSource identifies the file/group/defaults declaration.
+	DeclarationSource ValueSource
+
+	// EffectiveSource identifies the winning authorization layer.
+	EffectiveSource ValueSource
 }
 
 // ResolvedRecipients is the canonical public authorization for one file.
@@ -48,9 +57,6 @@ func (c *Config) ValidateRecipientConfig() error {
 		if len(*c.Recipients.Defaults) == 0 {
 			return fmt.Errorf("recipients.defaults must not be empty")
 		}
-		if _, err := c.resolveAliases(*c.Recipients.Defaults); err != nil {
-			return fmt.Errorf("invalid recipients.defaults: %w", err)
-		}
 	}
 	seen := make(map[string]string, len(c.Recipients.Registry))
 	for _, alias := range aliases {
@@ -63,7 +69,7 @@ func (c *Config) ValidateRecipientConfig() error {
 	return nil
 }
 
-// ResolveFileRecipients resolves explicit aliases, falling back to defaults.
+// ResolveFileRecipients resolves the winning file, group, or defaults authorization set.
 func (c *Config) ResolveFileRecipients(pair FilePair) (ResolvedRecipients, error) {
 	if pair.Recipients != nil {
 		if len(*pair.Recipients) == 0 {
@@ -73,23 +79,45 @@ func (c *Config) ResolveFileRecipients(pair FilePair) (ResolvedRecipients, error
 		if pair.Source == PairSourceScan {
 			kind = "group"
 		}
-		return c.resolveAliasesWithSource(*pair.Recipients, kind, pair.ConfigPath)
+		source := pair.RecipientSource
+		if source.Kind == "" {
+			source = ValueSource{Kind: kind, ConfigPath: pair.ConfigPath, Detail: "recipients"}
+		}
+		if source.Kind != "" {
+			kind = source.Kind
+		}
+		return c.resolveAliasesWithSource(*pair.Recipients, kind, source)
 	}
 	if c.Recipients.Defaults == nil {
 		return ResolvedRecipients{}, fmt.Errorf("file %q has no recipient set", pair.PlaintextPath)
 	}
-	return c.resolveAliasesWithSource(*c.Recipients.Defaults, "defaults", "")
+	source := ValueSource{Kind: "defaults", ConfigPath: c.Recipients.DefaultsConfigPath, Detail: "recipients.defaults"}
+	return c.resolveAliasesWithSource(*c.Recipients.Defaults, "defaults", source)
 }
 
-func (c *Config) resolveAliasesWithSource(aliases []string, kind, configPath string) (ResolvedRecipients, error) {
+func (c *Config) resolveAliasesWithSource(aliases []string, kind string, source ValueSource) (ResolvedRecipients, error) {
 	recipients, err := c.resolveAliases(aliases)
 	if err != nil {
 		return ResolvedRecipients{}, err
 	}
+	registrySources := make(map[string]string, len(aliases))
+	for _, alias := range aliases {
+		if source := c.Recipients.RegistrySources[alias]; source != "" {
+			registrySources[alias] = source
+		}
+	}
+	provenance := RecipientProvenance{
+		Kind:              kind,
+		ConfigPath:        source.ConfigPath,
+		Aliases:           append([]string(nil), aliases...),
+		RegistrySources:   registrySources,
+		DeclarationSource: source,
+		EffectiveSource:   source,
+	}
 	return ResolvedRecipients{
 		Aliases:    append([]string(nil), aliases...),
 		Recipients: recipients,
-		Provenance: RecipientProvenance{Kind: kind, ConfigPath: configPath, Aliases: append([]string(nil), aliases...)},
+		Provenance: provenance,
 	}, nil
 }
 
@@ -97,6 +125,9 @@ func (c *Config) resolveAliases(aliases []string) ([]string, error) {
 	seenAlias := make(map[string]struct{}, len(aliases))
 	recipients := make([]string, 0, len(aliases))
 	for _, alias := range aliases {
+		if _, err := age.ParseX25519Recipient(strings.TrimSpace(alias)); err == nil {
+			return nil, fmt.Errorf("raw Age recipient %q is not supported; define it in recipients.registry and reference its alias", alias)
+		}
 		if !recipientAliasPattern.MatchString(alias) {
 			return nil, fmt.Errorf("invalid recipient alias %q", alias)
 		}

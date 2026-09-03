@@ -50,6 +50,7 @@ type ResolvedFilePair struct {
 	RecipientAliases []string
 	Recipients       []string
 	RecipientInfo    RecipientProvenance
+	RecipientWarning string
 }
 
 type ResolvedSelection struct {
@@ -64,6 +65,7 @@ type ResolvedSelection struct {
 }
 
 func ResolvePlanSelection(cfg *Config, opts SelectionOptions) (ResolvedSelection, error) {
+	opts.StrictRecipients = true
 	if strings.TrimSpace(opts.Target) == "" {
 		if opts.OutputSet {
 			return ResolvedSelection{}, fmt.Errorf("--output is only supported when the path target is a file")
@@ -255,10 +257,17 @@ func resolveFilePair(cfg *Config, filePair FilePair, opts SelectionOptions, resu
 	selectedBy := selectedBy(opts, result, allConfig, source)
 	plainSource, encSource := pathSources(filePair, opts, result, source)
 	var resolvedRecipients ResolvedRecipients
-	if opts.Command != task.ModeDecrypt && (hasRecipientPolicy(cfg) || filePair.Recipients != nil) {
+	recipientWarning := ""
+	if opts.Command != task.ModeDecrypt || opts.StrictRecipients {
 		resolvedRecipients, err = cfg.ResolveFileRecipients(filePair)
 		if err != nil {
 			return ResolvedFilePair{}, err
+		}
+	} else if hasRecipientPolicy(cfg) || filePair.Recipients != nil {
+		resolvedRecipients, err = cfg.ResolveFileRecipients(filePair)
+		if err != nil {
+			recipientWarning = formatRecipientWarning(filePair, err)
+			resolvedRecipients = ResolvedRecipients{}
 		}
 	}
 
@@ -275,7 +284,19 @@ func resolveFilePair(cfg *Config, filePair FilePair, opts SelectionOptions, resu
 		RecipientAliases: resolvedRecipients.Aliases,
 		Recipients:       resolvedRecipients.Recipients,
 		RecipientInfo:    resolvedRecipients.Provenance,
+		RecipientWarning: recipientWarning,
 	}, nil
+}
+
+func formatRecipientWarning(pair FilePair, err error) string {
+	source := pair.RecipientSource.ConfigPath
+	if source == "" {
+		source = pair.ConfigPath
+	}
+	if source == "" {
+		source = "configuration"
+	}
+	return fmt.Sprintf("warning: could not resolve recipients for %s (%s): %v; continuing with encrypted metadata", pair.PlaintextPath, source, err)
 }
 
 func resolveFinalFormat(filePair FilePair, opts SelectionOptions) (string, ValueSource, error) {

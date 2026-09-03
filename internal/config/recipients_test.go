@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"testing"
 
 	"filippo.io/age"
@@ -40,6 +41,16 @@ func TestResolveFileRecipientsRejectsDuplicateAlias(t *testing.T) {
 
 	_, err = cfg.ResolveFileRecipients(FilePair{PlaintextPath: "config.yaml", Recipients: &aliases})
 	require.EqualError(t, err, `duplicate recipient alias "owner"`)
+}
+
+func TestResolveFileRecipientsRejectsRawRecipient(t *testing.T) {
+	identity, err := age.GenerateX25519Identity()
+	require.NoError(t, err)
+	rawRecipient := identity.Recipient().String()
+	aliases := []string{rawRecipient}
+	cfg := &Config{}
+	_, err = cfg.ResolveFileRecipients(FilePair{PlaintextPath: "config.yaml", Recipients: &aliases})
+	require.EqualError(t, err, fmt.Sprintf(`raw Age recipient %q is not supported; define it in recipients.registry and reference its alias`, rawRecipient))
 }
 
 func TestValidateRecipientConfigRejectsDuplicatePublicKey(t *testing.T) {

@@ -45,7 +45,10 @@ func TestExampleConfigStrictUnmarshal(t *testing.T) {
 	require.True(t, cfg.Encryption.Groups[0].UnknownAsBinary)
 
 	require.Equal(t, ".age/keys.txt", cfg.Key.FilePath)
-	require.NotEmpty(t, cfg.Key.PublicKey)
+	require.NotNil(t, cfg.Recipients.Defaults)
+	require.Len(t, *cfg.Recipients.Defaults, 1)
+	require.Equal(t, []string{"owner"}, *cfg.Recipients.Defaults)
+	require.NotEmpty(t, cfg.Recipients.Registry["owner"])
 
 	require.Equal(t, "infisical", cfg.Sync.Provider)
 	require.Equal(t, "AGE_KEY_FILE", cfg.Sync.SecretName)

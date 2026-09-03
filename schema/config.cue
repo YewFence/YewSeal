@@ -7,8 +7,8 @@
 //     (父级、类型、必填性),schema:check 的 diff 保证导出与本文件一致
 package schema
 
-// #Config 是 .yewseal.toml 的顶层结构。所有段落都可缺省,
-// 缺省时由 CLI 参数、环境变量或内置默认值兜底。
+// #Config 是 .yewseal.toml 的顶层结构。所有段落都可缺省。
+// 加密和 plan 选择阶段要求路径来自 files/groups,并要求最终授权集合非空。
 #Config: {
 	encryption?: #EncryptionConfig
 	key?:        #KeyConfig
@@ -23,8 +23,7 @@ package schema
 
 // #EncryptionConfig 定义加密文件映射。
 #EncryptionConfig: {
-	// 显式的明文/加密文件对。缺省且无 groups 时使用
-	// 默认映射 wrangler.toml <-> wrangler.enc.toml。
+	// 显式的明文/加密文件对。所有运行时处理的路径都必须来自这里或 groups。
 	files?: [...#FilePair]
 
 	// 按 glob 模式批量匹配的加密文件组。
@@ -58,7 +57,7 @@ recipients?: [...string]
 
 // #GroupConfig 定义一组按模式匹配的加密文件。
 #GroupConfig: {
-	// glob 模式列表,如 "config/**/*.toml"。缺省时使用内置默认模式:
+	// glob 模式列表,如 "config/**/*.toml"。缺省时使用默认扫描模式:
 	// 加密扫描常见配置扩展名并排除 *.enc.*,解密扫描 *.enc.* 文件。
 	patterns?: [...string]
 
@@ -79,8 +78,6 @@ recipients?: [...string]
 	// Age 私钥文件路径。
 	file_path?: string | *".age/keys.txt"
 
-// Deprecated: use recipients.registry and aliases instead.
-public_key?: string
 }
 
 // #SyncConfig 定义 Age 密钥同步设置。

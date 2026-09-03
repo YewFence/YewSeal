@@ -30,8 +30,6 @@ recipients = ["owner"]
 [key]
 # Age 私钥文件路径(默认值 ".age/keys.txt"),不要把私钥内容写在这里
 file_path = ".age/keys.txt"
-# 旧字段,将在授权模型迁移提交中移除
-public_key = "age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmr3752kgargmsqqqpra5"
 
 [recipients]
 defaults = ["owner"]
