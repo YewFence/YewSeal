@@ -32,6 +32,11 @@ func DiffPlaintextAgainstEncryptedTargets(w io.Writer, cfg *config.Config, targe
 	}
 	config.PrintSelection(verbose, cfg, result)
 
+	identityBundle, err := resolveIdentityBundle(cfg, keyFile)
+	if err != nil {
+		return DiffResult{}, err
+	}
+
 	colorEnabled, err := ResolveDiffColor(colorMode, w)
 	if err != nil {
 		return DiffResult{}, err
@@ -42,7 +47,7 @@ func DiffPlaintextAgainstEncryptedTargets(w io.Writer, cfg *config.Config, targe
 		result, err := diff.PlaintextAgainstEncrypted(diff.Options{
 			PlaintextFile:  filePair.PlaintextPath,
 			EncryptedFile:  filePair.EncryptedPath,
-			KeyFile:        keyFile,
+			IdentityBundle: identityBundle,
 			FormatOverride: filePair.Format,
 			Verbose:        verbose,
 		})

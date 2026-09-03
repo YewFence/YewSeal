@@ -12,26 +12,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestGenerateOutputFilename(t *testing.T) {
-	tests := []struct {
-		name         string
-		inputFile    string
-		outputDir    string
-		outputSuffix string
-		mode         string
-		expected     string
-	}{
-		{name: "encrypt_toml", inputFile: "config.toml", mode: "encrypt", expected: "config.enc.toml"},
-		{name: "encrypt_yaml_output_dir", inputFile: "config.yaml", outputDir: "encrypted", mode: "encrypt", expected: filepath.Join("encrypted", "config.enc.yaml")},
-		{name: "decrypt_enc_toml", inputFile: "config.enc.toml", mode: "decrypt", expected: "config.toml"},
-		{name: "decrypt_output_dir", inputFile: "config.enc.yaml", outputDir: "decrypted", mode: "decrypt", expected: filepath.Join("decrypted", "config.yaml")},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.expected, GenerateOutputFilename(tt.inputFile, tt.outputDir, tt.outputSuffix, tt.mode))
-		})
-	}
+func TestEncryptAndDecryptRequireResolvedFilePairs(t *testing.T) {
+	_, err := Encrypt(Options{})
+	require.EqualError(t, err, "no configured file pairs to encrypt")
+	_, err = Decrypt(Options{})
+	require.EqualError(t, err, "no configured file pairs to decrypt")
 }
 
 func TestEncryptDecryptFilePairsWithFormatOverride(t *testing.T) {
@@ -40,10 +25,9 @@ func TestEncryptDecryptFilePairsWithFormatOverride(t *testing.T) {
 
 	encSummary, err := Encrypt(Options{
 		FilePairs: []FilePair{
-			{PlaintextPath: ".dev.vars", EncryptedPath: ".dev.vars.enc.yaml", Format: "env"},
+			{PlaintextPath: ".dev.vars", EncryptedPath: ".dev.vars.enc.yaml", Format: "env", Recipients: []string{publicKey}},
 		},
-		KeyFile:   keyFile,
-		PublicKey: publicKey,
+		KeyFile: keyFile,
 	})
 	require.NoError(t, err)
 	assert.Equal(t, 1, encSummary.SuccessCount)

@@ -22,7 +22,7 @@ func NewRootCommand(cfg *config.Config, version string) *cobra.Command {
 
 	rootCmd.AddCommand(
 		initCommand(),
-		encryptCommand(cfg, &keyFile),
+		encryptCommand(cfg),
 		decryptCommand(cfg, &keyFile),
 		planCommand(cfg),
 		editCommand(cfg, &keyFile),

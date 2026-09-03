@@ -23,6 +23,7 @@ type Options struct {
 	PlaintextFile  string
 	EncryptedFile  string
 	KeyFile        string
+	IdentityBundle string
 	FormatOverride string
 	Verbose        bool
 }
@@ -40,6 +41,7 @@ func PlaintextAgainstEncrypted(opts Options) (DiffResult, error) {
 		InputFile:      opts.EncryptedFile,
 		OutputFile:     opts.PlaintextFile,
 		KeyFile:        opts.KeyFile,
+		IdentityBundle: opts.IdentityBundle,
 		FormatOverride: opts.FormatOverride,
 		Verbose:        opts.Verbose,
 		Output:         os.Stderr,

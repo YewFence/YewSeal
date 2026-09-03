@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"sort"
+	"strings"
 	"text/tabwriter"
 
 	"github.com/YewFence/YewSeal/internal/agekey"
@@ -12,14 +14,13 @@ import (
 )
 
 type PreflightResult struct {
-	Selection     config.ResolvedSelection
-	KeyFile       string
-	PublicKey     string // Deprecated compatibility field; use configured recipients.
-	Parallel      int
-	Force         bool
-	Verbose       bool
-	MetadataPairs []config.ResolvedFilePair
-	MetadataScope string
+	Selection      config.ResolvedSelection
+	IdentityBundle string
+	Parallel       int
+	Force          bool
+	Verbose        bool
+	MetadataPairs  []config.ResolvedFilePair
+	MetadataScope  string
 }
 
 type PreflightPrintOptions struct {
@@ -72,19 +73,20 @@ func PreflightDecrypt(cfg *config.Config, req DecryptRequest) (PreflightResult, 
 	if err != nil {
 		return PreflightResult{}, err
 	}
-	if _, err := agekey.GetAgeKey(req.KeyFile); err != nil {
+	identityBundle, err := agekey.GetIdentityBundleWithFallback(req.KeyFile, cfg.GetKeyFile(""))
+	if err != nil {
 		return PreflightResult{}, err
 	}
 
 	metadataPairs, metadataScope := metadataPairsForSelection(selection)
 	return PreflightResult{
-		Selection:     selection,
-		KeyFile:       req.KeyFile,
-		Parallel:      req.Parallel,
-		Force:         req.Force,
-		Verbose:       req.Verbose,
-		MetadataPairs: metadataPairs,
-		MetadataScope: metadataScope,
+		Selection:      selection,
+		IdentityBundle: identityBundle.String(),
+		Parallel:       req.Parallel,
+		Force:          req.Force,
+		Verbose:        req.Verbose,
+		MetadataPairs:  metadataPairs,
+		MetadataScope:  metadataScope,
 	}, nil
 }
 
@@ -181,19 +183,23 @@ func printPreflightTable(w io.Writer, cfg *config.Config, result PreflightResult
 		return err
 	}
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	if _, err := fmt.Fprintln(tw, "Plaintext\tP.Source\tEncrypted\tE.Source\tFormat\tF.Source\tSelected By"); err != nil {
+	if _, err := fmt.Fprintln(tw, "Plaintext\tP.Source\tEncrypted\tE.Source\tFormat\tF.Source\tAliases\tRecipients\tAuthorization\tRegistry Sources\tSelected By"); err != nil {
 		return err
 	}
 	for _, filePair := range selection.FilePairs {
 		if _, err := fmt.Fprintf(
 			tw,
-			"%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+			"%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
 			config.DisplayPath(cwd, filePair.PlaintextPath),
 			config.FormatValueSource(filePair.PlaintextSource, cwd),
 			config.DisplayPath(cwd, filePair.EncryptedPath),
 			config.FormatValueSource(filePair.EncryptedSource, cwd),
 			filePair.Format,
 			config.FormatValueSource(filePair.FormatSource, cwd),
+			strings.Join(filePair.RecipientAliases, ","),
+			strings.Join(filePair.Recipients, ","),
+			formatAuthorizationSource(filePair, cwd),
+			formatRegistrySources(filePair.RecipientInfo, cwd),
 			filePair.SelectedBy,
 		); err != nil {
 			return err
@@ -229,11 +235,21 @@ type preflightJSON struct {
 }
 
 type preflightPairJSON struct {
-	Plaintext  preflightPathJSON   `json:"plaintext"`
-	Encrypted  preflightPathJSON   `json:"encrypted"`
-	Format     preflightFormatJSON `json:"format"`
-	SelectedBy string              `json:"selected_by"`
-	Source     string              `json:"source"`
+	Plaintext        preflightPathJSON          `json:"plaintext"`
+	Encrypted        preflightPathJSON          `json:"encrypted"`
+	Format           preflightFormatJSON        `json:"format"`
+	RecipientAliases []string                   `json:"recipient_aliases,omitempty"`
+	Recipients       []string                   `json:"recipients,omitempty"`
+	Authorization    preflightAuthorizationJSON `json:"authorization"`
+	RecipientWarning string                     `json:"recipient_warning,omitempty"`
+	SelectedBy       string                     `json:"selected_by"`
+	Source           string                     `json:"source"`
+}
+type preflightAuthorizationJSON struct {
+	Kind            string                   `json:"kind,omitempty"`
+	Aliases         []string                 `json:"aliases,omitempty"`
+	EffectiveSource preflightValueSourceJSON `json:"effective_source"`
+	RegistrySources map[string]string        `json:"registry_sources,omitempty"`
 }
 
 type preflightPathJSON struct {
@@ -253,6 +269,26 @@ type preflightValueSourceJSON struct {
 	Detail     string `json:"detail,omitempty"`
 }
 
+func formatAuthorizationSource(filePair config.ResolvedFilePair, cwd string) string {
+	if filePair.RecipientInfo.EffectiveSource.Kind != "" {
+		return config.FormatValueSource(filePair.RecipientInfo.EffectiveSource, cwd)
+	}
+	return filePair.RecipientInfo.Kind
+}
+
+func formatRegistrySources(info config.RecipientProvenance, cwd string) string {
+	aliases := make([]string, 0, len(info.RegistrySources))
+	for alias := range info.RegistrySources {
+		aliases = append(aliases, alias)
+	}
+	sort.Strings(aliases)
+	formatted := make([]string, 0, len(aliases))
+	for _, alias := range aliases {
+		formatted = append(formatted, alias+"="+config.DisplayPath(cwd, info.RegistrySources[alias]))
+	}
+	return strings.Join(formatted, ",")
+}
+
 func resolvedFilePairJSON(cwd string, filePair config.ResolvedFilePair) preflightPairJSON {
 	return preflightPairJSON{
 		Plaintext: preflightPathJSON{
@@ -269,8 +305,17 @@ func resolvedFilePairJSON(cwd string, filePair config.ResolvedFilePair) prefligh
 			Value:  filePair.Format,
 			Source: valueSourceJSON(filePair.FormatSource),
 		},
-		SelectedBy: filePair.SelectedBy,
-		Source:     filePair.Source,
+		RecipientAliases: filePair.RecipientAliases,
+		Recipients:       filePair.Recipients,
+		Authorization: preflightAuthorizationJSON{
+			Kind:            filePair.RecipientInfo.Kind,
+			Aliases:         filePair.RecipientInfo.Aliases,
+			EffectiveSource: valueSourceJSON(filePair.RecipientInfo.EffectiveSource),
+			RegistrySources: filePair.RecipientInfo.RegistrySources,
+		},
+		RecipientWarning: filePair.RecipientWarning,
+		SelectedBy:       filePair.SelectedBy,
+		Source:           filePair.Source,
 	}
 }
 

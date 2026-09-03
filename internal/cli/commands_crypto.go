@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func encryptCommand(cfg *config.Config, keyFile *string) *cobra.Command {
+func encryptCommand(cfg *config.Config) *cobra.Command {
 	opts := encryptOptions{
 		Output:   envValue("SOPS_OUTPUT_FILE"),
 		Format:   envValue("YEWSEAL_FORMAT", "SOPS_FORMAT"),
@@ -24,7 +24,6 @@ func encryptCommand(cfg *config.Config, keyFile *string) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			target := firstArg(args)
 			return yewsapp.EncryptFiles(cfg, yewsapp.EncryptRequest{
-				KeyFile:               cfg.GetKeyFile(*keyFile),
 				Verbose:               opts.Verbose,
 				Output:                opts.Output,
 				OutputSet:             flagChangedOrEnvSet(cmd.Flags(), "output", "SOPS_OUTPUT_FILE"),
@@ -58,7 +57,7 @@ func decryptCommand(cfg *config.Config, keyFile *string) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			target := firstArg(args)
 			return yewsapp.DecryptFiles(cfg, yewsapp.DecryptRequest{
-				KeyFile:               cfg.GetKeyFile(*keyFile),
+				KeyFile:               *keyFile,
 				Verbose:               opts.Verbose,
 				Output:                opts.Output,
 				OutputSet:             flagChangedOrEnvSet(cmd.Flags(), "output", "SOPS_OUTPUT_FILE"),

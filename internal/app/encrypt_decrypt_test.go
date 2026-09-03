@@ -2,9 +2,11 @@ package app
 
 import (
 	"filippo.io/age"
+	"io"
 	"os"
 	"testing"
 
+	"github.com/YewFence/YewSeal/internal/agekey"
 	"github.com/YewFence/YewSeal/internal/config"
 	"github.com/YewFence/YewSeal/internal/seal"
 	"github.com/stretchr/testify/assert"
@@ -15,11 +17,9 @@ func TestEncryptFiles_SingleFileOverrideUsesProvidedPathsAndFormat(t *testing.T)
 	env := newAppCryptoTestEnv(t)
 
 	require.NoError(t, os.WriteFile("secrets.vars", []byte("TOKEN=secret\n"), 0644))
-	cfg := &config.Config{Encryption: config.EncryptionConfig{Files: []config.FilePair{{PlaintextPath: "secrets.vars", EncryptedPath: "secrets.vars.enc.yaml", Format: "env"}}}}
+	cfg := configWithOwnerRecipient(&config.Config{Encryption: config.EncryptionConfig{Files: []config.FilePair{{PlaintextPath: "secrets.vars", EncryptedPath: "secrets.vars.enc.yaml", Format: "env"}}}}, env.publicKey)
 
 	err := EncryptFiles(cfg, EncryptRequest{
-		KeyFile:   env.keyFile,
-		PublicKey: env.publicKey,
 		Target:    "secrets.vars",
 		Output:    "secrets.vars.enc.yaml",
 		OutputSet: true,
@@ -121,19 +121,17 @@ func TestEncryptFiles_TargetFileUsesConfiguredPair(t *testing.T) {
 	env := newAppCryptoTestEnv(t)
 	require.NoError(t, os.WriteFile(".dev.vars", []byte("TOKEN=secret\n"), 0644))
 
-	cfg := &config.Config{
+	cfg := configWithOwnerRecipient(&config.Config{
 		Encryption: config.EncryptionConfig{
 			Files: []config.FilePair{
 				{PlaintextPath: ".dev.vars", EncryptedPath: "configured.enc.yaml", Format: "env"},
 			},
 		},
-	}
+	}, env.publicKey)
 
 	err := EncryptFiles(cfg, EncryptRequest{
-		KeyFile:   env.keyFile,
-		PublicKey: env.publicKey,
-		Target:    ".dev.vars",
-		Parallel:  1,
+		Target:   ".dev.vars",
+		Parallel: 1,
 	})
 	require.NoError(t, err)
 
@@ -147,13 +145,11 @@ func TestEncryptFiles_TargetFileFormatOverrideDeterminesGeneratedOutput(t *testi
 	env := newAppCryptoTestEnv(t)
 	require.NoError(t, os.WriteFile("secret", []byte("TOKEN=secret\n"), 0644))
 
-	cfg := &config.Config{Encryption: config.EncryptionConfig{Files: []config.FilePair{{PlaintextPath: "secret", EncryptedPath: "secret.enc.env", Format: "env"}}}}
+	cfg := configWithOwnerRecipient(&config.Config{Encryption: config.EncryptionConfig{Files: []config.FilePair{{PlaintextPath: "secret", EncryptedPath: "secret.enc.env", Format: "env"}}}}, env.publicKey)
 	err := EncryptFiles(cfg, EncryptRequest{
-		KeyFile:   env.keyFile,
-		PublicKey: env.publicKey,
-		Target:    "secret",
-		Format:    "env",
-		Parallel:  1,
+		Target:   "secret",
+		Format:   "env",
+		Parallel: 1,
 	})
 	require.NoError(t, err)
 
@@ -164,12 +160,10 @@ func TestEncryptFiles_TargetFileFormatOverrideDeterminesGeneratedOutput(t *testi
 func TestDecryptFiles_TargetFileOutputOverride(t *testing.T) {
 	env := newAppCryptoTestEnv(t)
 	require.NoError(t, os.WriteFile("config.yaml", []byte("token: secret\n"), 0644))
-	cfg := &config.Config{Encryption: config.EncryptionConfig{Files: []config.FilePair{{PlaintextPath: "config.yaml", EncryptedPath: "config.enc.yaml", Format: "yaml"}}}}
+	cfg := configWithOwnerRecipient(&config.Config{Encryption: config.EncryptionConfig{Files: []config.FilePair{{PlaintextPath: "config.yaml", EncryptedPath: "config.enc.yaml", Format: "yaml"}}}}, env.publicKey)
 	err := EncryptFiles(cfg, EncryptRequest{
-		KeyFile:   env.keyFile,
-		PublicKey: env.publicKey,
-		Target:    "config.yaml",
-		Parallel:  1,
+		Target:   "config.yaml",
+		Parallel: 1,
 	})
 	require.NoError(t, err)
 	require.NoError(t, os.Remove("config.yaml"))
@@ -219,4 +213,98 @@ func newAppCryptoTestEnv(t *testing.T) appCryptoTestEnv {
 
 	keyFile, publicKey := createAgeKeyFile(t, tempDir)
 	return appCryptoTestEnv{keyFile: keyFile, publicKey: publicKey}
+}
+
+func configWithOwnerRecipient(cfg *config.Config, publicKey string) *config.Config {
+	defaults := []string{"owner"}
+	cfg.Recipients = config.RecipientConfig{
+		Defaults: &defaults,
+		Registry: map[string]string{"owner": publicKey},
+	}
+	return cfg
+}
+
+func TestEncryptFilesRejectsMissingAuthorizationBeforeWrites(t *testing.T) {
+	root := t.TempDir()
+	oldWd, err := os.Getwd()
+	require.NoError(t, err)
+	require.NoError(t, os.Chdir(root))
+	t.Cleanup(func() { require.NoError(t, os.Chdir(oldWd)) })
+	require.NoError(t, os.WriteFile("secret.yaml", []byte("token: value\n"), 0644))
+	cfg := &config.Config{CurrentDir: root, UserConfig: true, Encryption: config.EncryptionConfig{Files: []config.FilePair{{PlaintextPath: "secret.yaml", EncryptedPath: "secret.enc.yaml", Format: "yaml"}}}}
+	err = EncryptFiles(cfg, EncryptRequest{Target: "secret.yaml", UpdateProjectMetadata: true})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "no recipient set")
+	_, statErr := os.Stat("secret.enc.yaml")
+	require.ErrorIs(t, statErr, os.ErrNotExist)
+	_, statErr = os.Stat(".sops.yaml")
+	require.ErrorIs(t, statErr, os.ErrNotExist)
+}
+
+func TestEncryptFilesPreflightsEntireBatchBeforeFirstCiphertext(t *testing.T) {
+	env := newAppCryptoTestEnv(t)
+	require.NoError(t, os.WriteFile("first.yaml", []byte("token: first\n"), 0644))
+	require.NoError(t, os.WriteFile("second.yaml", []byte("token: second\n"), 0644))
+	valid := []string{"owner"}
+	invalid := []string{"missing"}
+	cfg := &config.Config{CurrentDir: config.CurrentDir(&config.Config{}), Recipients: config.RecipientConfig{Registry: map[string]string{"owner": env.publicKey}}, Encryption: config.EncryptionConfig{Files: []config.FilePair{{PlaintextPath: "first.yaml", EncryptedPath: "first.enc.yaml", Format: "yaml", Recipients: &valid}, {PlaintextPath: "second.yaml", EncryptedPath: "second.enc.yaml", Format: "yaml", Recipients: &invalid}}}}
+	err := EncryptFiles(cfg, EncryptRequest{Parallel: 1})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), `unknown recipient alias "missing"`)
+	_, statErr := os.Stat("first.enc.yaml")
+	require.ErrorIs(t, statErr, os.ErrNotExist)
+	_, statErr = os.Stat("second.enc.yaml")
+	require.ErrorIs(t, statErr, os.ErrNotExist)
+}
+
+func TestEncryptFilesWritesPortableSopsPaths(t *testing.T) {
+	env := newAppCryptoTestEnv(t)
+	require.NoError(t, os.WriteFile("secret.yaml", []byte("token: value\n"), 0644))
+	cfg := configWithOwnerRecipient(&config.Config{CurrentDir: config.CurrentDir(&config.Config{}), Encryption: config.EncryptionConfig{Files: []config.FilePair{{PlaintextPath: "secret.yaml", EncryptedPath: "secret.enc.yaml", Format: "yaml"}}}}, env.publicKey)
+	require.NoError(t, EncryptFiles(cfg, EncryptRequest{Target: "secret.yaml", Parallel: 1, UpdateProjectMetadata: true}))
+	content, err := os.ReadFile(".sops.yaml")
+	require.NoError(t, err)
+	assert.Contains(t, string(content), `path_regex: ^secret\.enc\.yaml$`)
+	assert.NotContains(t, string(content), config.CurrentDir(cfg))
+}
+
+func TestDecryptFilesWarnsForStaleAliasAndUsesEncryptedMetadata(t *testing.T) {
+	env := newAppCryptoTestEnv(t)
+	require.NoError(t, os.WriteFile("secret.yaml", []byte("token: value\n"), 0644))
+	require.NoError(t, seal.Encrypt(seal.EncryptOptions{InputFile: "secret.yaml", OutputFile: "secret.enc.yaml", Recipients: []string{env.publicKey}, FormatOverride: "yaml"}))
+	require.NoError(t, os.Remove("secret.yaml"))
+	aliases := []string{"retired-owner"}
+	cfg := &config.Config{Encryption: config.EncryptionConfig{Files: []config.FilePair{{PlaintextPath: "secret.yaml", EncryptedPath: "secret.enc.yaml", Format: "yaml", Recipients: &aliases, ConfigPath: ".yewseal.toml"}}}}
+	read, write, err := os.Pipe()
+	require.NoError(t, err)
+	originalStderr := os.Stderr
+	os.Stderr = write
+	t.Cleanup(func() { os.Stderr = originalStderr })
+	err = DecryptFiles(cfg, DecryptRequest{KeyFile: env.keyFile, Target: "secret.enc.yaml", Parallel: 1})
+	require.NoError(t, write.Close())
+	os.Stderr = originalStderr
+	require.NoError(t, err)
+	warning, err := io.ReadAll(read)
+	require.NoError(t, err)
+	require.NoError(t, read.Close())
+	assert.Contains(t, string(warning), `unknown recipient alias "retired-owner"`)
+	assert.Contains(t, string(warning), ".yewseal.toml")
+	content, err := os.ReadFile("secret.yaml")
+	require.NoError(t, err)
+	assert.Equal(t, "token: value\n", string(content))
+}
+
+func TestDecryptFilesEnvironmentBundlePrecedesConfiguredKeyFile(t *testing.T) {
+	env := newAppCryptoTestEnv(t)
+	bundle, err := agekey.GetIdentityBundle(env.keyFile)
+	require.NoError(t, err)
+	t.Setenv("YEWSEAL_AGE_IDENTITIES", bundle.String())
+	require.NoError(t, os.WriteFile("secret.yaml", []byte("token: value\n"), 0644))
+	require.NoError(t, seal.Encrypt(seal.EncryptOptions{InputFile: "secret.yaml", OutputFile: "secret.enc.yaml", Recipients: []string{env.publicKey}, FormatOverride: "yaml"}))
+	require.NoError(t, os.Remove("secret.yaml"))
+	cfg := &config.Config{Key: config.KeyConfig{FilePath: "missing-configured-key.txt"}, Encryption: config.EncryptionConfig{Files: []config.FilePair{{PlaintextPath: "secret.yaml", EncryptedPath: "secret.enc.yaml", Format: "yaml"}}}}
+	require.NoError(t, DecryptFiles(cfg, DecryptRequest{Target: "secret.enc.yaml", Parallel: 1}))
+	content, err := os.ReadFile("secret.yaml")
+	require.NoError(t, err)
+	assert.Equal(t, "token: value\n", string(content))
 }

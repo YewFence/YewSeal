@@ -155,27 +155,3 @@ func (e *AgeKeyNotFoundError) Error() string {
 	}
 	return fmt.Sprintf("no Age key found. Options: %s", strings.Join(e.Options, ", "))
 }
-
-// PublicKeyNotFoundError indicates no public key could be resolved.
-// Keep the message stable because it is user-facing guidance.
-type PublicKeyNotFoundError struct {
-	KeyFile string
-	Cause   error
-	Tried   []string
-}
-
-func (e *PublicKeyNotFoundError) Unwrap() error {
-	return e.Cause
-}
-
-func (e *PublicKeyNotFoundError) Error() string {
-	tried := strings.Join(e.Tried, ", ")
-	if tried == "" {
-		tried = "CLI parameter, SOPS_AGE_RECIPIENTS env, .yewseal.toml config, and extracting from private key file"
-	}
-
-	if e.Cause != nil {
-		return fmt.Sprintf("no public key found. Tried: %s, and extracting from %s (failed: %v). Please run 'yews init' or provide --public-key", tried, e.KeyFile, e.Cause)
-	}
-	return fmt.Sprintf("no public key found. Tried: %s, and extracting from %s (no valid public key found). Please run 'yews init' or provide --public-key", tried, e.KeyFile)
-}

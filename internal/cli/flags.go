@@ -50,7 +50,7 @@ type syncOptions struct {
 func addEncryptFlags(flags *pflag.FlagSet, opts *encryptOptions) {
 	flags.StringVarP(&opts.Output, "output", "o", opts.Output, "Output encrypted file for a single file target")
 	flags.StringVar(&opts.Format, "format", opts.Format, "Format override for file targets (toml/yaml/json/env/ini/binary)")
-	flags.StringSliceVar(&opts.Patterns, "pattern", nil, "Group pattern for temporary directory mode or encryption.groups override")
+	flags.StringSliceVar(&opts.Patterns, "pattern", nil, "Pattern filter for configured groups")
 	flags.StringSliceVar(&opts.FormatRules, "format-rule", nil, "Group format rule in <pattern>=<format> form")
 	flags.BoolVar(&opts.UnknownAsBinary, "unknown-as-binary", false, "Allow group mode to encrypt unknown plaintext formats as binary")
 	flags.IntVarP(&opts.Parallel, "parallel", "P", opts.Parallel, "Number of parallel workers for batch mode")
@@ -60,7 +60,7 @@ func addEncryptFlags(flags *pflag.FlagSet, opts *encryptOptions) {
 func addDecryptFlags(flags *pflag.FlagSet, opts *decryptOptions) {
 	flags.StringVarP(&opts.Output, "output", "o", opts.Output, "Output plaintext file for a single file target")
 	flags.StringVar(&opts.Format, "format", opts.Format, "Format override for file targets (toml/yaml/json/env/ini/binary)")
-	flags.StringSliceVar(&opts.Patterns, "pattern", nil, "Group pattern for temporary directory mode or encryption.groups override")
+	flags.StringSliceVar(&opts.Patterns, "pattern", nil, "Pattern filter for configured groups")
 	flags.StringSliceVar(&opts.FormatRules, "format-rule", nil, "Group format rule in <pattern>=<format> form")
 	flags.BoolVar(&opts.UnknownAsBinary, "unknown-as-binary", false, "Allow group mode to treat unknown encrypted inputs as binary when needed")
 	flags.IntVarP(&opts.Parallel, "parallel", "P", opts.Parallel, "Number of parallel workers for batch mode")

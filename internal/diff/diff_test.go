@@ -44,8 +44,7 @@ func TestPlaintextAgainstEncrypted(t *testing.T) {
 	require.NoError(t, seal.Encrypt(seal.EncryptOptions{
 		InputFile:      "config.yaml",
 		OutputFile:     "config.enc.yaml",
-		KeyFile:        keyFile,
-		PublicKey:      publicKey,
+		Recipients:     []string{publicKey},
 		FormatOverride: "yaml",
 	}))
 	require.NoError(t, os.WriteFile("config.yaml", []byte("database:\n  host: local-change\n"), 0644))

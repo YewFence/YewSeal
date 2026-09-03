@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"strings"
 
 	"github.com/YewFence/YewSeal/internal/config"
 	"github.com/YewFence/YewSeal/internal/errx"
@@ -27,29 +28,43 @@ func EditEncryptedFile(req EditRequest) error {
 
 	cfg := req.Config
 	if cfg == nil {
-		cfg = config.DefaultConfig()
+		return fmt.Errorf("edit requires a loaded YewSeal configuration")
 	}
-	target, err := ResolveEncryptedTarget(cfg, req.File, "edit")
+	if strings.TrimSpace(req.File) == "" {
+		return fmt.Errorf("edit requires exactly one configured target")
+	}
+	selection, err := config.ResolveSelection(cfg, config.SelectionOptions{
+		Command:             "decrypt",
+		Target:              req.File,
+		RequireSingleTarget: true,
+		AllowEmptyTarget:    false,
+	})
+	if err != nil {
+		return err
+	}
+	resolved := selection.FilePairs[0]
+
+	if _, err := os.Stat(resolved.EncryptedPath); os.IsNotExist(err) {
+		return &errx.NotFoundError{What: "file", Path: resolved.EncryptedPath}
+	}
+
+	identityBundle, err := resolveIdentityBundle(cfg, req.KeyFile)
 	if err != nil {
 		return err
 	}
 
-	if _, err := os.Stat(target.EncryptedPath); os.IsNotExist(err) {
-		return &errx.NotFoundError{What: "file", Path: target.EncryptedPath}
-	}
-
 	plainData, err := seal.DecryptToBytes(seal.DecryptBytesOptions{
-		InputFile:      target.EncryptedPath,
-		OutputFile:     target.PlaintextPath,
-		KeyFile:        req.KeyFile,
-		FormatOverride: target.FormatOverride,
+		InputFile:      resolved.EncryptedPath,
+		OutputFile:     resolved.PlaintextPath,
+		IdentityBundle: identityBundle,
+		FormatOverride: resolved.Format,
 		Output:         req.Output,
 	})
 	if err != nil {
 		return err
 	}
 
-	tmpFile, err := os.CreateTemp("", "yews-edit-*."+target.Format)
+	tmpFile, err := os.CreateTemp("", "yews-edit-*."+resolved.Format)
 	if err != nil {
 		return fmt.Errorf("failed to create temp file: %w", err)
 	}
@@ -69,7 +84,7 @@ func EditEncryptedFile(req EditRequest) error {
 	originalHash := sha256.Sum256(plainData)
 	editorCmd := resolveEditor(req.Editor)
 
-	_, _ = fmt.Fprintf(out, "✏️  Opening %s in %s...\n", target.EncryptedPath, editorCmd)
+	_, _ = fmt.Fprintf(out, "✏️  Opening %s in %s...\n", resolved.EncryptedPath, editorCmd)
 
 	parts, err := splitEditorCommand(editorCmd)
 	if err != nil {
@@ -96,13 +111,13 @@ func EditEncryptedFile(req EditRequest) error {
 		return nil
 	}
 
-	recipients, err := seal.ExtractAgeRecipientsFromEncryptedFile(target.EncryptedPath, target.PlaintextPath, target.FormatOverride)
+	recipients, err := seal.ExtractAgeRecipientsFromEncryptedFile(resolved.EncryptedPath, resolved.PlaintextPath, resolved.Format)
 	if err != nil {
 		return err
 	}
 	newEncData, err := seal.EncryptToBytes(editedData, seal.EncryptBytesOptions{
-		FormatFile:     target.PlaintextPath,
-		FormatOverride: target.FormatOverride,
+		FormatFile:     resolved.PlaintextPath,
+		FormatOverride: resolved.Format,
 		Recipients:     recipients,
 		Output:         req.Output,
 	})
@@ -110,7 +125,7 @@ func EditEncryptedFile(req EditRequest) error {
 		return err
 	}
 
-	if err := os.WriteFile(target.EncryptedPath, newEncData, 0644); err != nil {
+	if err := os.WriteFile(resolved.EncryptedPath, newEncData, 0644); err != nil {
 		return fmt.Errorf("failed to write encrypted file: %w", err)
 	}
 
