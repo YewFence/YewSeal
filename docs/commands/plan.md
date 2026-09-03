@@ -10,7 +10,9 @@ yews plan [command options] [path]
 
 ## 目标选择
 
-不传 `path` 时，`plan` 会显示当前目录范围内的配置选择。传入明文文件、加密文件或目录时，`plan` 会按当前选择逻辑推断文件映射和格式来源。
+不传 `path` 时，`plan` 会显示当前目录范围内的配置选择。传入明文文件、加密文件或目录时，目标仍必须来自已加载的 FilePair 或 Group；plan 会展示最终映射、格式来源、recipient alias、canonical recipient、registry 来源和 effective authorization source。
+
+Plan 复用 encrypt 的严格授权 preflight。即使目标是 encrypted 路径，未知 alias、raw recipient、空授权集合或 Group 冲突也会直接失败。
 
 ## 选项
 

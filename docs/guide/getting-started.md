@@ -70,13 +70,13 @@ yews init \
 # 加密配置里的所有文件
 yews encrypt
 
-# 加密单个明文文件，输出路径会按文件名推断
+# 加密一个已配置的明文文件，使用配置中的 encrypted 路径和授权
 yews encrypt config.toml
 
 # 加密单个明文文件，并指定输出路径
 yews encrypt config.toml -o config.enc.toml
 
-# 扫描目录并加密匹配的文件
+# 在已配置 Group 的目录范围内筛选并加密
 yews encrypt ./configs --pattern "*.toml"
 ```
 
@@ -86,13 +86,13 @@ yews encrypt ./configs --pattern "*.toml"
 # 解密配置里的所有文件
 yews decrypt
 
-# 解密单个加密文件，输出路径会按文件名推断
+# 解密一个已配置的加密文件，使用配置中的 plaintext 路径
 yews decrypt config.enc.toml
 
 # 解密单个加密文件，并指定输出路径
 yews decrypt config.enc.toml -o config.toml
 
-# 扫描目录并解密匹配的加密文件
+# 在已配置 Group 的目录范围内筛选并解密
 yews decrypt ./configs --pattern "*.toml"
 ```
 
@@ -139,7 +139,12 @@ yews diff config.toml
 ```toml
 [key]
 file_path = ".age/keys.txt"
-public_key = "age1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+
+[recipients]
+defaults = ["owner"]
+
+[recipients.registry]
+owner = "age1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 
 [[encryption.files]]
 plaintext = "config.toml"

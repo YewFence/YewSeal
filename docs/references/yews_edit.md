@@ -14,7 +14,7 @@ yews edit [flags]
 
 ```
   -e, --editor string   Editor command to use (e.g., 'code -w', 'vim')
-  -f, --file string     Encrypted file to edit (default "wrangler.enc.toml")
+  -f, --file string     Encrypted file to edit (must be configured in .yewseal.toml)
   -h, --help            help for edit
 ```
 

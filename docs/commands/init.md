@@ -12,7 +12,7 @@ yews init [command options]
 
 ### --force, -f
 
-强制覆盖已有的 `.yewseal.toml` 和相关配置。
+完全重建 `.age/keys.txt`、recipient registry、defaults、FilePair 和托管的 `.sops.yaml`。旧 alias 和文件映射不会保留，新 owner identity 可能无法解密已有密文。
 
 ```bash
 yews init --force
@@ -90,11 +90,17 @@ yews init \
 ```toml
 [key]
 file_path = ".age/keys.txt"
-public_key = "age1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+
+[recipients]
+defaults = ["owner"]
+
+[recipients.registry]
+owner = "age1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 
 [[encryption.files]]
 plaintext = "config.toml"
 encrypted = "config.enc.toml"
+recipients = ["owner"]
 ```
 
 ### .age/keys.txt

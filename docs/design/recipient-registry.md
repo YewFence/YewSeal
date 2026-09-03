@@ -4,6 +4,21 @@
 
 本文档定义 YewSeal 的第一版按文件授权模型和相关配置重构方案。本文档已完成设计确认，后续实现应以本文档为准。
 
+
+### 实现状态
+
+本文档定义的第一版 recipient registry 已实现，并通过 `mise run check`。核心契约如下：
+
+1. **配置与 provenance**：CUE、JSON Schema、完整示例和 Go 模型均已同步；FilePair/Group 的字段 presence、registry 定义来源、授权声明来源和最终 effective source 会保留到 resolved selection。
+2. **严格授权解析**：file > group > defaults 的完整替换优先级已实现；canonical recipient 集合稳定排序；多个 Group 的 effective 集合冲突会失败，显式 FilePair 可对同路径冲突作最终裁决。
+3. **全量 encrypt/plan preflight**：所有选中 pair 会在 metadata 或密文写入前完成未知 alias、raw recipient、空集合、非法公钥及 Group 冲突检查；plan 对 encrypted target 同样采用严格授权语义。
+4. **旧入口删除**：`[key].public_key` 会返回迁移错误；`GetPublicKey`、`--public-key`、`SOPS_AGE_RECIPIENTS` fallback，以及 app/task/seal 中的单 public-key API 和私钥推导加密 recipient 逻辑均已删除。
+5. **Identity bundle**：显式 key file、`YEWSEAL_AGE_IDENTITIES`、既有 SOPS source、配置 key file 和默认 key file 按优先级解析一次，去重后作为完整 bundle 供整个解密批次复用。
+6. **Decrypt/Edit**：decrypt 遇到已失效 alias 时向 stderr 输出非致命 warning，并继续依据密文 metadata 解密；edit 必须命中配置，并保留原密文的完整 recipient 集合。
+7. **Init 与 SOPS 配置**：init 写入 owner registry、defaults、显式 FilePair 及其 alias；`--force` 重建 key/policy/files，并在跳过 SOPS 配置时删除旧托管文件；key、主配置和 `.sops.yaml` 使用临时文件替换。
+8. **可审查输出**：plan 的表格和 JSON 均展示 alias、canonical recipients、effective authorization source 和 registry 来源；`.sops.yaml` 按文件生成稳定、多 recipient、完全托管的规则。
+
+当前文档后续章节仍保留原始设计依据、边界和验收标准，作为实现行为的规范说明。
 本版本的核心目标是：让每个加密文件最终拥有清晰、可审查的 Age recipient 集合，同时通过默认授权集合保持 quickstart 的低摩擦体验。文件路径必须属于 YewSeal 配置模型，但用户不必为每个文件重复书写 `recipients`。
 
 本文档暂不设计 `rekey`、数据密钥轮换和运行时临时明文交付。已有密文的 recipient 迁移、数据密钥轮换和运行时临时明文交付属于后续独立工作。

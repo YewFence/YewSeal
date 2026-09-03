@@ -18,7 +18,7 @@ yews encrypt [command options] [path] [flags]
   -h, --help                  help for encrypt
   -o, --output string         Output encrypted file for a single file target
   -P, --parallel int          Number of parallel workers for batch mode (default 1)
-      --pattern strings       Group pattern for temporary directory mode or encryption.groups override
+      --pattern strings       Pattern filter for configured groups
       --unknown-as-binary     Allow group mode to encrypt unknown plaintext formats as binary
   -v, --verbose               Enable verbose output
 ```

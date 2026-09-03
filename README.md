@@ -177,37 +177,39 @@ yews edit -f ./path/to/file
 
 ## 密钥读取
 
-工具支持多种方式读取 Age 密钥，优先级从高到低：
+解密支持多种 Age identity source，优先级从高到低：
 
-1. 全局选项 `--key-file` / `-k`（默认值来自 `AGE_KEY_FILE` 环境变量）
-2. `SOPS_AGE_KEY` 环境变量（直接传私钥值，适合 CI/CD）
-3. `SOPS_AGE_KEY_FILE` 环境变量（私钥文件路径）
-4. `SOPS_AGE_KEY_CMD` 环境变量（执行命令获取私钥）
-5. `.yewseal.toml` 的 `[key].file_path`
-6. 默认路径 `.age/keys.txt`
+1. 显式全局选项 `--key-file` / `-k`，或 `AGE_KEY_FILE`
+2. `YEWSEAL_AGE_IDENTITIES` 环境变量中的逗号分隔 identity bundle
+3. `SOPS_AGE_KEY` 环境变量中的多行 identity bundle
+4. `SOPS_AGE_KEY_FILE` 环境变量
+5. `SOPS_AGE_KEY_CMD` 环境变量
+6. `.yewseal.toml` 的 `[key].file_path`
+7. 默认路径 `.age/keys.txt`
 
 ### 命令行参数
 
 ```bash
 yews --key-file /path/to/keys.txt decrypt
-yews encrypt --public-key "age1..."
 ```
+
+加密 recipient 只来自 `.yewseal.toml` 的 registry 与 file/group/defaults alias 配置，不从私钥或环境变量推导。
 
 ### 环境变量（推荐用于 CI/CD）
 
 ```bash
-# 直接传递私钥值
-export SOPS_AGE_KEY="AGE-SECRET-KEY-..."
+# 传递逗号分隔的多把私钥
+export YEWSEAL_AGE_IDENTITIES='AGE-SECRET-KEY-1...,AGE-SECRET-KEY-1...'
 yews decrypt
 
-# 或传递公钥用于加密
-export SOPS_AGE_RECIPIENTS="age1..."
-yews encrypt
+# SOPS 兼容变量继续使用多行 bundle 语义
+export SOPS_AGE_KEY="AGE-SECRET-KEY-..."
+yews decrypt
 ```
 
 ### 默认位置
 
-默认从 `.age/keys.txt` 读取私钥，从 `.yewseal.toml` 读取公钥。完整的密钥解析规则见[文档站](https://yewfence.github.io/YewSeal/guide/configuration#age-密钥管理)。
+默认从 `.age/keys.txt` 读取私钥；加密授权从 `.yewseal.toml` 的 `[recipients.registry]` 和 alias 集合解析。完整规则见[文档站](https://yewfence.github.io/YewSeal/guide/configuration#age-密钥管理)。
 
 ## 密钥同步
 

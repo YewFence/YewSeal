@@ -14,7 +14,7 @@ yews init [flags]
 
 ```
       --create-example     Create example file (non-interactive mode)
-  -f, --force              Force overwrite existing configuration
+  -f, --force              Rebuild keys and configuration; existing ciphertext may become undecryptable
       --format string      Format override for the first config entry (toml/yaml/json/env/ini/binary)
   -h, --help               help for init
   -i, --input string       Plaintext file for the first config entry (non-interactive mode)

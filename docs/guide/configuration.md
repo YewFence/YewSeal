@@ -1,6 +1,6 @@
 # 配置说明
 
-YewSeal 使用 `.yewseal.toml` 管理文件映射、Age 密钥位置、Age 公钥和密钥同步配置，使用 `.sops.yaml` 提供给 SOPS 直接运行时的加密规则，默认使用 `.age/keys.txt` 存储 Age 私钥。
+YewSeal 使用 `.yewseal.toml` 管理文件映射、按文件授权、Age 私钥位置和密钥同步配置，使用 `.sops.yaml` 提供给 SOPS 直接运行时的完全托管加密规则，默认使用 `.age/keys.txt` 存储 Age 私钥。
 
 ## 配置加载顺序
 
@@ -27,14 +27,26 @@ YewSeal 为 `.yewseal.toml` 维护一份 JSON Schema，由仓库中的 `schema/c
 ```toml
 [key]
 file_path = ".age/keys.txt"
-public_key = "age1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+
+[recipients]
+defaults = ["owner"]
+
+[recipients.registry]
+owner = "age1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 
 [[encryption.files]]
 plaintext = "config.toml"
 encrypted = "config.enc.toml"
 ```
+所有运行时处理的路径都必须来自显式 FilePair 或 Group。没有配置文件、空配置或未登记 target 时不会自动生成 wrangler FilePair；默认私钥文件仍是 `.age/keys.txt`。
 
-如果没有配置文件，YewSeal 会使用默认映射 `wrangler.toml` 到 `wrangler.enc.toml`，默认私钥文件是 `.age/keys.txt`。
+### Recipient 授权
+
+`[recipients.registry]` 把可审查的 alias 映射到单个公开 Age recipient。alias 区分大小写，只允许以 ASCII 字母开头，并由字母、数字、下划线或连字符组成；同名 alias、同一公钥对应多个 alias、非法公钥都会报错。registry 中不能保存私钥。
+
+FilePair 和 Group 的 `recipients` 只接受 alias。有效集合按“显式 FilePair > 命中 Group > `recipients.defaults`”选择，每一层都是完整替换而不是并集。显式空数组会清除继承，但 encrypt 和 plan 最终会因空集合失败。
+
+同一路径命中多个 Group 时，各 Group 解析后的 canonical recipient 集合必须相同；否则报冲突。存在同路径显式 FilePair 时，以显式项为最终裁决。recipient 按公钥排序后传给 SOPS，配置中的 alias 顺序不改变授权语义。
 
 ### 文件映射
 
@@ -128,12 +140,13 @@ creation_rules:
 
 解密时，Age 私钥按以下优先级解析（从高到低）：
 
-1. 全局选项 `--key-file` / `-k`（默认值来自 `AGE_KEY_FILE` 环境变量）
-2. `SOPS_AGE_KEY` 环境变量（直接传私钥值，适合 CI/CD）
-3. `SOPS_AGE_KEY_FILE` 环境变量（私钥文件路径）
-4. `SOPS_AGE_KEY_CMD` 环境变量（执行命令获取私钥）
-5. `.yewseal.toml` 的 `[key].file_path`
-6. 默认路径 `.age/keys.txt`
+1. 显式全局选项 `--key-file` / `-k`，或 `AGE_KEY_FILE`
+2. `YEWSEAL_AGE_IDENTITIES` 环境变量中的逗号分隔 identity bundle
+3. `SOPS_AGE_KEY` 环境变量中的完整多行 bundle
+4. `SOPS_AGE_KEY_FILE` 环境变量
+5. `SOPS_AGE_KEY_CMD` 环境变量
+6. `.yewseal.toml` 的 `[key].file_path`
+7. 默认路径 `.age/keys.txt`
 
 ```bash
 yews --key-file ~/.age/my-key.txt decrypt config.enc.toml
@@ -142,19 +155,17 @@ yews --key-file ~/.age/my-key.txt decrypt config.enc.toml
 ```toml
 [key]
 file_path = ".age/keys.txt"
-public_key = "age1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 ```
 
-`public_key` 是公钥，可以提交到仓库，`file_path` 指向的私钥文件不能提交。
+加密时唯一使用 `[recipients.registry]` 与 FilePair、Group 或 `recipients.defaults` 解析出的 canonical Age recipient。私钥文件、`SOPS_AGE_RECIPIENTS` 和 `.sops.yaml` 都不会决定 YewSeal 的加密授权范围。
 
-### 公钥读取
+### Identity bundle
 
-加密时，Age 公钥按以下优先级解析（从高到低）：
+一个 key file 可以包含多把 Age 私钥；YewSeal 会忽略注释、空行和无关行，并按首次出现顺序去重。CI 也可以使用专用变量传入逗号分隔的多把私钥：
 
-1. `encrypt` 的 `--public-key` / `-p` 选项
-2. `SOPS_AGE_RECIPIENTS` 环境变量
-3. `.yewseal.toml` 的 `[key].public_key`
-4. 从私钥文件的注释中提取
+```bash
+YEWSEAL_AGE_IDENTITIES='AGE-SECRET-KEY-1...,AGE-SECRET-KEY-1...' yews decrypt config.enc.toml
+```
 
 ## 密钥同步
 
@@ -201,11 +212,11 @@ YewSeal 支持通过环境变量配置部分选项：
 
 | 环境变量 | 用途 |
 | --- | --- |
-| `AGE_KEY_FILE` | 全局 `--key-file` 的默认值 |
-| `SOPS_AGE_KEY` | 直接提供 Age 私钥值 |
+| `AGE_KEY_FILE` | 全局 `--key-file` 的默认值，按显式 key file 处理 |
+| `YEWSEAL_AGE_IDENTITIES` | 逗号分隔的 Age identity bundle |
+| `SOPS_AGE_KEY` | 完整多行 Age identity bundle |
 | `SOPS_AGE_KEY_FILE` | Age 私钥文件路径 |
-| `SOPS_AGE_KEY_CMD` | 执行命令获取 Age 私钥 |
-| `SOPS_AGE_RECIPIENTS` | `encrypt` 的 `--public-key` 值 |
+| `SOPS_AGE_KEY_CMD` | 执行命令获取 Age identity bundle |
 | `SOPS_OUTPUT_FILE` | `encrypt`、`decrypt`、`plan` 的 `--output` 值 |
 | `YEWSEAL_FORMAT` | `encrypt`、`decrypt`、`plan` 的 `--format` 值 |
 | `SOPS_FORMAT` | `encrypt`、`decrypt`、`plan` 的 `--format` 值 |

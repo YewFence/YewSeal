@@ -18,4 +18,9 @@ encrypted = "wrangler.enc.toml"
 
 [key]
 file_path = ".age/keys.txt"
-public_key = "public_key_placeholder"
+
+[recipients]
+defaults = ["owner"]
+
+[recipients.registry]
+owner = "age1owner..."

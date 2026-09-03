@@ -12,7 +12,7 @@ yews edit [command options]
 
 ### --file, -f
 
-指定要编辑的加密文件，默认值是 `wrangler.enc.toml`。
+指定 `.yewseal.toml` 中已登记的加密文件或对应明文路径。该选项没有默认目标，未配置路径会报错。
 
 ```bash
 yews edit -f config.enc.toml
@@ -33,9 +33,6 @@ yews edit -f config.enc.toml -e "code -w"
 ## 示例
 
 ```bash
-# 使用默认目标
-yews edit
-
 # 编辑指定加密文件
 yews edit -f config.enc.toml
 
