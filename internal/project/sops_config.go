@@ -32,7 +32,7 @@ func SyncResolvedSopsYaml(filePairs []config.ResolvedFilePair) error {
 
 func syncResolvedSopsYaml(filePairs []config.ResolvedFilePair) error {
 	creationRules := make([]CreationRule, 0, len(filePairs))
-	seen := make(map[string]struct{}, len(filePairs))
+	seen := make(map[string]string, len(filePairs))
 
 	for _, filePair := range filePairs {
 		if filePair.EncryptedPath == "" {
@@ -43,15 +43,19 @@ func syncResolvedSopsYaml(filePairs []config.ResolvedFilePair) error {
 		}
 
 		pathRegex := buildPathRegex(filePair.EncryptedPath)
-		if _, ok := seen[pathRegex]; ok {
-			continue
-		}
-		seen[pathRegex] = struct{}{}
 		recipients := append([]string(nil), filePair.Recipients...)
 		sort.Strings(recipients)
+		ageValue := strings.Join(recipients, ",")
+		if previous, ok := seen[pathRegex]; ok {
+			if previous != ageValue {
+				return fmt.Errorf("conflicting recipients for encrypted path %s", filePair.EncryptedPath)
+			}
+			continue
+		}
+		seen[pathRegex] = ageValue
 		creationRules = append(creationRules, CreationRule{
 			PathRegex: pathRegex,
-			Age:       strings.Join(recipients, ","),
+			Age:       ageValue,
 		})
 	}
 

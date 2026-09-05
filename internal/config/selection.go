@@ -234,7 +234,11 @@ func configuredFilePairs(cfg *Config, mode string, req groupRequestOptions) ([]F
 		return nil, err
 	}
 	pairs := append(groupPairs, cfg.Encryption.Files...)
-	return dedupeFilePairs(pairs), nil
+	deduped, err := dedupeFilePairs(pairs)
+	if err != nil {
+		return nil, err
+	}
+	return deduped, nil
 }
 
 func scopedConfigGroupPairs(cfg *Config, mode string, req groupRequestOptions) ([]FilePair, error) {
@@ -355,7 +359,11 @@ func directoryTargetPairs(cfg *Config, root string, opts SelectionOptions) ([]Fi
 			pairs[i] = configured
 		}
 	}
-	return dedupeFilePairs(pairs), nil
+	deduped, err := dedupeFilePairs(pairs)
+	if err != nil {
+		return nil, err
+	}
+	return deduped, nil
 }
 
 func groupFilePairsFromRequest(cfg *Config, root, mode string, req groupRequestOptions) ([]FilePair, error) {
@@ -410,7 +418,11 @@ func groupFilePairsFromRequest(cfg *Config, root, mode string, req groupRequestO
 			})
 		}
 	}
-	return dedupeFilePairs(pairs), nil
+	deduped, err := dedupeFilePairs(pairs)
+	if err != nil {
+		return nil, err
+	}
+	return deduped, nil
 }
 
 func filterCurrentDirectoryScope(filePairs []FilePair, command, cwd string) ([]FilePair, error) {
@@ -469,7 +481,7 @@ func findConfiguredPair(filePairs []FilePair, targetAbs string) (FilePair, bool)
 	return FilePair{}, false
 }
 
-func dedupeFilePairs(filePairs []FilePair) []FilePair {
+func dedupeFilePairs(filePairs []FilePair) ([]FilePair, error) {
 	result := make([]FilePair, 0, len(filePairs))
 	for _, filePair := range filePairs {
 		nextPlaintext := cleanAbsPath(filePair.PlaintextPath)
@@ -477,13 +489,20 @@ func dedupeFilePairs(filePairs []FilePair) []FilePair {
 		filtered := result[:0]
 		for _, existing := range result {
 			if cleanAbsPath(existing.PlaintextPath) == nextPlaintext || cleanAbsPath(existing.EncryptedPath) == nextEncrypted {
+				// An explicitly configured file may intentionally override a scanned group pair.
+				if existing.Source == PairSourceScan && filePair.Source != PairSourceScan {
+					continue
+				}
+				if existing.Source != PairSourceScan && filePair.Source != PairSourceScan {
+					return nil, fmt.Errorf("conflicting file pairs for plaintext %q or encrypted %q", filePair.PlaintextPath, filePair.EncryptedPath)
+				}
 				continue
 			}
 			filtered = append(filtered, existing)
 		}
 		result = append(filtered, filePair)
 	}
-	return result
+	return result, nil
 }
 
 func validateFilePair(filePair FilePair) (FilePair, error) {

@@ -25,3 +25,12 @@ func TestSyncResolvedSopsYamlUsesPerFileRecipients(t *testing.T) {
 	assert.Contains(t, string(content), "age1backup,age1ops")
 	assert.Contains(t, string(content), "age1owner")
 }
+
+func TestSyncResolvedSopsYamlRejectsConflictingDuplicatePath(t *testing.T) {
+	withProjectWorkingDir(t, t.TempDir())
+	err := SyncResolvedSopsYaml([]config.ResolvedFilePair{
+		{EncryptedPath: "secret.enc.yaml", Recipients: []string{"age1owner"}},
+		{EncryptedPath: "secret.enc.yaml", Recipients: []string{"age1ops"}},
+	})
+	require.EqualError(t, err, "conflicting recipients for encrypted path secret.enc.yaml")
+}

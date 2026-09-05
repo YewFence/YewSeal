@@ -288,3 +288,11 @@ func TestResolveSelectionExplicitFileOverridesConflictingGroups(t *testing.T) {
 	assert.Equal(t, filepath.Join(root, "explicit.enc.yaml"), result.FilePairs[0].EncryptedPath)
 	assert.Equal(t, []string{"first"}, result.FilePairs[0].RecipientAliases)
 }
+
+func TestDedupeFilePairsRejectsConflictingExplicitPairs(t *testing.T) {
+	_, err := dedupeFilePairs([]FilePair{
+		{PlaintextPath: "secret.yaml", EncryptedPath: "secret.enc.yaml", Source: PairSourceExact},
+		{PlaintextPath: "secret.yaml", EncryptedPath: "other.enc.yaml", Source: PairSourceExact},
+	})
+	require.EqualError(t, err, `conflicting file pairs for plaintext "secret.yaml" or encrypted "other.enc.yaml"`)
+}
