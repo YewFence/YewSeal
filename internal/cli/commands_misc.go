@@ -37,7 +37,6 @@ func initCommand() *cobra.Command {
 
 func editCommand(cfg *config.Config, keyFile *string) *cobra.Command {
 	var file string
-	var editor string
 
 	cmd := &cobra.Command{
 		Use:   "edit",
@@ -46,13 +45,11 @@ func editCommand(cfg *config.Config, keyFile *string) *cobra.Command {
 			return yewsapp.EditEncryptedFile(yewsapp.EditRequest{
 				Config:  cfg,
 				File:    file,
-				Editor:  editor,
 				KeyFile: *keyFile,
 			})
 		},
 	}
 	cmd.Flags().StringVarP(&file, "file", "f", "", "Encrypted file to edit (must be configured in .yewseal.toml)")
-	cmd.Flags().StringVarP(&editor, "editor", "e", "", "Editor command to use (e.g., 'code -w', 'vim')")
 	return cmd
 }
 

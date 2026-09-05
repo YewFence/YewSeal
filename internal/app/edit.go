@@ -6,19 +6,16 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"runtime"
 	"strings"
 
 	"github.com/YewFence/YewSeal/internal/config"
 	"github.com/YewFence/YewSeal/internal/errx"
 	"github.com/YewFence/YewSeal/internal/seal"
-	"github.com/google/shlex"
 )
 
 type EditRequest struct {
 	Config  *config.Config
 	File    string
-	Editor  string
 	KeyFile string
 	Output  io.Writer
 }
@@ -83,7 +80,7 @@ func EditEncryptedFile(req EditRequest) error {
 	}
 
 	originalHash := sha256.Sum256(plainData)
-	editorCmd := resolveEditor(req.Editor)
+	editorCmd := resolveEditor()
 
 	_, _ = fmt.Fprintf(out, "✏️  Opening %s in %s...\n", resolved.EncryptedPath, editorCmd)
 
@@ -128,43 +125,6 @@ func EditEncryptedFile(req EditRequest) error {
 
 	_, _ = fmt.Fprintln(out, "✅ File edited and re-encrypted successfully")
 	return nil
-}
-
-func resolveEditor(editor string) string {
-	if editor != "" {
-		return editor
-	}
-	if e := os.Getenv("EDITOR"); e != "" {
-		return e
-	}
-	if e := os.Getenv("VISUAL"); e != "" {
-		return e
-	}
-	if runtime.GOOS == "windows" {
-		for _, candidate := range []string{"code -w", "notepad"} {
-			parts, err := splitEditorCommand(candidate)
-			if err != nil || len(parts) == 0 {
-				continue
-			}
-			name := parts[0]
-			if p, _ := exec.LookPath(name); p != "" {
-				return candidate
-			}
-		}
-		return "notepad"
-	}
-	return "vi"
-}
-
-func splitEditorCommand(editorCmd string) ([]string, error) {
-	parts, err := shlex.Split(editorCmd)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse editor command: %w", err)
-	}
-	if len(parts) == 0 {
-		return nil, fmt.Errorf("editor command is empty")
-	}
-	return parts, nil
 }
 
 func outputWriter(w io.Writer) io.Writer {

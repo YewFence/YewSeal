@@ -220,8 +220,8 @@ YewSeal 支持通过环境变量配置部分选项：
 | `SOPS_OUTPUT_FILE` | `encrypt`、`decrypt`、`plan` 的 `--output` 值 |
 | `YEWSEAL_FORMAT` | `encrypt`、`decrypt`、`plan` 的 `--format` 值 |
 | `SOPS_FORMAT` | `encrypt`、`decrypt`、`plan` 的 `--format` 值 |
-| `EDITOR` | `edit` 命令未传 `--editor` 时使用的编辑器 |
-| `VISUAL` | `edit` 命令在 `EDITOR` 未设置时使用的编辑器 |
+ `EDITOR` | `edit` 命令在 `VISUAL` 未设置时使用的编辑器 |
+ `VISUAL` | `edit` 命令优先使用的编辑器 |
 
 ## 最佳实践
 

@@ -41,10 +41,10 @@ sed -i "s/password = 'old'/password = 'new'/" "$1"
 	require.NoError(t, os.WriteFile(editorPath, []byte(editorScript), 0700))
 
 	var output bytes.Buffer
+	t.Setenv("VISUAL", editorPath)
 	require.NoError(t, EditEncryptedFile(EditRequest{
 		Config:  &config.Config{Recipients: config.RecipientConfig{Registry: map[string]string{"owner": env.publicKey}}, Encryption: config.EncryptionConfig{Files: []config.FilePair{{PlaintextPath: "config.toml", EncryptedPath: "config.enc.toml", Format: "toml", Recipients: ptrStrings("owner")}}}},
 		File:    "config.enc.toml",
-		Editor:  editorPath,
 		KeyFile: env.keyFile,
 		Output:  &output,
 	}))
@@ -89,10 +89,10 @@ sed -i 's/TOKEN=old/TOKEN=new/' "$1"
 		},
 	}
 
+	t.Setenv("VISUAL", editorPath)
 	require.NoError(t, EditEncryptedFile(EditRequest{
 		Config:  cfg,
 		File:    ".dev.vars.enc.yaml",
-		Editor:  editorPath,
 		KeyFile: env.keyFile,
 	}))
 
