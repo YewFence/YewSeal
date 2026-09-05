@@ -18,9 +18,6 @@ type SelectionOptions struct {
 	OutputSet            bool
 	Format               string
 	Patterns             []string
-	FormatRules          []string
-	UnknownAsBinary      bool
-	UnknownAsBinarySet   bool
 	RequireSingleTarget  bool
 	AllowEmptyTarget     bool
 	UseConfiguredDefault bool
@@ -41,11 +38,7 @@ func SelectFilePairs(cfg *Config, opts SelectionOptions) (SelectionResult, error
 		return SelectionResult{}, err
 	}
 
-	allConfigPairs, err := configuredFilePairs(cfg, opts.Command, groupRequestOptions{
-		FormatRules:        opts.FormatRules,
-		UnknownAsBinary:    opts.UnknownAsBinary,
-		UnknownAsBinarySet: opts.UnknownAsBinarySet,
-	})
+	allConfigPairs, err := configuredFilePairs(cfg, opts.Command, groupRequestOptions{})
 	if err != nil {
 		return SelectionResult{}, err
 	}
@@ -175,10 +168,7 @@ func DisplayPath(cwd, path string) string {
 }
 
 type groupRequestOptions struct {
-	Patterns           []string
-	FormatRules        []string
-	UnknownAsBinary    bool
-	UnknownAsBinarySet bool
+	Patterns []string
 }
 
 func selectTargetFilePairs(cfg *Config, allConfigPairs []FilePair, opts SelectionOptions, cliFormat string) ([]FilePair, bool, error) {
@@ -258,12 +248,6 @@ func scopedConfigGroupPairs(cfg *Config, mode string, req groupRequestOptions) (
 		if len(groupReq.Patterns) == 0 {
 			groupReq.Patterns = group.Patterns
 		}
-		formatRules := append([]string(nil), group.FormatRules...)
-		formatRules = append(formatRules, req.FormatRules...)
-		groupReq.FormatRules = formatRules
-		if !groupReq.UnknownAsBinarySet {
-			groupReq.UnknownAsBinary = group.UnknownAsBinary
-		}
 
 		groupAliases, groupRecipientSource := effectiveGroupAuthorization(cfg, group)
 		canonical := []string(nil)
@@ -277,8 +261,8 @@ func scopedConfigGroupPairs(cfg *Config, mode string, req groupRequestOptions) (
 		taskPairs, err := task.BuildProjectGroupFilePairs(task.GroupOptions{
 			Root:            root,
 			Patterns:        groupReq.Patterns,
-			FormatRules:     groupReq.FormatRules,
-			UnknownAsBinary: groupReq.UnknownAsBinary,
+			FormatRules:     group.FormatRules,
+			UnknownAsBinary: group.UnknownAsBinary,
 			Mode:            mode,
 		})
 		if err != nil {
@@ -336,10 +320,7 @@ func equalStrings(left, right []string) bool {
 
 func directoryTargetPairs(cfg *Config, root string, opts SelectionOptions) ([]FilePair, error) {
 	taskPairs, err := groupFilePairsFromRequest(cfg, root, opts.Command, groupRequestOptions{
-		Patterns:           opts.Patterns,
-		FormatRules:        opts.FormatRules,
-		UnknownAsBinary:    opts.UnknownAsBinary,
-		UnknownAsBinarySet: opts.UnknownAsBinarySet,
+		Patterns: opts.Patterns,
 	})
 	if err != nil {
 		return nil, err
@@ -379,12 +360,6 @@ func groupFilePairsFromRequest(cfg *Config, root, mode string, req groupRequestO
 		if len(req.Patterns) > 0 {
 			patterns = append([]string(nil), req.Patterns...)
 		}
-		formatRules := append([]string(nil), group.FormatRules...)
-		formatRules = append(formatRules, req.FormatRules...)
-		unknownAsBinary := group.UnknownAsBinary
-		if req.UnknownAsBinarySet {
-			unknownAsBinary = req.UnknownAsBinary
-		}
 		groupAliases, recipientSource := effectiveGroupAuthorization(cfg, group)
 		canonical := []string(nil)
 		if mode != task.ModeDecrypt && groupAliases != nil {
@@ -395,8 +370,8 @@ func groupFilePairsFromRequest(cfg *Config, root, mode string, req groupRequestO
 			}
 		}
 		groupPairs, err := task.BuildGroupFilePairs(task.GroupOptions{
-			Root: root, Patterns: patterns, FormatRules: formatRules,
-			UnknownAsBinary: unknownAsBinary, Mode: mode,
+			Root: root, Patterns: patterns, FormatRules: group.FormatRules,
+			UnknownAsBinary: group.UnknownAsBinary, Mode: mode,
 		})
 		if err != nil {
 			return nil, err

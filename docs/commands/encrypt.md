@@ -38,17 +38,7 @@ yews encrypt config.toml -o config.enc.toml
 yews encrypt .dev.vars --format env -o .dev.enc.env
 ```
 
-`--format` 只支持单文件模式。批量场景需要使用 `--format-rule` 或配置里的 `format_rules`。
-
-### --format-rule
-
-为分组扫描指定格式规则，形式是 `<pattern>=<format>`。
-
-```bash
-yews encrypt ./configs --format-rule ".dev.vars=env"
-```
-
-可以多次传入。命令行规则会追加到配置规则之后。
+`--format` 只支持单文件模式。批量场景请在配置里的 `format_rules` 中声明格式规则。
 
 ### --pattern
 
@@ -59,14 +49,6 @@ yews encrypt ./configs --pattern "*.toml" --pattern "!*.enc.toml"
 ```
 
 规则支持 `*`、`?`、`**`、以 `!` 开头的排除规则、以 `/` 开头的根目录锚定规则和以 `/` 结尾的目录规则。
-
-### --unknown-as-binary
-
-在分组扫描中，把无法识别格式的明文文件按二进制文件加密。
-
-```bash
-yews encrypt ./secrets --unknown-as-binary
-```
 
 ### --parallel, -P
 

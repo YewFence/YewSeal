@@ -13,15 +13,13 @@ yews decrypt [command options] [path] [flags]
 ### Options
 
 ```
-  -f, --force                 Force overwrite existing plaintext file when it differs from decrypted content
-      --format string         Format override for file targets (toml/yaml/json/env/ini/binary)
-      --format-rule strings   Group format rule in <pattern>=<format> form
-  -h, --help                  help for decrypt
-  -o, --output string         Output plaintext file for a single file target
-  -P, --parallel int          Number of parallel workers for batch mode (default 1)
-      --pattern strings       Pattern filter for configured groups
-      --unknown-as-binary     Allow group mode to treat unknown encrypted inputs as binary when needed
-  -v, --verbose               Enable verbose output
+  -f, --force             Force overwrite existing plaintext file when it differs from decrypted content
+      --format string     Format override for file targets (toml/yaml/json/env/ini/binary)
+  -h, --help              help for decrypt
+  -o, --output string     Output plaintext file for a single file target
+  -P, --parallel int      Number of parallel workers for batch mode (default 1)
+      --pattern strings   Pattern filter for configured groups
+  -v, --verbose           Enable verbose output
 ```
 
 ### Options inherited from parent commands

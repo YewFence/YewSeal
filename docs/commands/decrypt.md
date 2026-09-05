@@ -38,14 +38,6 @@ yews decrypt config.enc.yaml --format toml -o config.toml
 
 `--format` 只支持单文件模式。
 
-### --format-rule
-
-为分组扫描指定格式规则，形式是 `<pattern>=<format>`。
-
-```bash
-yews decrypt ./configs --format-rule ".dev.vars=env"
-```
-
 ### --pattern
 
 为配置模式或目录扫描指定匹配规则。
@@ -55,14 +47,6 @@ yews decrypt ./configs --pattern "*.toml"
 ```
 
 目录解密时，`--pattern` 匹配的是逻辑明文路径。比如 `--pattern "*.toml"` 可以选中 `config.enc.toml`。
-
-### --unknown-as-binary
-
-在分组扫描中，允许把无法识别格式的加密输入按二进制文件处理。
-
-```bash
-yews decrypt ./secrets --unknown-as-binary
-```
 
 ### --parallel, -P
 

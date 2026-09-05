@@ -17,9 +17,6 @@ type DecryptRequest struct {
 	Format                string
 	Target                string
 	Patterns              []string
-	FormatRules           []string
-	UnknownAsBinary       bool
-	UnknownAsBinarySet    bool
 	Parallel              int
 	Force                 bool
 	UpdateProjectMetadata bool

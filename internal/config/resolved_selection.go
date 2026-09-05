@@ -73,11 +73,7 @@ func ResolvePlanSelection(cfg *Config, opts SelectionOptions) (ResolvedSelection
 		if strings.TrimSpace(opts.Format) != "" {
 			return ResolvedSelection{}, fmt.Errorf("--format is only supported in single-file mode")
 		}
-		allConfigPairs, err := configuredFilePairs(cfg, task.ModeEncrypt, groupRequestOptions{
-			FormatRules:        opts.FormatRules,
-			UnknownAsBinary:    opts.UnknownAsBinary,
-			UnknownAsBinarySet: opts.UnknownAsBinarySet,
-		})
+		allConfigPairs, err := configuredFilePairs(cfg, task.ModeEncrypt, groupRequestOptions{})
 		if err != nil {
 			return ResolvedSelection{}, err
 		}

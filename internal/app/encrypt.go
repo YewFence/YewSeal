@@ -13,9 +13,6 @@ type EncryptRequest struct {
 	Format                string
 	Target                string
 	Patterns              []string
-	FormatRules           []string
-	UnknownAsBinary       bool
-	UnknownAsBinarySet    bool
 	Parallel              int
 	UpdateProjectMetadata bool
 }

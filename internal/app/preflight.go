@@ -36,9 +36,6 @@ func PreflightEncrypt(cfg *config.Config, req EncryptRequest) (PreflightResult, 
 		OutputSet:            req.OutputSet,
 		Format:               req.Format,
 		Patterns:             req.Patterns,
-		FormatRules:          req.FormatRules,
-		UnknownAsBinary:      req.UnknownAsBinary,
-		UnknownAsBinarySet:   req.UnknownAsBinarySet,
 		AllowEmptyTarget:     true,
 		UseConfiguredDefault: true,
 	})
@@ -64,9 +61,6 @@ func PreflightDecrypt(cfg *config.Config, req DecryptRequest) (PreflightResult, 
 		OutputSet:            req.OutputSet,
 		Format:               req.Format,
 		Patterns:             req.Patterns,
-		FormatRules:          req.FormatRules,
-		UnknownAsBinary:      req.UnknownAsBinary,
-		UnknownAsBinarySet:   req.UnknownAsBinarySet,
 		AllowEmptyTarget:     true,
 		UseConfiguredDefault: true,
 	})
@@ -91,28 +85,22 @@ func PreflightDecrypt(cfg *config.Config, req DecryptRequest) (PreflightResult, 
 }
 
 type PlanRequest struct {
-	Output             string
-	OutputSet          bool
-	Format             string
-	Target             string
-	Patterns           []string
-	FormatRules        []string
-	UnknownAsBinary    bool
-	UnknownAsBinarySet bool
-	Parallel           int
-	Verbose            bool
+	Output    string
+	OutputSet bool
+	Format    string
+	Target    string
+	Patterns  []string
+	Parallel  int
+	Verbose   bool
 }
 
 func PrintPlan(w io.Writer, cfg *config.Config, req PlanRequest, opts PreflightPrintOptions) error {
 	selection, err := config.ResolvePlanSelection(cfg, config.SelectionOptions{
-		Target:             req.Target,
-		Output:             req.Output,
-		OutputSet:          req.OutputSet,
-		Format:             req.Format,
-		Patterns:           req.Patterns,
-		FormatRules:        req.FormatRules,
-		UnknownAsBinary:    req.UnknownAsBinary,
-		UnknownAsBinarySet: req.UnknownAsBinarySet,
+		Target:    req.Target,
+		Output:    req.Output,
+		OutputSet: req.OutputSet,
+		Format:    req.Format,
+		Patterns:  req.Patterns,
 	})
 	if err != nil {
 		return err

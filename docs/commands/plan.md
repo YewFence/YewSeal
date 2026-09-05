@@ -32,28 +32,12 @@ yews plan config.toml -o config.enc.toml
 yews plan .dev.vars --format env
 ```
 
-### --format-rule
-
-为目录或配置分组预览格式规则。
-
-```bash
-yews plan ./configs --format-rule ".dev.vars=env"
-```
-
 ### --pattern
 
 为目录或配置模式筛选文件。
 
 ```bash
 yews plan ./configs --pattern "*.toml"
-```
-
-### --unknown-as-binary
-
-预览未知格式按二进制处理后的选择结果。
-
-```bash
-yews plan ./secrets --unknown-as-binary
 ```
 
 ### --parallel, -P
