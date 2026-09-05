@@ -55,7 +55,7 @@ func TestDiffPlaintextAgainstEncryptedTargets_NoOutputForIdenticalTarget(t *test
 	decrypted, err := seal.DecryptToBytes(seal.DecryptBytesOptions{
 		InputFile:      "config.enc.yaml",
 		OutputFile:     "config.yaml",
-		KeyFile:        env.keyFile,
+		IdentityBundle: mustTestBundle(t, env.keyFile),
 		FormatOverride: "yaml",
 	})
 	require.NoError(t, err)

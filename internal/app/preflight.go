@@ -15,7 +15,7 @@ import (
 
 type PreflightResult struct {
 	Selection      config.ResolvedSelection
-	IdentityBundle string
+	IdentityBundle agekey.IdentityBundle
 	Parallel       int
 	Force          bool
 	Verbose        bool
@@ -75,7 +75,7 @@ func PreflightDecrypt(cfg *config.Config, req DecryptRequest) (PreflightResult, 
 	metadataPairs, metadataScope := metadataPairsForSelection(selection)
 	return PreflightResult{
 		Selection:      selection,
-		IdentityBundle: identityBundle.String(),
+		IdentityBundle: identityBundle,
 		Parallel:       req.Parallel,
 		Force:          req.Force,
 		Verbose:        req.Verbose,

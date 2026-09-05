@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"filippo.io/age"
+	"github.com/YewFence/YewSeal/internal/agekey"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -20,14 +21,14 @@ func TestEncryptAndDecryptRequireResolvedFilePairs(t *testing.T) {
 }
 
 func TestEncryptDecryptFilePairsWithFormatOverride(t *testing.T) {
-	keyFile, publicKey := setupBatchTestEnv(t)
+	_, publicKey, bundle := setupBatchTestEnv(t)
 	require.NoError(t, os.WriteFile(".dev.vars", []byte("TOKEN=secret\n"), 0644))
 
 	encSummary, err := Encrypt(Options{
 		FilePairs: []FilePair{
 			{PlaintextPath: ".dev.vars", EncryptedPath: ".dev.vars.enc.yaml", Format: "env", Recipients: []string{publicKey}},
 		},
-		KeyFile: keyFile,
+		IdentityBundle: bundle,
 	})
 	require.NoError(t, err)
 	assert.Equal(t, 1, encSummary.SuccessCount)
@@ -37,7 +38,7 @@ func TestEncryptDecryptFilePairsWithFormatOverride(t *testing.T) {
 		FilePairs: []FilePair{
 			{PlaintextPath: ".dev.vars", EncryptedPath: ".dev.vars.enc.yaml", Format: "env"},
 		},
-		KeyFile: keyFile,
+		IdentityBundle: bundle,
 	})
 	require.NoError(t, err)
 	assert.Equal(t, 1, decSummary.SuccessCount)
@@ -47,7 +48,7 @@ func TestEncryptDecryptFilePairsWithFormatOverride(t *testing.T) {
 	assert.Equal(t, "TOKEN=secret\n", string(content))
 }
 
-func setupBatchTestEnv(t *testing.T) (string, string) {
+func setupBatchTestEnv(t *testing.T) (string, string, agekey.IdentityBundle) {
 	t.Helper()
 
 	tempDir := t.TempDir()
@@ -71,5 +72,7 @@ func setupBatchTestEnv(t *testing.T) (string, string) {
 		identity.String(),
 	)
 	require.NoError(t, os.WriteFile(keyFile, []byte(keyContent), 0600))
-	return keyFile, publicKey
+	bundle, err := agekey.GetIdentityBundle(keyFile)
+	require.NoError(t, err)
+	return keyFile, publicKey, bundle
 }

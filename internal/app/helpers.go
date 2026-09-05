@@ -54,14 +54,14 @@ func WriteViewedTarget(w io.Writer, cfg *config.Config, target, keyFile, cliForm
 	return nil
 }
 
-func resolveIdentityBundle(cfg *config.Config, explicitKeyFile string) (string, error) {
+func resolveIdentityBundle(cfg *config.Config, explicitKeyFile string) (agekey.IdentityBundle, error) {
 	fallback := ""
 	if cfg != nil {
 		fallback = cfg.GetKeyFile("")
 	}
 	bundle, err := agekey.GetIdentityBundleWithFallback(explicitKeyFile, fallback)
 	if err != nil {
-		return "", err
+		return agekey.IdentityBundle{}, err
 	}
-	return bundle.String(), nil
+	return bundle, nil
 }

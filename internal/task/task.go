@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/YewFence/YewSeal/internal/agekey"
 	"github.com/YewFence/YewSeal/internal/seal"
 )
 
@@ -17,8 +18,7 @@ type FilePair struct {
 }
 
 type Options struct {
-	KeyFile        string
-	IdentityBundle string
+	IdentityBundle agekey.IdentityBundle
 	Parallel       int
 	Verbose        bool
 	Force          bool
@@ -87,7 +87,6 @@ func Decrypt(opts Options) (*Summary, error) {
 		return seal.Decrypt(seal.DecryptOptions{
 			InputFile:      pair.EncryptedPath,
 			OutputFile:     pair.PlaintextPath,
-			KeyFile:        opts.KeyFile,
 			IdentityBundle: opts.IdentityBundle,
 			FormatOverride: pair.Format,
 			Verbose:        opts.Verbose,

@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/YewFence/YewSeal/internal/agekey"
 	"github.com/YewFence/YewSeal/internal/config"
 	"github.com/YewFence/YewSeal/internal/seal"
 	"github.com/stretchr/testify/assert"
@@ -49,7 +50,7 @@ sed -i "s/password = 'old'/password = 'new'/" "$1"
 	decrypted, err := seal.DecryptToBytes(seal.DecryptBytesOptions{
 		InputFile:      "config.enc.toml",
 		OutputFile:     "config.toml",
-		KeyFile:        env.keyFile,
+		IdentityBundle: mustTestBundle(t, env.keyFile),
 		FormatOverride: "toml",
 	})
 	require.NoError(t, err)
@@ -95,7 +96,7 @@ sed -i 's/TOKEN=old/TOKEN=new/' "$1"
 	decrypted, err := seal.DecryptToBytes(seal.DecryptBytesOptions{
 		InputFile:      ".dev.vars.enc.yaml",
 		OutputFile:     ".dev.vars",
-		KeyFile:        env.keyFile,
+		IdentityBundle: mustTestBundle(t, env.keyFile),
 		FormatOverride: "env",
 	})
 	require.NoError(t, err)
@@ -111,4 +112,11 @@ func TestSplitEditorCommandPreservesQuotedExecutable(t *testing.T) {
 	parts, err := splitEditorCommand(`"/Applications/Sublime Text.app/Contents/SharedSupport/bin/subl" -w`)
 	require.NoError(t, err)
 	assert.Equal(t, []string{"/Applications/Sublime Text.app/Contents/SharedSupport/bin/subl", "-w"}, parts)
+}
+
+func mustTestBundle(t *testing.T, path string) agekey.IdentityBundle {
+	t.Helper()
+	b, err := agekey.GetIdentityBundle(path)
+	require.NoError(t, err)
+	return b
 }

@@ -23,8 +23,7 @@ type EncryptOptions struct {
 type DecryptOptions struct {
 	InputFile      string
 	OutputFile     string
-	KeyFile        string
-	IdentityBundle string
+	IdentityBundle agekey.IdentityBundle
 	FormatOverride string
 	Verbose        bool
 	Force          bool
@@ -34,8 +33,7 @@ type DecryptOptions struct {
 type DecryptBytesOptions struct {
 	InputFile      string
 	OutputFile     string
-	KeyFile        string
-	IdentityBundle string
+	IdentityBundle agekey.IdentityBundle
 	FormatOverride string
 	Verbose        bool
 	Output         io.Writer
@@ -122,7 +120,6 @@ func Decrypt(opts DecryptOptions) error {
 	plainData, err := DecryptToBytes(DecryptBytesOptions{
 		InputFile:      opts.InputFile,
 		OutputFile:     opts.OutputFile,
-		KeyFile:        opts.KeyFile,
 		IdentityBundle: opts.IdentityBundle,
 		FormatOverride: opts.FormatOverride,
 		Verbose:        opts.Verbose,
@@ -157,14 +154,10 @@ func DecryptToBytes(opts DecryptBytesOptions) ([]byte, error) {
 		_, _ = fmt.Fprintln(out, "🔓 Decrypting with SOPS...")
 	}
 
-	privateKey := opts.IdentityBundle
-	if privateKey == "" {
-		identityBundle, err := agekey.GetIdentityBundle(opts.KeyFile)
-		if err != nil {
-			return nil, err
-		}
-		privateKey = identityBundle.String()
+	if len(opts.IdentityBundle.Identities()) == 0 {
+		return nil, fmt.Errorf("identity bundle is required")
 	}
+	privateKey := opts.IdentityBundle.String()
 
 	encData, err := os.ReadFile(opts.InputFile)
 	if err != nil {
