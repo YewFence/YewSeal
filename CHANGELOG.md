@@ -1,3 +1,14 @@
+## [0.8.0] - 2026-09-05
+
+### 🚀 Features
+
+- [**breaking**] Recipient authorization (#12)
+- *(edit)* [**breaking**] Replace --editor flag with VISUAL/EDITOR and safe parsing
+- Add renovate conf
+
+### ⚙️ Miscellaneous Tasks
+
+- Bump go deps
 ## [0.7.0] - 2026-08-23
 
 ### 🚀 Features
