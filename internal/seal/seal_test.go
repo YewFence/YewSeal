@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"filippo.io/age"
+	"github.com/YewFence/YewSeal/internal/agekey"
 	"github.com/YewFence/YewSeal/internal/errx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -18,6 +19,7 @@ import (
 type testEnv struct {
 	keyFile   string
 	publicKey string
+	bundle    agekey.IdentityBundle
 }
 
 func setupTestEnv(t *testing.T) testEnv {
@@ -46,7 +48,9 @@ func setupTestEnv(t *testing.T) testEnv {
 	)
 	require.NoError(t, os.WriteFile(keyFile, []byte(keyContent), 0600))
 
-	return testEnv{keyFile: keyFile, publicKey: publicKey}
+	bundle, err := agekey.GetIdentityBundle(keyFile)
+	require.NoError(t, err)
+	return testEnv{keyFile: keyFile, publicKey: publicKey, bundle: bundle}
 }
 
 func captureStdout(t *testing.T, fn func()) string {
@@ -79,8 +83,7 @@ func TestEncryptDecryptYAMLRoundTrip(t *testing.T) {
 	require.NoError(t, Encrypt(EncryptOptions{
 		InputFile:      "config.yaml",
 		OutputFile:     "config.enc.yaml",
-		KeyFile:        env.keyFile,
-		PublicKey:      env.publicKey,
+		Recipients:     []string{env.publicKey},
 		FormatOverride: "yaml",
 	}))
 
@@ -88,7 +91,7 @@ func TestEncryptDecryptYAMLRoundTrip(t *testing.T) {
 	require.NoError(t, Decrypt(DecryptOptions{
 		InputFile:      "config.enc.yaml",
 		OutputFile:     "config.yaml",
-		KeyFile:        env.keyFile,
+		IdentityBundle: env.bundle,
 		FormatOverride: "yaml",
 	}))
 
@@ -108,15 +111,14 @@ func TestDecryptToBytesDoesNotWriteOutput(t *testing.T) {
 	require.NoError(t, Encrypt(EncryptOptions{
 		InputFile:      "config.yaml",
 		OutputFile:     "config.enc.yaml",
-		KeyFile:        env.keyFile,
-		PublicKey:      env.publicKey,
+		Recipients:     []string{env.publicKey},
 		FormatOverride: "yaml",
 	}))
 
 	plainData, err := DecryptToBytes(DecryptBytesOptions{
 		InputFile:      "config.enc.yaml",
 		OutputFile:     "view.yaml",
-		KeyFile:        env.keyFile,
+		IdentityBundle: env.bundle,
 		FormatOverride: "yaml",
 	})
 	require.NoError(t, err)
@@ -136,8 +138,7 @@ func TestEncryptVerboseWritesToProvidedOutput(t *testing.T) {
 		encryptErr = Encrypt(EncryptOptions{
 			InputFile:      "config.yaml",
 			OutputFile:     "config.enc.yaml",
-			KeyFile:        env.keyFile,
-			PublicKey:      env.publicKey,
+			Recipients:     []string{env.publicKey},
 			FormatOverride: "yaml",
 			Verbose:        true,
 			Output:         &output,
@@ -146,7 +147,6 @@ func TestEncryptVerboseWritesToProvidedOutput(t *testing.T) {
 
 	require.NoError(t, encryptErr)
 	assert.Empty(t, stdout)
-	assert.Contains(t, output.String(), "Using public key from command-line parameter")
 	assert.Contains(t, output.String(), "Encrypted config.yaml")
 }
 
@@ -156,8 +156,7 @@ func TestDecryptRefusesToOverwriteDifferentPlaintextUnlessForced(t *testing.T) {
 	require.NoError(t, Encrypt(EncryptOptions{
 		InputFile:      "config.yaml",
 		OutputFile:     "config.enc.yaml",
-		KeyFile:        env.keyFile,
-		PublicKey:      env.publicKey,
+		Recipients:     []string{env.publicKey},
 		FormatOverride: "yaml",
 	}))
 	require.NoError(t, os.WriteFile("config.yaml", []byte("secret: local\n"), 0644))
@@ -165,7 +164,7 @@ func TestDecryptRefusesToOverwriteDifferentPlaintextUnlessForced(t *testing.T) {
 	err := Decrypt(DecryptOptions{
 		InputFile:      "config.enc.yaml",
 		OutputFile:     "config.yaml",
-		KeyFile:        env.keyFile,
+		IdentityBundle: env.bundle,
 		FormatOverride: "yaml",
 	})
 	require.Error(t, err)
@@ -176,7 +175,7 @@ func TestDecryptRefusesToOverwriteDifferentPlaintextUnlessForced(t *testing.T) {
 	require.NoError(t, Decrypt(DecryptOptions{
 		InputFile:      "config.enc.yaml",
 		OutputFile:     "config.yaml",
-		KeyFile:        env.keyFile,
+		IdentityBundle: env.bundle,
 		FormatOverride: "yaml",
 		Force:          true,
 	}))
@@ -197,8 +196,7 @@ func TestDecryptTightensMatchingPlaintextPermissions(t *testing.T) {
 	require.NoError(t, Encrypt(EncryptOptions{
 		InputFile:      "config.yaml",
 		OutputFile:     "config.enc.yaml",
-		KeyFile:        env.keyFile,
-		PublicKey:      env.publicKey,
+		Recipients:     []string{env.publicKey},
 		FormatOverride: "yaml",
 	}))
 	require.NoError(t, os.WriteFile("config.yaml", plain, 0644))
@@ -206,7 +204,7 @@ func TestDecryptTightensMatchingPlaintextPermissions(t *testing.T) {
 	require.NoError(t, Decrypt(DecryptOptions{
 		InputFile:      "config.enc.yaml",
 		OutputFile:     "config.yaml",
-		KeyFile:        env.keyFile,
+		IdentityBundle: env.bundle,
 		FormatOverride: "yaml",
 	}))
 
@@ -223,8 +221,7 @@ func TestEncryptUnknownFormatFailsWithBinaryHint(t *testing.T) {
 	err := Encrypt(EncryptOptions{
 		InputFile:  "secret.blob",
 		OutputFile: "secret.blob.enc",
-		KeyFile:    env.keyFile,
-		PublicKey:  env.publicKey,
+		Recipients: []string{env.publicKey},
 	})
 
 	require.Error(t, err)
@@ -239,17 +236,16 @@ func TestDecryptToBytesUnknownFormatFailsWithBinaryHint(t *testing.T) {
 	require.NoError(t, Encrypt(EncryptOptions{
 		InputFile:      "secret.vars",
 		OutputFile:     "secret.vars.enc",
-		KeyFile:        env.keyFile,
-		PublicKey:      env.publicKey,
+		Recipients:     []string{env.publicKey},
 		FormatOverride: "binary",
 	}))
 
 	var decryptErr error
 	stdout := captureStdout(t, func() {
 		_, decryptErr = DecryptToBytes(DecryptBytesOptions{
-			InputFile:  "secret.vars.enc",
-			OutputFile: "secret.vars",
-			KeyFile:    env.keyFile,
+			InputFile:      "secret.vars.enc",
+			OutputFile:     "secret.vars",
+			IdentityBundle: env.bundle,
 		})
 	})
 
@@ -267,15 +263,14 @@ func TestEncryptDecryptBinaryOverrideRoundTrip(t *testing.T) {
 	require.NoError(t, Encrypt(EncryptOptions{
 		InputFile:      "secret.vars",
 		OutputFile:     "secret.vars.enc",
-		KeyFile:        env.keyFile,
-		PublicKey:      env.publicKey,
+		Recipients:     []string{env.publicKey},
 		FormatOverride: "binary",
 	}))
 	require.NoError(t, os.Remove("secret.vars"))
 	require.NoError(t, Decrypt(DecryptOptions{
 		InputFile:      "secret.vars.enc",
 		OutputFile:     "secret.vars",
-		KeyFile:        env.keyFile,
+		IdentityBundle: env.bundle,
 		FormatOverride: "binary",
 	}))
 
@@ -291,8 +286,7 @@ func TestEncryptInvalidFormatOverride(t *testing.T) {
 	err := Encrypt(EncryptOptions{
 		InputFile:      "config.yaml",
 		OutputFile:     "config.enc.yaml",
-		KeyFile:        env.keyFile,
-		PublicKey:      env.publicKey,
+		Recipients:     []string{env.publicKey},
 		FormatOverride: "xml",
 	})
 	require.Error(t, err)

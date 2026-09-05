@@ -118,33 +118,3 @@ func TestAgeKeyNotFoundError(t *testing.T) {
 		assert.Equal(t, "no Age key found. Options: SOPS_AGE_KEY, .age/keys.txt", err.Error())
 	})
 }
-
-func TestPublicKeyNotFoundError(t *testing.T) {
-	t.Run("uses default tried list with cause", func(t *testing.T) {
-		cause := errors.New("invalid key")
-		err := &PublicKeyNotFoundError{
-			KeyFile: ".age/keys.txt",
-			Cause:   cause,
-		}
-
-		assert.Equal(
-			t,
-			"no public key found. Tried: CLI parameter, SOPS_AGE_RECIPIENTS env, .yewseal.toml config, and extracting from private key file, and extracting from .age/keys.txt (failed: invalid key). Please run 'yews init' or provide --public-key",
-			err.Error(),
-		)
-		assert.ErrorIs(t, err, cause)
-	})
-
-	t.Run("uses custom tried list without cause", func(t *testing.T) {
-		err := &PublicKeyNotFoundError{
-			KeyFile: ".age/keys.txt",
-			Tried:   []string{"CLI parameter", "config file"},
-		}
-
-		assert.Equal(
-			t,
-			"no public key found. Tried: CLI parameter, config file, and extracting from .age/keys.txt (no valid public key found). Please run 'yews init' or provide --public-key",
-			err.Error(),
-		)
-	})
-}

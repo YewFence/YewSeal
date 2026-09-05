@@ -53,11 +53,14 @@ func storeForFormat(format string) (sops.Store, error) {
 	}
 }
 
-// Encrypt encrypts plain data for a single age recipient.
-func Encrypt(plainData []byte, format, ageRecipient string) ([]byte, error) {
+// Encrypt encrypts plain data for one or more age recipients.
+func Encrypt(plainData []byte, format string, ageRecipients []string) ([]byte, error) {
 	store, err := storeForFormat(format)
 	if err != nil {
 		return nil, err
+	}
+	if len(ageRecipients) == 0 {
+		return nil, fmt.Errorf("at least one age recipient is required")
 	}
 
 	// Load plain data into tree branches
@@ -66,10 +69,13 @@ func Encrypt(plainData []byte, format, ageRecipient string) ([]byte, error) {
 		return nil, fmt.Errorf("failed to load plain data: %w", err)
 	}
 
-	// Create age master key from recipient
-	masterKey, err := sopsage.MasterKeyFromRecipient(ageRecipient)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create age master key: %w", err)
+	masterKeys := make(sops.KeyGroup, 0, len(ageRecipients))
+	for _, recipient := range ageRecipients {
+		masterKey, err := sopsage.MasterKeyFromRecipient(recipient)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create age master key: %w", err)
+		}
+		masterKeys = append(masterKeys, masterKey)
 	}
 
 	// Generate random 32-byte data key
@@ -78,19 +84,19 @@ func Encrypt(plainData []byte, format, ageRecipient string) ([]byte, error) {
 		return nil, fmt.Errorf("failed to generate data key: %w", err)
 	}
 
-	// Encrypt data key with age master key
-	if err := masterKey.Encrypt(dataKey); err != nil {
-		return nil, fmt.Errorf("failed to encrypt data key with age: %w", err)
+	// Encrypt data key for every recipient.
+	for _, masterKey := range masterKeys {
+		if err := masterKey.Encrypt(dataKey); err != nil {
+			return nil, fmt.Errorf("failed to encrypt data key with age: %w", err)
+		}
 	}
 
 	// Build tree with metadata
 	tree := sops.Tree{
 		Branches: branches,
 		Metadata: sops.Metadata{
-			KeyGroups: []sops.KeyGroup{
-				{masterKey},
-			},
-			Version: sopsVersion,
+			KeyGroups: []sops.KeyGroup{masterKeys},
+			Version:   sopsVersion,
 		},
 	}
 

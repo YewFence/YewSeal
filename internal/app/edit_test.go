@@ -6,11 +6,14 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/YewFence/YewSeal/internal/agekey"
 	"github.com/YewFence/YewSeal/internal/config"
 	"github.com/YewFence/YewSeal/internal/seal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func ptrStrings(values ...string) *[]string { return &values }
 
 func TestEditEncryptedFileTOMLRoundTrip(t *testing.T) {
 	env := newAppCryptoTestEnv(t)
@@ -22,8 +25,7 @@ password = "old"
 	require.NoError(t, seal.Encrypt(seal.EncryptOptions{
 		InputFile:      "config.toml",
 		OutputFile:     "config.enc.toml",
-		KeyFile:        env.keyFile,
-		PublicKey:      env.publicKey,
+		Recipients:     []string{env.publicKey},
 		FormatOverride: "toml",
 	}))
 
@@ -40,7 +42,7 @@ sed -i "s/password = 'old'/password = 'new'/" "$1"
 
 	var output bytes.Buffer
 	require.NoError(t, EditEncryptedFile(EditRequest{
-		Config:  config.DefaultConfig(),
+		Config:  &config.Config{Recipients: config.RecipientConfig{Registry: map[string]string{"owner": env.publicKey}}, Encryption: config.EncryptionConfig{Files: []config.FilePair{{PlaintextPath: "config.toml", EncryptedPath: "config.enc.toml", Format: "toml", Recipients: ptrStrings("owner")}}}},
 		File:    "config.enc.toml",
 		Editor:  editorPath,
 		KeyFile: env.keyFile,
@@ -50,7 +52,7 @@ sed -i "s/password = 'old'/password = 'new'/" "$1"
 	decrypted, err := seal.DecryptToBytes(seal.DecryptBytesOptions{
 		InputFile:      "config.enc.toml",
 		OutputFile:     "config.toml",
-		KeyFile:        env.keyFile,
+		IdentityBundle: mustTestBundle(t, env.keyFile),
 		FormatOverride: "toml",
 	})
 	require.NoError(t, err)
@@ -63,8 +65,7 @@ func TestEditEncryptedFileUsesConfiguredFormat(t *testing.T) {
 	require.NoError(t, seal.Encrypt(seal.EncryptOptions{
 		InputFile:      ".dev.vars",
 		OutputFile:     ".dev.vars.enc.yaml",
-		KeyFile:        env.keyFile,
-		PublicKey:      env.publicKey,
+		Recipients:     []string{env.publicKey},
 		FormatOverride: "env",
 	}))
 
@@ -80,9 +81,10 @@ sed -i 's/TOKEN=old/TOKEN=new/' "$1"
 	require.NoError(t, os.WriteFile(editorPath, []byte(editorScript), 0700))
 
 	cfg := &config.Config{
+		Recipients: config.RecipientConfig{Registry: map[string]string{"owner": env.publicKey}},
 		Encryption: config.EncryptionConfig{
 			Files: []config.FilePair{
-				{PlaintextPath: ".dev.vars", EncryptedPath: ".dev.vars.enc.yaml", Format: "env"},
+				{PlaintextPath: ".dev.vars", EncryptedPath: ".dev.vars.enc.yaml", Format: "env", Recipients: ptrStrings("owner")},
 			},
 		},
 	}
@@ -97,11 +99,16 @@ sed -i 's/TOKEN=old/TOKEN=new/' "$1"
 	decrypted, err := seal.DecryptToBytes(seal.DecryptBytesOptions{
 		InputFile:      ".dev.vars.enc.yaml",
 		OutputFile:     ".dev.vars",
-		KeyFile:        env.keyFile,
+		IdentityBundle: mustTestBundle(t, env.keyFile),
 		FormatOverride: "env",
 	})
 	require.NoError(t, err)
 	assert.Equal(t, "TOKEN=new\n", string(decrypted))
+}
+
+func TestEditEncryptedFileRequiresConfiguredTarget(t *testing.T) {
+	err := EditEncryptedFile(EditRequest{Config: &config.Config{}})
+	require.EqualError(t, err, "edit requires exactly one configured target")
 }
 
 func TestSplitEditorCommandPreservesQuotedExecutable(t *testing.T) {
@@ -110,95 +117,9 @@ func TestSplitEditorCommandPreservesQuotedExecutable(t *testing.T) {
 	assert.Equal(t, []string{"/Applications/Sublime Text.app/Contents/SharedSupport/bin/subl", "-w"}, parts)
 }
 
-func TestResolveEncryptedTarget(t *testing.T) {
-	cfg := &config.Config{
-		Encryption: config.EncryptionConfig{
-			Files: []config.FilePair{
-				{PlaintextPath: ".dev.vars", EncryptedPath: ".dev.vars.enc.yaml", Format: "env"},
-			},
-		},
-	}
-
-	configured, err := ResolveEncryptedTarget(cfg, ".dev.vars.enc.yaml", "edit")
+func mustTestBundle(t *testing.T, path string) agekey.IdentityBundle {
+	t.Helper()
+	b, err := agekey.GetIdentityBundle(path)
 	require.NoError(t, err)
-	assert.Equal(t, ".dev.vars", configured.PlaintextPath)
-	assert.Equal(t, ".dev.vars.enc.yaml", configured.EncryptedPath)
-	assert.Equal(t, "env", configured.FormatOverride)
-	assert.Equal(t, "env", configured.Format)
-
-	inferred, err := ResolveEncryptedTarget(config.DefaultConfig(), "config.enc.toml", "edit")
-	require.NoError(t, err)
-	assert.Equal(t, "config.toml", inferred.PlaintextPath)
-	assert.Equal(t, "config.enc.toml", inferred.EncryptedPath)
-	assert.Equal(t, "toml", inferred.FormatOverride)
-	assert.Equal(t, "toml", inferred.Format)
-}
-
-func TestResolveEncryptedTargetWithOverrides_OutputOverridesConfiguredPlaintextPath(t *testing.T) {
-	cfg := &config.Config{
-		Encryption: config.EncryptionConfig{
-			Files: []config.FilePair{
-				{PlaintextPath: ".dev.vars", EncryptedPath: ".dev.vars.enc.yaml", Format: "env"},
-			},
-		},
-	}
-
-	target, err := ResolveEncryptedTargetWithOverrides(cfg, ".dev.vars.enc.yaml", "decrypt", "", "local.env")
-	require.NoError(t, err)
-	assert.Equal(t, "local.env", target.PlaintextPath)
-	assert.Equal(t, ".dev.vars.enc.yaml", target.EncryptedPath)
-	assert.Equal(t, "env", target.FormatOverride)
-	assert.Equal(t, "env", target.Format)
-}
-
-func TestResolveEncryptedTargetWithOverrides_OutputDoesNotChangeConfiguredFormat(t *testing.T) {
-	cfg := &config.Config{
-		Encryption: config.EncryptionConfig{
-			Files: []config.FilePair{
-				{PlaintextPath: "config.yaml", EncryptedPath: "config.enc.yaml"},
-			},
-		},
-	}
-
-	target, err := ResolveEncryptedTargetWithOverrides(cfg, "config.enc.yaml", "decrypt", "", "custom")
-	require.NoError(t, err)
-	assert.Equal(t, "custom", target.PlaintextPath)
-	assert.Equal(t, "config.enc.yaml", target.EncryptedPath)
-	assert.Equal(t, "yaml", target.FormatOverride)
-	assert.Equal(t, "yaml", target.Format)
-}
-
-func TestResolveEncryptedTargetWithOverrides_AcceptsConfiguredPlaintextSide(t *testing.T) {
-	cfg := &config.Config{
-		Encryption: config.EncryptionConfig{
-			Files: []config.FilePair{
-				{PlaintextPath: ".dev.vars", EncryptedPath: ".dev.vars.enc.yaml", Format: "env"},
-			},
-		},
-	}
-
-	target, err := ResolveEncryptedTargetWithOverrides(cfg, ".dev.vars", "decrypt", "", "")
-	require.NoError(t, err)
-	assert.Equal(t, ".dev.vars", target.PlaintextPath)
-	assert.Equal(t, ".dev.vars.enc.yaml", target.EncryptedPath)
-	assert.Equal(t, "env", target.FormatOverride)
-	assert.Equal(t, "env", target.Format)
-}
-
-func TestResolveEncryptedTargetWithOverrides_FormatOverridesProtocol(t *testing.T) {
-	target, err := ResolveEncryptedTargetWithOverrides(config.DefaultConfig(), "config.enc.yaml", "decrypt", "toml", "")
-	require.NoError(t, err)
-	assert.Equal(t, "config.toml", target.PlaintextPath)
-	assert.Equal(t, "config.enc.yaml", target.EncryptedPath)
-	assert.Equal(t, "toml", target.FormatOverride)
-	assert.Equal(t, "toml", target.Format)
-}
-
-func TestResolveEncryptedTargetWithOverrides_OutputDoesNotChangeProtocolFormat(t *testing.T) {
-	target, err := ResolveEncryptedTargetWithOverrides(config.DefaultConfig(), "config.enc.yaml", "decrypt", "", "custom")
-	require.NoError(t, err)
-	assert.Equal(t, "custom", target.PlaintextPath)
-	assert.Equal(t, "config.enc.yaml", target.EncryptedPath)
-	assert.Equal(t, "yaml", target.FormatOverride)
-	assert.Equal(t, "yaml", target.Format)
+	return b
 }

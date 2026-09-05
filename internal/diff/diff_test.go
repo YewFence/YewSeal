@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"filippo.io/age"
+	"github.com/YewFence/YewSeal/internal/agekey"
 	"github.com/YewFence/YewSeal/internal/seal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -44,8 +45,7 @@ func TestPlaintextAgainstEncrypted(t *testing.T) {
 	require.NoError(t, seal.Encrypt(seal.EncryptOptions{
 		InputFile:      "config.yaml",
 		OutputFile:     "config.enc.yaml",
-		KeyFile:        keyFile,
-		PublicKey:      publicKey,
+		Recipients:     []string{publicKey},
 		FormatOverride: "yaml",
 	}))
 	require.NoError(t, os.WriteFile("config.yaml", []byte("database:\n  host: local-change\n"), 0644))
@@ -53,7 +53,7 @@ func TestPlaintextAgainstEncrypted(t *testing.T) {
 	result, err := PlaintextAgainstEncrypted(Options{
 		PlaintextFile:  "config.yaml",
 		EncryptedFile:  "config.enc.yaml",
-		KeyFile:        keyFile,
+		IdentityBundle: mustBundle(t, keyFile),
 		FormatOverride: "yaml",
 	})
 	require.NoError(t, err)
@@ -88,4 +88,11 @@ func setupDiffTestEnv(t *testing.T) (string, string) {
 	)
 	require.NoError(t, os.WriteFile(keyFile, []byte(keyContent), 0600))
 	return keyFile, publicKey
+}
+
+func mustBundle(t *testing.T, path string) agekey.IdentityBundle {
+	t.Helper()
+	b, err := agekey.GetIdentityBundle(path)
+	require.NoError(t, err)
+	return b
 }

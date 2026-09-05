@@ -7,17 +7,12 @@ import (
 )
 
 type EncryptRequest struct {
-	KeyFile               string
-	PublicKey             string
 	Verbose               bool
 	Output                string
 	OutputSet             bool
 	Format                string
 	Target                string
 	Patterns              []string
-	FormatRules           []string
-	UnknownAsBinary       bool
-	UnknownAsBinarySet    bool
 	Parallel              int
 	UpdateProjectMetadata bool
 }
@@ -33,7 +28,8 @@ func EncryptFiles(cfg *config.Config, req EncryptRequest) error {
 		if err := project.UpdateGitignore(metadataDisplayPairs); err != nil {
 			return err
 		}
-		if err := project.SyncSopsYaml(metadataDisplayPairs, preflight.PublicKey); err != nil {
+		metadataResolvedDisplay := config.DisplayResolvedFilePairs(preflight.MetadataPairs, config.CurrentDir(cfg))
+		if err := project.SyncResolvedSopsYaml(metadataResolvedDisplay); err != nil {
 			return err
 		}
 	}
@@ -41,8 +37,6 @@ func EncryptFiles(cfg *config.Config, req EncryptRequest) error {
 	printResolvedSelection(req.Verbose, cfg, preflight.Selection)
 	opts := task.Options{
 		FilePairs: config.ResolvedFilePairsToTaskPairs(preflight.Selection.FilePairs),
-		KeyFile:   req.KeyFile,
-		PublicKey: preflight.PublicKey,
 		Parallel:  req.Parallel,
 		Verbose:   req.Verbose,
 	}

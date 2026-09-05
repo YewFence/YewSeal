@@ -46,6 +46,11 @@ type ResolvedFilePair struct {
 	PlaintextSource ValueSource
 	EncryptedSource ValueSource
 	FormatSource    ValueSource
+
+	RecipientAliases []string
+	Recipients       []string
+	RecipientInfo    RecipientProvenance
+	RecipientWarning string
 }
 
 type ResolvedSelection struct {
@@ -60,6 +65,7 @@ type ResolvedSelection struct {
 }
 
 func ResolvePlanSelection(cfg *Config, opts SelectionOptions) (ResolvedSelection, error) {
+	opts.StrictRecipients = true
 	if strings.TrimSpace(opts.Target) == "" {
 		if opts.OutputSet {
 			return ResolvedSelection{}, fmt.Errorf("--output is only supported when the path target is a file")
@@ -67,18 +73,11 @@ func ResolvePlanSelection(cfg *Config, opts SelectionOptions) (ResolvedSelection
 		if strings.TrimSpace(opts.Format) != "" {
 			return ResolvedSelection{}, fmt.Errorf("--format is only supported in single-file mode")
 		}
-		allConfigPairs, err := configuredFilePairs(cfg, task.ModeEncrypt, groupRequestOptions{
-			FormatRules:        opts.FormatRules,
-			UnknownAsBinary:    opts.UnknownAsBinary,
-			UnknownAsBinarySet: opts.UnknownAsBinarySet,
-		})
+		allConfigPairs, err := configuredFilePairs(cfg, task.ModeEncrypt, groupRequestOptions{})
 		if err != nil {
 			return ResolvedSelection{}, err
 		}
-		if len(allConfigPairs) == 0 && opts.UseConfiguredDefault {
-			allConfigPairs = cfg.GetFiles()
-		}
-		allResolved, err := resolveFilePairs(allConfigPairs, opts, SelectionResult{}, true)
+		allResolved, err := resolveFilePairs(cfg, allConfigPairs, opts, SelectionResult{}, true)
 		if err != nil {
 			return ResolvedSelection{}, err
 		}
@@ -132,11 +131,11 @@ func ResolveSelection(cfg *Config, opts SelectionOptions) (ResolvedSelection, er
 		return ResolvedSelection{}, err
 	}
 
-	allConfigPairs, err := resolveFilePairs(result.AllConfigPairs, opts, result, true)
+	allConfigPairs, err := resolveFilePairs(cfg, result.AllConfigPairs, opts, result, true)
 	if err != nil {
 		return ResolvedSelection{}, err
 	}
-	selected, err := resolveFilePairs(result.FilePairs, opts, result, false)
+	selected, err := resolveFilePairs(cfg, result.FilePairs, opts, result, false)
 	if err != nil {
 		return ResolvedSelection{}, err
 	}
@@ -175,6 +174,7 @@ func ResolvedFilePairsToFilePairs(filePairs []ResolvedFilePair) []FilePair {
 			PlaintextPath: filePair.PlaintextPath,
 			EncryptedPath: filePair.EncryptedPath,
 			Format:        filePair.Format,
+			Recipients:    cloneStringSlicePtr(filePair.RecipientAliases),
 			ConfigPath:    filePair.ConfigPath,
 		})
 	}
@@ -188,6 +188,7 @@ func ResolvedFilePairsToTaskPairs(filePairs []ResolvedFilePair) []task.FilePair 
 			PlaintextPath: filePair.PlaintextPath,
 			EncryptedPath: filePair.EncryptedPath,
 			Format:        filePair.Format,
+			Recipients:    append([]string(nil), filePair.Recipients...),
 		})
 	}
 	return pairs
@@ -225,10 +226,10 @@ func FormatValueSource(source ValueSource, cwd string) string {
 	return kind
 }
 
-func resolveFilePairs(filePairs []FilePair, opts SelectionOptions, result SelectionResult, allConfig bool) ([]ResolvedFilePair, error) {
+func resolveFilePairs(cfg *Config, filePairs []FilePair, opts SelectionOptions, result SelectionResult, allConfig bool) ([]ResolvedFilePair, error) {
 	resolved := make([]ResolvedFilePair, 0, len(filePairs))
 	for _, filePair := range filePairs {
-		next, err := resolveFilePair(filePair, opts, result, allConfig)
+		next, err := resolveFilePair(cfg, filePair, opts, result, allConfig)
 		if err != nil {
 			return nil, err
 		}
@@ -237,7 +238,7 @@ func resolveFilePairs(filePairs []FilePair, opts SelectionOptions, result Select
 	return resolved, nil
 }
 
-func resolveFilePair(filePair FilePair, opts SelectionOptions, result SelectionResult, allConfig bool) (ResolvedFilePair, error) {
+func resolveFilePair(cfg *Config, filePair FilePair, opts SelectionOptions, result SelectionResult, allConfig bool) (ResolvedFilePair, error) {
 	plainAbs := cleanAbsPath(filePair.PlaintextPath)
 	encAbs := cleanAbsPath(filePair.EncryptedPath)
 	filePair.PlaintextPath = plainAbs
@@ -251,18 +252,47 @@ func resolveFilePair(filePair FilePair, opts SelectionOptions, result SelectionR
 	source := pairSource(filePair, opts, result)
 	selectedBy := selectedBy(opts, result, allConfig, source)
 	plainSource, encSource := pathSources(filePair, opts, result, source)
+	var resolvedRecipients ResolvedRecipients
+	recipientWarning := ""
+	if opts.Command != task.ModeDecrypt || opts.StrictRecipients {
+		resolvedRecipients, err = cfg.ResolveFileRecipients(filePair)
+		if err != nil {
+			return ResolvedFilePair{}, err
+		}
+	} else if hasRecipientPolicy(cfg) || filePair.Recipients != nil {
+		resolvedRecipients, err = cfg.ResolveFileRecipients(filePair)
+		if err != nil {
+			recipientWarning = formatRecipientWarning(filePair, err)
+			resolvedRecipients = ResolvedRecipients{}
+		}
+	}
 
 	return ResolvedFilePair{
-		PlaintextPath:   plainAbs,
-		EncryptedPath:   encAbs,
-		Format:          format,
-		ConfigPath:      filePair.ConfigPath,
-		Source:          source,
-		SelectedBy:      selectedBy,
-		PlaintextSource: plainSource,
-		EncryptedSource: encSource,
-		FormatSource:    formatSource,
+		PlaintextPath:    plainAbs,
+		EncryptedPath:    encAbs,
+		Format:           format,
+		ConfigPath:       filePair.ConfigPath,
+		Source:           source,
+		SelectedBy:       selectedBy,
+		PlaintextSource:  plainSource,
+		EncryptedSource:  encSource,
+		FormatSource:     formatSource,
+		RecipientAliases: resolvedRecipients.Aliases,
+		Recipients:       resolvedRecipients.Recipients,
+		RecipientInfo:    resolvedRecipients.Provenance,
+		RecipientWarning: recipientWarning,
 	}, nil
+}
+
+func formatRecipientWarning(pair FilePair, err error) string {
+	source := pair.RecipientSource.ConfigPath
+	if source == "" {
+		source = pair.ConfigPath
+	}
+	if source == "" {
+		source = "configuration"
+	}
+	return fmt.Sprintf("warning: could not resolve recipients for %s (%s): %v; continuing with encrypted metadata", pair.PlaintextPath, source, err)
 }
 
 func resolveFinalFormat(filePair FilePair, opts SelectionOptions) (string, ValueSource, error) {

@@ -3,7 +3,7 @@
     "$defs": {
         "Config": {
             "type": "object",
-            "description": "#Config 是 .yewseal.toml 的顶层结构。所有段落都可缺省,\n缺省时由 CLI 参数、环境变量或内置默认值兜底。",
+            "description": "#Config 是 .yewseal.toml 的顶层结构。所有段落都可缺省。\n加密和 plan 选择阶段要求路径来自 files/groups,并要求最终授权集合非空。",
             "additionalProperties": false,
             "properties": {
                 "encryption": {
@@ -11,6 +11,9 @@
                 },
                 "key": {
                     "$ref": "#/$defs/KeyConfig"
+                },
+                "recipients": {
+                    "$ref": "#/$defs/RecipientConfig"
                 },
                 "sync": {
                     "$ref": "#/$defs/SyncConfig"
@@ -24,7 +27,7 @@
             "properties": {
                 "files": {
                     "type": "array",
-                    "description": "显式的明文/加密文件对。缺省且无 groups 时使用\n默认映射 wrangler.toml <-> wrangler.enc.toml。",
+                    "description": "显式的明文/加密文件对。所有运行时处理的路径都必须来自这里或 groups。",
                     "items": {
                         "$ref": "#/$defs/FilePair"
                     }
@@ -54,6 +57,19 @@
                 "plaintext": {
                     "type": "string",
                     "description": "明文文件路径,用作 encrypt 的输入和 decrypt 的输出。"
+                },
+                "recipients": {
+                    "type": "array",
+                    "description": "授权 alias 集合。省略时继承 group 或顶层 defaults。",
+                    "items": {
+                        "type": "string"
+                    },
+                    "prefixItems": [
+                        {
+                            "type": "string"
+                        }
+                    ],
+                    "minItems": 1
                 }
             },
             "required": [
@@ -90,10 +106,23 @@
                 },
                 "patterns": {
                     "type": "array",
-                    "description": "glob 模式列表,如 \"config/**/*.toml\"。缺省时使用内置默认模式:\n加密扫描常见配置扩展名并排除 *.enc.*,解密扫描 *.enc.* 文件。",
+                    "description": "glob 模式列表,如 \"config/**/*.toml\"。缺省时使用默认扫描模式:\n加密扫描常见配置扩展名并排除 *.enc.*,解密扫描 *.enc.* 文件。",
                     "items": {
                         "type": "string"
                     }
+                },
+                "recipients": {
+                    "type": "array",
+                    "description": "扫描结果的授权 alias 集合。省略时继承顶层 defaults。",
+                    "items": {
+                        "type": "string"
+                    },
+                    "prefixItems": [
+                        {
+                            "type": "string"
+                        }
+                    ],
+                    "minItems": 1
                 },
                 "unknown_as_binary": {
                     "type": "boolean",
@@ -109,10 +138,33 @@
                 "file_path": {
                     "type": "string",
                     "description": "Age 私钥文件路径。"
+                }
+            }
+        },
+        "RecipientConfig": {
+            "type": "object",
+            "description": "#RecipientConfig 定义公开 recipient 授权策略。\nregistry 只包含公开 Age recipient,不包含私钥。",
+            "additionalProperties": false,
+            "properties": {
+                "defaults": {
+                    "type": "array",
+                    "description": "默认 alias 集合。缺省时每个 file/group 都必须显式声明 recipients。",
+                    "items": {
+                        "type": "string"
+                    },
+                    "prefixItems": [
+                        {
+                            "type": "string"
+                        }
+                    ],
+                    "minItems": 1
                 },
-                "public_key": {
-                    "type": "string",
-                    "description": "Age 公钥,用于加密(可以安全提交)。"
+                "registry": {
+                    "type": "object",
+                    "description": "alias 到 Age recipient 公钥的映射。",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 }
             }
         },

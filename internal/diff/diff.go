@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/YewFence/YewSeal/internal/agekey"
 	"github.com/YewFence/YewSeal/internal/seal"
 	"github.com/fatih/color"
 	"github.com/sergi/go-diff/diffmatchpatch"
@@ -22,7 +23,7 @@ type DiffResult struct {
 type Options struct {
 	PlaintextFile  string
 	EncryptedFile  string
-	KeyFile        string
+	IdentityBundle agekey.IdentityBundle
 	FormatOverride string
 	Verbose        bool
 }
@@ -39,7 +40,7 @@ func PlaintextAgainstEncrypted(opts Options) (DiffResult, error) {
 	decryptedData, err := seal.DecryptToBytes(seal.DecryptBytesOptions{
 		InputFile:      opts.EncryptedFile,
 		OutputFile:     opts.PlaintextFile,
-		KeyFile:        opts.KeyFile,
+		IdentityBundle: opts.IdentityBundle,
 		FormatOverride: opts.FormatOverride,
 		Verbose:        opts.Verbose,
 		Output:         os.Stderr,

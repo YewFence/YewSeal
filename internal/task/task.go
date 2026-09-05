@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/YewFence/YewSeal/internal/fileformat"
+	"github.com/YewFence/YewSeal/internal/agekey"
 	"github.com/YewFence/YewSeal/internal/seal"
 )
 
@@ -14,19 +14,15 @@ type FilePair struct {
 	PlaintextPath string
 	EncryptedPath string
 	Format        string
+	Recipients    []string
 }
 
 type Options struct {
-	InputDir        string
-	Patterns        []string
-	FormatRules     []string
-	UnknownAsBinary bool
-	KeyFile         string
-	PublicKey       string
-	Parallel        int
-	Verbose         bool
-	Force           bool
-	FilePairs       []FilePair
+	IdentityBundle agekey.IdentityBundle
+	Parallel       int
+	Verbose        bool
+	Force          bool
+	FilePairs      []FilePair
 }
 
 type Result struct {
@@ -44,16 +40,11 @@ type Summary struct {
 }
 
 func Encrypt(opts Options) (*Summary, error) {
-	filePairs, err := encryptFilePairs(opts)
-	if err != nil {
-		return nil, err
+	filePairs := opts.FilePairs
+	if len(filePairs) == 0 {
+		return nil, fmt.Errorf("no configured file pairs to encrypt")
 	}
-
-	if len(opts.FilePairs) > 0 {
-		fmt.Printf("Encrypting %d files from config...\n", len(filePairs))
-	} else {
-		fmt.Printf("Encrypting %d files from %s...\n", len(filePairs), opts.InputDir)
-	}
+	fmt.Printf("Encrypting %d files from config...\n", len(filePairs))
 
 	if err := ensureOutputDirs(filePairs, func(pair FilePair) string { return pair.EncryptedPath }); err != nil {
 		return nil, err
@@ -63,8 +54,7 @@ func Encrypt(opts Options) (*Summary, error) {
 		return seal.Encrypt(seal.EncryptOptions{
 			InputFile:      pair.PlaintextPath,
 			OutputFile:     pair.EncryptedPath,
-			KeyFile:        opts.KeyFile,
-			PublicKey:      opts.PublicKey,
+			Recipients:     pair.Recipients,
 			FormatOverride: pair.Format,
 			Verbose:        opts.Verbose,
 		})
@@ -83,16 +73,11 @@ func Encrypt(opts Options) (*Summary, error) {
 }
 
 func Decrypt(opts Options) (*Summary, error) {
-	filePairs, err := decryptFilePairs(opts)
-	if err != nil {
-		return nil, err
+	filePairs := opts.FilePairs
+	if len(filePairs) == 0 {
+		return nil, fmt.Errorf("no configured file pairs to decrypt")
 	}
-
-	if len(opts.FilePairs) > 0 {
-		fmt.Printf("Decrypting %d files from config...\n", len(filePairs))
-	} else {
-		fmt.Printf("Decrypting %d files from %s...\n", len(filePairs), opts.InputDir)
-	}
+	fmt.Printf("Decrypting %d files from config...\n", len(filePairs))
 
 	if err := ensureOutputDirs(filePairs, func(pair FilePair) string { return pair.PlaintextPath }); err != nil {
 		return nil, err
@@ -102,7 +87,7 @@ func Decrypt(opts Options) (*Summary, error) {
 		return seal.Decrypt(seal.DecryptOptions{
 			InputFile:      pair.EncryptedPath,
 			OutputFile:     pair.PlaintextPath,
-			KeyFile:        opts.KeyFile,
+			IdentityBundle: opts.IdentityBundle,
 			FormatOverride: pair.Format,
 			Verbose:        opts.Verbose,
 			Force:          opts.Force,
@@ -119,65 +104,6 @@ func Decrypt(opts Options) (*Summary, error) {
 		return summary, fmt.Errorf("%d of %d files failed to decrypt", summary.FailedCount, summary.TotalFiles)
 	}
 	return summary, nil
-}
-
-func encryptFilePairs(opts Options) ([]FilePair, error) {
-	if len(opts.FilePairs) > 0 {
-		return opts.FilePairs, nil
-	}
-
-	return BuildGroupFilePairs(GroupOptions{
-		Root:            opts.InputDir,
-		Patterns:        opts.Patterns,
-		FormatRules:     opts.FormatRules,
-		UnknownAsBinary: opts.UnknownAsBinary,
-		Mode:            ModeEncrypt,
-	})
-}
-
-func decryptFilePairs(opts Options) ([]FilePair, error) {
-	if len(opts.FilePairs) > 0 {
-		return opts.FilePairs, nil
-	}
-
-	return BuildGroupFilePairs(GroupOptions{
-		Root:            opts.InputDir,
-		Patterns:        opts.Patterns,
-		FormatRules:     opts.FormatRules,
-		UnknownAsBinary: opts.UnknownAsBinary,
-		Mode:            ModeDecrypt,
-	})
-}
-
-func GenerateOutputFilename(inputFile, outputDir, outputSuffix, mode string) string {
-	if outputDir != "" {
-		generated := GenerateOutputFilename(inputFile, "", outputSuffix, mode)
-		return filepath.Join(outputDir, filepath.Base(generated))
-	}
-	if mode == "encrypt" {
-		if outputSuffix != "" {
-			dir := filepath.Dir(inputFile)
-			base := filepath.Base(inputFile)
-			ext := filepath.Ext(base)
-			return filepath.Join(dir, base[:len(base)-len(ext)]+outputSuffix)
-		}
-		path, err := fileformat.EncryptPathForPlaintext(inputFile, "")
-		if err == nil {
-			return path
-		}
-		return inputFile + ".enc.bin"
-	}
-	if outputSuffix != "" {
-		dir := filepath.Dir(inputFile)
-		base := filepath.Base(inputFile)
-		ext := filepath.Ext(base)
-		return filepath.Join(dir, base[:len(base)-len(ext)]+outputSuffix)
-	}
-	path, _, err := fileformat.PlaintextPathForEncrypted(inputFile, "")
-	if err == nil {
-		return path
-	}
-	return inputFile
 }
 
 func ensureOutputDirs(pairs []FilePair, target func(FilePair) string) error {

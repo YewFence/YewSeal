@@ -26,7 +26,7 @@ func initCommand() *cobra.Command {
 			return project.InitProject(force, input, output, format, createExample, skipSOPSConfig)
 		},
 	}
-	cmd.Flags().BoolVarP(&force, "force", "f", false, "Force overwrite existing configuration")
+	cmd.Flags().BoolVarP(&force, "force", "f", false, "Rebuild keys and configuration; existing ciphertext may become undecryptable")
 	cmd.Flags().StringVarP(&input, "input", "i", "", "Plaintext file for the first config entry (non-interactive mode)")
 	cmd.Flags().StringVarP(&output, "output", "o", "", "Encrypted file for the first config entry (non-interactive mode)")
 	cmd.Flags().StringVar(&format, "format", "", "Format override for the first config entry (toml/yaml/json/env/ini/binary)")
@@ -51,7 +51,7 @@ func editCommand(cfg *config.Config, keyFile *string) *cobra.Command {
 			})
 		},
 	}
-	cmd.Flags().StringVarP(&file, "file", "f", "wrangler.enc.toml", "Encrypted file to edit")
+	cmd.Flags().StringVarP(&file, "file", "f", "", "Encrypted file to edit (must be configured in .yewseal.toml)")
 	cmd.Flags().StringVarP(&editor, "editor", "e", "", "Editor command to use (e.g., 'code -w', 'vim')")
 	return cmd
 }
@@ -70,7 +70,7 @@ func viewCommand(cfg *config.Config, keyFile *string) *cobra.Command {
 				return err
 			}
 
-			if err := yewsapp.WriteViewedTarget(os.Stdout, cfg, args[0], cfg.GetKeyFile(*keyFile), cliFormat, verbose); err != nil {
+			if err := yewsapp.WriteViewedTarget(os.Stdout, cfg, args[0], *keyFile, cliFormat, verbose); err != nil {
 				return err
 			}
 			return nil
@@ -96,7 +96,7 @@ func diffCommand(cfg *config.Config, keyFile *string) *cobra.Command {
 				return err
 			}
 
-			result, err := yewsapp.DiffPlaintextAgainstEncryptedTargets(os.Stdout, cfg, firstArg(args), cfg.GetKeyFile(*keyFile), cliFormat, verbose, color)
+			result, err := yewsapp.DiffPlaintextAgainstEncryptedTargets(os.Stdout, cfg, firstArg(args), *keyFile, cliFormat, verbose, color)
 			if err != nil {
 				return err
 			}

@@ -3,7 +3,6 @@ package agekey
 import (
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"runtime"
 	"strings"
@@ -11,19 +10,6 @@ import (
 	"github.com/YewFence/YewSeal/internal/errx"
 	"github.com/YewFence/YewSeal/internal/execx"
 )
-
-// ExtractPublicKey extracts the public key from age-keygen output or key file
-func ExtractPublicKey(output string) string {
-	// age-keygen outputs: "# public key: age1..."
-	lines := strings.Split(output, "\n")
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, "# public key: ") {
-			return strings.TrimPrefix(line, "# public key: ")
-		}
-	}
-	return ""
-}
 
 // GetAgeKey returns the Age private key with the following priority:
 // 1. Command-line parameter --key-file (highest)
@@ -90,59 +76,6 @@ func GetAgeKey(keyFile string) (string, error) {
 
 func isKeyFileNotExist(err error) bool {
 	return errors.Is(err, os.ErrNotExist)
-}
-
-// GetPublicKey returns the Age public key with priority:
-// 1. Command-line parameter (highest)
-// 2. Environment variable SOPS_AGE_RECIPIENTS
-// 3. Extract from private key file .age/keys.txt (fallback)
-func GetPublicKey(providedKey, keyFile string, verbose bool) (string, error) {
-	return GetPublicKeyWithOutput(providedKey, keyFile, verbose, os.Stdout)
-}
-
-func GetPublicKeyWithOutput(providedKey, keyFile string, verbose bool, output io.Writer) (string, error) {
-	if output == nil {
-		output = os.Stdout
-	}
-
-	// Priority 1: Command-line parameter
-	if providedKey != "" {
-		if verbose {
-			_, _ = fmt.Fprintln(output, "🔑 Using public key from command-line parameter")
-		}
-		return providedKey, nil
-	}
-
-	// Priority 2: Environment variable
-	if envKey := os.Getenv("SOPS_AGE_RECIPIENTS"); envKey != "" {
-		if verbose {
-			_, _ = fmt.Fprintln(output, "🔑 Using public key from SOPS_AGE_RECIPIENTS environment variable")
-		}
-		return envKey, nil
-	}
-
-	// Priority 3: Extract from private key file (fallback)
-	if verbose {
-		_, _ = fmt.Fprintln(output, "🔑 Attempting to extract public key from private key file...")
-	}
-
-	// Read the private key file
-	keyContent, err := os.ReadFile(keyFile)
-	if err != nil {
-		return "", &errx.PublicKeyNotFoundError{KeyFile: keyFile, Cause: err, Tried: []string{"CLI parameter", "SOPS_AGE_RECIPIENTS env", "key file comment"}}
-	}
-
-	// Extract public key from the key file content
-	publicKey := ExtractPublicKey(string(keyContent))
-	if publicKey == "" {
-		return "", &errx.PublicKeyNotFoundError{KeyFile: keyFile, Tried: []string{"CLI parameter", "SOPS_AGE_RECIPIENTS env", "key file comment"}}
-	}
-
-	if verbose {
-		_, _ = fmt.Fprintf(output, "✅ Extracted public key from %s: %s\n", keyFile, publicKey)
-	}
-
-	return publicKey, nil
 }
 
 // readKeyFile reads an Age private key from a file

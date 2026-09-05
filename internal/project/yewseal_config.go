@@ -10,8 +10,12 @@ import (
 	toml "github.com/pelletier/go-toml/v2"
 )
 
-// SavePublicKeyToConfig creates or overwrites .yewseal.toml with canonical config content.
-func SavePublicKeyToConfig(publicKey string, filePairs []config.FilePair) error {
+func stringSlicePtr(values []string) *[]string {
+	return &values
+}
+
+// SaveBootstrapConfig creates or overwrites .yewseal.toml with the owner policy.
+func SaveBootstrapConfig(ownerRecipient string, filePairs []config.FilePair) error {
 	const configPath = ".yewseal.toml"
 
 	cfg := config.Config{
@@ -19,8 +23,11 @@ func SavePublicKeyToConfig(publicKey string, filePairs []config.FilePair) error 
 			Files: filePairs,
 		},
 		Key: config.KeyConfig{
-			FilePath:  ".age/keys.txt",
-			PublicKey: publicKey,
+			FilePath: ".age/keys.txt",
+		},
+		Recipients: config.RecipientConfig{
+			Defaults: stringSlicePtr([]string{"owner"}),
+			Registry: map[string]string{"owner": ownerRecipient},
 		},
 	}
 

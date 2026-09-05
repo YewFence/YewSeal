@@ -50,7 +50,7 @@ func TestEncryptDecryptRoundTripAllFormats(t *testing.T) {
 		t.Run(format, func(t *testing.T) {
 			plain := samplePlaintext(format)
 
-			encData, err := Encrypt(plain, format, key.recipient)
+			encData, err := Encrypt(plain, format, []string{key.recipient})
 			require.NoError(t, err)
 
 			decrypted, err := Decrypt(encData, format, key.identity)
@@ -70,7 +70,7 @@ func TestEncryptDecryptRoundTripAllFormats(t *testing.T) {
 func TestEncryptTomlEmbedsSopsMetadataNatively(t *testing.T) {
 	key := newTestKey(t)
 
-	encData, err := Encrypt(samplePlaintext("toml"), "toml", key.recipient)
+	encData, err := Encrypt(samplePlaintext("toml"), "toml", []string{key.recipient})
 	require.NoError(t, err)
 
 	content := string(encData)
@@ -78,6 +78,23 @@ func TestEncryptTomlEmbedsSopsMetadataNatively(t *testing.T) {
 	assert.Contains(t, content, "[sops]")
 	assert.Contains(t, content, key.recipient)
 	assert.NotContains(t, content, "secret123")
+}
+
+func TestEncryptSupportsMultipleAgeRecipients(t *testing.T) {
+	first := newTestKey(t)
+	second := newTestKey(t)
+
+	encData, err := Encrypt(samplePlaintext("toml"), "toml", []string{second.recipient, first.recipient})
+	require.NoError(t, err)
+
+	recipients, err := ExtractAgeRecipients(encData, "toml")
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{first.recipient, second.recipient}, recipients)
+
+	decrypted, err := Decrypt(encData, "toml", first.identity+"\n"+second.identity)
+	require.NoError(t, err)
+	assert.Contains(t, string(decrypted), "localhost")
+	assert.Contains(t, string(decrypted), "secret123")
 }
 
 // TestEncryptDecryptTomlSemanticRoundTrip locks in native-TOML fidelity beyond
@@ -109,7 +126,7 @@ id = "def456"
 email = "yew@example.com"
 `)
 
-	encData, err := Encrypt(plain, "toml", key.recipient)
+	encData, err := Encrypt(plain, "toml", []string{key.recipient})
 	require.NoError(t, err)
 
 	decrypted, err := Decrypt(encData, "toml", key.identity)
@@ -127,7 +144,7 @@ func TestDecryptRejectsWrongIdentity(t *testing.T) {
 	key := newTestKey(t)
 	other := newTestKey(t)
 
-	encData, err := Encrypt(samplePlaintext("toml"), "toml", key.recipient)
+	encData, err := Encrypt(samplePlaintext("toml"), "toml", []string{key.recipient})
 	require.NoError(t, err)
 
 	_, err = Decrypt(encData, "toml", other.identity)
@@ -139,7 +156,7 @@ func TestInspect(t *testing.T) {
 	key := newTestKey(t)
 
 	before := time.Now().UTC()
-	encData, err := Encrypt(samplePlaintext("toml"), "toml", key.recipient)
+	encData, err := Encrypt(samplePlaintext("toml"), "toml", []string{key.recipient})
 	require.NoError(t, err)
 
 	info, err := Inspect(encData, "toml")
@@ -153,7 +170,7 @@ func TestInspect(t *testing.T) {
 func TestExtractAgeRecipients(t *testing.T) {
 	key := newTestKey(t)
 
-	encData, err := Encrypt(samplePlaintext("yaml"), "yaml", key.recipient)
+	encData, err := Encrypt(samplePlaintext("yaml"), "yaml", []string{key.recipient})
 	require.NoError(t, err)
 
 	recipients, err := ExtractAgeRecipients(encData, "yaml")
@@ -166,7 +183,7 @@ func TestRekeyRotatesDataKey(t *testing.T) {
 	newKey := newTestKey(t)
 	extraKey := newTestKey(t)
 
-	encData, err := Encrypt(samplePlaintext("toml"), "toml", oldKey.recipient)
+	encData, err := Encrypt(samplePlaintext("toml"), "toml", []string{oldKey.recipient})
 	require.NoError(t, err)
 
 	rekeyed, err := Rekey(encData, "toml", oldKey.identity, []string{newKey.recipient, extraKey.recipient})
@@ -191,7 +208,7 @@ func TestRekeyRotatesDataKey(t *testing.T) {
 func TestRekeyRequiresRecipient(t *testing.T) {
 	key := newTestKey(t)
 
-	encData, err := Encrypt(samplePlaintext("toml"), "toml", key.recipient)
+	encData, err := Encrypt(samplePlaintext("toml"), "toml", []string{key.recipient})
 	require.NoError(t, err)
 
 	_, err = Rekey(encData, "toml", key.identity, nil)
@@ -202,7 +219,7 @@ func TestRekeyRequiresRecipient(t *testing.T) {
 func TestUnknownFormatRejected(t *testing.T) {
 	key := newTestKey(t)
 
-	_, err := Encrypt([]byte("x"), "xml", key.recipient)
+	_, err := Encrypt([]byte("x"), "xml", []string{key.recipient})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), `unsupported format "xml"`)
 
@@ -222,7 +239,7 @@ func TestUnknownFormatRejected(t *testing.T) {
 func TestDecryptDetectsTampering(t *testing.T) {
 	key := newTestKey(t)
 
-	encData, err := Encrypt(samplePlaintext("toml"), "toml", key.recipient)
+	encData, err := Encrypt(samplePlaintext("toml"), "toml", []string{key.recipient})
 	require.NoError(t, err)
 
 	// Flip one character inside an ENC[...] payload; base64 stays syntactically

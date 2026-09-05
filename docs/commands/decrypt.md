@@ -12,9 +12,9 @@ yews decrypt [command options] [path]
 
 ## 目标选择
 
-不传 `path` 时，YewSeal 会使用 `.yewseal.toml` 中当前目录范围内的配置项。传入加密文件路径时，会解密这个文件。传入目录路径时，会扫描目录下符合加密文件名协议的文件。
+不传 `path` 时，YewSeal 会处理 `.yewseal.toml` 中当前目录范围内的全部已配置 FilePair 和 Group 扫描结果。传入文件路径时，该路径必须匹配已加载配置中 FilePair 的 plaintext 或 encrypted 任一侧；传入目录时，只扫描已配置 Group 管理的文件。
 
-如果目标在 `[[encryption.files]]` 中声明过，会使用配置里的明文路径和格式。如果目标没有配置，`config.enc.toml` 会解密到 `config.toml`，`config.enc.yaml` 会解密到 `config.yaml`，其他支持格式也按同样协议推断。
+配置仍负责治理明文、密文路径和格式，但历史密文的实际 recipient 事实来自其 SOPS metadata。当前配置引用的 alias 已删除或重命名时，decrypt 会向 stderr 输出非致命 warning，并继续使用 identity bundle 尝试解密。
 
 ## 选项
 
@@ -38,14 +38,6 @@ yews decrypt config.enc.yaml --format toml -o config.toml
 
 `--format` 只支持单文件模式。
 
-### --format-rule
-
-为分组扫描指定格式规则，形式是 `<pattern>=<format>`。
-
-```bash
-yews decrypt ./configs --format-rule ".dev.vars=env"
-```
-
 ### --pattern
 
 为配置模式或目录扫描指定匹配规则。
@@ -55,14 +47,6 @@ yews decrypt ./configs --pattern "*.toml"
 ```
 
 目录解密时，`--pattern` 匹配的是逻辑明文路径。比如 `--pattern "*.toml"` 可以选中 `config.enc.toml`。
-
-### --unknown-as-binary
-
-在分组扫描中，允许把无法识别格式的加密输入按二进制文件处理。
-
-```bash
-yews decrypt ./secrets --unknown-as-binary
-```
 
 ### --parallel, -P
 
@@ -94,13 +78,13 @@ yews decrypt -v
 # 解密配置中的所有文件
 yews decrypt
 
-# 解密单个加密文件，输出路径由文件名推断
+# 解密一个已配置的加密文件，使用配置中的 plaintext 路径
 yews decrypt config.enc.toml
 
 # 解密单个加密文件，并指定输出路径
 yews decrypt config.enc.toml -o config.toml
 
-# 解密目录中匹配的加密文件
+# 在已配置 Group 的目录范围内筛选并解密
 yews decrypt ./configs --pattern "*.toml"
 
 # 输出为指定格式

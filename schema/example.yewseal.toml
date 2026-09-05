@@ -13,25 +13,29 @@
 [[encryption.files]]
 plaintext = "wrangler.toml"
 encrypted = "wrangler.enc.toml"
-
+recipients = ["owner"]
 # 扩展名不标准的文件用 format 显式指定格式
 [[encryption.files]]
 plaintext = ".dev.vars"
 encrypted = ".dev.vars.enc"
 format = "env"
+recipients = ["owner"]
 
 # 按 glob 模式批量管理一组文件
 [[encryption.groups]]
 patterns = ["config/**/*.toml", "secrets/*.yaml"]
 format_rules = ["*.dev.vars=env", "**/*.conf=ini"]
 unknown_as_binary = true
-
+recipients = ["owner"]
 [key]
 # Age 私钥文件路径(默认值 ".age/keys.txt"),不要把私钥内容写在这里
 file_path = ".age/keys.txt"
-# Age 公钥,可以安全提交
-public_key = "age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmr3752kgargmsqqqpra5"
 
+[recipients]
+defaults = ["owner"]
+
+[recipients.registry]
+owner = "age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmr3752kgargmsqqqpra5"
 # Age 私钥的远程同步设置(当前支持 infisical)
 [sync]
 provider = "infisical"

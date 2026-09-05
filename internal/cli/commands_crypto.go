@@ -9,12 +9,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func encryptCommand(cfg *config.Config, keyFile *string) *cobra.Command {
+func encryptCommand(cfg *config.Config) *cobra.Command {
 	opts := encryptOptions{
-		Output:    envValue("SOPS_OUTPUT_FILE"),
-		Format:    envValue("YEWSEAL_FORMAT", "SOPS_FORMAT"),
-		PublicKey: envValue("SOPS_AGE_RECIPIENTS"),
-		Parallel:  1,
+		Output:   envValue("SOPS_OUTPUT_FILE"),
+		Format:   envValue("YEWSEAL_FORMAT", "SOPS_FORMAT"),
+		Parallel: 1,
 	}
 
 	cmd := &cobra.Command{
@@ -25,17 +24,12 @@ func encryptCommand(cfg *config.Config, keyFile *string) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			target := firstArg(args)
 			return yewsapp.EncryptFiles(cfg, yewsapp.EncryptRequest{
-				KeyFile:               cfg.GetKeyFile(*keyFile),
-				PublicKey:             opts.PublicKey,
 				Verbose:               opts.Verbose,
 				Output:                opts.Output,
 				OutputSet:             flagChangedOrEnvSet(cmd.Flags(), "output", "SOPS_OUTPUT_FILE"),
 				Format:                opts.Format,
 				Target:                target,
 				Patterns:              opts.Patterns,
-				FormatRules:           opts.FormatRules,
-				UnknownAsBinary:       opts.UnknownAsBinary,
-				UnknownAsBinarySet:    cmd.Flags().Changed("unknown-as-binary"),
 				Parallel:              opts.Parallel,
 				UpdateProjectMetadata: true,
 			})
@@ -60,16 +54,13 @@ func decryptCommand(cfg *config.Config, keyFile *string) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			target := firstArg(args)
 			return yewsapp.DecryptFiles(cfg, yewsapp.DecryptRequest{
-				KeyFile:               cfg.GetKeyFile(*keyFile),
+				KeyFile:               *keyFile,
 				Verbose:               opts.Verbose,
 				Output:                opts.Output,
 				OutputSet:             flagChangedOrEnvSet(cmd.Flags(), "output", "SOPS_OUTPUT_FILE"),
 				Format:                opts.Format,
 				Target:                target,
 				Patterns:              opts.Patterns,
-				FormatRules:           opts.FormatRules,
-				UnknownAsBinary:       opts.UnknownAsBinary,
-				UnknownAsBinarySet:    cmd.Flags().Changed("unknown-as-binary"),
 				Parallel:              opts.Parallel,
 				Force:                 opts.Force,
 				UpdateProjectMetadata: true,
@@ -94,16 +85,13 @@ func planCommand(cfg *config.Config) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			target := firstArg(args)
 			return yewsapp.PrintPlan(os.Stdout, cfg, yewsapp.PlanRequest{
-				Verbose:            opts.Verbose,
-				Output:             opts.Output,
-				OutputSet:          flagChangedOrEnvSet(cmd.Flags(), "output", "SOPS_OUTPUT_FILE"),
-				Format:             opts.Format,
-				Target:             target,
-				Patterns:           opts.Patterns,
-				FormatRules:        opts.FormatRules,
-				UnknownAsBinary:    opts.UnknownAsBinary,
-				UnknownAsBinarySet: cmd.Flags().Changed("unknown-as-binary"),
-				Parallel:           opts.Parallel,
+				Verbose:   opts.Verbose,
+				Output:    opts.Output,
+				OutputSet: flagChangedOrEnvSet(cmd.Flags(), "output", "SOPS_OUTPUT_FILE"),
+				Format:    opts.Format,
+				Target:    target,
+				Patterns:  opts.Patterns,
+				Parallel:  opts.Parallel,
 			}, yewsapp.PreflightPrintOptions{
 				JSON:    opts.JSON,
 				Verbose: opts.Verbose,

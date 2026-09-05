@@ -12,35 +12,22 @@ import (
 func TestDefaultConfig(t *testing.T) {
 	cfg := DefaultConfig()
 
-	require.Len(t, cfg.GetFiles(), 1)
-	assert.Equal(t, defaultDecryptedFile, cfg.GetFiles()[0].PlaintextPath)
-	assert.Equal(t, defaultEncryptedFile, cfg.GetFiles()[0].EncryptedPath)
+	assert.Empty(t, cfg.GetFiles())
 	assert.Equal(t, defaultKeyFile, cfg.Key.FilePath)
-	assert.Empty(t, cfg.Key.PublicKey)
 }
 
-func TestGetFilesFallsBackToDefault(t *testing.T) {
+func TestGetFilesDoesNotFallBackToDefault(t *testing.T) {
 	cfg := &Config{}
 
-	files := cfg.GetFiles()
-	require.Len(t, files, 1)
-	assert.Equal(t, defaultDecryptedFile, files[0].PlaintextPath)
-	assert.Equal(t, defaultEncryptedFile, files[0].EncryptedPath)
+	assert.Empty(t, cfg.GetFiles())
 }
 
-func TestGetPrimaryFilePair(t *testing.T) {
-	cfg := &Config{
-		Encryption: EncryptionConfig{
-			Files: []FilePair{
-				{PlaintextPath: "app.toml", EncryptedPath: "app.enc.toml"},
-				{PlaintextPath: "db.toml", EncryptedPath: "db.enc.toml"},
-			},
-		},
-	}
-
-	pair := cfg.GetPrimaryFilePair()
-	assert.Equal(t, "app.toml", pair.PlaintextPath)
-	assert.Equal(t, "app.enc.toml", pair.EncryptedPath)
+func TestGetFilesClonesRecipientSlices(t *testing.T) {
+	recipients := []string{"owner"}
+	cfg := &Config{Encryption: EncryptionConfig{Files: []FilePair{{Recipients: &recipients}}}}
+	files := cfg.GetFiles()
+	(*files[0].Recipients)[0] = "changed"
+	require.Equal(t, "owner", (*cfg.Encryption.Files[0].Recipients)[0])
 }
 
 func TestGetKeyFile(t *testing.T) {
@@ -78,14 +65,6 @@ func TestGetKeyFile(t *testing.T) {
 	}
 }
 
-func TestGetPublicKey(t *testing.T) {
-	cfg := &Config{Key: KeyConfig{PublicKey: "age1testkey123"}}
-	assert.Equal(t, "age1testkey123", cfg.GetPublicKey())
-
-	emptyCfg := &Config{}
-	assert.Empty(t, emptyCfg.GetPublicKey())
-}
-
 func TestLoadConfig_NoFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	oldWd, err := os.Getwd()
@@ -99,10 +78,7 @@ func TestLoadConfig_NoFile(t *testing.T) {
 
 	cfg, err := LoadConfig()
 	require.NoError(t, err)
-	require.Len(t, cfg.GetFiles(), 1)
-
-	assert.Equal(t, defaultDecryptedFile, cfg.GetFiles()[0].PlaintextPath)
-	assert.Equal(t, defaultEncryptedFile, cfg.GetFiles()[0].EncryptedPath)
+	assert.Empty(t, cfg.GetFiles())
 	assert.Equal(t, defaultKeyFile, cfg.Key.FilePath)
 }
 
@@ -136,7 +112,8 @@ format = "env"
 
 [key]
 file_path = "custom/keys.txt"
-public_key = "age1customkey"
+	[recipients.registry]
+owner = "age1r09mha3l82nt25r3kujgkpw4ts60ezntwcj74vnk0t3e9elyu3rswkx08j"
 
 [sync]
 provider = "infisical"
@@ -169,7 +146,7 @@ environment = "prod"
 	assert.Equal(t, []string{".dev.vars=env"}, groups[1].FormatRules)
 	assert.False(t, groups[1].UnknownAsBinary)
 	assert.Equal(t, filepath.Join(tmpDir, "custom/keys.txt"), cfg.Key.FilePath)
-	assert.Equal(t, "age1customkey", cfg.Key.PublicKey)
+	assert.Equal(t, "age1r09mha3l82nt25r3kujgkpw4ts60ezntwcj74vnk0t3e9elyu3rswkx08j", cfg.Recipients.Registry["owner"])
 	assert.Equal(t, "infisical", cfg.Sync.Provider)
 	assert.Equal(t, "project-123", cfg.Sync.ProjectID)
 	assert.Equal(t, "CUSTOM_AGE_KEY", cfg.Sync.SecretName)
@@ -199,6 +176,17 @@ patterns = ["*.toml"]
 	_, err = LoadConfig()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "use [[encryption.groups]] instead")
+}
+
+func TestLoadConfigRejectsDeprecatedPublicKey(t *testing.T) {
+	tmpDir := t.TempDir()
+	oldWd, err := os.Getwd()
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, os.Chdir(oldWd)) })
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, ".yewseal.toml"), []byte("[key]\npublic_key = \"age1legacy\"\n"), 0644))
+	require.NoError(t, os.Chdir(tmpDir))
+	_, err = LoadConfig()
+	require.EqualError(t, err, "deprecated key.public_key is not supported; use recipients.registry and recipients.defaults")
 }
 
 func TestGetSyncConfig(t *testing.T) {
@@ -316,7 +304,6 @@ encrypted = "shared.enc.toml"
 
 [key]
 file_path = ".age/root.txt"
-public_key = "age1root"
 `
 	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, ".yewseal.toml"), []byte(rootConfig), 0644))
 
@@ -327,8 +314,6 @@ plaintext = ".env"
 encrypted = ".env.local.enc.yaml"
 format = "env"
 
-[key]
-public_key = "age1child"
 `
 	require.NoError(t, os.WriteFile(filepath.Join(apiDir, ".yewseal.toml"), []byte(childConfig), 0644))
 	require.NoError(t, os.Chdir(apiDir))
@@ -343,7 +328,6 @@ public_key = "age1child"
 	assert.Equal(t, filepath.Join(apiDir, ".env"), files[1].PlaintextPath)
 	assert.Equal(t, filepath.Join(apiDir, ".env.local.enc.yaml"), files[1].EncryptedPath)
 	assert.Equal(t, filepath.Join(tmpDir, ".age", "root.txt"), cfg.Key.FilePath)
-	assert.Equal(t, "age1child", cfg.Key.PublicKey)
 }
 
 func TestLoadConfig_StopsAtNearestGitRoot(t *testing.T) {
@@ -372,8 +356,7 @@ encrypted = "parent.enc.toml"
 
 	cfg, err := LoadConfig()
 	require.NoError(t, err)
-	require.Len(t, cfg.GetFiles(), 1)
-	assert.Equal(t, defaultDecryptedFile, cfg.GetFiles()[0].PlaintextPath)
+	assert.Empty(t, cfg.GetFiles())
 	assert.False(t, cfg.UserConfig)
 }
 

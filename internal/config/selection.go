@@ -18,12 +18,10 @@ type SelectionOptions struct {
 	OutputSet            bool
 	Format               string
 	Patterns             []string
-	FormatRules          []string
-	UnknownAsBinary      bool
-	UnknownAsBinarySet   bool
 	RequireSingleTarget  bool
 	AllowEmptyTarget     bool
 	UseConfiguredDefault bool
+	StrictRecipients     bool
 }
 
 type SelectionResult struct {
@@ -40,11 +38,7 @@ func SelectFilePairs(cfg *Config, opts SelectionOptions) (SelectionResult, error
 		return SelectionResult{}, err
 	}
 
-	allConfigPairs, err := configuredFilePairs(cfg, opts.Command, groupRequestOptions{
-		FormatRules:        opts.FormatRules,
-		UnknownAsBinary:    opts.UnknownAsBinary,
-		UnknownAsBinarySet: opts.UnknownAsBinarySet,
-	})
+	allConfigPairs, err := configuredFilePairs(cfg, opts.Command, groupRequestOptions{})
 	if err != nil {
 		return SelectionResult{}, err
 	}
@@ -70,9 +64,6 @@ func SelectFilePairs(cfg *Config, opts SelectionOptions) (SelectionResult, error
 	}
 	if cliFormat != "" {
 		return SelectionResult{}, fmt.Errorf("--format is only supported in single-file mode")
-	}
-	if len(allConfigPairs) == 0 && opts.UseConfiguredDefault {
-		allConfigPairs = cfg.GetFiles()
 	}
 
 	selected, err := filterCurrentDirectoryScope(allConfigPairs, opts.Command, cwdFromConfig(cfg))
@@ -177,10 +168,7 @@ func DisplayPath(cwd, path string) string {
 }
 
 type groupRequestOptions struct {
-	Patterns           []string
-	FormatRules        []string
-	UnknownAsBinary    bool
-	UnknownAsBinarySet bool
+	Patterns []string
 }
 
 func selectTargetFilePairs(cfg *Config, allConfigPairs []FilePair, opts SelectionOptions, cliFormat string) ([]FilePair, bool, error) {
@@ -216,6 +204,9 @@ func selectTargetFilePairs(cfg *Config, allConfigPairs []FilePair, opts Selectio
 		if opts.OutputSet {
 			return nil, false, fmt.Errorf("--output is only supported when the path target is a file")
 		}
+		if len(cfg.GetGroups()) == 0 {
+			return nil, false, fmt.Errorf("target directory %s is not configured", opts.Target)
+		}
 		pairs, err := directoryTargetPairs(cfg, targetAbs, opts)
 		return pairs, true, err
 	}
@@ -224,36 +215,30 @@ func selectTargetFilePairs(cfg *Config, allConfigPairs []FilePair, opts Selectio
 		return nil, false, fmt.Errorf("target file %s does not exist", opts.Target)
 	}
 
-	filePair, err := unconfiguredFileTargetPair(cfg, opts, cliFormat, targetAbs)
-	if err != nil {
-		return nil, true, err
-	}
-	return []FilePair{filePair}, true, nil
+	return nil, false, fmt.Errorf("target %s is not configured", opts.Target)
 }
 
 func configuredFilePairs(cfg *Config, mode string, req groupRequestOptions) ([]FilePair, error) {
-	pairs := cfg.Encryption.Files
-	if !cfg.UserConfig {
-		pairs = cfg.GetFiles()
-	}
 	groupPairs, err := scopedConfigGroupPairs(cfg, mode, req)
 	if err != nil {
 		return nil, err
 	}
-	pairs = append(pairs, groupPairs...)
-	return dedupeFilePairs(pairs), nil
+	pairs := append(groupPairs, cfg.Encryption.Files...)
+	deduped, err := dedupeFilePairs(pairs)
+	if err != nil {
+		return nil, err
+	}
+	return deduped, nil
 }
 
 func scopedConfigGroupPairs(cfg *Config, mode string, req groupRequestOptions) ([]FilePair, error) {
 	groups := cfg.GetGroups()
 	if len(groups) == 0 {
-		if !hasGroupRequestOptions(req) {
-			return nil, nil
-		}
-		groups = []GroupConfig{{ConfigDir: cwdFromConfig(cfg)}}
+		return nil, nil
 	}
 
 	pairs := make([]FilePair, 0)
+	seenRecipients := make(map[string][]string)
 	for _, group := range groups {
 		root := group.ConfigDir
 		if strings.TrimSpace(root) == "" {
@@ -263,55 +248,84 @@ func scopedConfigGroupPairs(cfg *Config, mode string, req groupRequestOptions) (
 		if len(groupReq.Patterns) == 0 {
 			groupReq.Patterns = group.Patterns
 		}
-		formatRules := append([]string(nil), group.FormatRules...)
-		formatRules = append(formatRules, req.FormatRules...)
-		groupReq.FormatRules = formatRules
-		if !groupReq.UnknownAsBinarySet {
-			groupReq.UnknownAsBinary = group.UnknownAsBinary
+
+		groupAliases, groupRecipientSource := effectiveGroupAuthorization(cfg, group)
+		canonical := []string(nil)
+		if mode != task.ModeDecrypt && groupAliases != nil {
+			var resolveErr error
+			canonical, resolveErr = cfg.resolveAliases(*groupAliases)
+			if resolveErr != nil {
+				return nil, fmt.Errorf("group %s: %w", group.ConfigPath, resolveErr)
+			}
 		}
 		taskPairs, err := task.BuildProjectGroupFilePairs(task.GroupOptions{
 			Root:            root,
 			Patterns:        groupReq.Patterns,
-			FormatRules:     groupReq.FormatRules,
-			UnknownAsBinary: groupReq.UnknownAsBinary,
+			FormatRules:     group.FormatRules,
+			UnknownAsBinary: group.UnknownAsBinary,
 			Mode:            mode,
 		})
 		if err != nil {
 			return nil, err
 		}
 		for _, taskPair := range taskPairs {
+			if _, explicit := findConfiguredPair(cfg.Encryption.Files, cleanAbsPath(taskPair.PlaintextPath)); explicit {
+				continue
+			}
+			key := cleanAbsPath(taskPair.PlaintextPath)
+			if previous, ok := seenRecipients[key]; ok && !equalStrings(previous, canonical) {
+				return nil, fmt.Errorf("conflicting recipient sets for %s", taskPair.PlaintextPath)
+			}
+			seenRecipients[key] = append([]string(nil), canonical...)
 			pairs = append(pairs, FilePair{
-				PlaintextPath: taskPair.PlaintextPath,
-				EncryptedPath: taskPair.EncryptedPath,
-				Format:        taskPair.Format,
-				ConfigPath:    group.ConfigPath,
-				ConfigDir:     root,
-				Source:        "scan",
+				PlaintextPath:   taskPair.PlaintextPath,
+				EncryptedPath:   taskPair.EncryptedPath,
+				Format:          taskPair.Format,
+				ConfigPath:      group.ConfigPath,
+				ConfigDir:       root,
+				Recipients:      cloneOptionalStrings(groupAliases),
+				RecipientSource: groupRecipientSource,
+				Source:          "scan",
 			})
 		}
 	}
 	return pairs, nil
 }
 
+func effectiveGroupAuthorization(cfg *Config, group GroupConfig) (*[]string, ValueSource) {
+	if group.Recipients != nil {
+		return cloneOptionalStrings(group.Recipients), group.RecipientSource
+	}
+	if cfg.Recipients.Defaults != nil {
+		return cloneOptionalStrings(cfg.Recipients.Defaults), ValueSource{
+			Kind:       "defaults",
+			ConfigPath: cfg.Recipients.DefaultsConfigPath,
+			Detail:     "recipients.defaults",
+		}
+	}
+	return nil, ValueSource{}
+}
+
+func equalStrings(left, right []string) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for i := range left {
+		if left[i] != right[i] {
+			return false
+		}
+	}
+	return true
+}
+
 func directoryTargetPairs(cfg *Config, root string, opts SelectionOptions) ([]FilePair, error) {
 	taskPairs, err := groupFilePairsFromRequest(cfg, root, opts.Command, groupRequestOptions{
-		Patterns:           opts.Patterns,
-		FormatRules:        opts.FormatRules,
-		UnknownAsBinary:    opts.UnknownAsBinary,
-		UnknownAsBinarySet: opts.UnknownAsBinarySet,
+		Patterns: opts.Patterns,
 	})
 	if err != nil {
 		return nil, err
 	}
-	pairs := make([]FilePair, 0, len(taskPairs))
-	for _, taskPair := range taskPairs {
-		pairs = append(pairs, FilePair{
-			PlaintextPath: taskPair.PlaintextPath,
-			EncryptedPath: taskPair.EncryptedPath,
-			Format:        taskPair.Format,
-			Source:        "scan",
-		})
-	}
+	pairs := append([]FilePair(nil), taskPairs...)
 
 	allConfigPairs, err := configuredFilePairs(cfg, opts.Command, groupRequestOptions{})
 	if err != nil {
@@ -326,78 +340,70 @@ func directoryTargetPairs(cfg *Config, root string, opts SelectionOptions) ([]Fi
 			pairs[i] = configured
 		}
 	}
-	return dedupeFilePairs(pairs), nil
+	deduped, err := dedupeFilePairs(pairs)
+	if err != nil {
+		return nil, err
+	}
+	return deduped, nil
 }
 
-func groupFilePairsFromRequest(cfg *Config, root, mode string, req groupRequestOptions) ([]task.FilePair, error) {
+func groupFilePairsFromRequest(cfg *Config, root, mode string, req groupRequestOptions) ([]FilePair, error) {
 	groups := cfg.GetGroups()
 	if len(groups) == 0 {
-		groups = []GroupConfig{{}}
+		return nil, nil
 	}
 
-	pairs := make([]task.FilePair, 0)
+	pairs := make([]FilePair, 0)
+	seenRecipients := make(map[string][]string)
+	seenExplicit := make(map[string]struct{})
 	for _, group := range groups {
 		patterns := group.Patterns
 		if len(req.Patterns) > 0 {
 			patterns = append([]string(nil), req.Patterns...)
 		}
-		formatRules := append([]string(nil), group.FormatRules...)
-		formatRules = append(formatRules, req.FormatRules...)
-		unknownAsBinary := group.UnknownAsBinary
-		if req.UnknownAsBinarySet {
-			unknownAsBinary = req.UnknownAsBinary
+		groupAliases, recipientSource := effectiveGroupAuthorization(cfg, group)
+		canonical := []string(nil)
+		if mode != task.ModeDecrypt && groupAliases != nil {
+			var err error
+			canonical, err = cfg.resolveAliases(*groupAliases)
+			if err != nil {
+				return nil, fmt.Errorf("group %s: %w", group.ConfigPath, err)
+			}
 		}
 		groupPairs, err := task.BuildGroupFilePairs(task.GroupOptions{
-			Root:            root,
-			Patterns:        patterns,
-			FormatRules:     formatRules,
-			UnknownAsBinary: unknownAsBinary,
-			Mode:            mode,
+			Root: root, Patterns: patterns, FormatRules: group.FormatRules,
+			UnknownAsBinary: group.UnknownAsBinary, Mode: mode,
 		})
 		if err != nil {
 			return nil, err
 		}
-		pairs = append(pairs, groupPairs...)
-	}
-	return pairs, nil
-}
-
-func unconfiguredFileTargetPair(cfg *Config, opts SelectionOptions, cliFormat, targetAbs string) (FilePair, error) {
-	if opts.Command == task.ModeEncrypt {
-		encryptedPath := resolveCommandPath(cwdFromConfig(cfg), opts.Output)
-		var err error
-		if encryptedPath == "" {
-			encryptedPath, err = fileformat.EncryptPathForPlaintext(targetAbs, cliFormat)
-			if err != nil {
-				return FilePair{}, err
+		for _, taskPair := range groupPairs {
+			if explicit, matched := findConfiguredPair(cfg.Encryption.Files, cleanAbsPath(taskPair.PlaintextPath)); matched {
+				key := cleanAbsPath(explicit.PlaintextPath)
+				if _, seen := seenExplicit[key]; seen {
+					continue
+				}
+				seenExplicit[key] = struct{}{}
+				pairs = append(pairs, explicit)
+				continue
 			}
+			key := cleanAbsPath(taskPair.PlaintextPath)
+			if previous, ok := seenRecipients[key]; ok && !equalStrings(previous, canonical) {
+				return nil, fmt.Errorf("conflicting recipient sets for %s", taskPair.PlaintextPath)
+			}
+			seenRecipients[key] = append([]string(nil), canonical...)
+			pairs = append(pairs, FilePair{
+				PlaintextPath: taskPair.PlaintextPath, EncryptedPath: taskPair.EncryptedPath,
+				Format: taskPair.Format, ConfigPath: group.ConfigPath, ConfigDir: root,
+				Recipients: cloneOptionalStrings(groupAliases), RecipientSource: recipientSource, Source: PairSourceScan,
+			})
 		}
-		return FilePair{
-			PlaintextPath: targetAbs,
-			EncryptedPath: encryptedPath,
-			Format:        cliFormat,
-			Source:        "file-target",
-		}, nil
 	}
-
-	plaintextPath := resolveCommandPath(cwdFromConfig(cfg), opts.Output)
-	inferredPlaintextPath, pathFormat, err := fileformat.PlaintextPathForEncrypted(targetAbs, cliFormat)
+	deduped, err := dedupeFilePairs(pairs)
 	if err != nil {
-		return FilePair{}, err
+		return nil, err
 	}
-	if plaintextPath == "" {
-		plaintextPath = inferredPlaintextPath
-	}
-	formatOverride := cliFormat
-	if formatOverride == "" {
-		formatOverride = pathFormat
-	}
-	return FilePair{
-		PlaintextPath: plaintextPath,
-		EncryptedPath: targetAbs,
-		Format:        formatOverride,
-		Source:        "file-target",
-	}, nil
+	return deduped, nil
 }
 
 func filterCurrentDirectoryScope(filePairs []FilePair, command, cwd string) ([]FilePair, error) {
@@ -456,7 +462,7 @@ func findConfiguredPair(filePairs []FilePair, targetAbs string) (FilePair, bool)
 	return FilePair{}, false
 }
 
-func dedupeFilePairs(filePairs []FilePair) []FilePair {
+func dedupeFilePairs(filePairs []FilePair) ([]FilePair, error) {
 	result := make([]FilePair, 0, len(filePairs))
 	for _, filePair := range filePairs {
 		nextPlaintext := cleanAbsPath(filePair.PlaintextPath)
@@ -464,13 +470,20 @@ func dedupeFilePairs(filePairs []FilePair) []FilePair {
 		filtered := result[:0]
 		for _, existing := range result {
 			if cleanAbsPath(existing.PlaintextPath) == nextPlaintext || cleanAbsPath(existing.EncryptedPath) == nextEncrypted {
+				// An explicitly configured file may intentionally override a scanned group pair.
+				if existing.Source == PairSourceScan && filePair.Source != PairSourceScan {
+					continue
+				}
+				if existing.Source != PairSourceScan && filePair.Source != PairSourceScan {
+					return nil, fmt.Errorf("conflicting file pairs for plaintext %q or encrypted %q", filePair.PlaintextPath, filePair.EncryptedPath)
+				}
 				continue
 			}
 			filtered = append(filtered, existing)
 		}
 		result = append(filtered, filePair)
 	}
-	return result
+	return result, nil
 }
 
 func validateFilePair(filePair FilePair) (FilePair, error) {
@@ -501,10 +514,6 @@ func effectiveFormat(path, formatOverride string) (string, error) {
 	return format, nil
 }
 
-func hasGroupRequestOptions(req groupRequestOptions) bool {
-	return len(req.Patterns) > 0 || len(req.FormatRules) > 0 || req.UnknownAsBinarySet
-}
-
 func cwdFromConfig(cfg *Config) string {
 	if cfg != nil && strings.TrimSpace(cfg.CurrentDir) != "" {
 		return cfg.CurrentDir
@@ -514,6 +523,9 @@ func cwdFromConfig(cfg *Config) string {
 		return "."
 	}
 	return cwd
+}
+func hasRecipientPolicy(cfg *Config) bool {
+	return cfg != nil && (cfg.Recipients.Defaults != nil || len(cfg.Recipients.Registry) > 0)
 }
 
 func cleanAbsTarget(path string) (string, error) {

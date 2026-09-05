@@ -7,36 +7,29 @@ import (
 )
 
 type encryptOptions struct {
-	Output          string
-	Format          string
-	Patterns        []string
-	FormatRules     []string
-	UnknownAsBinary bool
-	Parallel        int
-	PublicKey       string
-	Verbose         bool
+	Output   string
+	Format   string
+	Patterns []string
+	Parallel int
+	Verbose  bool
 }
 
 type decryptOptions struct {
-	Output          string
-	Format          string
-	Patterns        []string
-	FormatRules     []string
-	UnknownAsBinary bool
-	Parallel        int
-	Force           bool
-	Verbose         bool
+	Output   string
+	Format   string
+	Patterns []string
+	Parallel int
+	Force    bool
+	Verbose  bool
 }
 
 type planOptions struct {
-	Output          string
-	Format          string
-	Patterns        []string
-	FormatRules     []string
-	UnknownAsBinary bool
-	Parallel        int
-	Verbose         bool
-	JSON            bool
+	Output   string
+	Format   string
+	Patterns []string
+	Parallel int
+	Verbose  bool
+	JSON     bool
 }
 
 type syncOptions struct {
@@ -51,20 +44,15 @@ type syncOptions struct {
 func addEncryptFlags(flags *pflag.FlagSet, opts *encryptOptions) {
 	flags.StringVarP(&opts.Output, "output", "o", opts.Output, "Output encrypted file for a single file target")
 	flags.StringVar(&opts.Format, "format", opts.Format, "Format override for file targets (toml/yaml/json/env/ini/binary)")
-	flags.StringSliceVar(&opts.Patterns, "pattern", nil, "Group pattern for temporary directory mode or encryption.groups override")
-	flags.StringSliceVar(&opts.FormatRules, "format-rule", nil, "Group format rule in <pattern>=<format> form")
-	flags.BoolVar(&opts.UnknownAsBinary, "unknown-as-binary", false, "Allow group mode to encrypt unknown plaintext formats as binary")
+	flags.StringSliceVar(&opts.Patterns, "pattern", nil, "Pattern filter for configured groups")
 	flags.IntVarP(&opts.Parallel, "parallel", "P", opts.Parallel, "Number of parallel workers for batch mode")
-	flags.StringVarP(&opts.PublicKey, "public-key", "p", opts.PublicKey, "Age public key for encryption")
 	flags.BoolVarP(&opts.Verbose, "verbose", "v", false, "Enable verbose output")
 }
 
 func addDecryptFlags(flags *pflag.FlagSet, opts *decryptOptions) {
 	flags.StringVarP(&opts.Output, "output", "o", opts.Output, "Output plaintext file for a single file target")
 	flags.StringVar(&opts.Format, "format", opts.Format, "Format override for file targets (toml/yaml/json/env/ini/binary)")
-	flags.StringSliceVar(&opts.Patterns, "pattern", nil, "Group pattern for temporary directory mode or encryption.groups override")
-	flags.StringSliceVar(&opts.FormatRules, "format-rule", nil, "Group format rule in <pattern>=<format> form")
-	flags.BoolVar(&opts.UnknownAsBinary, "unknown-as-binary", false, "Allow group mode to treat unknown encrypted inputs as binary when needed")
+	flags.StringSliceVar(&opts.Patterns, "pattern", nil, "Pattern filter for configured groups")
 	flags.IntVarP(&opts.Parallel, "parallel", "P", opts.Parallel, "Number of parallel workers for batch mode")
 	flags.BoolVarP(&opts.Force, "force", "f", false, "Force overwrite existing plaintext file when it differs from decrypted content")
 	flags.BoolVarP(&opts.Verbose, "verbose", "v", false, "Enable verbose output")
@@ -74,8 +62,6 @@ func addPlanFlags(flags *pflag.FlagSet, opts *planOptions) {
 	flags.StringVarP(&opts.Output, "output", "o", opts.Output, "Output file for a single file target")
 	flags.StringVar(&opts.Format, "format", opts.Format, "Format override for file targets (toml/yaml/json/env/ini/binary)")
 	flags.StringSliceVar(&opts.Patterns, "pattern", nil, "Group pattern for directory mode or encryption.groups override")
-	flags.StringSliceVar(&opts.FormatRules, "format-rule", nil, "Group format rule in <pattern>=<format> form")
-	flags.BoolVar(&opts.UnknownAsBinary, "unknown-as-binary", false, "Allow group mode to treat unknown formats as binary")
 	flags.IntVarP(&opts.Parallel, "parallel", "P", opts.Parallel, "Number of parallel workers for batch mode")
 	flags.BoolVarP(&opts.Verbose, "verbose", "v", false, "Enable verbose output")
 	flags.BoolVar(&opts.JSON, "json", false, "Print preflight result as JSON")

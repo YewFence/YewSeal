@@ -18,8 +18,7 @@ func TestDiffPlaintextAgainstEncryptedTargets_WritesDiffForDifferentTarget(t *te
 	require.NoError(t, seal.Encrypt(seal.EncryptOptions{
 		InputFile:      "config.yaml",
 		OutputFile:     "config.enc.yaml",
-		KeyFile:        env.keyFile,
-		PublicKey:      env.publicKey,
+		Recipients:     []string{env.publicKey},
 		FormatOverride: "yaml",
 	}))
 	require.NoError(t, os.WriteFile("config.yaml", []byte("database:\n  host: local-change\n"), 0644))
@@ -50,14 +49,13 @@ func TestDiffPlaintextAgainstEncryptedTargets_NoOutputForIdenticalTarget(t *test
 	require.NoError(t, seal.Encrypt(seal.EncryptOptions{
 		InputFile:      "config.yaml",
 		OutputFile:     "config.enc.yaml",
-		KeyFile:        env.keyFile,
-		PublicKey:      env.publicKey,
+		Recipients:     []string{env.publicKey},
 		FormatOverride: "yaml",
 	}))
 	decrypted, err := seal.DecryptToBytes(seal.DecryptBytesOptions{
 		InputFile:      "config.enc.yaml",
 		OutputFile:     "config.yaml",
-		KeyFile:        env.keyFile,
+		IdentityBundle: mustTestBundle(t, env.keyFile),
 		FormatOverride: "yaml",
 	})
 	require.NoError(t, err)

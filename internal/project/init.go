@@ -8,9 +8,12 @@ import (
 	"time"
 
 	"filippo.io/age"
+	"github.com/YewFence/YewSeal/internal/agekey"
 	"github.com/YewFence/YewSeal/internal/config"
 	tools "github.com/YewFence/YewSeal/internal/prompt"
 )
+
+const defaultInitPlaintextFile = "wrangler.toml"
 
 type initSelections struct {
 	FilePairs    []config.FilePair
@@ -42,20 +45,37 @@ func InitProject(force bool, inputFile, outputFile, formatOverride string, creat
 		"Create .sops.yaml? (optional, but convenient for direct sops commands)",
 	)
 
+	if force {
+		fmt.Println("⚠️  Force rebuild: the new owner identity may not decrypt existing ciphertext")
+	}
+
 	publicKey, err := setupAgeKey(force)
 	if err != nil {
 		return err
 	}
 
+	resolved := make([]config.ResolvedFilePair, 0, len(filePairs))
+	for _, filePair := range filePairs {
+		resolved = append(resolved, config.ResolvedFilePair{PlaintextPath: filePair.PlaintextPath, EncryptedPath: filePair.EncryptedPath, Format: filePair.Format, Recipients: []string{publicKey}})
+	}
 	if shouldCreateSopsConfig {
-		if err := SyncSopsYaml(filePairs, publicKey); err != nil {
+		if err := SyncResolvedSopsYaml(resolved); err != nil {
 			return fmt.Errorf("failed to update .sops.yaml: %w", err)
 		}
 	} else {
 		fmt.Println("⏭️  Skipped creating .sops.yaml")
+		if force {
+			if err := os.Remove(sopsYamlPath); err != nil && !os.IsNotExist(err) {
+				return fmt.Errorf("failed to remove managed .sops.yaml: %w", err)
+			}
+		}
 	}
 
-	if err := SavePublicKeyToConfig(publicKey, filePairs); err != nil {
+	for i := range filePairs {
+		aliases := []string{"owner"}
+		filePairs[i].Recipients = &aliases
+	}
+	if err := SaveBootstrapConfig(publicKey, filePairs); err != nil {
 		return fmt.Errorf("failed to save configuration: %w", err)
 	}
 
@@ -66,7 +86,6 @@ func InitProject(force bool, inputFile, outputFile, formatOverride string, creat
 	for _, exampleFile := range selections.ExampleFiles {
 		createExampleFile(exampleFile)
 	}
-
 	printCompletionMessage(filePairs, len(selections.ExampleFiles) > 0, shouldCreateSopsConfig)
 	return nil
 }
@@ -158,7 +177,7 @@ func collectInitSelections(inputFile, outputFile, formatOverride string, createE
 func promptInitFilePair(first bool) (config.FilePair, error) {
 	var plaintextFile string
 	if first {
-		plaintextFile = tools.PromptWithDefault("Enter plaintext config file name", config.DefaultFilePair().PlaintextPath)
+		plaintextFile = tools.PromptWithDefault("Enter plaintext config file name", defaultInitPlaintextFile)
 	} else {
 		var err error
 		plaintextFile, err = tools.PromptRequired("Enter plaintext config file name")
@@ -207,7 +226,7 @@ func defaultEncryptedOutputName(inputBase, inputExt string) string {
 }
 
 func newInitFilePair(inputFile, outputFile, formatOverride string, interactive bool) (config.FilePair, error) {
-	filePair := config.DefaultFilePair()
+	filePair := config.FilePair{PlaintextPath: defaultInitPlaintextFile}
 	if inputFile != "" {
 		filePair.PlaintextPath = inputFile
 	}
@@ -300,17 +319,6 @@ func normalizeInitFormat(format string) (string, bool) {
 	}
 }
 
-func extractPublicKey(output string) string {
-	lines := strings.Split(output, "\n")
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, "# public key: ") {
-			return strings.TrimPrefix(line, "# public key: ")
-		}
-	}
-	return ""
-}
-
 // setupAgeKey generates or retrieves the Age key pair
 func setupAgeKey(force bool) (string, error) {
 	keyFilePath := ".age/keys.txt"
@@ -324,14 +332,15 @@ func setupAgeKey(force bool) (string, error) {
 		// Use existing key
 		fmt.Println("🔑 Found existing Age key, using it...")
 
-		keyContent, err := os.ReadFile(keyFilePath)
+		bundle, err := agekey.GetIdentityBundle(keyFilePath)
 		if err != nil {
-			return "", fmt.Errorf("failed to read existing key file: %w", err)
+			return "", fmt.Errorf("failed to parse existing key file: %w", err)
 		}
-		publicKey := extractPublicKey(string(keyContent))
-		if publicKey == "" {
-			return "", fmt.Errorf("failed to extract public key from existing key file")
+		identity, err := age.ParseX25519Identity(bundle.Identities()[0])
+		if err != nil {
+			return "", fmt.Errorf("failed to parse existing owner identity: %w", err)
 		}
+		publicKey := identity.Recipient().String()
 		fmt.Printf("✅ Using existing public key: %s\n", publicKey)
 		return publicKey, nil
 	}
@@ -339,9 +348,6 @@ func setupAgeKey(force bool) (string, error) {
 	// Generate new key (either no key exists or force mode)
 	if force && keyExists {
 		fmt.Println("🔑 Force mode: Regenerating Age key pair...")
-		if err := os.Remove(keyFilePath); err != nil {
-			return "", fmt.Errorf("failed to remove existing key file: %w", err)
-		}
 	} else {
 		fmt.Println("🔑 Generating Age key pair...")
 	}
@@ -362,8 +368,29 @@ func setupAgeKey(force bool) (string, error) {
 		identity.Recipient().String(),
 		identity.String())
 
-	if err := os.WriteFile(keyFilePath, []byte(keyContent), 0600); err != nil {
+	tempFile, err := os.CreateTemp(".age", "keys.txt.*")
+	if err != nil {
+		return "", fmt.Errorf("failed to create temporary key file: %w", err)
+	}
+	tempPath := tempFile.Name()
+	defer func() { _ = os.Remove(tempPath) }()
+	if _, err := tempFile.Write([]byte(keyContent)); err != nil {
+		_ = tempFile.Close()
 		return "", fmt.Errorf("failed to write key file: %w", err)
+	}
+	if err := tempFile.Chmod(0600); err != nil {
+		_ = tempFile.Close()
+		return "", fmt.Errorf("failed to set key file permissions: %w", err)
+	}
+	if err := tempFile.Sync(); err != nil {
+		_ = tempFile.Close()
+		return "", fmt.Errorf("failed to sync key file: %w", err)
+	}
+	if err := tempFile.Close(); err != nil {
+		return "", fmt.Errorf("failed to close key file: %w", err)
+	}
+	if err := os.Rename(tempPath, keyFilePath); err != nil {
+		return "", fmt.Errorf("failed to replace key file: %w", err)
 	}
 
 	publicKey := identity.Recipient().String()
