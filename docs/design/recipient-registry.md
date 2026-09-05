@@ -597,6 +597,7 @@ AGE-SECRET-KEY-1...,,AGE-SECRET-KEY-1...
 SOPS_AGE_KEY
   > SOPS_AGE_KEY_FILE
   > SOPS_AGE_KEY_CMD
+  > 配置 `[key].file_path`
   > 默认 .age/keys.txt
 ```
 

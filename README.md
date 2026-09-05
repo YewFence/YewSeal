@@ -138,7 +138,7 @@ yews init
 #### 初始化完成后会创建
 
 - `.age/keys.txt` - Age 密钥对（私钥 + 公钥）
-- `.yewseal.toml` - YewSeal 配置文件（包含公钥和 `[[encryption.files]]` 数组）
+- `.yewseal.toml` - YewSeal 配置文件（在 `[recipients.registry]` 中保存公开 recipients，并包含 `[[encryption.files]]` 数组）
 - `.sops.yaml` - SOPS 配置文件（如果选择创建）
 - `.gitignore` - 自动添加需要忽略的文件
 - `*.example.toml` - 示例配置文件（如果选择创建）

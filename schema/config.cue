@@ -34,7 +34,7 @@ package schema
 // registry 只包含公开 Age recipient,不包含私钥。
 #RecipientConfig: {
 	// 默认 alias 集合。缺省时每个 file/group 都必须显式声明 recipients。
-	defaults?: [...string]
+	defaults?: [string, ...string]
 
 	// alias 到 Age recipient 公钥的映射。
 	registry?: {[string]: string}
@@ -52,7 +52,7 @@ package schema
 	format?: #Format
 
 // 授权 alias 集合。省略时继承 group 或顶层 defaults。
-recipients?: [...string]
+recipients?: [string, ...string]
 }
 
 // #GroupConfig 定义一组按模式匹配的加密文件。
@@ -70,7 +70,7 @@ recipients?: [...string]
 	unknown_as_binary?: bool
 
 // 扫描结果的授权 alias 集合。省略时继承顶层 defaults。
-recipients?: [...string]
+recipients?: [string, ...string]
 }
 
 // #KeyConfig 定义 Age 密钥位置。切勿把私钥内容写进配置文件。

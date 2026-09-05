@@ -355,6 +355,7 @@ func groupFilePairsFromRequest(cfg *Config, root, mode string, req groupRequestO
 
 	pairs := make([]FilePair, 0)
 	seenRecipients := make(map[string][]string)
+	seenExplicit := make(map[string]struct{})
 	for _, group := range groups {
 		patterns := group.Patterns
 		if len(req.Patterns) > 0 {
@@ -378,6 +379,11 @@ func groupFilePairsFromRequest(cfg *Config, root, mode string, req groupRequestO
 		}
 		for _, taskPair := range groupPairs {
 			if explicit, matched := findConfiguredPair(cfg.Encryption.Files, cleanAbsPath(taskPair.PlaintextPath)); matched {
+				key := cleanAbsPath(explicit.PlaintextPath)
+				if _, seen := seenExplicit[key]; seen {
+					continue
+				}
+				seenExplicit[key] = struct{}{}
 				pairs = append(pairs, explicit)
 				continue
 			}

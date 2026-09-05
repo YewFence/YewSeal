@@ -63,7 +63,13 @@
                     "description": "授权 alias 集合。省略时继承 group 或顶层 defaults。",
                     "items": {
                         "type": "string"
-                    }
+                    },
+                    "prefixItems": [
+                        {
+                            "type": "string"
+                        }
+                    ],
+                    "minItems": 1
                 }
             },
             "required": [
@@ -110,7 +116,13 @@
                     "description": "扫描结果的授权 alias 集合。省略时继承顶层 defaults。",
                     "items": {
                         "type": "string"
-                    }
+                    },
+                    "prefixItems": [
+                        {
+                            "type": "string"
+                        }
+                    ],
+                    "minItems": 1
                 },
                 "unknown_as_binary": {
                     "type": "boolean",
@@ -139,7 +151,13 @@
                     "description": "默认 alias 集合。缺省时每个 file/group 都必须显式声明 recipients。",
                     "items": {
                         "type": "string"
-                    }
+                    },
+                    "prefixItems": [
+                        {
+                            "type": "string"
+                        }
+                    ],
+                    "minItems": 1
                 },
                 "registry": {
                     "type": "object",

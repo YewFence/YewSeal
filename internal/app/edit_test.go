@@ -13,6 +13,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func ptrStrings(values ...string) *[]string { return &values }
+
 func TestEditEncryptedFileTOMLRoundTrip(t *testing.T) {
 	env := newAppCryptoTestEnv(t)
 	plain := []byte(`[database]
@@ -40,7 +42,7 @@ sed -i "s/password = 'old'/password = 'new'/" "$1"
 
 	var output bytes.Buffer
 	require.NoError(t, EditEncryptedFile(EditRequest{
-		Config:  &config.Config{Encryption: config.EncryptionConfig{Files: []config.FilePair{{PlaintextPath: "config.toml", EncryptedPath: "config.enc.toml", Format: "toml"}}}},
+		Config:  &config.Config{Recipients: config.RecipientConfig{Registry: map[string]string{"owner": env.publicKey}}, Encryption: config.EncryptionConfig{Files: []config.FilePair{{PlaintextPath: "config.toml", EncryptedPath: "config.enc.toml", Format: "toml", Recipients: ptrStrings("owner")}}}},
 		File:    "config.enc.toml",
 		Editor:  editorPath,
 		KeyFile: env.keyFile,
@@ -79,9 +81,10 @@ sed -i 's/TOKEN=old/TOKEN=new/' "$1"
 	require.NoError(t, os.WriteFile(editorPath, []byte(editorScript), 0700))
 
 	cfg := &config.Config{
+		Recipients: config.RecipientConfig{Registry: map[string]string{"owner": env.publicKey}},
 		Encryption: config.EncryptionConfig{
 			Files: []config.FilePair{
-				{PlaintextPath: ".dev.vars", EncryptedPath: ".dev.vars.enc.yaml", Format: "env"},
+				{PlaintextPath: ".dev.vars", EncryptedPath: ".dev.vars.enc.yaml", Format: "env", Recipients: ptrStrings("owner")},
 			},
 		},
 	}

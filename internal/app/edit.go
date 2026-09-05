@@ -38,6 +38,7 @@ func EditEncryptedFile(req EditRequest) error {
 		Target:              req.File,
 		RequireSingleTarget: true,
 		AllowEmptyTarget:    false,
+		StrictRecipients:    true,
 	})
 	if err != nil {
 		return err
@@ -111,14 +112,10 @@ func EditEncryptedFile(req EditRequest) error {
 		return nil
 	}
 
-	recipients, err := seal.ExtractAgeRecipientsFromEncryptedFile(resolved.EncryptedPath, resolved.PlaintextPath, resolved.Format)
-	if err != nil {
-		return err
-	}
 	newEncData, err := seal.EncryptToBytes(editedData, seal.EncryptBytesOptions{
 		FormatFile:     resolved.PlaintextPath,
 		FormatOverride: resolved.Format,
-		Recipients:     recipients,
+		Recipients:     resolved.Recipients,
 		Output:         req.Output,
 	})
 	if err != nil {
