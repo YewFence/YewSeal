@@ -41,8 +41,17 @@ func TestLoadConfig_NoFile(t *testing.T) {
 	require.NoError(t, err)
 
 	cfg, err := LoadConfig()
+	require.ErrorContains(t, err, "no YewSeal configuration found")
+	assert.Nil(t, cfg)
+}
+
+func TestLoadConfigEmptyFileIsNotMissing(t *testing.T) {
+	t.Chdir(t.TempDir())
+	require.NoError(t, os.WriteFile(".yewseal.toml", nil, 0600))
+	cfg, err := LoadConfig()
 	require.NoError(t, err)
-	assert.Empty(t, cfg.GetFiles())
+	require.Len(t, cfg.LoadedFiles, 1)
+	require.Empty(t, cfg.GetFiles())
 }
 
 func TestLoadConfig_WithFile(t *testing.T) {
@@ -283,9 +292,8 @@ encrypted = "parent.enc.toml"
 	require.NoError(t, os.Chdir(childDir))
 
 	cfg, err := LoadConfig()
-	require.NoError(t, err)
-	assert.Empty(t, cfg.GetFiles())
-	assert.False(t, cfg.UserConfig)
+	require.ErrorContains(t, err, "no YewSeal configuration found")
+	assert.Nil(t, cfg)
 }
 
 func TestLoadConfig_NonGitUsesCurrentDirectoryConfig(t *testing.T) {

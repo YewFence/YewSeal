@@ -81,7 +81,7 @@ func DefaultConfig() *Config {
 // 1. .yewseal/.yewseal.toml
 // 2. .config/.yewseal.toml
 // 3. .yewseal.toml
-// If no file exists, it returns an empty selection config.
+// If no file exists, it returns an error.
 func LoadConfig() (*Config, error) {
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -94,9 +94,7 @@ func LoadConfig() (*Config, error) {
 	}
 
 	if len(configFiles) == 0 {
-		config := DefaultConfig()
-		config.CurrentDir = cwd
-		return config, nil
+		return nil, fmt.Errorf("no YewSeal configuration found for %s (expected .yewseal.toml, .config/.yewseal.toml, or .yewseal/.yewseal.toml)", cwd)
 	}
 
 	config := &Config{
