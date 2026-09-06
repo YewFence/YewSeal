@@ -31,7 +31,7 @@ func WriteViewedTarget(w io.Writer, cfg *config.Config, target, keyFile, cliForm
 	filePair := filePairs[0]
 	config.PrintSelection(verbose, cfg, result)
 
-	identityBundle, err := resolveIdentityBundle(cfg, keyFile)
+	identityBundle, err := agekey.GetIdentityBundle(keyFile)
 	if err != nil {
 		return err
 	}
@@ -52,16 +52,4 @@ func WriteViewedTarget(w io.Writer, cfg *config.Config, target, keyFile, cliForm
 		return err
 	}
 	return nil
-}
-
-func resolveIdentityBundle(cfg *config.Config, explicitKeyFile string) (agekey.IdentityBundle, error) {
-	fallback := ""
-	if cfg != nil {
-		fallback = cfg.GetKeyFile("")
-	}
-	bundle, err := agekey.GetIdentityBundleWithFallback(explicitKeyFile, fallback)
-	if err != nil {
-		return agekey.IdentityBundle{}, err
-	}
-	return bundle, nil
 }

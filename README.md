@@ -11,7 +11,7 @@ YewSeal 是一个围绕 **SOPS + age** 构建的 CLI 工具，用清晰的配置
 - `init` 快速初始化，自动生成密钥、配置和推荐的项目文件
 - 提供简洁的 `yews e` / `yews d` 别名，可按配置处理所有文件，并支持目录扫描与并行处理
 - 支持 TOML、YAML、JSON、ENV、INI；TOML 由内置的原生 TOML store 直接加密（基于 [YewFence/sops](https://github.com/YewFence/sops) fork）
-- 支持从环境变量、文件或配置文件读取密钥
+- 通过命令行参数、环境变量或默认文件提供解密身份，私钥位置不写入项目配置
 - 加密/解密后保持原始数据结构
 
 ## 快速开始
@@ -178,8 +178,9 @@ yews edit -f ./path/to/file
 3. `SOPS_AGE_KEY` 环境变量中的多行 identity bundle
 4. `SOPS_AGE_KEY_FILE` 环境变量
 5. `SOPS_AGE_KEY_CMD` 环境变量
-6. `.yewseal.toml` 的 `[key].file_path`
-7. 默认路径 `.age/keys.txt`
+6. 当前工作目录下的默认路径 `.age/keys.txt`
+
+通过参数或环境变量指定的相对路径和默认 `.age/keys.txt` 均相对于运行命令的当前目录解析。
 
 ### 命令行参数
 
@@ -207,9 +208,9 @@ yews decrypt
 
 ## 外部私钥来源
 
-YewSeal 不提供私钥同步命令或 Provider 集成。不同开发者、机器和部署环境可持有不同的私钥，项目配置只需登记相应的公开 recipients 和文件授权。
+YewSeal 不提供私钥同步集成。因为不同开发者、机器和部署环境可能持有不同的私钥，项目配置只登记公开 recipients 和文件授权。
 
-私钥可由本地文件、CI secret 或独立的 secret manager 工具提供。使用 Infisical CLI 导出完整 identity bundle 的参考脚本见[外部私钥来源](docs/guide/private-keys.md)，YewSeal 不负责其认证或远端操作。
+私钥可由本地文件、CI secret 或独立的 secret manager 工具提供。使用 Infisical CLI 导出完整 identity bundle 的参考脚本见[外部私钥来源](docs/guide/private-keys.md)。
 
 ## Git 工作流
 

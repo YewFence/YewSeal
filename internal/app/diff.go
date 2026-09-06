@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/YewFence/YewSeal/internal/agekey"
 	"github.com/YewFence/YewSeal/internal/config"
 	"github.com/YewFence/YewSeal/internal/diff"
 	"github.com/YewFence/YewSeal/internal/task"
@@ -32,7 +33,7 @@ func DiffPlaintextAgainstEncryptedTargets(w io.Writer, cfg *config.Config, targe
 	}
 	config.PrintSelection(verbose, cfg, result)
 
-	identityBundle, err := resolveIdentityBundle(cfg, keyFile)
+	identityBundle, err := agekey.GetIdentityBundle(keyFile)
 	if err != nil {
 		return DiffResult{}, err
 	}

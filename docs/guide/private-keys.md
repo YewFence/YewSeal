@@ -2,6 +2,8 @@
 
 YewSeal 不负责私钥的远端存储、上传、下载或分发，不提供 `sync` 命令或 Provider 集成。解密所需的 Age identity bundle 由开发者、机器或部署环境自行提供；身份读取优先级见[配置说明](/guide/configuration#私钥读取)。
 
+个人私钥路径通过 `--key-file` 或环境变量指定，不写入 `.yewseal.toml`。未显式提供身份时，YewSeal 最后尝试当前工作目录下的 `.age/keys.txt`；`init` 仍可在该位置生成初始密钥，但不会把路径登记进项目配置。
+
 不同开发者、开发机和生产环境可以使用不同的密钥。项目中的 `[recipients.registry]` 和文件授权集合登记公开 recipient，不要求各环境共享同一把私钥。只向每个环境提供它实际需要的身份，私钥不要提交到版本控制，也不要输出到 CI 日志。
 
 ## Infisical 参考脚本
