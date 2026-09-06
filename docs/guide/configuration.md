@@ -10,7 +10,7 @@ YewSeal 会从当前 Git 仓库根目录开始，一路加载到当前目录，�
 
 ## 配置加载时机
 
-版本、无参数的 `yews`、各级帮助、补全脚本生成和当前的静态 Tab 补全不发现、读取或校验项目配置。即使配置包含语法错误或已移除字段，这些入口也不会因此失败或输出配置警告。
+版本、无参数的 `yews`、各级帮助、补全脚本生成和当前的静态 Tab 补全不发现、读取或校验项目配置。即使配置包含语法错误或非法内容，这些入口也不会因此失败或输出配置警告。
 
 `init` 不解析旧配置，仍执行自己的文件存在性检查和覆盖确认；`init --force` 可以重建损坏配置，但仍会重建密钥，已有密文可能因此无法解密。
 
@@ -19,9 +19,9 @@ YewSeal 会从当前 Git 仓库根目录开始，一路加载到当前目录，�
 - 没有配置文件：加载阶段直接报告 `no YewSeal configuration found`，不会使用空配置继续执行。
 - 配置存在但解析、合并或校验失败：报告配置错误，不跳过或回退到默认配置。
 - 配置文件合法但为空：不视为文件缺失，后续文件选择会报告没有可处理的已配置文件。
-- 非法格式、颜色、并发数、参数数量和可独立判断的选项组合错误：优先于配置错误；`--parallel` 必须至少为 `1`。
+- 非法颜色、并发数、参数数量和可独立判断的选项组合错误：优先于配置错误；`--parallel` 必须至少为 `1`。
 
-帮助和版本不会绕过 flags 解析。例如 `yews decrypt --help --format invalid` 会显示帮助，但 `yews decrypt --help --parallel nope` 和 `yews --version --unknown-option` 会报参数解析错误；这三种调用均不加载项目配置。
+帮助和版本不会绕过 flags 解析。例如 `yews init --help --format invalid` 会显示帮助，但 `yews decrypt --help --parallel nope` 和 `yews --version --unknown-option` 会报参数解析错误；这三种调用均不加载项目配置。业务命令没有 `--format` 选项，传入会报未知选项错误，即使同时指定 `--help`。
 
 ## .yewseal.toml
 
@@ -52,6 +52,8 @@ encrypted = "config.enc.toml"
 ```
 所有运行时处理的路径都必须来自显式 FilePair 或 Group。没有配置文件、空配置或未登记 target 时不会自动生成 wrangler FilePair；默认私钥文件仍是 `.age/keys.txt`。
 
+文件和加密授权统一在项目配置中声明。不需要项目级管理的单文件任务可以直接使用 SOPS，用法和格式兼容边界见[与 SOPS 配合使用](/guide/sops)。
+
 ### Recipient 授权
 
 `[recipients.registry]` 把可审查的 alias 映射到单个公开 Age recipient。alias 区分大小写，只允许以 ASCII 字母开头，并由字母、数字、下划线或连字符组成；同名 alias、同一公钥对应多个 alias、非法公钥都会报错。registry 中不能保存私钥。
@@ -76,6 +78,8 @@ format = "env"
 ```
 
 `format` 是可选字段，支持 `toml`、`yaml`、`json`、`env`、`ini` 和 `binary`（也接受别名 `yml`、`dotenv`、`bin`，运行时会归一化为规范名），适合 `.dev.vars` 这种无法从扩展名判断格式的文件。
+
+`encrypt`、`decrypt`、`plan`、`view`、`diff` 没有 `--format` 选项，也不读取 `YEWSEAL_FORMAT` 或 `SOPS_FORMAT`。格式由文件的 `format`、分组的 `format_rules` 或已登记路径的推断结果确定；`--output` 只改变本次输出位置，不改变格式。`init --format` 保留，用于创建文件的格式声明。
 
 ### 分组扫描
 
@@ -168,7 +172,7 @@ export SOPS_AGE_KEY_FILE="$HOME/.age/my-key.txt"
 yews decrypt config.enc.toml
 ```
 
-`[key].file_path` 已移除，旧配置中出现该字段会报迁移错误。请删除该字段（以及空的 `[key]` 表），通过参数或环境变量指定个人或机器的路径。相对路径和默认 `.age/keys.txt` 均相对于运行命令的当前目录，不相对于 `.yewseal.toml` 所在目录；从子目录运行时可使用绝对路径。
+通过参数或环境变量指定的相对路径和默认 `.age/keys.txt` 均相对于运行命令的当前目录，不相对于 `.yewseal.toml` 所在目录；从子目录运行时可使用绝对路径。
 
 加密时唯一使用 `[recipients.registry]` 与 FilePair、Group 或 `recipients.defaults` 解析出的 canonical Age recipient。私钥文件、`SOPS_AGE_RECIPIENTS` 和 `.sops.yaml` 都不会决定 YewSeal 的加密授权范围。
 
@@ -196,8 +200,7 @@ YewSeal 支持通过环境变量配置部分选项：
 | `SOPS_AGE_KEY_FILE` | Age 私钥文件路径 |
 | `SOPS_AGE_KEY_CMD` | 执行命令获取 Age identity bundle |
 | `SOPS_OUTPUT_FILE` | `encrypt`、`decrypt`、`plan` 的 `--output` 值 |
-| `YEWSEAL_FORMAT` | `encrypt`、`decrypt`、`plan` 的 `--format` 值 |
-| `SOPS_FORMAT` | `encrypt`、`decrypt`、`plan` 的 `--format` 值 |
+| `YEWSEAL_STRICT` | `decrypt`、`diff` 的严格模式默认值，显式 `--strict` / `--strict=false` 优先 |
  `EDITOR` | `edit` 命令在 `VISUAL` 未设置时使用的编辑器 |
  `VISUAL` | `edit` 命令优先使用的编辑器 |
 

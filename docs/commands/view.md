@@ -10,21 +10,13 @@ yews view [command options] <target>
 
 ## 参数
 
-`target` 必须是一个目标文件，可以是配置里声明的明文路径或加密路径，也可以是符合文件名协议的加密文件路径。
+`target` 必须命中已登记文件的明文路径或加密路径，格式使用项目配置或已登记路径的推断结果。
 
 ```bash
 yews view config.enc.toml
 ```
 
 ## 选项
-
-### --format
-
-指定输出格式，支持 `toml`、`yaml`、`json`、`env`、`ini` 和 `binary`。
-
-```bash
-yews view config.enc.yaml --format toml
-```
 
 ### --verbose, -v
 
@@ -40,16 +32,15 @@ yews view config.enc.toml -v
 # 查看加密文件
 yews view config.enc.toml
 
-# 转换为 TOML 输出
-yews view config.enc.yaml --format toml
-
-# 转换为 JSON 后交给 jq
-yews view config.enc.yaml --format json | jq '.database'
+# 将已登记的 JSON 文件解密后交给 jq
+yews view config.enc.json | jq '.database'
 ```
 
 ## 与 decrypt 的区别
 
 `view` 只写标准输出，适合临时查看和管道处理。`decrypt` 会写入明文文件，并带有覆盖保护。
+
+`view` 只按文件自身的格式输出，不进行跨格式转换；需要转换时，将解密后的内容交给相应格式转换工具。
 
 ## 相关命令
 

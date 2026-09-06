@@ -33,15 +33,11 @@ yews d
 
 初始化完成后，建议将加密后的文件提交到版本控制，并妥善备份 `.age/keys.txt`。它包含 age 密钥对，一旦丢失就无法解密文件。
 
-**只处理一个文件？** 在 `.yewseal.toml` 中登记文件映射和 recipients 后，可以通过路径选择目标：
+## YewSeal 与 SOPS
 
-```bash
-# 路径必须匹配项目配置中已登记的文件
-yews encrypt config.toml -o config.enc.toml
-yews decrypt config.enc.toml -o config.toml -k .age/keys.txt
-```
+YewSeal 的重点是以项目配置统一管理多个文件的映射、分组和加密授权；文件和授权统一在 `.yewseal.toml` 中声明，传入路径只用于选择已登记的文件。
 
-业务命令必须找到项目配置，参数校验通过后才会加载。版本、帮助、补全和 `init` 不解析已有项目配置，因此配置损坏不会阻断这些入口。完整规则见[配置加载时机](docs/guide/configuration.md#配置加载时机)。
+对于简单的单文件任务，可以直接使用独立的 SOPS CLI 进行加密/解密操作，示例和边界见[与 SOPS 配合使用](docs/guide/sops.md)；其中原生 TOML 密文需要 sops 支持 TOML store。
 
 ## 安装
 
@@ -89,12 +85,6 @@ docker run --rm -it \
   -v "$PWD:/work" \
   ghcr.io/yewfence/yew-seal:latest --help
 ```
-
-#### 补充说明
-
-私钥托管在 Infisical 时，可在宿主机使用其 CLI 导出，再交给容器内的 YewSeal。参考脚本见[外部私钥来源](docs/guide/private-keys.md)。
-
-> `edit` 不建议通过 Docker 运行，因为它依赖宿主编辑器。
 
 ## 使用指南
 
@@ -163,6 +153,8 @@ yews decrypt
 yews d  # 简写
 ```
 
+`decrypt` 默认跳过没有匹配身份的文件，部分成功且没有真正错误时退出成功。部署或需要全部文件的流程请使用 `yews decrypt --strict`，也可以设置 `YEWSEAL_STRICT=true`。批量 `diff` 同样支持该模式，并明确提示未参与比较的文件；完整规则见[解密结果与严格模式](docs/guide/decryption-results.md)。
+
 ### 4. 直接编辑加密文件
 
 使用编辑器直接编辑加密文件（自动处理加密/解密）：
@@ -182,7 +174,7 @@ yews edit -f ./path/to/file
 5. `SOPS_AGE_KEY_CMD` 环境变量
 6. 当前工作目录下的默认路径 `.age/keys.txt`
 
-项目配置不再接受 `[key].file_path`。旧配置需要删除该字段，改用 `--key-file` 或 `SOPS_AGE_KEY_FILE` 指定个人路径；相对路径按运行命令的当前目录解析。
+通过参数或环境变量指定的相对路径和默认 `.age/keys.txt` 均相对于运行命令的当前目录解析。
 
 ### 命令行参数
 
@@ -210,17 +202,16 @@ yews decrypt
 
 ## 外部私钥来源
 
-YewSeal 不提供私钥同步命令或 Provider 集成。不同开发者、机器和部署环境可持有不同的私钥，项目配置只需登记相应的公开 recipients 和文件授权。
+YewSeal 不提供私钥同步集成。因为不同开发者、机器和部署环境可能持有不同的私钥，项目配置只登记公开 recipients 和文件授权。
 
-私钥可由本地文件、CI secret 或独立的 secret manager 工具提供。使用 Infisical CLI 导出完整 identity bundle 的参考脚本见[外部私钥来源](docs/guide/private-keys.md)，YewSeal 不负责其认证或远端操作。
+私钥可由本地文件、CI secret 或独立的 secret manager 工具提供。使用 Infisical CLI 导出完整 identity bundle 的参考脚本见[外部私钥来源](docs/guide/private-keys.md)。
 
 ## Git 工作流
 
 ### 将加密文件和配置文件提交到版本控制
 
 ```bash
-git add .gitignore .yewseal.toml wrangler.enc.toml
-git add .sops.yaml  # 可选但推荐
+git add .gitignore .yewseal.toml wrangler.enc.toml .sops.toml
 git commit -m "feat: 添加加密配置"
 ```
 
@@ -252,7 +243,7 @@ jobs:
       - name: Decrypt configuration
         env:
           SOPS_AGE_KEY: ${{ secrets.AGE_KEY }}
-        run: yews decrypt
+        run: yews decrypt --strict
 
       - name: Deploy
         run: wrangler deploy
