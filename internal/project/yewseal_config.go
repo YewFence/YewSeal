@@ -22,9 +22,6 @@ func SaveBootstrapConfig(ownerRecipient string, filePairs []config.FilePair) err
 		Encryption: config.EncryptionConfig{
 			Files: filePairs,
 		},
-		Key: config.KeyConfig{
-			FilePath: ".age/keys.txt",
-		},
 		Recipients: config.RecipientConfig{
 			Defaults: stringSlicePtr([]string{"owner"}),
 			Registry: map[string]string{"owner": ownerRecipient},

@@ -9,9 +9,6 @@
                 "encryption": {
                     "$ref": "#/$defs/EncryptionConfig"
                 },
-                "key": {
-                    "$ref": "#/$defs/KeyConfig"
-                },
                 "recipients": {
                     "$ref": "#/$defs/RecipientConfig"
                 }
@@ -124,17 +121,6 @@
                 "unknown_as_binary": {
                     "type": "boolean",
                     "description": "无法探测格式的文件按 binary 处理。"
-                }
-            }
-        },
-        "KeyConfig": {
-            "type": "object",
-            "description": "#KeyConfig 定义 Age 密钥位置。切勿把私钥内容写进配置文件。",
-            "additionalProperties": false,
-            "properties": {
-                "file_path": {
-                    "type": "string",
-                    "description": "Age 私钥文件路径。"
                 }
             }
         },

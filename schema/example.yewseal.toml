@@ -27,9 +27,6 @@ patterns = ["config/**/*.toml", "secrets/*.yaml"]
 format_rules = ["*.dev.vars=env", "**/*.conf=ini"]
 unknown_as_binary = true
 recipients = ["owner"]
-[key]
-# Age 私钥文件路径(默认值 ".age/keys.txt"),不要把私钥内容写在这里
-file_path = ".age/keys.txt"
 
 [recipients]
 defaults = ["owner"]

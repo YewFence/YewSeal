@@ -88,9 +88,6 @@ yews init \
 这是 YewSeal 的主配置文件。
 
 ```toml
-[key]
-file_path = ".age/keys.txt"
-
 [recipients]
 defaults = ["owner"]
 

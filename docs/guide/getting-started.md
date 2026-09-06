@@ -137,9 +137,6 @@ yews diff config.toml
 初始化后会生成类似下面的 `.yewseal.toml`：
 
 ```toml
-[key]
-file_path = ".age/keys.txt"
-
 [recipients]
 defaults = ["owner"]
 

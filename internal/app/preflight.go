@@ -67,7 +67,7 @@ func PreflightDecrypt(cfg *config.Config, req DecryptRequest) (PreflightResult, 
 	if err != nil {
 		return PreflightResult{}, err
 	}
-	identityBundle, err := agekey.GetIdentityBundleWithFallback(req.KeyFile, cfg.GetKeyFile(""))
+	identityBundle, err := agekey.GetIdentityBundle(req.KeyFile)
 	if err != nil {
 		return PreflightResult{}, err
 	}

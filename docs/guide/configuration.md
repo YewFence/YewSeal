@@ -1,12 +1,12 @@
 # 配置说明
 
-YewSeal 使用 `.yewseal.toml` 管理文件映射、按文件授权和 Age 私钥位置，使用 `.sops.yaml` 提供给 SOPS 直接运行时的完全托管加密规则，默认使用 `.age/keys.txt` 存储 Age 私钥。私钥的远端存储和分发不属于 YewSeal 的职责。
+YewSeal 使用 `.yewseal.toml` 管理文件映射和按文件授权，使用 `.sops.yaml` 提供给 SOPS 直接运行时的完全托管加密规则。解密身份由命令行参数、环境变量或当前目录的 `.age/keys.txt` 提供，私钥位置不属于项目配置，私钥的远端存储和分发也不属于 YewSeal 的职责。
 
 ## 配置加载顺序
 
 YewSeal 会从当前 Git 仓库根目录开始，一路加载到当前目录，每一层只选择优先级最高的一个配置文件。单个目录内的优先级是 `.yewseal/.yewseal.toml` 高于 `.config/.yewseal.toml` 高于 `.yewseal.toml`。
 
-子目录配置会覆盖或追加上层配置。`[[encryption.files]]` 会按明文路径或加密路径去重后覆盖，`[[encryption.groups]]` 会追加，`key` 字段会以后加载的非空值为准。
+子目录配置会覆盖或追加上层配置。`[[encryption.files]]` 会按明文路径或加密路径去重后覆盖，`[[encryption.groups]]` 会追加。私钥路径不参与配置继承或合并。
 
 ## .yewseal.toml
 
@@ -25,9 +25,6 @@ YewSeal 为 `.yewseal.toml` 维护一份 JSON Schema，由仓库中的 `schema/c
 ### 基本结构
 
 ```toml
-[key]
-file_path = ".age/keys.txt"
-
 [recipients]
 defaults = ["owner"]
 
@@ -145,17 +142,18 @@ creation_rules:
 3. `SOPS_AGE_KEY` 环境变量中的完整多行 bundle
 4. `SOPS_AGE_KEY_FILE` 环境变量
 5. `SOPS_AGE_KEY_CMD` 环境变量
-6. `.yewseal.toml` 的 `[key].file_path`
-7. 默认路径 `.age/keys.txt`
+6. 当前工作目录下的默认路径 `.age/keys.txt`
 
 ```bash
 yews --key-file ~/.age/my-key.txt decrypt config.enc.toml
 ```
 
-```toml
-[key]
-file_path = ".age/keys.txt"
+```bash
+export SOPS_AGE_KEY_FILE="$HOME/.age/my-key.txt"
+yews decrypt config.enc.toml
 ```
+
+`[key].file_path` 已移除，旧配置中出现该字段会报迁移错误。请删除该字段（以及空的 `[key]` 表），通过参数或环境变量指定个人或机器的路径。相对路径和默认 `.age/keys.txt` 均相对于运行命令的当前目录，不相对于 `.yewseal.toml` 所在目录；从子目录运行时可使用绝对路径。
 
 加密时唯一使用 `[recipients.registry]` 与 FilePair、Group 或 `recipients.defaults` 解析出的 canonical Age recipient。私钥文件、`SOPS_AGE_RECIPIENTS` 和 `.sops.yaml` 都不会决定 YewSeal 的加密授权范围。
 

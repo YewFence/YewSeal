@@ -1,11 +1,13 @@
 package agekey
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
 
 	"filippo.io/age"
+	"github.com/YewFence/YewSeal/internal/errx"
 )
 
 // IdentityBundle contains the normalized identities available to a consumer.
@@ -47,14 +49,9 @@ func (b IdentityBundle) Identities() []string {
 	return append([]string(nil), b.identities...)
 }
 
-// GetIdentityBundle resolves identities without a configured fallback path.
+// GetIdentityBundle resolves an explicit key file first, then environment sources,
+// then .age/keys.txt relative to the current working directory.
 func GetIdentityBundle(keyFile string) (IdentityBundle, error) {
-	return GetIdentityBundleWithFallback(keyFile, "")
-}
-
-// GetIdentityBundleWithFallback resolves an explicit key file first, then environment sources,
-// then the configured key file before using the built-in default path.
-func GetIdentityBundleWithFallback(keyFile, fallbackKeyFile string) (IdentityBundle, error) {
 	if keyFile != "" {
 		return readIdentityBundle(keyFile)
 	}
@@ -87,14 +84,11 @@ func GetIdentityBundleWithFallback(keyFile, fallbackKeyFile string) (IdentityBun
 		}
 		return parseIdentityFile(value)
 	}
-	if fallbackKeyFile != "" {
-		return readIdentityBundle(fallbackKeyFile)
+	bundle, err := readIdentityBundle(".age/keys.txt")
+	if errors.Is(err, os.ErrNotExist) {
+		return IdentityBundle{}, &errx.AgeKeyNotFoundError{Options: []string{"--key-file", "YEWSEAL_AGE_IDENTITIES", "SOPS_AGE_KEY", "SOPS_AGE_KEY_FILE", "SOPS_AGE_KEY_CMD", "or .age/keys.txt"}}
 	}
-	value, err := GetAgeKey("")
-	if err != nil {
-		return IdentityBundle{}, err
-	}
-	return parseIdentityFile(value)
+	return bundle, err
 }
 
 func readIdentityBundle(path string) (IdentityBundle, error) {

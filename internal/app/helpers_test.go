@@ -70,7 +70,6 @@ func TestWriteViewedTarget_WritesPlaintextToWriterOnly(t *testing.T) {
 				{PlaintextPath: outputFile, EncryptedPath: encryptedFile, Format: "yaml"},
 			},
 		},
-		Key: config.KeyConfig{FilePath: keyFile},
 	}
 
 	var out bytes.Buffer

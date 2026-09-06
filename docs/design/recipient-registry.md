@@ -141,14 +141,13 @@ recipient 的人类可读名称，例如 `ops`、`backup` 或 `alice`。Alias �
 
 ### Identity source
 
-`[key]` 只负责私密 identity source：
+私密 identity source 由命令行参数、环境变量或当前目录的默认文件提供，不属于 `.yewseal.toml`：
 
-```toml
-[key]
-file_path = ".age/keys.txt"
+```sh
+yews --key-file .age/keys.txt decrypt
 ```
 
-`key` 不再包含 `public_key`。公开授权不属于 key source，而属于顶层 `recipients` 授权域。
+配置中的 `[key].file_path` 和 `[key].public_key` 均已移除，出现这些字段会返回迁移错误。公开授权不属于 key source，而属于顶层 `recipients` 授权域。
 
 ### Recipient 注册表
 
@@ -597,7 +596,6 @@ AGE-SECRET-KEY-1...,,AGE-SECRET-KEY-1...
 SOPS_AGE_KEY
   > SOPS_AGE_KEY_FILE
   > SOPS_AGE_KEY_CMD
-  > 配置 `[key].file_path`
   > 默认 .age/keys.txt
 ```
 
@@ -782,9 +780,6 @@ Decrypt 不比较当前配置授权集合和密文 metadata，也不因为 alias
 初始化结果至少包含：
 
 ```toml
-[key]
-file_path = ".age/keys.txt"
-
 [recipients]
 defaults = ["owner"]
 
