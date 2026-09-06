@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/YewFence/YewSeal/internal/agekey"
 	"github.com/YewFence/YewSeal/internal/config"
 	"github.com/YewFence/YewSeal/internal/errx"
 	"github.com/YewFence/YewSeal/internal/seal"
@@ -46,7 +47,7 @@ func EditEncryptedFile(req EditRequest) error {
 		return &errx.NotFoundError{What: "file", Path: resolved.EncryptedPath}
 	}
 
-	identityBundle, err := resolveIdentityBundle(cfg, req.KeyFile)
+	identityBundle, err := agekey.GetIdentityBundle(req.KeyFile)
 	if err != nil {
 		return err
 	}

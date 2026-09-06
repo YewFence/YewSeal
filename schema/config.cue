@@ -11,7 +11,6 @@ package schema
 // 加密和 plan 选择阶段要求路径来自 files/groups,并要求最终授权集合非空。
 #Config: {
 	encryption?: #EncryptionConfig
-	key?:        #KeyConfig
 	recipients?: #RecipientConfig
 }
 
@@ -69,13 +68,6 @@ recipients?: [string, ...string]
 
 // 扫描结果的授权 alias 集合。省略时继承顶层 defaults。
 recipients?: [string, ...string]
-}
-
-// #KeyConfig 定义 Age 密钥位置。切勿把私钥内容写进配置文件。
-#KeyConfig: {
-	// Age 私钥文件路径。
-	file_path?: string | *".age/keys.txt"
-
 }
 
 // 顶层默认引用,便于 cue vet/export 直接使用:

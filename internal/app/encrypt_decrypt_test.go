@@ -294,15 +294,36 @@ func TestDecryptFilesWarnsForStaleAliasAndUsesEncryptedMetadata(t *testing.T) {
 	assert.Equal(t, "token: value\n", string(content))
 }
 
-func TestDecryptFilesEnvironmentBundlePrecedesConfiguredKeyFile(t *testing.T) {
+func TestDecryptFilesUsesEnvironmentBundleWithoutKeyFile(t *testing.T) {
 	env := newAppCryptoTestEnv(t)
 	bundle, err := agekey.GetIdentityBundle(env.keyFile)
 	require.NoError(t, err)
 	t.Setenv("YEWSEAL_AGE_IDENTITIES", bundle.String())
+	require.NoError(t, os.Remove(env.keyFile))
 	require.NoError(t, os.WriteFile("secret.yaml", []byte("token: value\n"), 0644))
 	require.NoError(t, seal.Encrypt(seal.EncryptOptions{InputFile: "secret.yaml", OutputFile: "secret.enc.yaml", Recipients: []string{env.publicKey}, FormatOverride: "yaml"}))
 	require.NoError(t, os.Remove("secret.yaml"))
-	cfg := &config.Config{Key: config.KeyConfig{FilePath: "missing-configured-key.txt"}, Encryption: config.EncryptionConfig{Files: []config.FilePair{{PlaintextPath: "secret.yaml", EncryptedPath: "secret.enc.yaml", Format: "yaml"}}}}
+	cfg := &config.Config{Encryption: config.EncryptionConfig{Files: []config.FilePair{{PlaintextPath: "secret.yaml", EncryptedPath: "secret.enc.yaml", Format: "yaml"}}}}
+	require.NoError(t, DecryptFiles(cfg, DecryptRequest{Target: "secret.enc.yaml", Parallel: 1}))
+	content, err := os.ReadFile("secret.yaml")
+	require.NoError(t, err)
+	assert.Equal(t, "token: value\n", string(content))
+}
+
+func TestDecryptFilesUsesSecondIdentityFromDefaultFile(t *testing.T) {
+	env := newAppCryptoTestEnv(t)
+	for _, name := range []string{"YEWSEAL_AGE_IDENTITIES", "SOPS_AGE_KEY", "SOPS_AGE_KEY_FILE", "SOPS_AGE_KEY_CMD"} {
+		t.Setenv(name, "")
+	}
+	keyContent, err := os.ReadFile(env.keyFile)
+	require.NoError(t, err)
+	unrelated, err := age.GenerateX25519Identity()
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(env.keyFile, append([]byte(unrelated.String()+"\n"), keyContent...), 0600))
+	require.NoError(t, os.WriteFile("secret.yaml", []byte("token: value\n"), 0644))
+	require.NoError(t, seal.Encrypt(seal.EncryptOptions{InputFile: "secret.yaml", OutputFile: "secret.enc.yaml", Recipients: []string{env.publicKey}, FormatOverride: "yaml"}))
+	require.NoError(t, os.Remove("secret.yaml"))
+	cfg := &config.Config{Encryption: config.EncryptionConfig{Files: []config.FilePair{{PlaintextPath: "secret.yaml", EncryptedPath: "secret.enc.yaml", Format: "yaml"}}}}
 	require.NoError(t, DecryptFiles(cfg, DecryptRequest{Target: "secret.enc.yaml", Parallel: 1}))
 	content, err := os.ReadFile("secret.yaml")
 	require.NoError(t, err)

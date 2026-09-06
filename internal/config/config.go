@@ -9,12 +9,9 @@ import (
 	toml "github.com/pelletier/go-toml/v2"
 )
 
-const defaultKeyFile = ".age/keys.txt"
-
 // Config represents the YewSeal configuration.
 type Config struct {
 	Encryption EncryptionConfig `toml:"encryption"`
-	Key        KeyConfig        `toml:"key"`
 	Recipients RecipientConfig  `toml:"recipients"`
 
 	LoadedFiles []LoadedFile `toml:"-"`
@@ -74,20 +71,9 @@ type GroupConfig struct {
 	RecipientSource ValueSource `toml:"-"`
 }
 
-// KeyConfig defines key file location.
-type KeyConfig struct {
-	// FilePath is the path to Age private key file.
-	// Do NOT store the actual key value here to avoid leaking secrets.
-	FilePath string `toml:"file_path"`
-}
-
 // DefaultConfig returns a config with default values.
 func DefaultConfig() *Config {
-	return &Config{
-		Key: KeyConfig{
-			FilePath: defaultKeyFile,
-		},
-	}
+	return &Config{}
 }
 
 // LoadConfig loads configuration from .yewseal.toml.
@@ -95,7 +81,7 @@ func DefaultConfig() *Config {
 // 1. .yewseal/.yewseal.toml
 // 2. .config/.yewseal.toml
 // 3. .yewseal.toml
-// If no file exists, it returns an empty selection config with only the default key path.
+// If no file exists, it returns an empty selection config.
 func LoadConfig() (*Config, error) {
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -114,9 +100,6 @@ func LoadConfig() (*Config, error) {
 	}
 
 	config := &Config{
-		Key: KeyConfig{
-			FilePath: defaultKeyFile,
-		},
 		CurrentDir: cwd,
 		UserConfig: true,
 	}
@@ -241,13 +224,14 @@ func loadConfigFile(configFile LoadedFile) (*Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse config file %s: %w", configFile.Path, err)
 	}
-	// Probe for the deprecated singular key to report a friendly error.
+	// Probe for removed fields to report actionable migration errors.
 	var probe struct {
 		Encryption struct {
 			Group any `toml:"group"`
 		} `toml:"encryption"`
 		Key struct {
 			PublicKey any `toml:"public_key"`
+			FilePath  any `toml:"file_path"`
 		} `toml:"key"`
 	}
 	if err := toml.Unmarshal(data, &probe); err != nil {
@@ -258,6 +242,9 @@ func loadConfigFile(configFile LoadedFile) (*Config, error) {
 	}
 	if probe.Key.PublicKey != nil {
 		return nil, fmt.Errorf("deprecated key.public_key is not supported; use recipients.registry and recipients.defaults")
+	}
+	if probe.Key.FilePath != nil {
+		return nil, fmt.Errorf("key.file_path is no longer supported; use --key-file or SOPS_AGE_KEY_FILE instead")
 	}
 	if err := toml.Unmarshal(data, config); err != nil {
 		return nil, fmt.Errorf("failed to parse config file %s: %w", configFile.Path, err)
@@ -303,9 +290,6 @@ func loadConfigFile(configFile LoadedFile) (*Config, error) {
 func mergeConfig(dst, src *Config) error {
 	dst.LoadedFiles = append(dst.LoadedFiles, src.LoadedFiles...)
 
-	if strings.TrimSpace(src.Key.FilePath) != "" {
-		dst.Key.FilePath = resolveConfigPath(src.LoadedFiles[0].Dir, src.Key.FilePath)
-	}
 	if src.Recipients.Defaults != nil {
 		if dst.Recipients.Defaults != nil {
 			return fmt.Errorf("recipient defaults are defined more than once")
@@ -367,18 +351,6 @@ func cleanAbsPath(path string) string {
 		return filepath.Clean(abs)
 	}
 	return filepath.Clean(path)
-}
-
-// GetKeyFile returns the key file path.
-// Priority: provided value > config file > default.
-func (c *Config) GetKeyFile(provided string) string {
-	if provided != "" {
-		return provided
-	}
-	if c.Key.FilePath != "" {
-		return c.Key.FilePath
-	}
-	return defaultKeyFile
 }
 
 // GetFiles returns configured file mappings.

@@ -13,7 +13,6 @@ func TestDefaultConfig(t *testing.T) {
 	cfg := DefaultConfig()
 
 	assert.Empty(t, cfg.GetFiles())
-	assert.Equal(t, defaultKeyFile, cfg.Key.FilePath)
 }
 
 func TestGetFilesDoesNotFallBackToDefault(t *testing.T) {
@@ -30,41 +29,6 @@ func TestGetFilesClonesRecipientSlices(t *testing.T) {
 	require.Equal(t, "owner", (*cfg.Encryption.Files[0].Recipients)[0])
 }
 
-func TestGetKeyFile(t *testing.T) {
-	tests := []struct {
-		name     string
-		config   *Config
-		provided string
-		expected string
-	}{
-		{
-			name:     "provided value takes priority",
-			config:   &Config{Key: KeyConfig{FilePath: "config/keys.txt"}},
-			provided: "custom/keys.txt",
-			expected: "custom/keys.txt",
-		},
-		{
-			name:     "empty provided uses config",
-			config:   &Config{Key: KeyConfig{FilePath: "config/keys.txt"}},
-			provided: "",
-			expected: "config/keys.txt",
-		},
-		{
-			name:     "empty config uses default",
-			config:   &Config{Key: KeyConfig{FilePath: ""}},
-			provided: "",
-			expected: defaultKeyFile,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := tt.config.GetKeyFile(tt.provided)
-			assert.Equal(t, tt.expected, result)
-		})
-	}
-}
-
 func TestLoadConfig_NoFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	oldWd, err := os.Getwd()
@@ -79,7 +43,6 @@ func TestLoadConfig_NoFile(t *testing.T) {
 	cfg, err := LoadConfig()
 	require.NoError(t, err)
 	assert.Empty(t, cfg.GetFiles())
-	assert.Equal(t, defaultKeyFile, cfg.Key.FilePath)
 }
 
 func TestLoadConfig_WithFile(t *testing.T) {
@@ -110,9 +73,7 @@ plaintext = ".dev.vars"
 encrypted = ".dev.vars.enc.yaml"
 format = "env"
 
-[key]
-file_path = "custom/keys.txt"
-	[recipients.registry]
+[recipients.registry]
 owner = "age1r09mha3l82nt25r3kujgkpw4ts60ezntwcj74vnk0t3e9elyu3rswkx08j"
 
 `
@@ -139,7 +100,6 @@ owner = "age1r09mha3l82nt25r3kujgkpw4ts60ezntwcj74vnk0t3e9elyu3rswkx08j"
 	assert.Equal(t, []string{".dev.vars"}, groups[1].Patterns)
 	assert.Equal(t, []string{".dev.vars=env"}, groups[1].FormatRules)
 	assert.False(t, groups[1].UnknownAsBinary)
-	assert.Equal(t, filepath.Join(tmpDir, "custom/keys.txt"), cfg.Key.FilePath)
 	assert.Equal(t, "age1r09mha3l82nt25r3kujgkpw4ts60ezntwcj74vnk0t3e9elyu3rswkx08j", cfg.Recipients.Registry["owner"])
 }
 
@@ -176,6 +136,18 @@ func TestLoadConfigRejectsDeprecatedPublicKey(t *testing.T) {
 	require.NoError(t, os.Chdir(tmpDir))
 	_, err = LoadConfig()
 	require.EqualError(t, err, "deprecated key.public_key is not supported; use recipients.registry and recipients.defaults")
+}
+
+func TestLoadConfigRejectsKeyFilePath(t *testing.T) {
+	for _, value := range []string{`"custom/keys.txt"`, `""`} {
+		t.Run(value, func(t *testing.T) {
+			dir := t.TempDir()
+			t.Chdir(dir)
+			require.NoError(t, os.WriteFile(filepath.Join(dir, ".yewseal.toml"), []byte("[key]\nfile_path = "+value+"\n"), 0600))
+			_, err := LoadConfig()
+			require.EqualError(t, err, "key.file_path is no longer supported; use --key-file or SOPS_AGE_KEY_FILE instead")
+		})
+	}
 }
 
 func TestLoadConfig_InvalidToml(t *testing.T) {
@@ -261,8 +233,6 @@ format = "env"
 plaintext = "shared.toml"
 encrypted = "shared.enc.toml"
 
-[key]
-file_path = ".age/root.txt"
 `
 	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, ".yewseal.toml"), []byte(rootConfig), 0644))
 
@@ -286,7 +256,6 @@ format = "env"
 	assert.Equal(t, filepath.Join(tmpDir, "shared.toml"), files[0].PlaintextPath)
 	assert.Equal(t, filepath.Join(apiDir, ".env"), files[1].PlaintextPath)
 	assert.Equal(t, filepath.Join(apiDir, ".env.local.enc.yaml"), files[1].EncryptedPath)
-	assert.Equal(t, filepath.Join(tmpDir, ".age", "root.txt"), cfg.Key.FilePath)
 }
 
 func TestLoadConfig_StopsAtNearestGitRoot(t *testing.T) {
