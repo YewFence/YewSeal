@@ -29,14 +29,6 @@ type Options struct {
 }
 
 func PlaintextAgainstEncrypted(opts Options) (DiffResult, error) {
-	currentData, err := os.ReadFile(opts.PlaintextFile)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return DiffResult{}, fmt.Errorf("plaintext file %s does not exist", opts.PlaintextFile)
-		}
-		return DiffResult{}, fmt.Errorf("failed to read plaintext file: %w", err)
-	}
-
 	decryptedData, err := seal.DecryptToBytes(seal.DecryptBytesOptions{
 		InputFile:      opts.EncryptedFile,
 		OutputFile:     opts.PlaintextFile,
@@ -47,6 +39,13 @@ func PlaintextAgainstEncrypted(opts Options) (DiffResult, error) {
 	})
 	if err != nil {
 		return DiffResult{}, err
+	}
+	currentData, err := os.ReadFile(opts.PlaintextFile)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return DiffResult{}, fmt.Errorf("plaintext file %s does not exist", opts.PlaintextFile)
+		}
+		return DiffResult{}, fmt.Errorf("failed to read plaintext file: %w", err)
 	}
 
 	if bytes.Equal(currentData, decryptedData) {

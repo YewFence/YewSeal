@@ -7,9 +7,11 @@ package sopsx
 
 import (
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"time"
 
+	"filippo.io/age"
 	sops "github.com/YewFence/sops/v3"
 	"github.com/YewFence/sops/v3/aes"
 	sopsage "github.com/YewFence/sops/v3/age"
@@ -231,6 +233,9 @@ func loadAndDecryptTree(store sops.Store, encData []byte, ageIdentity string) (*
 	if err != nil {
 		return nil, fmt.Errorf("failed to load encrypted file: %w", err)
 	}
+	if tree.Metadata.MessageAuthenticationCode == "" {
+		return nil, fmt.Errorf("encrypted file is missing its MAC")
+	}
 
 	// Parse age identity and decrypt data key
 	var identities sopsage.ParsedIdentities
@@ -261,10 +266,20 @@ func loadAndDecryptTree(store sops.Store, encData []byte, ageIdentity string) (*
 // decryptTreeDataKey iterates age master keys in metadata, injects identities,
 // and attempts to decrypt the data key. Thread-safe (no global state).
 func decryptTreeDataKey(tree *sops.Tree, identities sopsage.ParsedIdentities) ([]byte, error) {
+	var attempts []error
+	onlyUnmatched := true
 	for _, group := range tree.Metadata.KeyGroups {
 		for _, key := range group {
 			ageMK, ok := key.(*sopsage.MasterKey)
 			if !ok {
+				onlyUnmatched = false
+				attempts = append(attempts, fmt.Errorf("unsupported non-age data key"))
+				continue
+			}
+			recipient, err := age.ParseX25519Recipient(ageMK.Recipient)
+			if err != nil {
+				onlyUnmatched = false
+				attempts = append(attempts, fmt.Errorf("invalid or unsupported age recipient: %w", err))
 				continue
 			}
 			identities.ApplyToMasterKey(ageMK)
@@ -272,9 +287,27 @@ func decryptTreeDataKey(tree *sops.Tree, identities sopsage.ParsedIdentities) ([
 			if err == nil {
 				return dataKey, nil
 			}
+			attempts = append(attempts, err)
+			var unmatched *age.NoIdentityMatchError
+			if !errors.As(err, &unmatched) {
+				onlyUnmatched = false
+			}
+			// A failed unwrap for an advertised local recipient may be corruption.
+			for _, identity := range identities {
+				x25519, ok := identity.(*age.X25519Identity)
+				if !ok || x25519.Recipient().String() == recipient.String() {
+					onlyUnmatched = false
+				}
+			}
 		}
 	}
-	return nil, fmt.Errorf("failed to decrypt data key: no matching age key found")
+	if len(attempts) == 0 {
+		return nil, fmt.Errorf("encrypted file has no usable age data keys")
+	}
+	if onlyUnmatched {
+		return nil, fmt.Errorf("%w: %w", ErrNoMatchingIdentity, errors.Join(attempts...))
+	}
+	return nil, fmt.Errorf("failed to decrypt data key: %w", errors.Join(attempts...))
 }
 
 // ageRecipientsFromTree collects all age recipients from the file metadata.

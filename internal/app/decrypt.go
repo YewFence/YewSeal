@@ -18,6 +18,7 @@ type DecryptRequest struct {
 	Patterns              []string
 	Parallel              int
 	Force                 bool
+	Strict                bool
 	UpdateProjectMetadata bool
 }
 
@@ -46,6 +47,7 @@ func DecryptFiles(cfg *config.Config, req DecryptRequest) error {
 		Parallel:       req.Parallel,
 		Verbose:        req.Verbose,
 		Force:          req.Force,
+		Strict:         req.Strict,
 	}
 	_, err = task.Decrypt(opts)
 	return err
