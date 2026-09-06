@@ -14,6 +14,7 @@ import (
 const (
 	ModeEncrypt = "encrypt"
 	ModeDecrypt = "decrypt"
+	ModeDiff    = "diff"
 )
 
 var defaultEncryptPatterns = []string{
@@ -58,6 +59,13 @@ type FormatRule struct {
 }
 
 func BuildGroupFilePairs(opts GroupOptions) ([]FilePair, error) {
+	if opts.Mode == ModeDiff {
+		return buildDiffGroupFilePairs(opts)
+	}
+	return buildGroupFilePairs(opts, false)
+}
+
+func buildGroupFilePairs(opts GroupOptions, allowEmpty bool) ([]FilePair, error) {
 	mode := strings.TrimSpace(opts.Mode)
 	if mode != ModeEncrypt && mode != ModeDecrypt {
 		return nil, fmt.Errorf("invalid group mode %q", opts.Mode)
@@ -131,7 +139,7 @@ func BuildGroupFilePairs(opts GroupOptions) ([]FilePair, error) {
 	}
 
 	sort.Strings(files)
-	if len(files) == 0 {
+	if len(files) == 0 && !allowEmpty {
 		return nil, fmt.Errorf("no files found in %s matching group patterns", root)
 	}
 
@@ -154,7 +162,10 @@ func BuildProjectGroupFilePairs(opts GroupOptions) ([]FilePair, error) {
 	if opts.Mode != ModeDecrypt {
 		return BuildGroupFilePairs(opts)
 	}
+	return buildProjectDecryptFilePairs(opts, false)
+}
 
+func buildProjectDecryptFilePairs(opts GroupOptions, allowEmpty bool) ([]FilePair, error) {
 	root := strings.TrimSpace(opts.Root)
 	if root == "" {
 		root = "."
@@ -227,8 +238,42 @@ func BuildProjectGroupFilePairs(opts GroupOptions) ([]FilePair, error) {
 	sort.Slice(pairs, func(i, j int) bool {
 		return pairs[i].EncryptedPath < pairs[j].EncryptedPath
 	})
-	if len(pairs) == 0 {
+	if len(pairs) == 0 && !allowEmpty {
 		return nil, fmt.Errorf("no encrypted files found in %s matching group patterns", root)
+	}
+	return pairs, nil
+}
+
+func buildDiffGroupFilePairs(opts GroupOptions) ([]FilePair, error) {
+	opts.Mode = ModeEncrypt
+	plainPairs, err := buildGroupFilePairs(opts, true)
+	if err != nil {
+		return nil, err
+	}
+	opts.Mode = ModeDecrypt
+	encryptedPairs, err := buildProjectDecryptFilePairs(opts, true)
+	if err != nil {
+		return nil, err
+	}
+	// A real plaintext path is more precise than reversing a normalized ciphertext suffix.
+	byEncrypted := make(map[string]FilePair)
+	pairs := make([]FilePair, 0, len(plainPairs)+len(encryptedPairs))
+	for _, pair := range plainPairs {
+		key := filepath.Clean(pair.EncryptedPath)
+		byEncrypted[key] = pair
+		pairs = append(pairs, pair)
+	}
+	for _, pair := range encryptedPairs {
+		key := filepath.Clean(pair.EncryptedPath)
+		if _, exists := byEncrypted[key]; exists {
+			continue
+		}
+		byEncrypted[key] = pair
+		pairs = append(pairs, pair)
+	}
+	sort.Slice(pairs, func(i, j int) bool { return pairs[i].PlaintextPath < pairs[j].PlaintextPath })
+	if len(pairs) == 0 {
+		return nil, fmt.Errorf("no files found in %s matching group patterns", opts.Root)
 	}
 	return pairs, nil
 }

@@ -18,6 +18,7 @@ yews decrypt [command options] [path] [flags]
   -o, --output string     Output plaintext file for a single file target
   -P, --parallel int      Number of parallel workers for batch mode (minimum 1) (default 1)
       --pattern strings   Pattern filter for configured groups
+      --strict            Require every selected file to be decrypted (default from YEWSEAL_STRICT)
   -v, --verbose           Enable verbose output
 ```
 

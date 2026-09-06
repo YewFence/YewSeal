@@ -50,7 +50,10 @@ func decryptCommand(load configLoader, keyFile *string) *cobra.Command {
 		Aliases: []string{"d"},
 		Short:   "Decrypt encrypted file (output format determined by extension)",
 		Args: func(cmd *cobra.Command, args []string) error {
-			return validateBatchArgs(cmd, args, opts.Patterns, opts.Parallel)
+			if err := validateBatchArgs(cmd, args, opts.Patterns, opts.Parallel); err != nil {
+				return err
+			}
+			return resolveStrict(cmd, &opts.Strict)
 		},
 		RunE: withConfig(load, func(cmd *cobra.Command, args []string, cfg *config.Config) error {
 			target := firstArg(args)
@@ -63,6 +66,7 @@ func decryptCommand(load configLoader, keyFile *string) *cobra.Command {
 				Patterns:              opts.Patterns,
 				Parallel:              opts.Parallel,
 				Force:                 opts.Force,
+				Strict:                opts.Strict,
 				UpdateProjectMetadata: true,
 			})
 		}),

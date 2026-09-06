@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 
 	"github.com/YewFence/YewSeal/internal/agekey"
 	"github.com/YewFence/YewSeal/internal/errx"
@@ -209,6 +210,9 @@ func writeDecryptedFile(inputFile, outputFile string, plainData []byte, force bo
 		return fmt.Errorf("failed to read output file: %w", err)
 	}
 
+	if err := os.MkdirAll(filepath.Dir(outputFile), 0755); err != nil {
+		return fmt.Errorf("failed to create output directory: %w", err)
+	}
 	if err := os.WriteFile(outputFile, plainData, 0600); err != nil {
 		return fmt.Errorf("failed to write output file: %w", err)
 	}

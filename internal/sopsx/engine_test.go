@@ -149,7 +149,7 @@ func TestDecryptRejectsWrongIdentity(t *testing.T) {
 
 	_, err = Decrypt(encData, "toml", other.identity)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "no matching age key found")
+	assert.ErrorIs(t, err, ErrNoMatchingIdentity)
 }
 
 func TestInspect(t *testing.T) {

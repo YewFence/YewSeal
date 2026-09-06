@@ -22,21 +22,8 @@ type Options struct {
 	Parallel       int
 	Verbose        bool
 	Force          bool
+	Strict         bool
 	FilePairs      []FilePair
-}
-
-type Result struct {
-	SourceFile string
-	TargetFile string
-	Success    bool
-	Error      error
-}
-
-type Summary struct {
-	TotalFiles   int
-	SuccessCount int
-	FailedCount  int
-	Results      []Result
 }
 
 func Encrypt(opts Options) (*Summary, error) {
@@ -79,10 +66,6 @@ func Decrypt(opts Options) (*Summary, error) {
 	}
 	fmt.Printf("Decrypting %d files from config...\n", len(filePairs))
 
-	if err := ensureOutputDirs(filePairs, func(pair FilePair) string { return pair.PlaintextPath }); err != nil {
-		return nil, err
-	}
-
 	processor := func(pair FilePair) error {
 		return seal.Decrypt(seal.DecryptOptions{
 			InputFile:      pair.EncryptedPath,
@@ -100,10 +83,7 @@ func Decrypt(opts Options) (*Summary, error) {
 	summary := process(filePairs, opts.Parallel, describe, processor)
 	printSummary(summary, "decrypted")
 
-	if summary.FailedCount > 0 {
-		return summary, fmt.Errorf("%d of %d files failed to decrypt", summary.FailedCount, summary.TotalFiles)
-	}
-	return summary, nil
+	return summary, summary.Check("decrypt", opts.Strict)
 }
 
 func ensureOutputDirs(pairs []FilePair, target func(FilePair) string) error {
@@ -139,30 +119,16 @@ func processSequential(
 	processor func(FilePair) error,
 ) *Summary {
 	summary := &Summary{
-		TotalFiles: len(pairs),
-		Results:    make([]Result, 0, len(pairs)),
+		Results: make([]Result, 0, len(pairs)),
 	}
 
 	for i, pair := range pairs {
 		source, target := describe(pair)
-		fmt.Printf("  [%d/%d] %s -> %s ... ", i+1, summary.TotalFiles, filepath.Base(source), filepath.Base(target))
+		fmt.Printf("  [%d/%d] %s -> %s ... ", i+1, len(pairs), filepath.Base(source), filepath.Base(target))
 
 		err := processor(pair)
-		result := Result{
-			SourceFile: source,
-			TargetFile: target,
-			Success:    err == nil,
-			Error:      err,
-		}
-		summary.Results = append(summary.Results, result)
-
-		if err == nil {
-			summary.SuccessCount++
-			fmt.Println("OK")
-		} else {
-			summary.FailedCount++
-			fmt.Printf("FAILED\n        Error: %v\n", err)
-		}
+		result := summary.Add(source, target, err)
+		fmt.Println(result.Status)
 	}
 
 	return summary
@@ -193,23 +159,14 @@ func processParallel(
 				source, target := describe(pair)
 				err := processor(pair)
 
-				summary.Results[idx] = Result{
-					SourceFile: source,
-					TargetFile: target,
-					Success:    err == nil,
-					Error:      err,
-				}
+				summary.Results[idx] = newResult(source, target, err)
 
 				mu.Lock()
 				completed++
 				current := completed
 				mu.Unlock()
 
-				if err == nil {
-					fmt.Printf("  [%d/%d] %s -> %s ... OK\n", current, summary.TotalFiles, filepath.Base(source), filepath.Base(target))
-				} else {
-					fmt.Printf("  [%d/%d] %s -> %s ... FAILED\n        Error: %v\n", current, summary.TotalFiles, filepath.Base(source), filepath.Base(target), err)
-				}
+				fmt.Printf("  [%d/%d] %s -> %s ... %s\n", current, summary.TotalFiles, filepath.Base(source), filepath.Base(target), summary.Results[idx].Status)
 			}
 		}()
 	}
@@ -222,11 +179,7 @@ func processParallel(
 	wg.Wait()
 
 	for _, result := range summary.Results {
-		if result.Success {
-			summary.SuccessCount++
-		} else {
-			summary.FailedCount++
-		}
+		summary.count(result)
 	}
 
 	return summary
@@ -234,15 +187,5 @@ func processParallel(
 
 func printSummary(summary *Summary, action string) {
 	fmt.Println()
-	if summary.FailedCount == 0 {
-		fmt.Printf("✅ Summary: %d/%d files %s successfully\n", summary.SuccessCount, summary.TotalFiles, action)
-	} else {
-		fmt.Printf("⚠️  Summary: %d/%d succeeded, %d failed\n", summary.SuccessCount, summary.TotalFiles, summary.FailedCount)
-		fmt.Println("\nFailed files:")
-		for _, result := range summary.Results {
-			if !result.Success {
-				fmt.Printf("  - %s: %v\n", filepath.Base(result.SourceFile), result.Error)
-			}
-		}
-	}
+	_ = summary.Report(os.Stdout, action)
 }

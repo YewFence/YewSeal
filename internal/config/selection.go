@@ -202,7 +202,7 @@ func configuredFilePairs(cfg *Config, mode string, req groupRequestOptions) ([]F
 		return nil, err
 	}
 	pairs := append(groupPairs, cfg.Encryption.Files...)
-	deduped, err := dedupeFilePairs(pairs)
+	deduped, err := dedupeFilePairs(pairs, mode)
 	if err != nil {
 		return nil, err
 	}
@@ -266,6 +266,11 @@ func scopedConfigGroupPairs(cfg *Config, mode string, req groupRequestOptions) (
 		for _, taskPair := range taskPairs {
 			if _, explicit := findConfiguredPair(cfg.Encryption.Files, cleanAbsPath(taskPair.PlaintextPath)); explicit {
 				continue
+			}
+			if mode == task.ModeDiff {
+				if _, explicit := findConfiguredPair(cfg.Encryption.Files, cleanAbsPath(taskPair.EncryptedPath)); explicit {
+					continue
+				}
 			}
 			key := cleanAbsPath(taskPair.PlaintextPath)
 			if previous, ok := seenRecipients[key]; ok && !equalStrings(previous, canonical) {
@@ -335,7 +340,7 @@ func directoryTargetPairs(cfg *Config, root string, opts SelectionOptions) ([]Fi
 			pairs[i] = configured
 		}
 	}
-	deduped, err := dedupeFilePairs(pairs)
+	deduped, err := dedupeFilePairs(pairs, opts.Command)
 	if err != nil {
 		return nil, err
 	}
@@ -377,7 +382,11 @@ func groupFilePairsFromRequest(cfg *Config, root, mode string, req groupRequestO
 			return nil, err
 		}
 		for _, taskPair := range groupPairs {
-			if explicit, matched := findConfiguredPair(cfg.Encryption.Files, cleanAbsPath(taskPair.PlaintextPath)); matched {
+			explicit, matched := findConfiguredPair(cfg.Encryption.Files, cleanAbsPath(taskPair.PlaintextPath))
+			if !matched && mode == task.ModeDiff {
+				explicit, matched = findConfiguredPair(cfg.Encryption.Files, cleanAbsPath(taskPair.EncryptedPath))
+			}
+			if matched {
 				key := cleanAbsPath(explicit.PlaintextPath)
 				if _, seen := seenExplicit[key]; seen {
 					continue
@@ -398,7 +407,7 @@ func groupFilePairsFromRequest(cfg *Config, root, mode string, req groupRequestO
 			})
 		}
 	}
-	deduped, err := dedupeFilePairs(pairs)
+	deduped, err := dedupeFilePairs(pairs, mode)
 	if err != nil {
 		return nil, err
 	}
@@ -461,7 +470,7 @@ func findConfiguredPair(filePairs []FilePair, targetAbs string) (FilePair, bool)
 	return FilePair{}, false
 }
 
-func dedupeFilePairs(filePairs []FilePair) ([]FilePair, error) {
+func dedupeFilePairs(filePairs []FilePair, mode string) ([]FilePair, error) {
 	result := make([]FilePair, 0, len(filePairs))
 	for _, filePair := range filePairs {
 		nextPlaintext := cleanAbsPath(filePair.PlaintextPath)
@@ -472,6 +481,10 @@ func dedupeFilePairs(filePairs []FilePair) ([]FilePair, error) {
 				// An explicitly configured file may intentionally override a scanned group pair.
 				if existing.Source == PairSourceScan && filePair.Source != PairSourceScan {
 					continue
+				}
+				if mode == task.ModeDiff && existing.Source == PairSourceScan && filePair.Source == PairSourceScan &&
+					(cleanAbsPath(existing.PlaintextPath) != nextPlaintext || cleanAbsPath(existing.EncryptedPath) != nextEncrypted || existing.Format != filePair.Format) {
+					return nil, fmt.Errorf("conflicting group file pairs for comparison: %s -> %s and %s -> %s", existing.PlaintextPath, existing.EncryptedPath, filePair.PlaintextPath, filePair.EncryptedPath)
 				}
 				if existing.Source != PairSourceScan && filePair.Source != PairSourceScan {
 					return nil, fmt.Errorf("conflicting file pairs for plaintext %q or encrypted %q", filePair.PlaintextPath, filePair.EncryptedPath)

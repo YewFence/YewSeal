@@ -14,7 +14,7 @@ import (
 
 func clearCLIEnvironment(t *testing.T) {
 	t.Helper()
-	for _, name := range []string{"AGE_KEY_FILE", "SOPS_OUTPUT_FILE", "YEWSEAL_FORMAT", "SOPS_FORMAT"} {
+	for _, name := range []string{"AGE_KEY_FILE", "SOPS_OUTPUT_FILE", "YEWSEAL_FORMAT", "SOPS_FORMAT", "YEWSEAL_STRICT"} {
 		t.Setenv(name, "")
 		require.NoError(t, os.Unsetenv(name))
 	}
