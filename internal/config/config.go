@@ -15,7 +15,6 @@ const defaultKeyFile = ".age/keys.txt"
 type Config struct {
 	Encryption EncryptionConfig `toml:"encryption"`
 	Key        KeyConfig        `toml:"key"`
-	Sync       SyncConfig       `toml:"sync"`
 	Recipients RecipientConfig  `toml:"recipients"`
 
 	LoadedFiles []LoadedFile `toml:"-"`
@@ -80,20 +79,6 @@ type KeyConfig struct {
 	// FilePath is the path to Age private key file.
 	// Do NOT store the actual key value here to avoid leaking secrets.
 	FilePath string `toml:"file_path"`
-}
-
-// SyncConfig defines Age key synchronization settings.
-type SyncConfig struct {
-	// Provider is the secret management provider name.
-	Provider string `toml:"provider,omitempty"`
-	// ProjectID is the provider project identifier used by sync commands.
-	ProjectID string `toml:"project_id,omitempty"`
-	// SecretName is the remote secret name for the Age key file.
-	SecretName string `toml:"secret_name,omitempty"`
-	// Path is the remote path/folder in the provider.
-	Path string `toml:"path,omitempty"`
-	// Environment is the remote environment name in the provider.
-	Environment string `toml:"environment,omitempty"`
 }
 
 // DefaultConfig returns a config with default values.
@@ -345,22 +330,6 @@ func mergeConfig(dst, src *Config) error {
 		}
 	}
 
-	if strings.TrimSpace(src.Sync.Provider) != "" {
-		dst.Sync.Provider = src.Sync.Provider
-	}
-	if strings.TrimSpace(src.Sync.ProjectID) != "" {
-		dst.Sync.ProjectID = src.Sync.ProjectID
-	}
-	if strings.TrimSpace(src.Sync.SecretName) != "" {
-		dst.Sync.SecretName = src.Sync.SecretName
-	}
-	if strings.TrimSpace(src.Sync.Path) != "" {
-		dst.Sync.Path = src.Sync.Path
-	}
-	if strings.TrimSpace(src.Sync.Environment) != "" {
-		dst.Sync.Environment = src.Sync.Environment
-	}
-
 	for _, filePair := range src.Encryption.Files {
 		dst.Encryption.Files = upsertFilePair(dst.Encryption.Files, filePair)
 	}
@@ -410,56 +379,6 @@ func (c *Config) GetKeyFile(provided string) string {
 		return c.Key.FilePath
 	}
 	return defaultKeyFile
-}
-
-// Priority: provided value > config file > default.
-func (c *Config) GetSyncProvider(provided string) string {
-	if provided != "" {
-		return provided
-	}
-	if c.Sync.Provider != "" {
-		return c.Sync.Provider
-	}
-	return "infisical"
-}
-
-// GetSyncSecretName returns the key sync secret name.
-// Priority: provided value > config file > default.
-func (c *Config) GetSyncSecretName(provided string) string {
-	if provided != "" {
-		return provided
-	}
-	if c.Sync.SecretName != "" {
-		return c.Sync.SecretName
-	}
-	return "AGE_KEY_FILE"
-}
-
-// GetSyncProjectID returns the key sync project identifier.
-// Priority: provided value > config file > default.
-func (c *Config) GetSyncProjectID(provided string) string {
-	if provided != "" {
-		return provided
-	}
-	return c.Sync.ProjectID
-}
-
-// GetSyncPath returns the key sync remote path.
-// Priority: provided value > config file > default.
-func (c *Config) GetSyncPath(provided string) string {
-	if provided != "" {
-		return provided
-	}
-	return c.Sync.Path
-}
-
-// GetSyncEnvironment returns the key sync remote environment.
-// Priority: provided value > config file > default.
-func (c *Config) GetSyncEnvironment(provided string) string {
-	if provided != "" {
-		return provided
-	}
-	return c.Sync.Environment
 }
 
 // GetFiles returns configured file mappings.

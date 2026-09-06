@@ -1,12 +1,12 @@
 # 配置说明
 
-YewSeal 使用 `.yewseal.toml` 管理文件映射、按文件授权、Age 私钥位置和密钥同步配置，使用 `.sops.yaml` 提供给 SOPS 直接运行时的完全托管加密规则，默认使用 `.age/keys.txt` 存储 Age 私钥。
+YewSeal 使用 `.yewseal.toml` 管理文件映射、按文件授权和 Age 私钥位置，使用 `.sops.yaml` 提供给 SOPS 直接运行时的完全托管加密规则，默认使用 `.age/keys.txt` 存储 Age 私钥。私钥的远端存储和分发不属于 YewSeal 的职责。
 
 ## 配置加载顺序
 
 YewSeal 会从当前 Git 仓库根目录开始，一路加载到当前目录，每一层只选择优先级最高的一个配置文件。单个目录内的优先级是 `.yewseal/.yewseal.toml` 高于 `.config/.yewseal.toml` 高于 `.yewseal.toml`。
 
-子目录配置会覆盖或追加上层配置。`[[encryption.files]]` 会按明文路径或加密路径去重后覆盖，`[[encryption.groups]]` 会追加，`key` 和 `sync` 字段会以后加载的非空值为准。
+子目录配置会覆盖或追加上层配置。`[[encryption.files]]` 会按明文路径或加密路径去重后覆盖，`[[encryption.groups]]` 会追加，`key` 字段会以后加载的非空值为准。
 
 ## .yewseal.toml
 
@@ -167,44 +167,9 @@ file_path = ".age/keys.txt"
 YEWSEAL_AGE_IDENTITIES='AGE-SECRET-KEY-1...,AGE-SECRET-KEY-1...' yews decrypt config.enc.toml
 ```
 
-## 密钥同步
+## 外部私钥来源
 
-YewSeal 支持将密钥同步到密钥管理服务，目前支持 Infisical。
-
-可以把同步参数写进 `.yewseal.toml`：
-
-```toml
-[sync]
-provider = "infisical"
-project_id = "your-project-id"
-environment = "dev"
-path = "/yewseal"
-secret_name = "AGE_KEY_FILE"
-```
-
-### 推送密钥到 Infisical
-
-```bash
-yews sync \
-  --provider infisical \
-  --project-id <project-id> \
-  --env dev \
-  --path /yewseal \
-  --name AGE_KEY_FILE \
-  --key-file .age/keys.txt
-```
-
-### 从 Infisical 拉取密钥
-
-```bash
-yews sync pull \
-  --provider infisical \
-  --project-id <project-id> \
-  --env dev \
-  --path /yewseal \
-  --name AGE_KEY_FILE \
-  --key-file .age/keys.txt
-```
+YewSeal 不提供 `sync`、`sync pull` 或 `[sync]` 配置。私钥由开发者或部署环境自行提供，Infisical 等外部工具的参考脚本见[外部私钥来源](/guide/private-keys)。
 
 ## 环境变量
 
@@ -227,7 +192,7 @@ YewSeal 支持通过环境变量配置部分选项：
 
 ### 密钥安全
 
-不要提交 `.age/keys.txt`，团队协作时可以用 `yews sync` 和 `yews sync pull` 通过 Infisical 分发私钥，轮换密钥后重新运行 `encrypt` 同步 `.sops.yaml` 和加密文件。
+不要提交私钥文件。不同开发者和环境可以持有独立身份，在项目 registry 中登记公开 recipient，并按文件设置授权。私钥的保存与分发交给各自的环境；更新 recipient 配置后重新运行 `encrypt` 同步 `.sops.yaml` 和加密文件。
 
 ### 文件命名约定
 

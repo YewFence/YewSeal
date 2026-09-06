@@ -2,7 +2,7 @@
 
 YewSeal 是一个围绕 **SOPS + age** 构建的 CLI 工具，用清晰的配置文件定义批量加密/解密工作流。
 
-它不重复造加密轮子，而是把项目初始化、文件映射登记、批量加密/解密和 age 私钥管理整合进一个友好的 CLI。
+它不重复造加密轮子，而是把项目初始化、文件映射登记和批量加密/解密整合进一个友好的 CLI。私钥的远端存储和分发由开发者或部署环境自行管理。
 
 ## 功能特性
 
@@ -12,7 +12,6 @@ YewSeal 是一个围绕 **SOPS + age** 构建的 CLI 工具，用清晰的配置
 - 提供简洁的 `yews e` / `yews d` 别名，可按配置处理所有文件，并支持目录扫描与并行处理
 - 支持 TOML、YAML、JSON、ENV、INI；TOML 由内置的原生 TOML store 直接加密（基于 [YewFence/sops](https://github.com/YewFence/sops) fork）
 - 支持从环境变量、文件或配置文件读取密钥
-- 可选将私钥同步到密钥管理服务（Infisical）
 - 加密/解密后保持原始数据结构
 
 ## 快速开始
@@ -91,14 +90,9 @@ docker run --rm -it \
 
 #### 补充说明
 
-手动使用 infisical cli 导出私钥至本地的参考命令如下
-```bash
-umask 077
-mkdir -p .age
-infisical secrets get AGE_KEY_FILE --plain > ./.age/keys.txt
-```
+私钥托管在 Infisical 时，可在宿主机使用其 CLI 导出，再交给容器内的 YewSeal。参考脚本见[外部私钥来源](docs/guide/private-keys.md)。
 
-> `edit` 和 `sync` 不建议通过 Docker 运行：前者依赖宿主编辑器，后者依赖宿主机上的 `infisical` CLI 和登录状态
+> `edit` 不建议通过 Docker 运行，因为它依赖宿主编辑器。
 
 ## 使用指南
 
@@ -211,27 +205,11 @@ yews decrypt
 
 默认从 `.age/keys.txt` 读取私钥；加密授权从 `.yewseal.toml` 的 `[recipients.registry]` 和 alias 集合解析。完整规则见[文档站](https://yewfence.github.io/YewSeal/guide/configuration#age-密钥管理)。
 
-## 密钥同步
+## 外部私钥来源
 
-### Infisical 集成
+YewSeal 不提供私钥同步命令或 Provider 集成。不同开发者、机器和部署环境可持有不同的私钥，项目配置只需登记相应的公开 recipients 和文件授权。
 
-支持将 Age 密钥同步到 Infisical 密钥管理服务。
-> [Infisical](https://infisical.com/) 是一个开源的，可轻松自托管的秘密管理平台，此处使用它的 [infisical CLI](https://infisical.com/docs/cli/overview)。
-
-#### 1. 配置 Infisical
-
-```bash
-infisical login
-infisical init
-```
-
-此时你的项目中会生成一个 `.infisical.json` 配置文件，本工具会检测该配置文件是否存在作为 Infisical 配置完成与否的标志。
-
-#### 2. 同步 AGE 密钥到 Infisical
-```bash
-# 直接同步到项目根目录的 AGE_KEY_FILE 变量
-yews sync
-```
+私钥可由本地文件、CI secret 或独立的 secret manager 工具提供。使用 Infisical CLI 导出完整 identity bundle 的参考脚本见[外部私钥来源](docs/guide/private-keys.md)，YewSeal 不负责其认证或远端操作。
 
 ## Git 工作流
 
@@ -239,7 +217,6 @@ yews sync
 
 ```bash
 git add .gitignore .yewseal.toml wrangler.enc.toml
-# git add .infisical.json  # 如果使用 Infisical
 git add .sops.yaml  # 可选但推荐
 git commit -m "feat: 添加加密配置"
 ```
@@ -338,7 +315,6 @@ MIT License
 
 - [Age](https://github.com/FiloSottile/age) (BSD 3-Clause) - A simple, modern and secure encryption tool (and Go library) with small explicit keys, no config options, and UNIX-style composability.
 - [SOPS](https://github.com/getsops/sops) (MPL 2.0) - Simple and flexible tool for managing secrets
-- [Infisical CLI](https://github.com/Infisical/cli) (MIT) - The official CLI of Infisical
 
 ## 相关链接
 

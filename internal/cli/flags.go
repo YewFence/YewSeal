@@ -32,15 +32,6 @@ type planOptions struct {
 	JSON     bool
 }
 
-type syncOptions struct {
-	KeyFile   string
-	Name      string
-	ProjectID string
-	Path      string
-	Env       string
-	Provider  string
-}
-
 func addEncryptFlags(flags *pflag.FlagSet, opts *encryptOptions) {
 	flags.StringVarP(&opts.Output, "output", "o", opts.Output, "Output encrypted file for a single file target")
 	flags.StringVar(&opts.Format, "format", opts.Format, "Format override for file targets (toml/yaml/json/env/ini/binary)")
@@ -65,24 +56,6 @@ func addPlanFlags(flags *pflag.FlagSet, opts *planOptions) {
 	flags.IntVarP(&opts.Parallel, "parallel", "P", opts.Parallel, "Number of parallel workers for batch mode")
 	flags.BoolVarP(&opts.Verbose, "verbose", "v", false, "Enable verbose output")
 	flags.BoolVar(&opts.JSON, "json", false, "Print preflight result as JSON")
-}
-
-func addSyncFlags(flags *pflag.FlagSet, opts *syncOptions) {
-	flags.StringVarP(&opts.KeyFile, "key-file", "k", opts.KeyFile, "Path to the key file to sync")
-	flags.StringVarP(&opts.Name, "name", "n", opts.Name, "Secret name in the provider")
-	flags.StringVar(&opts.ProjectID, "project-id", "", "Infisical project ID")
-	flags.StringVar(&opts.Path, "path", "", "Path/folder in the provider (e.g., /yewseal)")
-	flags.StringVar(&opts.Env, "env", "", "Environment name in the provider")
-	flags.StringVarP(&opts.Provider, "provider", "p", opts.Provider, "Secret management provider (infisical)")
-}
-
-func addSyncPullFlags(flags *pflag.FlagSet, opts *syncOptions) {
-	flags.StringVarP(&opts.KeyFile, "key-file", "k", opts.KeyFile, "Local path to save the key file")
-	flags.StringVarP(&opts.Name, "name", "n", opts.Name, "Secret name in the provider")
-	flags.StringVar(&opts.ProjectID, "project-id", "", "Infisical project ID")
-	flags.StringVar(&opts.Path, "path", "", "Path/folder in the provider (e.g., /yewseal)")
-	flags.StringVar(&opts.Env, "env", "", "Environment name in the provider")
-	flags.StringVarP(&opts.Provider, "provider", "p", opts.Provider, "Secret management provider (infisical)")
 }
 
 func flagChangedOrEnvSet(flags *pflag.FlagSet, name string, envNames ...string) bool {

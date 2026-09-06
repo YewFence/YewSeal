@@ -13,7 +13,6 @@ package schema
 	encryption?: #EncryptionConfig
 	key?:        #KeyConfig
 	recipients?: #RecipientConfig
-	sync?:       #SyncConfig
 }
 
 // #Format 是 YewSeal 支持的加密文件格式。
@@ -77,25 +76,6 @@ recipients?: [string, ...string]
 	// Age 私钥文件路径。
 	file_path?: string | *".age/keys.txt"
 
-}
-
-// #SyncConfig 定义 Age 密钥同步设置。
-#SyncConfig: {
-	// 密钥管理 Provider 名称。当前仅支持 infisical,
-	// 新增 Provider 时需同步扩展此枚举。
-	provider?: "infisical"
-
-	// Provider 侧的项目标识符,sync 命令使用。
-	project_id?: string
-
-	// Age 私钥文件在 Provider 侧的 secret 名称。
-	secret_name?: string | *"AGE_KEY_FILE"
-
-	// Provider 侧的远程路径/目录。
-	path?: string
-
-	// Provider 侧的环境名称。
-	environment?: string
 }
 
 // 顶层默认引用,便于 cue vet/export 直接使用:
