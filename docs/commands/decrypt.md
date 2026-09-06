@@ -58,6 +58,17 @@ yews decrypt ./configs --parallel 4
 yews decrypt config.enc.toml --force
 ```
 
+### --strict
+
+要求所有选中文件成功处理。默认情况下，没有匹配身份的文件会跳过；部分成功且没有真正错误时退出 `0`，全部跳过或发生真正错误时退出 `1`。严格模式下只要有跳过也退出 `1`，但仍继续处理其他文件，不回滚成功结果。
+
+```bash
+yews decrypt --strict
+YEWSEAL_STRICT=true yews decrypt
+```
+
+显式 `--strict=false` 可以覆盖环境变量。完整结果分类、退出码和 `.gitignore` 副作用见[解密结果与严格模式](/guide/decryption-results)。
+
 ### --verbose, -v
 
 输出详细的文件选择信息。

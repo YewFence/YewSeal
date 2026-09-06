@@ -86,12 +86,6 @@ docker run --rm -it \
   ghcr.io/yewfence/yew-seal:latest --help
 ```
 
-#### 补充说明
-
-私钥托管在 Infisical 时，可在宿主机使用其 CLI 导出，再交给容器内的 YewSeal。参考脚本见[外部私钥来源](docs/guide/private-keys.md)。
-
-> `edit` 不建议通过 Docker 运行，因为它依赖宿主编辑器。
-
 ## 使用指南
 
 ### 1. 初始化项目
@@ -159,6 +153,8 @@ yews decrypt
 yews d  # 简写
 ```
 
+`decrypt` 默认跳过没有匹配身份的文件，部分成功且没有真正错误时退出成功。部署或需要全部文件的流程请使用 `yews decrypt --strict`，也可以设置 `YEWSEAL_STRICT=true`。批量 `diff` 同样支持该模式，并明确提示未参与比较的文件；完整规则见[解密结果与严格模式](docs/guide/decryption-results.md)。
+
 ### 4. 直接编辑加密文件
 
 使用编辑器直接编辑加密文件（自动处理加密/解密）：
@@ -215,8 +211,7 @@ YewSeal 不提供私钥同步集成。因为不同开发者、机器和部署环
 ### 将加密文件和配置文件提交到版本控制
 
 ```bash
-git add .gitignore .yewseal.toml wrangler.enc.toml
-git add .sops.yaml  # 可选但推荐
+git add .gitignore .yewseal.toml wrangler.enc.toml .sops.toml
 git commit -m "feat: 添加加密配置"
 ```
 
@@ -248,7 +243,7 @@ jobs:
       - name: Decrypt configuration
         env:
           SOPS_AGE_KEY: ${{ secrets.AGE_KEY }}
-        run: yews decrypt
+        run: yews decrypt --strict
 
       - name: Deploy
         run: wrangler deploy

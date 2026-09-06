@@ -200,6 +200,7 @@ YewSeal 支持通过环境变量配置部分选项：
 | `SOPS_AGE_KEY_FILE` | Age 私钥文件路径 |
 | `SOPS_AGE_KEY_CMD` | 执行命令获取 Age identity bundle |
 | `SOPS_OUTPUT_FILE` | `encrypt`、`decrypt`、`plan` 的 `--output` 值 |
+| `YEWSEAL_STRICT` | `decrypt`、`diff` 的严格模式默认值，显式 `--strict` / `--strict=false` 优先 |
  `EDITOR` | `edit` 命令在 `VISUAL` 未设置时使用的编辑器 |
  `VISUAL` | `edit` 命令优先使用的编辑器 |
 
