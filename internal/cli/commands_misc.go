@@ -2,7 +2,9 @@ package cli
 
 import (
 	"errors"
+	"fmt"
 	"os"
+	"strings"
 
 	yewsapp "github.com/YewFence/YewSeal/internal/app"
 	"github.com/YewFence/YewSeal/internal/config"
@@ -22,6 +24,13 @@ func initCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "init",
 		Short: "Initialize project with Age keys and YewSeal config entries",
+		Args: func(cmd *cobra.Command, args []string) error {
+			if err := cobra.NoArgs(cmd, args); err != nil {
+				return err
+			}
+			_, err := yewsapp.ValidateCLIFormatOverride(format)
+			return err
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return project.InitProject(force, input, output, format, createExample, skipSOPSConfig)
 		},
@@ -35,50 +44,60 @@ func initCommand() *cobra.Command {
 	return cmd
 }
 
-func editCommand(cfg *config.Config, keyFile *string) *cobra.Command {
+func editCommand(load configLoader, keyFile *string) *cobra.Command {
 	var file string
 
 	cmd := &cobra.Command{
 		Use:   "edit",
 		Short: "Edit encrypted configuration file using SOPS",
-		RunE: func(cmd *cobra.Command, args []string) error {
+		Args: func(cmd *cobra.Command, args []string) error {
+			if err := cobra.NoArgs(cmd, args); err != nil {
+				return err
+			}
+			if strings.TrimSpace(file) == "" {
+				return fmt.Errorf("edit requires exactly one configured target")
+			}
+			return nil
+		},
+		RunE: withConfig(load, func(cmd *cobra.Command, args []string, cfg *config.Config) error {
 			return yewsapp.EditEncryptedFile(yewsapp.EditRequest{
 				Config:  cfg,
 				File:    file,
 				KeyFile: *keyFile,
 			})
-		},
+		}),
 	}
 	cmd.Flags().StringVarP(&file, "file", "f", "", "Encrypted file to edit (must be configured in .yewseal.toml)")
 	return cmd
 }
 
-func viewCommand(cfg *config.Config, keyFile *string) *cobra.Command {
+func viewCommand(load configLoader, keyFile *string) *cobra.Command {
 	var format string
 	var verbose bool
 
 	cmd := &cobra.Command{
 		Use:   "view [command options] <target>",
 		Short: "Print decrypted plaintext to standard output without writing files",
-		Args:  cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			cliFormat, err := yewsapp.ValidateCLIFormatOverride(format)
-			if err != nil {
+		Args: func(cmd *cobra.Command, args []string) error {
+			if err := cobra.ExactArgs(1)(cmd, args); err != nil {
 				return err
 			}
-
-			if err := yewsapp.WriteViewedTarget(os.Stdout, cfg, args[0], *keyFile, cliFormat, verbose); err != nil {
-				return err
+			if strings.TrimSpace(args[0]) == "" {
+				return fmt.Errorf("view requires exactly one target")
 			}
-			return nil
+			_, err := yewsapp.ValidateCLIFormatOverride(format)
+			return err
 		},
+		RunE: withConfig(load, func(cmd *cobra.Command, args []string, cfg *config.Config) error {
+			return yewsapp.WriteViewedTarget(os.Stdout, cfg, args[0], *keyFile, format, verbose)
+		}),
 	}
 	cmd.Flags().StringVar(&format, "format", "", "Format override for the selected target (toml/yaml/json/env/ini/binary)")
 	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose output")
 	return cmd
 }
 
-func diffCommand(cfg *config.Config, keyFile *string) *cobra.Command {
+func diffCommand(load configLoader, keyFile *string) *cobra.Command {
 	var format string
 	var color string
 	var verbose bool
@@ -86,14 +105,22 @@ func diffCommand(cfg *config.Config, keyFile *string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "diff [target]",
 		Short: "Compare plaintext file with decrypted encrypted file",
-		Args:  cobra.MaximumNArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
+		Args: func(cmd *cobra.Command, args []string) error {
+			if err := cobra.MaximumNArgs(1)(cmd, args); err != nil {
+				return err
+			}
 			cliFormat, err := yewsapp.ValidateCLIFormatOverride(format)
 			if err != nil {
 				return err
 			}
-
-			result, err := yewsapp.DiffPlaintextAgainstEncryptedTargets(os.Stdout, cfg, firstArg(args), *keyFile, cliFormat, verbose, color)
+			if strings.TrimSpace(firstArg(args)) == "" && cliFormat != "" {
+				return fmt.Errorf("--format is only supported in single-file mode")
+			}
+			_, err = yewsapp.ResolveDiffColor(color, os.Stdout)
+			return err
+		},
+		RunE: withConfig(load, func(cmd *cobra.Command, args []string, cfg *config.Config) error {
+			result, err := yewsapp.DiffPlaintextAgainstEncryptedTargets(os.Stdout, cfg, firstArg(args), *keyFile, format, verbose, color)
 			if err != nil {
 				return err
 			}
@@ -101,7 +128,7 @@ func diffCommand(cfg *config.Config, keyFile *string) *cobra.Command {
 				return errors.New("")
 			}
 			return nil
-		},
+		}),
 	}
 	cmd.Flags().StringVar(&format, "format", "", "Format override for the selected target (toml/yaml/json/env/ini/binary)")
 	cmd.Flags().StringVar(&color, "color", "auto", "Colorize diff output (auto/always/never)")

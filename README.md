@@ -33,13 +33,15 @@ yews d
 
 初始化完成后，建议将加密后的文件提交到版本控制，并妥善备份 `.age/keys.txt`。它包含 age 密钥对，一旦丢失就无法解密文件。
 
-**不想增加额外的配置文件？** 完全可以只用命令行参数运行：
+**只处理一个文件？** 在 `.yewseal.toml` 中登记文件映射和 recipients 后，可以通过路径选择目标：
 
 ```bash
-# 所有参数都可以通过命令行指定
-yews encrypt config.toml -o config.enc.toml -k .age/keys.txt -p "age1..."
+# 路径必须匹配项目配置中已登记的文件
+yews encrypt config.toml -o config.enc.toml
 yews decrypt config.enc.toml -o config.toml -k .age/keys.txt
 ```
+
+业务命令必须找到项目配置，参数校验通过后才会加载。版本、帮助、补全和 `init` 不解析已有项目配置，因此配置损坏不会阻断这些入口。完整规则见[配置加载时机](docs/guide/configuration.md#配置加载时机)。
 
 ## 安装
 

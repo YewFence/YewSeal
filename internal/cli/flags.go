@@ -36,7 +36,7 @@ func addEncryptFlags(flags *pflag.FlagSet, opts *encryptOptions) {
 	flags.StringVarP(&opts.Output, "output", "o", opts.Output, "Output encrypted file for a single file target")
 	flags.StringVar(&opts.Format, "format", opts.Format, "Format override for file targets (toml/yaml/json/env/ini/binary)")
 	flags.StringSliceVar(&opts.Patterns, "pattern", nil, "Pattern filter for configured groups")
-	flags.IntVarP(&opts.Parallel, "parallel", "P", opts.Parallel, "Number of parallel workers for batch mode")
+	flags.IntVarP(&opts.Parallel, "parallel", "P", opts.Parallel, "Number of parallel workers for batch mode (minimum 1)")
 	flags.BoolVarP(&opts.Verbose, "verbose", "v", false, "Enable verbose output")
 }
 
@@ -44,7 +44,7 @@ func addDecryptFlags(flags *pflag.FlagSet, opts *decryptOptions) {
 	flags.StringVarP(&opts.Output, "output", "o", opts.Output, "Output plaintext file for a single file target")
 	flags.StringVar(&opts.Format, "format", opts.Format, "Format override for file targets (toml/yaml/json/env/ini/binary)")
 	flags.StringSliceVar(&opts.Patterns, "pattern", nil, "Pattern filter for configured groups")
-	flags.IntVarP(&opts.Parallel, "parallel", "P", opts.Parallel, "Number of parallel workers for batch mode")
+	flags.IntVarP(&opts.Parallel, "parallel", "P", opts.Parallel, "Number of parallel workers for batch mode (minimum 1)")
 	flags.BoolVarP(&opts.Force, "force", "f", false, "Force overwrite existing plaintext file when it differs from decrypted content")
 	flags.BoolVarP(&opts.Verbose, "verbose", "v", false, "Enable verbose output")
 }
@@ -53,7 +53,7 @@ func addPlanFlags(flags *pflag.FlagSet, opts *planOptions) {
 	flags.StringVarP(&opts.Output, "output", "o", opts.Output, "Output file for a single file target")
 	flags.StringVar(&opts.Format, "format", opts.Format, "Format override for file targets (toml/yaml/json/env/ini/binary)")
 	flags.StringSliceVar(&opts.Patterns, "pattern", nil, "Group pattern for directory mode or encryption.groups override")
-	flags.IntVarP(&opts.Parallel, "parallel", "P", opts.Parallel, "Number of parallel workers for batch mode")
+	flags.IntVarP(&opts.Parallel, "parallel", "P", opts.Parallel, "Number of parallel workers for batch mode (minimum 1)")
 	flags.BoolVarP(&opts.Verbose, "verbose", "v", false, "Enable verbose output")
 	flags.BoolVar(&opts.JSON, "json", false, "Print preflight result as JSON")
 }
