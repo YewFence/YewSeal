@@ -20,6 +20,6 @@ features:
     details: 使用 SOPS 加解密引擎和 Age 密钥生成能力，减少外部工具依赖。
   - title: 配置化批量处理
     details: 通过 .yewseal.toml 配置精确文件映射和分组扫描，并可用 plan 预览选择结果。
-  - title: 密钥同步
-    details: 通过 Provider 接口扩展密钥同步能力，目前支持 Infisical。
+  - title: 按文件授权
+    details: 通过公开 recipient 配置每个文件的授权集合，解密身份由开发者或部署环境自行提供。
 ---

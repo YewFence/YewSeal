@@ -52,14 +52,8 @@ docker run --rm \
 
 ## 从 Infisical 导出私钥
 
-手动使用 Infisical CLI 导出私钥至本地的参考命令：
-
-```bash
-umask 077
-mkdir -p .age
-infisical secrets get AGE_KEY_FILE --plain > ./.age/keys.txt
-```
+在宿主机独立使用 Infisical CLI 导出当前环境的私钥，再挂载给容器。参考脚本见[外部私钥来源](/guide/private-keys#infisical-参考脚本)，YewSeal 镜像不负责 Infisical 的认证或远端操作。
 
 ## 限制
 
-`edit` 和 `sync` 不建议通过 Docker 运行：前者依赖宿主编辑器，后者依赖宿主机上的 `infisical` CLI 和登录状态。
+`edit` 不建议通过 Docker 运行，因为它依赖宿主编辑器。

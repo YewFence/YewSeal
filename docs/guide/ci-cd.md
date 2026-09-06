@@ -33,14 +33,7 @@ jobs:
 
 ## 配合 Infisical
 
-如果私钥托管在 Infisical，可以在 CI 里用 [Infisical CLI](https://infisical.com/docs/cli/overview) 先导出私钥，再交给 `yews`：
-
-```bash
-infisical secrets get AGE_KEY_FILE --plain > .age/keys.txt
-yews decrypt
-```
-
-Infisical CLI 在 CI 中需要通过服务令牌（`INFISICAL_TOKEN`）认证，具体见 Infisical 官方文档。
+如果私钥托管在 Infisical，可以独立使用其 CLI 先导出当前部署环境的身份，再交给 `yews`。参考脚本和认证说明见[外部私钥来源](/guide/private-keys#infisical-参考脚本)。YewSeal 不调用 Infisical，也不要求生产环境与开发机共用私钥。
 
 ## 其他 CI 系统
 

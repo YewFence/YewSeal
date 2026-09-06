@@ -41,7 +41,6 @@ func TestGenerateWritesOnePagePerCommand(t *testing.T) {
 		"yews_edit",
 		"yews_view",
 		"yews_diff",
-		"yews_sync",
 		"yews_completion",
 	} {
 		assert.FileExists(t, filepath.Join(dir, name+".md"))
@@ -49,6 +48,8 @@ func TestGenerateWritesOnePagePerCommand(t *testing.T) {
 
 	// help 命令不生成页面
 	assert.NoFileExists(t, filepath.Join(dir, "yews_help.md"))
+	assert.NoFileExists(t, filepath.Join(dir, "yews_sync.md"))
+	assert.NoFileExists(t, filepath.Join(dir, "yews_sync_pull.md"))
 
 	// 页面带有 VitePress frontmatter，没有自动生成的时间戳，且以单个换行符结尾
 	content, err := os.ReadFile(filepath.Join(dir, "yews_encrypt.md"))

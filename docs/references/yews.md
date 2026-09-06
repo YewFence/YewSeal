@@ -22,5 +22,4 @@ YewSeal - Encrypt/decrypt configuration files using SOPS and Age (supports TOML,
 * [yews encrypt](yews_encrypt.md)	 - Encrypt configuration file (supports .toml, .yaml, .yml, .json, .env, .ini, and binary output)
 * [yews init](yews_init.md)	 - Initialize project with Age keys and YewSeal config entries
 * [yews plan](yews_plan.md)	 - Run preflight and print the resolved file selection without writing files
-* [yews sync](yews_sync.md)	 - Sync sensitive files to secret management service
 * [yews view](yews_view.md)	 - Print decrypted plaintext to standard output without writing files

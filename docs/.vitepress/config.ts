@@ -19,6 +19,7 @@ export default defineConfig({
         items: [
           { text: '快速开始', link: '/guide/getting-started' },
           { text: '配置说明', link: '/guide/configuration' },
+          { text: '外部私钥来源', link: '/guide/private-keys' },
           { text: 'Docker 运行', link: '/guide/docker' },
           { text: 'CI/CD 集成', link: '/guide/ci-cd' },
           { text: 'Shell 补全', link: '/guide/completion' }
@@ -33,8 +34,7 @@ export default defineConfig({
           { text: 'plan - 预览选择', link: '/commands/plan' },
           { text: 'edit - 编辑加密文件', link: '/commands/edit' },
           { text: 'view - 查看加密文件', link: '/commands/view' },
-          { text: 'diff - 比较差异', link: '/commands/diff' },
-          { text: 'sync - 同步密钥', link: '/commands/sync' }
+          { text: 'diff - 比较差异', link: '/commands/diff' }
         ]
       },
       {
@@ -49,7 +49,6 @@ export default defineConfig({
           { text: 'yews edit', link: '/references/yews_edit' },
           { text: 'yews view', link: '/references/yews_view' },
           { text: 'yews diff', link: '/references/yews_diff' },
-          { text: 'yews sync', link: '/references/yews_sync' },
           { text: 'yews completion', link: '/references/yews_completion' }
         ]
       }

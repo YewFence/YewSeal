@@ -113,4 +113,4 @@ recipients = ["owner"]
 
 ## 相关命令
 
-[encrypt](/commands/encrypt) 可以加密配置文件，[decrypt](/commands/decrypt) 可以解密配置文件，[sync](/commands/sync) 可以同步 Age 私钥。
+[encrypt](/commands/encrypt) 可以加密配置文件，[decrypt](/commands/decrypt) 可以解密配置文件。私钥的保存与分发由开发者或部署环境自行管理，参考[外部私钥来源](/guide/private-keys)。
