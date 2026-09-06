@@ -34,7 +34,6 @@ func PreflightEncrypt(cfg *config.Config, req EncryptRequest) (PreflightResult, 
 		Target:               req.Target,
 		Output:               req.Output,
 		OutputSet:            req.OutputSet,
-		Format:               req.Format,
 		Patterns:             req.Patterns,
 		AllowEmptyTarget:     true,
 		UseConfiguredDefault: true,
@@ -59,7 +58,6 @@ func PreflightDecrypt(cfg *config.Config, req DecryptRequest) (PreflightResult, 
 		Target:               req.Target,
 		Output:               req.Output,
 		OutputSet:            req.OutputSet,
-		Format:               req.Format,
 		Patterns:             req.Patterns,
 		AllowEmptyTarget:     true,
 		UseConfiguredDefault: true,
@@ -87,7 +85,6 @@ func PreflightDecrypt(cfg *config.Config, req DecryptRequest) (PreflightResult, 
 type PlanRequest struct {
 	Output    string
 	OutputSet bool
-	Format    string
 	Target    string
 	Patterns  []string
 	Parallel  int
@@ -99,7 +96,6 @@ func PrintPlan(w io.Writer, cfg *config.Config, req PlanRequest, opts PreflightP
 		Target:    req.Target,
 		Output:    req.Output,
 		OutputSet: req.OutputSet,
-		Format:    req.Format,
 		Patterns:  req.Patterns,
 	})
 	if err != nil {

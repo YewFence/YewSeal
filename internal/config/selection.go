@@ -16,7 +16,6 @@ type SelectionOptions struct {
 	Target               string
 	Output               string
 	OutputSet            bool
-	Format               string
 	Patterns             []string
 	RequireSingleTarget  bool
 	AllowEmptyTarget     bool
@@ -33,11 +32,6 @@ type SelectionResult struct {
 }
 
 func SelectFilePairs(cfg *Config, opts SelectionOptions) (SelectionResult, error) {
-	cliFormat, err := ValidateFormatOverride(opts.Format)
-	if err != nil {
-		return SelectionResult{}, err
-	}
-
 	allConfigPairs, err := configuredFilePairs(cfg, opts.Command, groupRequestOptions{})
 	if err != nil {
 		return SelectionResult{}, err
@@ -45,7 +39,7 @@ func SelectFilePairs(cfg *Config, opts SelectionOptions) (SelectionResult, error
 
 	target := strings.TrimSpace(opts.Target)
 	if target != "" {
-		selected, unconfigured, err := selectTargetFilePairs(cfg, allConfigPairs, opts, cliFormat)
+		selected, unconfigured, err := selectTargetFilePairs(cfg, allConfigPairs, opts)
 		if err != nil {
 			return SelectionResult{}, err
 		}
@@ -61,9 +55,6 @@ func SelectFilePairs(cfg *Config, opts SelectionOptions) (SelectionResult, error
 	}
 	if opts.OutputSet {
 		return SelectionResult{}, fmt.Errorf("--output is only supported when the path target is a file")
-	}
-	if cliFormat != "" {
-		return SelectionResult{}, fmt.Errorf("--format is only supported in single-file mode")
 	}
 
 	selected, err := filterCurrentDirectoryScope(allConfigPairs, opts.Command, cwdFromConfig(cfg))
@@ -98,17 +89,6 @@ func ValidateFormatOverride(format string) (string, error) {
 		return "", fmt.Errorf("unsupported format %q (supported: toml, yaml, json, env, ini, binary)", format)
 	}
 	return parsed, nil
-}
-
-func ResolveFormatOverride(cliFormat string, filePair FilePair) (string, error) {
-	validatedFormat, err := ValidateFormatOverride(cliFormat)
-	if err != nil {
-		return "", err
-	}
-	if validatedFormat != "" {
-		return validatedFormat, nil
-	}
-	return filePair.Format, nil
 }
 
 func ValidateFilePairs(filePairs []FilePair) ([]FilePair, error) {
@@ -171,7 +151,7 @@ type groupRequestOptions struct {
 	Patterns []string
 }
 
-func selectTargetFilePairs(cfg *Config, allConfigPairs []FilePair, opts SelectionOptions, cliFormat string) ([]FilePair, bool, error) {
+func selectTargetFilePairs(cfg *Config, allConfigPairs []FilePair, opts SelectionOptions) ([]FilePair, bool, error) {
 	targetAbs, err := cleanAbsTarget(opts.Target)
 	if err != nil {
 		return nil, false, err
@@ -182,25 +162,23 @@ func selectTargetFilePairs(cfg *Config, allConfigPairs []FilePair, opts Selectio
 	}
 
 	if filePair, matched := findConfiguredPair(allConfigPairs, targetAbs); matched {
-		formatOverride, err := ResolveFormatOverride(cliFormat, filePair)
-		if err != nil {
-			return nil, false, err
-		}
 		if opts.OutputSet {
+			// An output filename changes the destination, not the registered format.
+			format, _, err := resolveFinalFormat(filePair)
+			if err != nil {
+				return nil, false, err
+			}
+			filePair.Format = format
 			if opts.Command == task.ModeEncrypt {
 				filePair.EncryptedPath = resolveCommandPath(cwdFromConfig(cfg), opts.Output)
 			} else {
 				filePair.PlaintextPath = resolveCommandPath(cwdFromConfig(cfg), opts.Output)
 			}
 		}
-		filePair.Format = formatOverride
 		return []FilePair{filePair}, false, nil
 	}
 
 	if statErr == nil && info.IsDir() {
-		if cliFormat != "" {
-			return nil, false, fmt.Errorf("--format is only supported in single-file mode")
-		}
 		if opts.OutputSet {
 			return nil, false, fmt.Errorf("--output is only supported when the path target is a file")
 		}

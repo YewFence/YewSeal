@@ -72,7 +72,6 @@ func editCommand(load configLoader, keyFile *string) *cobra.Command {
 }
 
 func viewCommand(load configLoader, keyFile *string) *cobra.Command {
-	var format string
 	var verbose bool
 
 	cmd := &cobra.Command{
@@ -85,20 +84,17 @@ func viewCommand(load configLoader, keyFile *string) *cobra.Command {
 			if strings.TrimSpace(args[0]) == "" {
 				return fmt.Errorf("view requires exactly one target")
 			}
-			_, err := yewsapp.ValidateCLIFormatOverride(format)
-			return err
+			return nil
 		},
 		RunE: withConfig(load, func(cmd *cobra.Command, args []string, cfg *config.Config) error {
-			return yewsapp.WriteViewedTarget(os.Stdout, cfg, args[0], *keyFile, format, verbose)
+			return yewsapp.WriteViewedTarget(os.Stdout, cfg, args[0], *keyFile, verbose)
 		}),
 	}
-	cmd.Flags().StringVar(&format, "format", "", "Format override for the selected target (toml/yaml/json/env/ini/binary)")
 	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose output")
 	return cmd
 }
 
 func diffCommand(load configLoader, keyFile *string) *cobra.Command {
-	var format string
 	var color string
 	var verbose bool
 
@@ -109,18 +105,11 @@ func diffCommand(load configLoader, keyFile *string) *cobra.Command {
 			if err := cobra.MaximumNArgs(1)(cmd, args); err != nil {
 				return err
 			}
-			cliFormat, err := yewsapp.ValidateCLIFormatOverride(format)
-			if err != nil {
-				return err
-			}
-			if strings.TrimSpace(firstArg(args)) == "" && cliFormat != "" {
-				return fmt.Errorf("--format is only supported in single-file mode")
-			}
-			_, err = yewsapp.ResolveDiffColor(color, os.Stdout)
+			_, err := yewsapp.ResolveDiffColor(color, os.Stdout)
 			return err
 		},
 		RunE: withConfig(load, func(cmd *cobra.Command, args []string, cfg *config.Config) error {
-			result, err := yewsapp.DiffPlaintextAgainstEncryptedTargets(os.Stdout, cfg, firstArg(args), *keyFile, format, verbose, color)
+			result, err := yewsapp.DiffPlaintextAgainstEncryptedTargets(os.Stdout, cfg, firstArg(args), *keyFile, verbose, color)
 			if err != nil {
 				return err
 			}
@@ -130,7 +119,6 @@ func diffCommand(load configLoader, keyFile *string) *cobra.Command {
 			return nil
 		}),
 	}
-	cmd.Flags().StringVar(&format, "format", "", "Format override for the selected target (toml/yaml/json/env/ini/binary)")
 	cmd.Flags().StringVar(&color, "color", "auto", "Colorize diff output (auto/always/never)")
 	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose output")
 	return cmd
