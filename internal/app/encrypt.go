@@ -10,7 +10,6 @@ type EncryptRequest struct {
 	Verbose               bool
 	Output                string
 	OutputSet             bool
-	Format                string
 	Target                string
 	Patterns              []string
 	Parallel              int

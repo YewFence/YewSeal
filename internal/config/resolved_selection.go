@@ -70,9 +70,6 @@ func ResolvePlanSelection(cfg *Config, opts SelectionOptions) (ResolvedSelection
 		if opts.OutputSet {
 			return ResolvedSelection{}, fmt.Errorf("--output is only supported when the path target is a file")
 		}
-		if strings.TrimSpace(opts.Format) != "" {
-			return ResolvedSelection{}, fmt.Errorf("--format is only supported in single-file mode")
-		}
 		allConfigPairs, err := configuredFilePairs(cfg, task.ModeEncrypt, groupRequestOptions{})
 		if err != nil {
 			return ResolvedSelection{}, err
@@ -244,7 +241,14 @@ func resolveFilePair(cfg *Config, filePair FilePair, opts SelectionOptions, resu
 	filePair.PlaintextPath = plainAbs
 	filePair.EncryptedPath = encAbs
 
-	format, formatSource, err := resolveFinalFormat(filePair, opts)
+	formatPair := filePair
+	if opts.OutputSet && !allConfig && !result.Unconfigured {
+		// The selected pair may already have a different output path and a frozen format.
+		if original, ok := findConfiguredPair(result.AllConfigPairs, resolveCommandPath(cwdFromConfig(cfg), opts.Target)); ok {
+			formatPair = original
+		}
+	}
+	format, formatSource, err := resolveFinalFormat(formatPair)
 	if err != nil {
 		return ResolvedFilePair{}, err
 	}
@@ -295,15 +299,7 @@ func formatRecipientWarning(pair FilePair, err error) string {
 	return fmt.Sprintf("warning: could not resolve recipients for %s (%s): %v; continuing with encrypted metadata", pair.PlaintextPath, source, err)
 }
 
-func resolveFinalFormat(filePair FilePair, opts SelectionOptions) (string, ValueSource, error) {
-	cliFormat, err := ValidateFormatOverride(opts.Format)
-	if err != nil {
-		return "", ValueSource{}, err
-	}
-	if cliFormat != "" {
-		return cliFormat, ValueSource{Kind: ValueSourceArgument, Detail: "--format"}, nil
-	}
-
+func resolveFinalFormat(filePair FilePair) (string, ValueSource, error) {
 	configFormat := strings.TrimSpace(filePair.Format)
 	if configFormat != "" {
 		normalized, err := ValidateFormatOverride(configFormat)

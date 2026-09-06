@@ -25,7 +25,7 @@ func TestCLIConfigurationLoading(t *testing.T) {
 		{}, {"--version"}, {"--help"}, {"help", "decrypt"},
 		{"init", "--help"}, {"encrypt", "--help"}, {"decrypt", "--help"},
 		{"plan", "--help"}, {"edit", "--help"}, {"view", "--help"}, {"diff", "--help"},
-		{"decrypt", "--help", "--format", "invalid"},
+		{"init", "--help", "--format", "invalid"},
 		{"completion", "bash"}, {"completion", "zsh"}, {"completion", "fish"}, {"completion", "powershell"},
 		{"__complete", ""}, {"__complete", "decrypt", "--"},
 	}
@@ -64,7 +64,7 @@ func TestCLIConfigurationLoading(t *testing.T) {
 		{"version-unknown-flag", []string{"--version", "--unknown-option"}, "unknown flag"},
 		{"help-invalid-number", []string{"decrypt", "--help", "--parallel", "nope"}, "invalid argument"},
 		{"missing-target", []string{"view"}, "accepts 1 arg"},
-		{"invalid-format", []string{"decrypt", "--format", "invalid"}, "unsupported format"},
+		{"removed-format", []string{"decrypt", "--format", "yaml"}, "unknown flag: --format"},
 		{"missing-edit-file", []string{"edit"}, "edit requires exactly one configured target"},
 		{"invalid-color", []string{"diff", "--color", "invalid"}, "unsupported color mode"},
 	} {
@@ -81,6 +81,8 @@ func TestCLIConfigurationLoading(t *testing.T) {
 	}
 
 	t.Run("workflow", func(t *testing.T) {
+		t.Setenv("YEWSEAL_FORMAT", "invalid")
+		t.Setenv("SOPS_FORMAT", "invalid")
 		dir := t.TempDir()
 		require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0755))
 		plainPath := filepath.Join(dir, "config.yaml")
@@ -103,6 +105,34 @@ func TestCLIConfigurationLoading(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, plain, decrypted)
 		require.Equal(t, plain, run("view", "config.enc.yaml", "--key-file", ".age/keys.txt"))
+		run("diff", "--key-file", ".age/keys.txt", "--color", "never")
+	})
+
+	t.Run("configured-format-and-output", func(t *testing.T) {
+		t.Setenv("YEWSEAL_FORMAT", "json")
+		t.Setenv("SOPS_FORMAT", "yaml")
+		dir := t.TempDir()
+		require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0755))
+		plain := []byte("TOKEN=value\n")
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "secret"), plain, 0600))
+		run := func(args ...string) []byte {
+			t.Helper()
+			cmd := exec.Command(binary, args...)
+			cmd.Dir = dir
+			output, err := cmd.CombinedOutput()
+			require.NoError(t, err, "%s", output)
+			return output
+		}
+		run("init", "--input", "secret", "--output", "secret.enc.env", "--format", "env", "--skip-sops-config")
+		run("encrypt", "secret", "-o", "export.json")
+		require.NoFileExists(t, filepath.Join(dir, "secret.enc.env"))
+		run("encrypt")
+		run("plan", "secret", "-o", "export.json", "--json")
+		run("decrypt", "secret.enc.env", "-o", "export.yaml", "--key-file", ".age/keys.txt")
+		exported, err := os.ReadFile(filepath.Join(dir, "export.yaml"))
+		require.NoError(t, err)
+		require.Equal(t, plain, exported)
+		require.Equal(t, plain, run("view", "secret.enc.env", "--key-file", ".age/keys.txt"))
 		run("diff", "--key-file", ".age/keys.txt", "--color", "never")
 	})
 }

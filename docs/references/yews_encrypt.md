@@ -13,7 +13,6 @@ yews encrypt [command options] [path] [flags]
 ### Options
 
 ```
-      --format string     Format override for file targets (toml/yaml/json/env/ini/binary)
   -h, --help              help for encrypt
   -o, --output string     Output encrypted file for a single file target
   -P, --parallel int      Number of parallel workers for batch mode (minimum 1) (default 1)

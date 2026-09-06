@@ -12,7 +12,6 @@ import (
 func encryptCommand(load configLoader) *cobra.Command {
 	opts := encryptOptions{
 		Output:   envValue("SOPS_OUTPUT_FILE"),
-		Format:   envValue("YEWSEAL_FORMAT", "SOPS_FORMAT"),
 		Parallel: 1,
 	}
 
@@ -21,7 +20,7 @@ func encryptCommand(load configLoader) *cobra.Command {
 		Aliases: []string{"e"},
 		Short:   "Encrypt configuration file (supports .toml, .yaml, .yml, .json, .env, .ini, and binary output)",
 		Args: func(cmd *cobra.Command, args []string) error {
-			return validateBatchArgs(cmd, args, opts.Format, opts.Patterns, opts.Parallel)
+			return validateBatchArgs(cmd, args, opts.Patterns, opts.Parallel)
 		},
 		RunE: withConfig(load, func(cmd *cobra.Command, args []string, cfg *config.Config) error {
 			target := firstArg(args)
@@ -29,7 +28,6 @@ func encryptCommand(load configLoader) *cobra.Command {
 				Verbose:               opts.Verbose,
 				Output:                opts.Output,
 				OutputSet:             flagChangedOrEnvSet(cmd.Flags(), "output", "SOPS_OUTPUT_FILE"),
-				Format:                opts.Format,
 				Target:                target,
 				Patterns:              opts.Patterns,
 				Parallel:              opts.Parallel,
@@ -44,7 +42,6 @@ func encryptCommand(load configLoader) *cobra.Command {
 func decryptCommand(load configLoader, keyFile *string) *cobra.Command {
 	opts := decryptOptions{
 		Output:   envValue("SOPS_OUTPUT_FILE"),
-		Format:   envValue("YEWSEAL_FORMAT", "SOPS_FORMAT"),
 		Parallel: 1,
 	}
 
@@ -53,7 +50,7 @@ func decryptCommand(load configLoader, keyFile *string) *cobra.Command {
 		Aliases: []string{"d"},
 		Short:   "Decrypt encrypted file (output format determined by extension)",
 		Args: func(cmd *cobra.Command, args []string) error {
-			return validateBatchArgs(cmd, args, opts.Format, opts.Patterns, opts.Parallel)
+			return validateBatchArgs(cmd, args, opts.Patterns, opts.Parallel)
 		},
 		RunE: withConfig(load, func(cmd *cobra.Command, args []string, cfg *config.Config) error {
 			target := firstArg(args)
@@ -62,7 +59,6 @@ func decryptCommand(load configLoader, keyFile *string) *cobra.Command {
 				Verbose:               opts.Verbose,
 				Output:                opts.Output,
 				OutputSet:             flagChangedOrEnvSet(cmd.Flags(), "output", "SOPS_OUTPUT_FILE"),
-				Format:                opts.Format,
 				Target:                target,
 				Patterns:              opts.Patterns,
 				Parallel:              opts.Parallel,
@@ -78,7 +74,6 @@ func decryptCommand(load configLoader, keyFile *string) *cobra.Command {
 func planCommand(load configLoader) *cobra.Command {
 	opts := planOptions{
 		Output:   envValue("SOPS_OUTPUT_FILE"),
-		Format:   envValue("YEWSEAL_FORMAT", "SOPS_FORMAT"),
 		Parallel: 1,
 	}
 
@@ -86,7 +81,7 @@ func planCommand(load configLoader) *cobra.Command {
 		Use:   "plan [command options] [path]",
 		Short: "Run preflight and print the resolved file selection without writing files",
 		Args: func(cmd *cobra.Command, args []string) error {
-			return validateBatchArgs(cmd, args, opts.Format, opts.Patterns, opts.Parallel)
+			return validateBatchArgs(cmd, args, opts.Patterns, opts.Parallel)
 		},
 		RunE: withConfig(load, func(cmd *cobra.Command, args []string, cfg *config.Config) error {
 			target := firstArg(args)
@@ -94,7 +89,6 @@ func planCommand(load configLoader) *cobra.Command {
 				Verbose:   opts.Verbose,
 				Output:    opts.Output,
 				OutputSet: flagChangedOrEnvSet(cmd.Flags(), "output", "SOPS_OUTPUT_FILE"),
-				Format:    opts.Format,
 				Target:    target,
 				Patterns:  opts.Patterns,
 				Parallel:  opts.Parallel,

@@ -16,11 +16,10 @@ type DiffResult struct {
 	Different bool
 }
 
-func DiffPlaintextAgainstEncryptedTargets(w io.Writer, cfg *config.Config, target, keyFile, cliFormat string, verbose bool, colorMode string) (DiffResult, error) {
+func DiffPlaintextAgainstEncryptedTargets(w io.Writer, cfg *config.Config, target, keyFile string, verbose bool, colorMode string) (DiffResult, error) {
 	result, err := config.SelectFilePairs(cfg, config.SelectionOptions{
 		Command:              task.ModeEncrypt,
 		Target:               target,
-		Format:               cliFormat,
 		AllowEmptyTarget:     true,
 		UseConfiguredDefault: true,
 	})
