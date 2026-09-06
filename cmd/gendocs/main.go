@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/YewFence/YewSeal/internal/cli"
-	"github.com/YewFence/YewSeal/internal/config"
 
 	"github.com/spf13/cobra/doc"
 )
@@ -28,7 +27,7 @@ func main() {
 }
 
 func generate(output string) error {
-	rootCmd := cli.NewRootCommand(&config.Config{}, "dev")
+	rootCmd := cli.NewRootCommand("dev")
 	rootCmd.InitDefaultCompletionCmd()
 
 	if err := os.MkdirAll(output, 0o755); err != nil {

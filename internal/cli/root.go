@@ -7,7 +7,11 @@ import (
 )
 
 // NewRootCommand 构建 yews 的根命令。version 由二进制在构建期注入。
-func NewRootCommand(cfg *config.Config, version string) *cobra.Command {
+func NewRootCommand(version string) *cobra.Command {
+	return newRootCommand(version, config.LoadConfig)
+}
+
+func newRootCommand(version string, load configLoader) *cobra.Command {
 	var keyFile string
 
 	rootCmd := &cobra.Command{
@@ -22,12 +26,12 @@ func NewRootCommand(cfg *config.Config, version string) *cobra.Command {
 
 	rootCmd.AddCommand(
 		initCommand(),
-		encryptCommand(cfg),
-		decryptCommand(cfg, &keyFile),
-		planCommand(cfg),
-		editCommand(cfg, &keyFile),
-		viewCommand(cfg, &keyFile),
-		diffCommand(cfg, &keyFile),
+		encryptCommand(load),
+		decryptCommand(load, &keyFile),
+		planCommand(load),
+		editCommand(load, &keyFile),
+		viewCommand(load, &keyFile),
+		diffCommand(load, &keyFile),
 	)
 
 	return rootCmd

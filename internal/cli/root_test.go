@@ -4,20 +4,19 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/YewFence/YewSeal/internal/config"
 	"github.com/stretchr/testify/require"
 )
 
 func TestRootDoesNotExposeSync(t *testing.T) {
 	for _, args := range [][]string{{"sync"}, {"sync", "pull"}} {
 		t.Run(args[len(args)-1], func(t *testing.T) {
-			cmd := NewRootCommand(config.DefaultConfig(), "test")
+			cmd := NewRootCommand("test")
 			cmd.SetArgs(args)
 			require.ErrorContains(t, cmd.Execute(), `unknown command "sync"`)
 		})
 	}
 
-	cmd := NewRootCommand(config.DefaultConfig(), "test")
+	cmd := NewRootCommand("test")
 	var out bytes.Buffer
 	cmd.SetOut(&out)
 	cmd.SetArgs([]string{"--help"})

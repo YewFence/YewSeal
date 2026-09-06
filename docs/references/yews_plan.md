@@ -17,7 +17,7 @@ yews plan [command options] [path] [flags]
   -h, --help              help for plan
       --json              Print preflight result as JSON
   -o, --output string     Output file for a single file target
-  -P, --parallel int      Number of parallel workers for batch mode (default 1)
+  -P, --parallel int      Number of parallel workers for batch mode (minimum 1) (default 1)
       --pattern strings   Group pattern for directory mode or encryption.groups override
   -v, --verbose           Enable verbose output
 ```
