@@ -18,6 +18,7 @@ type decryptOptions struct {
 	Patterns []string
 	Parallel int
 	Force    bool
+	Strict   bool
 	Verbose  bool
 }
 
@@ -41,6 +42,7 @@ func addDecryptFlags(flags *pflag.FlagSet, opts *decryptOptions) {
 	flags.StringSliceVar(&opts.Patterns, "pattern", nil, "Pattern filter for configured groups")
 	flags.IntVarP(&opts.Parallel, "parallel", "P", opts.Parallel, "Number of parallel workers for batch mode (minimum 1)")
 	flags.BoolVarP(&opts.Force, "force", "f", false, "Force overwrite existing plaintext file when it differs from decrypted content")
+	flags.BoolVar(&opts.Strict, "strict", false, "Require every selected file to be decrypted (default from YEWSEAL_STRICT)")
 	flags.BoolVarP(&opts.Verbose, "verbose", "v", false, "Enable verbose output")
 }
 

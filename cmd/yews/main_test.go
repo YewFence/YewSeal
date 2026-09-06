@@ -15,7 +15,7 @@ func TestCLIConfigurationLoading(t *testing.T) {
 	build := exec.Command("go", "build", "-o", binary, ".")
 	output, err := build.CombinedOutput()
 	require.NoError(t, err, "%s", output)
-	for _, name := range []string{"AGE_KEY_FILE", "YEWSEAL_AGE_IDENTITIES", "SOPS_AGE_KEY", "SOPS_AGE_KEY_FILE", "SOPS_OUTPUT_FILE", "YEWSEAL_FORMAT", "SOPS_FORMAT"} {
+	for _, name := range []string{"AGE_KEY_FILE", "YEWSEAL_AGE_IDENTITIES", "SOPS_AGE_KEY", "SOPS_AGE_KEY_FILE", "SOPS_OUTPUT_FILE", "YEWSEAL_FORMAT", "SOPS_FORMAT", "YEWSEAL_STRICT"} {
 		t.Setenv(name, "")
 		require.NoError(t, os.Unsetenv(name))
 	}

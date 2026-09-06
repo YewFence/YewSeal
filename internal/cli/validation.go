@@ -2,6 +2,8 @@ package cli
 
 import (
 	"fmt"
+	"os"
+	"strconv"
 	"strings"
 
 	"github.com/YewFence/YewSeal/internal/task"
@@ -23,5 +25,22 @@ func validateBatchArgs(cmd *cobra.Command, args []string, patterns []string, par
 			return fmt.Errorf("--output is only supported when the path target is a file")
 		}
 	}
+	return nil
+}
+
+func resolveStrict(cmd *cobra.Command, strict *bool) error {
+	if cmd.Flags().Changed("strict") {
+		return nil
+	}
+	*strict = false
+	value, set := os.LookupEnv("YEWSEAL_STRICT")
+	if !set {
+		return nil
+	}
+	parsed, err := strconv.ParseBool(value)
+	if err != nil {
+		return fmt.Errorf("invalid YEWSEAL_STRICT: expected a boolean (true/false)")
+	}
+	*strict = parsed
 	return nil
 }

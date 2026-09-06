@@ -32,7 +32,8 @@ func TestDiffPlaintextAgainstEncryptedTargets_WritesDiffForDifferentTarget(t *te
 	}
 
 	var out bytes.Buffer
-	result, err := DiffPlaintextAgainstEncryptedTargets(&out, cfg, "config.yaml", env.keyFile, false, "never")
+	var diagnostics bytes.Buffer
+	result, err := DiffPlaintextAgainstEncryptedTargets(&out, &diagnostics, cfg, "config.yaml", env.keyFile, false, "never", false)
 	require.NoError(t, err)
 
 	assert.True(t, result.Different)
@@ -70,7 +71,8 @@ func TestDiffPlaintextAgainstEncryptedTargets_NoOutputForIdenticalTarget(t *test
 	}
 
 	var out bytes.Buffer
-	result, err := DiffPlaintextAgainstEncryptedTargets(&out, cfg, "", env.keyFile, false, "never")
+	var diagnostics bytes.Buffer
+	result, err := DiffPlaintextAgainstEncryptedTargets(&out, &diagnostics, cfg, "", env.keyFile, false, "never", false)
 	require.NoError(t, err)
 
 	assert.False(t, result.Different)
