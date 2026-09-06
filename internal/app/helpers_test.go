@@ -73,7 +73,7 @@ func TestWriteViewedTarget_WritesPlaintextToWriterOnly(t *testing.T) {
 	}
 
 	var out bytes.Buffer
-	err = WriteViewedTarget(&out, cfg, encryptedFile, keyFile, "", false)
+	err = WriteViewedTarget(&out, cfg, encryptedFile, keyFile, false)
 	require.NoError(t, err)
 
 	assert.Contains(t, out.String(), "localhost")

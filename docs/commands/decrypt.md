@@ -1,6 +1,6 @@
 # decrypt - 解密配置文件
 
-`decrypt` 用来把 SOPS 加密文件解密成明文文件，输出格式由配置、命令行格式覆盖或加密文件名协议决定。
+`decrypt` 用来把 SOPS 加密文件解密成明文文件，格式由项目配置或已登记文件的路径推断决定，不支持运行时格式覆盖或跨格式转换。
 
 ## 语法
 
@@ -16,6 +16,8 @@ yews decrypt [command options] [path]
 
 配置仍负责治理明文、密文路径和格式，但历史密文的实际 recipient 事实来自其 SOPS metadata。当前配置引用的 alias 已删除或重命名时，decrypt 会向 stderr 输出非致命 warning，并继续使用 identity bundle 尝试解密。
 
+临时解密一个未登记文件且不需要项目配置时，请直接使用 SOPS CLI；原生 TOML 密文需要带对应 store 的 fork CLI。用法和格式兼容边界见[与 SOPS 配合使用](/guide/sops)。
+
 ## 选项
 
 ### --output, -o
@@ -28,15 +30,7 @@ yews decrypt config.enc.toml -o config.toml
 
 `--output` 只支持文件目标，不支持配置模式或目录扫描。
 
-### --format
-
-为文件目标指定输出格式，支持 `toml`、`yaml`、`json`、`env`、`ini` 和 `binary`。
-
-```bash
-yews decrypt config.enc.yaml --format toml -o config.toml
-```
-
-`--format` 只支持单文件模式。
+它表示一个输出文件，不是输出目录。批量模式即使只选中一个文件也不支持 `--output`。输出路径的扩展名不会改变解密格式，覆盖保护仍然生效。
 
 ### --pattern
 
@@ -87,8 +81,6 @@ yews decrypt config.enc.toml -o config.toml
 # 在已配置 Group 的目录范围内筛选并解密
 yews decrypt ./configs --pattern "*.toml"
 
-# 输出为指定格式
-yews decrypt config.enc.yaml --format json -o config.json
 ```
 
 ## 覆盖保护

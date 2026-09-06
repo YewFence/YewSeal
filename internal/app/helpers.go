@@ -14,11 +14,10 @@ func ValidateCLIFormatOverride(format string) (string, error) {
 	return config.ValidateFormatOverride(format)
 }
 
-func WriteViewedTarget(w io.Writer, cfg *config.Config, target, keyFile, cliFormat string, verbose bool) error {
+func WriteViewedTarget(w io.Writer, cfg *config.Config, target, keyFile string, verbose bool) error {
 	result, err := config.SelectFilePairs(cfg, config.SelectionOptions{
 		Command:             task.ModeDecrypt,
 		Target:              target,
-		Format:              cliFormat,
 		RequireSingleTarget: true,
 	})
 	if err != nil {

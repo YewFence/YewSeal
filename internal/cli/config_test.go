@@ -32,7 +32,7 @@ func TestInformationCommandsNeverLoadConfig(t *testing.T) {
 		{}, {"--version"}, {"--help"}, {"help", "view"},
 		{"completion", "bash"}, {"completion", "zsh"}, {"completion", "fish"}, {"completion", "powershell"},
 		{"__complete", ""}, {"__complete", "decrypt", "--"},
-		{"encrypt", "--help"}, {"decrypt", "--help", "--format", "invalid"},
+		{"encrypt", "--help"}, {"decrypt", "--help"}, {"init", "--help", "--format", "invalid"},
 		{"plan", "--help"}, {"edit", "--help"}, {"view", "--help"}, {"diff", "--help"}, {"init", "--help"},
 	} {
 		t.Run(strings.Join(args, " "), func(t *testing.T) {
@@ -65,20 +65,19 @@ func TestInvalidArgumentsNeverLoadConfig(t *testing.T) {
 		{[]string{"view", " "}, "requires exactly one target"},
 		{[]string{"edit"}, "edit requires exactly one configured target"},
 		{[]string{"edit", "extra", "--file", "secret.yaml"}, "unknown command"},
-		{[]string{"encrypt", "--format", "bad"}, "unsupported format"},
-		{[]string{"decrypt", "--format", "bad"}, "unsupported format"},
-		{[]string{"plan", "--format", "bad"}, "unsupported format"},
-		{[]string{"view", "secret.yaml", "--format", "bad"}, "unsupported format"},
-		{[]string{"diff", "--format", "bad"}, "unsupported format"},
+		{[]string{"encrypt", "--format", "yaml"}, "unknown flag: --format"},
+		{[]string{"decrypt", "--format", "yaml"}, "unknown flag: --format"},
+		{[]string{"plan", "--format", "yaml"}, "unknown flag: --format"},
+		{[]string{"view", "secret.yaml", "--format", "yaml"}, "unknown flag: --format"},
+		{[]string{"diff", "--format", "yaml"}, "unknown flag: --format"},
+		{[]string{"decrypt", "--help", "--format", "yaml"}, "unknown flag: --format"},
+		{[]string{"init", "--format", "bad"}, "unsupported format"},
 		{[]string{"diff", "--color", "bad"}, "unsupported color mode"},
 		{[]string{"encrypt", "--parallel", "0"}, "--parallel must be at least 1"},
 		{[]string{"decrypt", "--parallel", "-1"}, "--parallel must be at least 1"},
 		{[]string{"plan", "--parallel", "0"}, "--parallel must be at least 1"},
 		{[]string{"decrypt", "--pattern", "!"}, "missing pattern after negation"},
 		{[]string{"encrypt", "--output", "out.yaml"}, "--output is only supported"},
-		{[]string{"decrypt", "--format", "yaml"}, "--format is only supported"},
-		{[]string{"plan", "--format", "yaml"}, "--format is only supported"},
-		{[]string{"diff", "--format", "yaml"}, "--format is only supported"},
 	} {
 		t.Run(strings.Join(tc.args, " "), func(t *testing.T) {
 			calls := 0
@@ -91,6 +90,18 @@ func TestInvalidArgumentsNeverLoadConfig(t *testing.T) {
 			require.Zero(t, calls)
 		})
 	}
+}
+
+func TestFormatFlagIsOnlyAvailableDuringInit(t *testing.T) {
+	root := NewRootCommand("test")
+	for _, name := range []string{"encrypt", "decrypt", "plan", "view", "diff"} {
+		cmd, _, err := root.Find([]string{name})
+		require.NoError(t, err)
+		require.Nil(t, cmd.Flags().Lookup("format"), name)
+	}
+	init, _, err := root.Find([]string{"init"})
+	require.NoError(t, err)
+	require.NotNil(t, init.Flags().Lookup("format"))
 }
 
 func TestBusinessCommandsLoadConfigOncePerExecution(t *testing.T) {

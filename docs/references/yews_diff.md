@@ -13,10 +13,9 @@ yews diff [target] [flags]
 ### Options
 
 ```
-      --color string    Colorize diff output (auto/always/never) (default "auto")
-      --format string   Format override for the selected target (toml/yaml/json/env/ini/binary)
-  -h, --help            help for diff
-  -v, --verbose         Enable verbose output
+      --color string   Colorize diff output (auto/always/never) (default "auto")
+  -h, --help           help for diff
+  -v, --verbose        Enable verbose output
 ```
 
 ### Options inherited from parent commands

@@ -18,14 +18,6 @@ yews diff config.toml
 
 ## 选项
 
-### --format
-
-为选定目标指定格式覆盖，支持 `toml`、`yaml`、`json`、`env`、`ini` 和 `binary`。
-
-```bash
-yews diff config.txt --format toml
-```
-
 ### --color
 
 控制差异输出的颜色，支持 `auto`、`always` 和 `never`，默认值是 `auto`。

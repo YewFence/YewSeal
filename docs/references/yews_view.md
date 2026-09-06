@@ -13,9 +13,8 @@ yews view [command options] <target> [flags]
 ### Options
 
 ```
-      --format string   Format override for the selected target (toml/yaml/json/env/ini/binary)
-  -h, --help            help for view
-  -v, --verbose         Enable verbose output
+  -h, --help      help for view
+  -v, --verbose   Enable verbose output
 ```
 
 ### Options inherited from parent commands
