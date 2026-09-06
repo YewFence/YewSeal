@@ -231,6 +231,21 @@ func configuredFilePairs(cfg *Config, mode string, req groupRequestOptions) ([]F
 	return deduped, nil
 }
 
+func configuredEncryptedPaths(cfg *Config) []string {
+	if cfg == nil {
+		return nil
+	}
+
+	paths := make([]string, 0, len(cfg.Encryption.Files))
+	for _, filePair := range cfg.Encryption.Files {
+		if strings.TrimSpace(filePair.EncryptedPath) == "" {
+			continue
+		}
+		paths = append(paths, cleanAbsPath(filePair.EncryptedPath))
+	}
+	return paths
+}
+
 func scopedConfigGroupPairs(cfg *Config, mode string, req groupRequestOptions) ([]FilePair, error) {
 	groups := cfg.GetGroups()
 	if len(groups) == 0 {
@@ -238,6 +253,7 @@ func scopedConfigGroupPairs(cfg *Config, mode string, req groupRequestOptions) (
 	}
 
 	pairs := make([]FilePair, 0)
+	excludedPaths := configuredEncryptedPaths(cfg)
 	seenRecipients := make(map[string][]string)
 	for _, group := range groups {
 		root := group.ConfigDir
@@ -262,6 +278,7 @@ func scopedConfigGroupPairs(cfg *Config, mode string, req groupRequestOptions) (
 			Root:            root,
 			Patterns:        groupReq.Patterns,
 			FormatRules:     group.FormatRules,
+			ExcludedPaths:   excludedPaths,
 			UnknownAsBinary: group.UnknownAsBinary,
 			Mode:            mode,
 		})
@@ -371,8 +388,12 @@ func groupFilePairsFromRequest(cfg *Config, root, mode string, req groupRequestO
 			}
 		}
 		groupPairs, err := task.BuildGroupFilePairs(task.GroupOptions{
-			Root: root, Patterns: patterns, FormatRules: group.FormatRules,
-			UnknownAsBinary: group.UnknownAsBinary, Mode: mode,
+			Root:            root,
+			Patterns:        patterns,
+			FormatRules:     group.FormatRules,
+			ExcludedPaths:   configuredEncryptedPaths(cfg),
+			UnknownAsBinary: group.UnknownAsBinary,
+			Mode:            mode,
 		})
 		if err != nil {
 			return nil, err

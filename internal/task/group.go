@@ -46,6 +46,7 @@ type GroupOptions struct {
 	Root            string
 	Patterns        []string
 	FormatRules     []string
+	ExcludedPaths   []string
 	UnknownAsBinary bool
 	Mode            string
 }
@@ -88,12 +89,24 @@ func BuildGroupFilePairs(opts GroupOptions) ([]FilePair, error) {
 	}
 
 	files := make([]string, 0)
+	excludedPaths := make(map[string]struct{}, len(opts.ExcludedPaths))
+	for _, excludedPath := range opts.ExcludedPaths {
+		excludedPaths[filepath.Clean(excludedPath)] = struct{}{}
+	}
 	if err := filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
 		if path == root {
 			return nil
+		}
+		if mode == ModeEncrypt && !entry.IsDir() {
+			if _, _, ok := fileformat.EncryptedStemAndFormat(entry.Name()); ok {
+				return nil
+			}
+			if _, excluded := excludedPaths[filepath.Clean(path)]; excluded {
+				return nil
+			}
 		}
 
 		rel, err := filepath.Rel(root, path)
