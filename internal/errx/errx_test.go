@@ -31,23 +31,6 @@ func TestUnsupportedFormatError(t *testing.T) {
 	})
 }
 
-func TestUnknownProviderError(t *testing.T) {
-	t.Run("without supported list", func(t *testing.T) {
-		err := &UnknownProviderError{Name: "vault"}
-		assert.Equal(t, "unknown provider: vault", err.Error())
-	})
-
-	t.Run("with supported list", func(t *testing.T) {
-		err := &UnknownProviderError{Name: "vault", Supported: []string{"infisical"}}
-		assert.Equal(t, "unknown provider: vault (supported: infisical)", err.Error())
-	})
-}
-
-func TestKeyFileNotFoundError(t *testing.T) {
-	err := &KeyFileNotFoundError{Path: ".age/keys.txt"}
-	assert.Equal(t, "key file not found: .age/keys.txt\nRun 'yews init' first to generate keys", err.Error())
-}
-
 func TestKeyFileReadError(t *testing.T) {
 	cause := errors.New("permission denied")
 	err := &KeyFileReadError{Path: ".age/keys.txt", Err: cause}
@@ -61,43 +44,19 @@ func TestAgeSecretKeyNotFoundError(t *testing.T) {
 	assert.Equal(t, "no valid Age secret key found in .age/keys.txt", err.Error())
 }
 
-func TestMissingDependencyError(t *testing.T) {
-	t.Run("without install hint", func(t *testing.T) {
-		err := &MissingDependencyError{Name: "infisical"}
-		assert.Equal(t, "infisical not found", err.Error())
-	})
-
-	t.Run("with install hint", func(t *testing.T) {
-		err := &MissingDependencyError{Name: "infisical", InstallHint: "https://example.com/install"}
-		assert.Equal(t, "infisical not found\nInstall: https://example.com/install", err.Error())
-	})
-}
-
-func TestMissingProjectConfigError(t *testing.T) {
-	t.Run("without hint", func(t *testing.T) {
-		err := &MissingProjectConfigError{Path: ".infisical.json"}
-		assert.Equal(t, ".infisical.json not found", err.Error())
-	})
-
-	t.Run("with hint", func(t *testing.T) {
-		err := &MissingProjectConfigError{Path: ".infisical.json", Hint: "Run 'infisical init' first"}
-		assert.Equal(t, ".infisical.json not found\nRun 'infisical init' first", err.Error())
-	})
-}
-
 func TestExternalCommandError(t *testing.T) {
 	cause := errors.New("exit status 1")
 
 	t.Run("includes stderr", func(t *testing.T) {
 		err := &ExternalCommandError{
-			Op:     "failed to sync",
-			Cmd:    "infisical",
-			Args:   []string{"secrets", "set"},
+			Op:     "failed to read identity",
+			Cmd:    "sh",
+			Args:   []string{"-c", "false"},
 			Stderr: "boom\n",
 			Err:    cause,
 		}
 
-		assert.Equal(t, "failed to sync: exit status 1\nboom", err.Error())
+		assert.Equal(t, "failed to read identity: exit status 1\nboom", err.Error())
 		assert.ErrorIs(t, err, cause)
 	})
 

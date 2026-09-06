@@ -14,9 +14,6 @@
                 },
                 "recipients": {
                     "$ref": "#/$defs/RecipientConfig"
-                },
-                "sync": {
-                    "$ref": "#/$defs/SyncConfig"
                 }
             }
         },
@@ -165,33 +162,6 @@
                     "additionalProperties": {
                         "type": "string"
                     }
-                }
-            }
-        },
-        "SyncConfig": {
-            "type": "object",
-            "description": "#SyncConfig 定义 Age 密钥同步设置。",
-            "additionalProperties": false,
-            "properties": {
-                "environment": {
-                    "type": "string",
-                    "description": "Provider 侧的环境名称。"
-                },
-                "path": {
-                    "type": "string",
-                    "description": "Provider 侧的远程路径/目录。"
-                },
-                "project_id": {
-                    "type": "string",
-                    "description": "Provider 侧的项目标识符,sync 命令使用。"
-                },
-                "provider": {
-                    "description": "密钥管理 Provider 名称。当前仅支持 infisical,\n新增 Provider 时需同步扩展此枚举。",
-                    "const": "infisical"
-                },
-                "secret_name": {
-                    "type": "string",
-                    "description": "Age 私钥文件在 Provider 侧的 secret 名称。"
                 }
             }
         }

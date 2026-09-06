@@ -115,12 +115,6 @@ file_path = "custom/keys.txt"
 	[recipients.registry]
 owner = "age1r09mha3l82nt25r3kujgkpw4ts60ezntwcj74vnk0t3e9elyu3rswkx08j"
 
-[sync]
-provider = "infisical"
-project_id = "project-123"
-secret_name = "CUSTOM_AGE_KEY"
-path = "/apps/yewseal"
-environment = "prod"
 `
 	err = os.WriteFile(filepath.Join(tmpDir, ".yewseal.toml"), []byte(configContent), 0644)
 	require.NoError(t, err)
@@ -147,11 +141,6 @@ environment = "prod"
 	assert.False(t, groups[1].UnknownAsBinary)
 	assert.Equal(t, filepath.Join(tmpDir, "custom/keys.txt"), cfg.Key.FilePath)
 	assert.Equal(t, "age1r09mha3l82nt25r3kujgkpw4ts60ezntwcj74vnk0t3e9elyu3rswkx08j", cfg.Recipients.Registry["owner"])
-	assert.Equal(t, "infisical", cfg.Sync.Provider)
-	assert.Equal(t, "project-123", cfg.Sync.ProjectID)
-	assert.Equal(t, "CUSTOM_AGE_KEY", cfg.Sync.SecretName)
-	assert.Equal(t, "/apps/yewseal", cfg.Sync.Path)
-	assert.Equal(t, "prod", cfg.Sync.Environment)
 }
 
 func TestLoadConfig_RejectsLegacyGroupTable(t *testing.T) {
@@ -187,36 +176,6 @@ func TestLoadConfigRejectsDeprecatedPublicKey(t *testing.T) {
 	require.NoError(t, os.Chdir(tmpDir))
 	_, err = LoadConfig()
 	require.EqualError(t, err, "deprecated key.public_key is not supported; use recipients.registry and recipients.defaults")
-}
-
-func TestGetSyncConfig(t *testing.T) {
-	cfg := &Config{
-		Sync: SyncConfig{
-			Provider:    "infisical",
-			ProjectID:   "project-config",
-			SecretName:  "CONFIG_AGE_KEY",
-			Path:        "/config-path",
-			Environment: "staging",
-		},
-	}
-
-	assert.Equal(t, "vault", cfg.GetSyncProvider("vault"))
-	assert.Equal(t, "infisical", cfg.GetSyncProvider(""))
-	assert.Equal(t, "project-cli", cfg.GetSyncProjectID("project-cli"))
-	assert.Equal(t, "project-config", cfg.GetSyncProjectID(""))
-	assert.Equal(t, "cli-secret", cfg.GetSyncSecretName("cli-secret"))
-	assert.Equal(t, "CONFIG_AGE_KEY", cfg.GetSyncSecretName(""))
-	assert.Equal(t, "/cli-path", cfg.GetSyncPath("/cli-path"))
-	assert.Equal(t, "/config-path", cfg.GetSyncPath(""))
-	assert.Equal(t, "prod", cfg.GetSyncEnvironment("prod"))
-	assert.Equal(t, "staging", cfg.GetSyncEnvironment(""))
-
-	emptyCfg := &Config{}
-	assert.Equal(t, "infisical", emptyCfg.GetSyncProvider(""))
-	assert.Empty(t, emptyCfg.GetSyncProjectID(""))
-	assert.Equal(t, "AGE_KEY_FILE", emptyCfg.GetSyncSecretName(""))
-	assert.Empty(t, emptyCfg.GetSyncPath(""))
-	assert.Empty(t, emptyCfg.GetSyncEnvironment(""))
 }
 
 func TestLoadConfig_InvalidToml(t *testing.T) {

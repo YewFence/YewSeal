@@ -20,4 +20,4 @@ This project is in early development and does not require backward compatibility
 
 **格式支持**：TOML/YAML/JSON/ENV/INI/binary 均由 sops store 原生加密
 
-**密钥同步**：通过 Provider 接口扩展，目前支持 Infisical
+**私钥职责**：不提供密钥同步命令或 Provider 集成；私钥的远端存储与分发由开发者或部署环境自行管理，外部工具的参考脚本见 `docs/guide/private-keys.md`。

@@ -36,10 +36,3 @@ defaults = ["owner"]
 
 [recipients.registry]
 owner = "age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmr3752kgargmsqqqpra5"
-# Age 私钥的远程同步设置(当前支持 infisical)
-[sync]
-provider = "infisical"
-project_id = "8f3a2b1c-4d5e-6f7a-8b9c-0d1e2f3a4b5c"
-secret_name = "AGE_KEY_FILE"
-path = "/yewseal"
-environment = "production"

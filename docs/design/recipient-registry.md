@@ -875,20 +875,20 @@ sopsx.Encrypt
 
 `.sops.yaml` 只作为直接使用 SOPS 的便利配置。YewSeal 不读取 `.sops.yaml`，不以它覆盖或补充 `.yewseal.toml` 的 recipient。
 
-现有 encrypt 的自动 metadata 同步行为保留：配置变更后的 encrypt preflight 可以重写 `.sops.yaml`。Infisical sync 不修改 `.sops.yaml`，因为它只负责私密 identity bundle。
+现有 encrypt 的自动 metadata 同步行为保留：配置变更后的 encrypt preflight 可以重写 `.sops.yaml`。
 
-## Sync
+## 外部身份来源
 
-Infisical sync 只同步完整的私密 identity bundle：
+YewSeal 不提供私钥同步命令或 Provider 集成。私密 identity bundle 由开发者或部署环境通过外部工具提供：
 
 ```text
-provider secret
-  ↔
+外部 secret manager 或本地文件
+  ↓
 AGE-SECRET-KEY-1...
 AGE-SECRET-KEY-1...
 ```
 
-Sync 不负责：
+外部身份的获取不应改变项目的公开授权策略，包括：
 
 - 从 identity 推导 registry 公钥；
 - 自动新增或删除 alias；
@@ -896,7 +896,7 @@ Sync 不负责：
 - 修改 FilePair 或 Group 授权；
 - 修改 `.sops.yaml` 授权规则。
 
-这样私密能力同步和公开授权策略保持独立。
+不同开发者和机器可以使用独立身份。外部工具的参考脚本见[外部私钥来源](../guide/private-keys.md)，不需要在 YewSeal 内维护同步实现。
 
 ## Plan 与未来 Verify
 
@@ -1013,7 +1013,7 @@ Sync 不负责：
 15. decrypt 不比较当前配置集合与密文 metadata。
 16. edit（若保留）重新加密时保留密文完整 recipient 集合。
 
-### Init、Sync 和 SOPS 配置测试
+### Init 和 SOPS 配置测试
 
 1. init 写入 owner registry。
 2. init 写入 defaults = ["owner"]。
@@ -1025,8 +1025,6 @@ Sync 不负责：
 8. `.sops.yaml` 规则反映每个文件的完整 canonical recipients。
 9. `.sops.yaml` 同步完全重写旧 rules。
 10. YewSeal encrypt 不读取 `.sops.yaml`。
-11. Infisical sync 保留完整多 identity bundle。
-12. Infisical sync 不修改 registry/defaults。
 
 ## 分阶段实现
 

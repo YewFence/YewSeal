@@ -47,28 +47,6 @@ func (e *ProtectedOverwriteError) Error() string {
 	)
 }
 
-// UnknownProviderError indicates an unknown sync provider.
-type UnknownProviderError struct {
-	Name      string
-	Supported []string
-}
-
-func (e *UnknownProviderError) Error() string {
-	if len(e.Supported) == 0 {
-		return fmt.Sprintf("unknown provider: %s", e.Name)
-	}
-	return fmt.Sprintf("unknown provider: %s (supported: %s)", e.Name, strings.Join(e.Supported, ", "))
-}
-
-// KeyFileNotFoundError indicates a missing key file with a user hint.
-type KeyFileNotFoundError struct {
-	Path string
-}
-
-func (e *KeyFileNotFoundError) Error() string {
-	return fmt.Sprintf("key file not found: %s\nRun 'yews init' first to generate keys", e.Path)
-}
-
 // KeyFileReadError indicates a key file could not be read.
 type KeyFileReadError struct {
 	Path string
@@ -90,32 +68,6 @@ type AgeSecretKeyNotFoundError struct {
 
 func (e *AgeSecretKeyNotFoundError) Error() string {
 	return fmt.Sprintf("no valid Age secret key found in %s", e.Path)
-}
-
-// MissingDependencyError indicates a missing external tool.
-type MissingDependencyError struct {
-	Name        string
-	InstallHint string
-}
-
-func (e *MissingDependencyError) Error() string {
-	if strings.TrimSpace(e.InstallHint) == "" {
-		return fmt.Sprintf("%s not found", e.Name)
-	}
-	return fmt.Sprintf("%s not found\nInstall: %s", e.Name, e.InstallHint)
-}
-
-// MissingProjectConfigError indicates a missing project config file required by an integration.
-type MissingProjectConfigError struct {
-	Path string
-	Hint string
-}
-
-func (e *MissingProjectConfigError) Error() string {
-	if strings.TrimSpace(e.Hint) == "" {
-		return fmt.Sprintf("%s not found", e.Path)
-	}
-	return fmt.Sprintf("%s not found\n%s", e.Path, e.Hint)
 }
 
 // ExternalCommandError wraps an external command failure while retaining stderr.

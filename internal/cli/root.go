@@ -28,7 +28,6 @@ func NewRootCommand(cfg *config.Config, version string) *cobra.Command {
 		editCommand(cfg, &keyFile),
 		viewCommand(cfg, &keyFile),
 		diffCommand(cfg, &keyFile),
-		syncCommand(cfg),
 	)
 
 	return rootCmd

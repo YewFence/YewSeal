@@ -49,11 +49,6 @@ func TestExampleConfigStrictUnmarshal(t *testing.T) {
 	require.Len(t, *cfg.Recipients.Defaults, 1)
 	require.Equal(t, []string{"owner"}, *cfg.Recipients.Defaults)
 	require.NotEmpty(t, cfg.Recipients.Registry["owner"])
-
-	require.Equal(t, "infisical", cfg.Sync.Provider)
-	require.Equal(t, "AGE_KEY_FILE", cfg.Sync.SecretName)
-	require.Equal(t, "/yewseal", cfg.Sync.Path)
-	require.Equal(t, "production", cfg.Sync.Environment)
 }
 
 // jsonSchema 只声明本测试关心的 JSON Schema 子集。
