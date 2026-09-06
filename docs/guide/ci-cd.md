@@ -23,7 +23,7 @@ jobs:
       - name: Decrypt configuration
         env:
           SOPS_AGE_KEY: ${{ secrets.AGE_KEY }}
-        run: yews decrypt
+        run: yews decrypt --strict
 
       - name: Deploy
         run: wrangler deploy
@@ -41,4 +41,6 @@ jobs:
 
 1. 安装 `yews`（mise、go install 或下载 Release 二进制，也可以用 [Docker 镜像](/guide/docker)）
 2. 通过环境变量或密钥文件提供 Age 私钥
-3. 运行 `yews decrypt` 后执行部署
+3. 运行 `yews decrypt --strict`，仅在成功退出后执行部署
+
+开发环境可以容忍部分文件因身份不匹配而跳过，但部署通常要求全部选中文件成功解密。严格模式也可以通过 `YEWSEAL_STRICT=true` 启用；结果分类和退出码见[解密结果与严格模式](/guide/decryption-results)。

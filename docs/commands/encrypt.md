@@ -18,6 +18,8 @@ yews encrypt [command options] [path]
 
 传入目录路径时，YewSeal 只扫描配置中 Group 管理的文件。没有已配置 Group 时会报错。
 
+临时加密一个未登记文件且不需要项目配置时，请直接使用 SOPS CLI，用法见[与 SOPS 配合使用](/guide/sops)。
+
 ## 选项
 
 ### --output, -o
@@ -29,16 +31,6 @@ yews encrypt config.toml -o config.enc.toml
 ```
 
 `--output` 只支持文件目标，不支持配置模式或目录扫描。
-
-### --format
-
-为文件目标指定格式，支持 `toml`、`yaml`、`json`、`env`、`ini` 和 `binary`。
-
-```bash
-yews encrypt .dev.vars --format env -o .dev.enc.env
-```
-
-`--format` 只支持单文件模式。批量场景请在配置里的 `format_rules` 中声明格式规则。
 
 ### --pattern
 
@@ -85,13 +77,15 @@ yews encrypt config.toml -o review/config.enc.toml
 # 在已配置 Group 的目录范围内筛选文件
 yews encrypt ./configs --pattern "*.toml"
 
-# 为已配置的非标准扩展名目标临时覆盖格式
-yews encrypt .dev.vars --format env -o .dev.enc.env
+# .dev.vars 的 ENV 格式应在项目配置中声明
+yews encrypt .dev.vars -o .dev.enc.env
 ```
 
 ## 输出路径
 
 显式 FilePair 使用配置中的 `encrypted` 路径；Group 扫描结果按格式协议生成对应的 `.enc.*` 路径。单文件目标可以用 `--output` 临时覆盖写入路径，但不会改变配置中的文件映射或授权集合。
+
+`--output` 只改变位置，不改变格式，即使输出文件的扩展名不同也是如此。业务命令没有 `--format` 选项，非标准扩展名通过配置中的 `format` 或 `format_rules` 声明。
 
 ## 相关命令
 
