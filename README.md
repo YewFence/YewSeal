@@ -153,7 +153,7 @@ yews decrypt
 yews d  # 简写
 ```
 
-`decrypt` 默认跳过没有匹配身份的文件，部分成功且没有真正错误时退出成功。部署或需要全部文件的流程请使用 `yews decrypt --strict`，也可以设置 `YEWSEAL_STRICT=true`。批量 `diff` 同样支持该模式，并明确提示未参与比较的文件；完整规则见[解密结果与严格模式](docs/guide/decryption-results.md)。
+`decrypt` 默认跳过没有匹配身份的文件，部分成功且没有真正错误时退出成功。部署或需要全部文件的流程请使用 `yews decrypt --strict`，也可以设置 `YEWSEAL_STRICT=true`。`diff --strict` 只要求两侧输入齐全的映射完成比较，缺输入可以跳过；宽松 diff 允许全部跳过，未比较原因写入 stderr，不污染 diff 正文。完整规则见[解密结果与严格模式](docs/guide/decryption-results.md)。
 
 ### 4. 直接编辑加密文件
 

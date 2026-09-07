@@ -2,12 +2,15 @@ package diff
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
 	"github.com/YewFence/YewSeal/internal/agekey"
 	"github.com/YewFence/YewSeal/internal/seal"
+	"github.com/YewFence/YewSeal/internal/sopsx"
 	"github.com/fatih/color"
 	"github.com/sergi/go-diff/diffmatchpatch"
 )
@@ -16,6 +19,7 @@ import (
 type DiffResult struct {
 	Diff      string
 	Different bool
+	Skipped   SkipReason
 }
 
 // DiffPlaintextAgainstEncrypted compares an existing plaintext file with the
@@ -23,27 +27,41 @@ type DiffResult struct {
 type Options struct {
 	PlaintextFile  string
 	EncryptedFile  string
+	PlaintextLabel string
+	EncryptedLabel string
 	IdentityBundle agekey.IdentityBundle
 	FormatOverride string
 	Verbose        bool
+	Diagnostics    io.Writer
 }
 
 func PlaintextAgainstEncrypted(opts Options) (DiffResult, error) {
+	missing, err := missingInputs(opts.PlaintextFile, opts.EncryptedFile)
+	if err != nil || missing != "" {
+		return DiffResult{Skipped: missing}, err
+	}
+	diagnostics := opts.Diagnostics
+	if diagnostics == nil {
+		diagnostics = io.Discard
+	}
 	decryptedData, err := seal.DecryptToBytes(seal.DecryptBytesOptions{
 		InputFile:      opts.EncryptedFile,
 		OutputFile:     opts.PlaintextFile,
 		IdentityBundle: opts.IdentityBundle,
 		FormatOverride: opts.FormatOverride,
 		Verbose:        opts.Verbose,
-		Output:         os.Stderr,
+		Output:         diagnostics,
 	})
+	if errors.Is(err, sopsx.ErrNoMatchingIdentity) {
+		return DiffResult{Skipped: NoMatchingIdentity}, nil
+	}
 	if err != nil {
 		return DiffResult{}, err
 	}
 	currentData, err := os.ReadFile(opts.PlaintextFile)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return DiffResult{}, fmt.Errorf("plaintext file %s does not exist", opts.PlaintextFile)
+			return DiffResult{Skipped: MissingPlaintext}, nil
 		}
 		return DiffResult{}, fmt.Errorf("failed to read plaintext file: %w", err)
 	}
@@ -52,8 +70,46 @@ func PlaintextAgainstEncrypted(opts Options) (DiffResult, error) {
 		return DiffResult{}, nil
 	}
 
-	diff := UnifiedDiff(opts.PlaintextFile, opts.EncryptedFile+" (decrypted)", currentData, decryptedData)
+	from, to := opts.PlaintextLabel, opts.EncryptedLabel
+	if from == "" {
+		from = opts.PlaintextFile
+	}
+	if to == "" {
+		to = opts.EncryptedFile
+	}
+	diff := UnifiedDiff(from, to+" (decrypted)", currentData, decryptedData)
 	return DiffResult{Diff: diff, Different: true}, nil
+}
+
+func missingInputs(plaintext, encrypted string) (SkipReason, error) {
+	var missingPlaintext, missingCiphertext bool
+	for i, path := range []string{plaintext, encrypted} {
+		info, err := os.Stat(path)
+		if os.IsNotExist(err) {
+			if i == 0 {
+				missingPlaintext = true
+			} else {
+				missingCiphertext = true
+			}
+			continue
+		}
+		if err != nil {
+			return "", fmt.Errorf("failed to inspect comparison input %s: %w", path, err)
+		}
+		if !info.Mode().IsRegular() {
+			return "", fmt.Errorf("comparison input %s is not a regular file", path)
+		}
+	}
+	switch {
+	case missingPlaintext && missingCiphertext:
+		return MissingBothInputs, nil
+	case missingPlaintext:
+		return MissingPlaintext, nil
+	case missingCiphertext:
+		return MissingCiphertext, nil
+	default:
+		return "", nil
+	}
 }
 
 // UnifiedDiff returns a unified diff-like text using a line-oriented go-diff comparison.
