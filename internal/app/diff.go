@@ -19,10 +19,9 @@ type DiffResult struct {
 
 func DiffPlaintextAgainstEncryptedTargets(w, diagnostics io.Writer, cfg *config.Config, target, keyFile string, verbose bool, colorMode string, strict bool) (DiffResult, error) {
 	result, err := config.SelectFilePairs(cfg, config.SelectionOptions{
-		Command:              task.ModeDiff,
-		Target:               target,
-		AllowEmptyTarget:     true,
-		UseConfiguredDefault: true,
+		Command:          task.ModeDiff,
+		Target:           target,
+		AllowEmptyTarget: true,
 	})
 	if err != nil {
 		return DiffResult{}, err

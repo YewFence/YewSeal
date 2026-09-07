@@ -4,7 +4,7 @@ title: yews plan
 
 ## yews plan
 
-Run preflight and print the resolved file selection without writing files
+Check configured file mappings, formats, and recipient authorization without writing files
 
 ```
 yews plan [command options] [path] [flags]
@@ -14,10 +14,8 @@ yews plan [command options] [path] [flags]
 
 ```
   -h, --help              help for plan
-      --json              Print preflight result as JSON
-  -o, --output string     Output file for a single file target
-  -P, --parallel int      Number of parallel workers for batch mode (minimum 1) (default 1)
-      --pattern strings   Group pattern for directory mode or encryption.groups override
+      --json              Print configured file mappings as JSON
+      --pattern strings   Pattern filter for registered file mappings
   -v, --verbose           Enable verbose output
 ```
 

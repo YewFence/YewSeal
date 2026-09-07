@@ -75,7 +75,9 @@ func TestInvalidArgumentsNeverLoadConfig(t *testing.T) {
 		{[]string{"diff", "--color", "bad"}, "unsupported color mode"},
 		{[]string{"encrypt", "--parallel", "0"}, "--parallel must be at least 1"},
 		{[]string{"decrypt", "--parallel", "-1"}, "--parallel must be at least 1"},
-		{[]string{"plan", "--parallel", "0"}, "--parallel must be at least 1"},
+		{[]string{"plan", "--parallel", "0"}, "unknown flag: --parallel"},
+		{[]string{"plan", "--output", "out.yaml"}, "unknown flag: --output"},
+		{[]string{"plan", "--pattern", "!"}, "missing pattern after negation"},
 		{[]string{"decrypt", "--pattern", "!"}, "missing pattern after negation"},
 		{[]string{"encrypt", "--output", "out.yaml"}, "--output is only supported"},
 	} {

@@ -15,6 +15,7 @@ const (
 	ModeEncrypt = "encrypt"
 	ModeDecrypt = "decrypt"
 	ModeDiff    = "diff"
+	ModePlan    = "plan"
 )
 
 var defaultEncryptPatterns = []string{
@@ -59,8 +60,8 @@ type FormatRule struct {
 }
 
 func BuildGroupFilePairs(opts GroupOptions) ([]FilePair, error) {
-	if opts.Mode == ModeDiff {
-		return buildDiffGroupFilePairs(opts)
+	if opts.Mode == ModeDiff || opts.Mode == ModePlan {
+		return buildBidirectionalGroupFilePairs(opts)
 	}
 	return buildGroupFilePairs(opts, false)
 }
@@ -244,7 +245,7 @@ func buildProjectDecryptFilePairs(opts GroupOptions, allowEmpty bool) ([]FilePai
 	return pairs, nil
 }
 
-func buildDiffGroupFilePairs(opts GroupOptions) ([]FilePair, error) {
+func buildBidirectionalGroupFilePairs(opts GroupOptions) ([]FilePair, error) {
 	opts.Mode = ModeEncrypt
 	plainPairs, err := buildGroupFilePairs(opts, true)
 	if err != nil {

@@ -106,6 +106,10 @@ unknown_as_binary = false
 
 `format_rules` 使用 `<pattern>=<format>` 形式，会按匹配顺序决定格式。格式取值与 `format` 相同。`unknown_as_binary` 为 `true` 时，分组加密中无法识别格式的文件会按二进制文件处理。
 
+Group 的发现根目录始终是其所属配置目录。CLI 的目录 `path` 和 `--pattern` 只筛选已登记映射，不重新定义根目录或覆盖 Group 规则。目录范围在 encrypt 中看明文侧、decrypt 中看密文侧；没有 Group 时也能筛选显式 FilePair。
+
+`plan` 是无方向的配置映射检查：Group 发现取明文与密文两侧的并集，目录范围匹配任一侧。它和 encrypt 对本次已加载配置所解析出的全部映射采用严格授权检查，未选中映射的授权错误也会失败；decrypt 保留失效 alias 的历史解密例外。`plan` 不读取私钥，不是加密或解密的 dry run，详见 [plan](/commands/plan)。
+
 ## .sops.yaml 配置
 
 `.sops.yaml` 是 SOPS 的配置文件，YewSeal 的 `init` 和 `encrypt` 会根据当前文件映射同步它。跳过 `.sops.yaml` 不影响 YewSeal 自身通过内嵌 SOPS 引擎加解密，但直接运行 `sops` 时会更方便。
@@ -199,7 +203,7 @@ YewSeal 支持通过环境变量配置部分选项：
 | `SOPS_AGE_KEY` | 完整多行 Age identity bundle |
 | `SOPS_AGE_KEY_FILE` | Age 私钥文件路径 |
 | `SOPS_AGE_KEY_CMD` | 执行命令获取 Age identity bundle |
-| `SOPS_OUTPUT_FILE` | `encrypt`、`decrypt`、`plan` 的 `--output` 值 |
+| `SOPS_OUTPUT_FILE` | `encrypt`、`decrypt` 的 `--output` 值；plan 不读取 |
 | `YEWSEAL_STRICT` | `decrypt`、`diff` 的严格模式默认值，显式 `--strict` / `--strict=false` 优先 |
  `EDITOR` | `edit` 命令在 `VISUAL` 未设置时使用的编辑器 |
  `VISUAL` | `edit` 命令优先使用的编辑器 |

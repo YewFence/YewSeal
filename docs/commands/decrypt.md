@@ -12,7 +12,7 @@ yews decrypt [command options] [path]
 
 ## 目标选择
 
-不传 `path` 时，YewSeal 会处理 `.yewseal.toml` 中当前目录范围内的全部已配置 FilePair 和 Group 扫描结果。传入文件路径时，该路径必须匹配已加载配置中 FilePair 的 plaintext 或 encrypted 任一侧；传入目录时，只扫描已配置 Group 管理的文件。
+不传 `path` 时，YewSeal 会处理 `.yewseal.toml` 中密文侧位于当前目录范围内的全部已配置 FilePair 和 Group 发现结果。传入文件路径时，该路径必须匹配已加载配置中 FilePair 的 plaintext 或 encrypted 任一侧；传入目录时，选择密文侧位于该目录内的已登记映射，包括显式 FilePair。Group 始终按所属配置目录和规则发现文件，不以目标目录为新根重新扫描。
 
 配置仍负责治理明文、密文路径和格式，但历史密文的实际 recipient 事实来自其 SOPS metadata。当前配置引用的 alias 已删除或重命名时，decrypt 会向 stderr 输出非致命 warning，并继续使用 identity bundle 尝试解密。
 
@@ -34,13 +34,13 @@ yews decrypt config.enc.toml -o config.toml
 
 ### --pattern
 
-为配置模式或目录扫描指定匹配规则。
+进一步筛选配置范围或目录目标内已登记的映射，不覆盖 Group 发现规则或登记额外文件。
 
 ```bash
 yews decrypt ./configs --pattern "*.toml"
 ```
 
-目录解密时，`--pattern` 匹配的是逻辑明文路径。比如 `--pattern "*.toml"` 可以选中 `config.enc.toml`。
+`--pattern` 相对于当前工作目录匹配明文或密文路径。比如 `--pattern "*.toml"` 可以选中 `config.enc.toml` 所属的映射。
 
 ### --parallel, -P
 
@@ -104,4 +104,4 @@ TOML 由内嵌的原生 TOML store 直接解密，不经过格式转换。解密
 
 ## 相关命令
 
-[plan](/commands/plan) 可以先预览文件选择，[view](/commands/view) 可以把明文打印到标准输出，[diff](/commands/diff) 可以比较明文和加密文件。
+[plan](/commands/plan) 可以检查当前配置映射及授权，但不是解密预演，也不验证当前身份能否解密；[view](/commands/view) 可以把明文打印到标准输出，[diff](/commands/diff) 可以比较明文和加密文件。

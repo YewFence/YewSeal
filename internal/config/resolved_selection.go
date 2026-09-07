@@ -2,8 +2,6 @@ package config
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/YewFence/YewSeal/internal/fileformat"
@@ -19,14 +17,12 @@ const (
 	ValueSourceFilename     = "filename"
 	ValueSourceConfigFormat = "config-format"
 
-	PairSourceExact           = "exact"
-	PairSourceScan            = "scan"
-	PairSourceFileTarget      = "file-target"
-	PairSourceDirectoryTarget = "directory-target"
+	PairSourceExact = "exact"
+	PairSourceScan  = "scan"
 
 	SelectedByCurrentDirectory = "current-directory"
 	SelectedByPathTarget       = "path-target"
-	SelectedByDirectoryScan    = "directory-scan"
+	SelectedByDirectoryTarget  = "directory-target"
 )
 
 type ValueSource struct {
@@ -59,82 +55,43 @@ type ResolvedSelection struct {
 	AllConfigPairs  []ResolvedFilePair
 	ConfigFiles     []LoadedFile
 	ConfigMode      bool
-	Unconfigured    bool
 	CurrentDirScope string
 	TargetKind      string
 }
 
-func ResolvePlanSelection(cfg *Config, opts SelectionOptions) (ResolvedSelection, error) {
-	opts.StrictRecipients = true
-	if strings.TrimSpace(opts.Target) == "" {
-		if opts.OutputSet {
-			return ResolvedSelection{}, fmt.Errorf("--output is only supported when the path target is a file")
-		}
-		allConfigPairs, err := configuredFilePairs(cfg, task.ModeEncrypt, groupRequestOptions{})
-		if err != nil {
-			return ResolvedSelection{}, err
-		}
-		allResolved, err := resolveFilePairs(cfg, allConfigPairs, opts, SelectionResult{}, true)
-		if err != nil {
-			return ResolvedSelection{}, err
-		}
-		selected := make([]ResolvedFilePair, 0, len(allResolved))
-		for _, filePair := range allResolved {
-			plainInside, err := pathWithin(cwdFromConfig(cfg), filePair.PlaintextPath)
-			if err != nil {
-				return ResolvedSelection{}, err
-			}
-			encInside, err := pathWithin(cwdFromConfig(cfg), filePair.EncryptedPath)
-			if err != nil {
-				return ResolvedSelection{}, err
-			}
-			if plainInside || encInside {
-				filePair.SelectedBy = SelectedByCurrentDirectory
-				selected = append(selected, filePair)
-			}
-		}
-		selected, err = filterResolvedPairsByPatterns(selected, opts.Patterns, cwdFromConfig(cfg))
-		if err != nil {
-			return ResolvedSelection{}, err
-		}
-		if len(selected) == 0 {
-			return ResolvedSelection{}, fmt.Errorf("no configured file pairs selected for current directory scope %s", DisplayPath(cwdFromConfig(cfg), cwdFromConfig(cfg)))
-		}
-		return ResolvedSelection{
-			Command:         "plan",
-			FilePairs:       selected,
-			AllConfigPairs:  allResolved,
-			ConfigFiles:     append([]LoadedFile(nil), cfg.LoadedFiles...),
-			ConfigMode:      true,
-			CurrentDirScope: cwdFromConfig(cfg),
-			TargetKind:      "none",
-		}, nil
-	}
-
-	opts.Command = inferPlanCommand(cfg, opts)
-	opts.AllowEmptyTarget = true
-	opts.UseConfiguredDefault = true
-	selection, err := ResolveSelection(cfg, opts)
-	if err != nil {
-		return ResolvedSelection{}, err
-	}
-	selection.Command = "plan"
-	return selection, nil
-}
-
 func ResolveSelection(cfg *Config, opts SelectionOptions) (ResolvedSelection, error) {
-	result, err := SelectFilePairs(cfg, opts)
+	filePairs, err := configuredFilePairs(cfg, opts.Command)
 	if err != nil {
 		return ResolvedSelection{}, err
 	}
 
-	allConfigPairs, err := resolveFilePairs(cfg, result.AllConfigPairs, opts, result, true)
+	// Resolve the entire configured scope before applying selectors or output overrides.
+	allConfigPairs, err := resolveFilePairs(cfg, filePairs, opts)
 	if err != nil {
 		return ResolvedSelection{}, err
 	}
-	selected, err := resolveFilePairs(cfg, result.FilePairs, opts, result, false)
+	result, err := selectConfiguredFilePairs(cfg, filePairs, opts)
 	if err != nil {
 		return ResolvedSelection{}, err
+	}
+	byPlaintext := make(map[string]ResolvedFilePair, len(allConfigPairs))
+	for _, pair := range allConfigPairs {
+		byPlaintext[pair.PlaintextPath] = pair
+	}
+	selected := make([]ResolvedFilePair, 0, len(result.FilePairs))
+	for _, pair := range result.FilePairs {
+		resolved := byPlaintext[cleanAbsPath(pair.PlaintextPath)]
+		resolved.SelectedBy = selectedBy(opts, result)
+		if opts.OutputSet {
+			output := resolveCommandPath(cwdFromConfig(cfg), opts.Output)
+			source := ValueSource{Kind: ValueSourceArgument, Detail: "--output"}
+			if opts.Command == task.ModeEncrypt {
+				resolved.EncryptedPath, resolved.EncryptedSource = output, source
+			} else {
+				resolved.PlaintextPath, resolved.PlaintextSource = output, source
+			}
+		}
+		selected = append(selected, resolved)
 	}
 	if err := checkWriteConflicts(opts.Command, selected); err != nil {
 		return ResolvedSelection{}, err
@@ -146,22 +103,9 @@ func ResolveSelection(cfg *Config, opts SelectionOptions) (ResolvedSelection, er
 		AllConfigPairs:  allConfigPairs,
 		ConfigFiles:     append([]LoadedFile(nil), cfg.LoadedFiles...),
 		ConfigMode:      result.ConfigMode,
-		Unconfigured:    result.Unconfigured,
 		CurrentDirScope: result.CurrentDirScope,
-		TargetKind:      targetKind(cfg, opts),
+		TargetKind:      result.TargetKind,
 	}, nil
-}
-
-func inferPlanCommand(cfg *Config, opts SelectionOptions) string {
-	target := strings.TrimSpace(opts.Target)
-	if target == "" {
-		return task.ModeEncrypt
-	}
-	targetPath := resolveCommandPath(cwdFromConfig(cfg), target)
-	if _, _, err := fileformat.PlaintextPathForEncrypted(targetPath, ""); err == nil {
-		return task.ModeDecrypt
-	}
-	return task.ModeEncrypt
 }
 
 func ResolvedFilePairsToFilePairs(filePairs []ResolvedFilePair) []FilePair {
@@ -223,10 +167,10 @@ func FormatValueSource(source ValueSource, cwd string) string {
 	return kind
 }
 
-func resolveFilePairs(cfg *Config, filePairs []FilePair, opts SelectionOptions, result SelectionResult, allConfig bool) ([]ResolvedFilePair, error) {
+func resolveFilePairs(cfg *Config, filePairs []FilePair, opts SelectionOptions) ([]ResolvedFilePair, error) {
 	resolved := make([]ResolvedFilePair, 0, len(filePairs))
 	for _, filePair := range filePairs {
-		next, err := resolveFilePair(cfg, filePair, opts, result, allConfig)
+		next, err := resolveFilePair(cfg, filePair, opts)
 		if err != nil {
 			return nil, err
 		}
@@ -235,27 +179,25 @@ func resolveFilePairs(cfg *Config, filePairs []FilePair, opts SelectionOptions, 
 	return resolved, nil
 }
 
-func resolveFilePair(cfg *Config, filePair FilePair, opts SelectionOptions, result SelectionResult, allConfig bool) (ResolvedFilePair, error) {
+func resolveFilePair(cfg *Config, filePair FilePair, opts SelectionOptions) (ResolvedFilePair, error) {
 	plainAbs := cleanAbsPath(filePair.PlaintextPath)
 	encAbs := cleanAbsPath(filePair.EncryptedPath)
 	filePair.PlaintextPath = plainAbs
 	filePair.EncryptedPath = encAbs
 
-	formatPair := filePair
-	if opts.OutputSet && !allConfig && !result.Unconfigured {
-		// The selected pair may already have a different output path and a frozen format.
-		if original, ok := findConfiguredPair(result.AllConfigPairs, resolveCommandPath(cwdFromConfig(cfg), opts.Target)); ok {
-			formatPair = original
-		}
-	}
-	format, formatSource, err := resolveFinalFormat(formatPair)
+	format, formatSource, err := resolveFinalFormat(filePair)
 	if err != nil {
 		return ResolvedFilePair{}, err
 	}
 
-	source := pairSource(filePair, opts, result)
-	selectedBy := selectedBy(opts, result, allConfig, source)
-	plainSource, encSource := pathSources(filePair, opts, result, source)
+	source := PairSourceExact
+	plainSource := ValueSource{Kind: ValueSourceExact, ConfigPath: filePair.ConfigPath, Detail: "exact"}
+	encSource := plainSource
+	if filePair.Source == PairSourceScan {
+		source = PairSourceScan
+		plainSource = ValueSource{Kind: ValueSourceScan}
+		encSource = ValueSource{Kind: ValueSourceProtocol}
+	}
 	var resolvedRecipients ResolvedRecipients
 	recipientWarning := ""
 	if opts.Command != task.ModeDecrypt || opts.StrictRecipients {
@@ -277,7 +219,7 @@ func resolveFilePair(cfg *Config, filePair FilePair, opts SelectionOptions, resu
 		Format:           format,
 		ConfigPath:       filePair.ConfigPath,
 		Source:           source,
-		SelectedBy:       selectedBy,
+		SelectedBy:       "metadata",
 		PlaintextSource:  plainSource,
 		EncryptedSource:  encSource,
 		FormatSource:     formatSource,
@@ -321,44 +263,13 @@ func resolveFinalFormat(filePair FilePair) (string, ValueSource, error) {
 	return "", ValueSource{}, fmt.Errorf("could not detect format for %s (supported: toml, yaml, json, env, ini, binary)", filePair.PlaintextPath)
 }
 
-func pairSource(filePair FilePair, opts SelectionOptions, result SelectionResult) string {
-	if filePair.Source == PairSourceScan {
-		if strings.TrimSpace(opts.Target) != "" && result.Unconfigured {
-			return PairSourceDirectoryTarget
-		}
-		return PairSourceScan
-	}
-	if filePair.Source == PairSourceFileTarget {
-		return PairSourceFileTarget
-	}
-	if strings.TrimSpace(opts.Target) != "" {
-		if result.Unconfigured {
-			if targetKindFromPath(opts.Target) == "directory" {
-				return PairSourceDirectoryTarget
-			}
-			return PairSourceFileTarget
-		}
-		return PairSourceExact
-	}
-	if filePair.ConfigPath != "" && filePair.Format == "" {
-		return PairSourceExact
-	}
-	if filePair.ConfigPath != "" {
-		return PairSourceExact
-	}
-	return PairSourceScan
-}
-
-func selectedBy(opts SelectionOptions, result SelectionResult, allConfig bool, source string) string {
-	if allConfig {
-		return "metadata"
-	}
+func selectedBy(opts SelectionOptions, result SelectionResult) string {
 	if len(opts.Patterns) > 0 {
 		return fmt.Sprintf("pattern %q", opts.Patterns[len(opts.Patterns)-1])
 	}
 	if strings.TrimSpace(opts.Target) != "" {
-		if source == PairSourceDirectoryTarget {
-			return SelectedByDirectoryScan
+		if result.TargetKind == "directory" {
+			return SelectedByDirectoryTarget
 		}
 		return SelectedByPathTarget
 	}
@@ -368,33 +279,8 @@ func selectedBy(opts SelectionOptions, result SelectionResult, allConfig bool, s
 	return "default"
 }
 
-func pathSources(filePair FilePair, opts SelectionOptions, result SelectionResult, source string) (ValueSource, ValueSource) {
-	if strings.TrimSpace(opts.Target) != "" && result.Unconfigured {
-		if source == PairSourceDirectoryTarget {
-			return ValueSource{Kind: ValueSourceScan}, ValueSource{Kind: ValueSourceProtocol}
-		}
-		if opts.Command == task.ModeEncrypt {
-			encSource := ValueSource{Kind: ValueSourceProtocol}
-			if opts.OutputSet {
-				encSource = ValueSource{Kind: ValueSourceArgument, Detail: "--output"}
-			}
-			return ValueSource{Kind: ValueSourceArgument, Detail: "path"}, encSource
-		}
-		plainSource := ValueSource{Kind: ValueSourceProtocol}
-		if opts.OutputSet {
-			plainSource = ValueSource{Kind: ValueSourceArgument, Detail: "--output"}
-		}
-		return plainSource, ValueSource{Kind: ValueSourceArgument, Detail: "path"}
-	}
-	if source == PairSourceScan || source == PairSourceDirectoryTarget {
-		return ValueSource{Kind: ValueSourceScan}, ValueSource{Kind: ValueSourceProtocol}
-	}
-	configSource := ValueSource{Kind: ValueSourceExact, ConfigPath: filePair.ConfigPath, Detail: "exact"}
-	return configSource, configSource
-}
-
 func checkWriteConflicts(command string, filePairs []ResolvedFilePair) error {
-	if command == "plan" {
+	if command == task.ModePlan {
 		return nil
 	}
 	seen := make(map[string]ResolvedFilePair, len(filePairs))
@@ -413,54 +299,4 @@ func checkWriteConflicts(command string, filePairs []ResolvedFilePair) error {
 		seen[target] = filePair
 	}
 	return nil
-}
-
-func filterResolvedPairsByPatterns(filePairs []ResolvedFilePair, patterns []string, cwd string) ([]ResolvedFilePair, error) {
-	if len(patterns) == 0 {
-		return filePairs, nil
-	}
-	matcher, err := task.NewPatternMatcher(patterns)
-	if err != nil {
-		return nil, err
-	}
-	selected := make([]ResolvedFilePair, 0, len(filePairs))
-	for _, filePair := range filePairs {
-		plain := DisplayPath(cwd, filePair.PlaintextPath)
-		enc := DisplayPath(cwd, filePair.EncryptedPath)
-		plainDecided, plainIncluded := matcher.Decision(filepath.ToSlash(plain), false)
-		encDecided, encIncluded := matcher.Decision(filepath.ToSlash(enc), false)
-		included := false
-		if plainDecided {
-			included = plainIncluded
-		}
-		if encDecided {
-			included = encIncluded
-		}
-		if included {
-			filePair.SelectedBy = fmt.Sprintf("pattern %q", patterns[len(patterns)-1])
-			selected = append(selected, filePair)
-		}
-	}
-	return selected, nil
-}
-
-func targetKind(cfg *Config, opts SelectionOptions) string {
-	target := strings.TrimSpace(opts.Target)
-	if target == "" {
-		return "none"
-	}
-	path := resolveCommandPath(cwdFromConfig(cfg), target)
-	return targetKindFromPath(path)
-}
-
-func targetKindFromPath(path string) string {
-	info, err := filepath.Abs(path)
-	if err != nil {
-		return "file"
-	}
-	stat, statErr := os.Stat(info)
-	if statErr == nil && stat.IsDir() {
-		return "directory"
-	}
-	return "file"
 }

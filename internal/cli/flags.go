@@ -23,9 +23,7 @@ type decryptOptions struct {
 }
 
 type planOptions struct {
-	Output   string
 	Patterns []string
-	Parallel int
 	Verbose  bool
 	JSON     bool
 }
@@ -47,11 +45,9 @@ func addDecryptFlags(flags *pflag.FlagSet, opts *decryptOptions) {
 }
 
 func addPlanFlags(flags *pflag.FlagSet, opts *planOptions) {
-	flags.StringVarP(&opts.Output, "output", "o", opts.Output, "Output file for a single file target")
-	flags.StringSliceVar(&opts.Patterns, "pattern", nil, "Group pattern for directory mode or encryption.groups override")
-	flags.IntVarP(&opts.Parallel, "parallel", "P", opts.Parallel, "Number of parallel workers for batch mode (minimum 1)")
+	flags.StringSliceVar(&opts.Patterns, "pattern", nil, "Pattern filter for registered file mappings")
 	flags.BoolVarP(&opts.Verbose, "verbose", "v", false, "Enable verbose output")
-	flags.BoolVar(&opts.JSON, "json", false, "Print preflight result as JSON")
+	flags.BoolVar(&opts.JSON, "json", false, "Print configured file mappings as JSON")
 }
 
 func flagChangedOrEnvSet(flags *pflag.FlagSet, name string, envNames ...string) bool {
