@@ -14,7 +14,7 @@
 3. **全量 encrypt/plan preflight**：所有选中 pair 会在 metadata 或密文写入前完成未知 alias、raw recipient、空集合、非法公钥及 Group 冲突检查；plan 对 encrypted target 同样采用严格授权语义。
 4. **旧入口删除**：`[key].public_key` 会返回迁移错误；`GetPublicKey`、`--public-key`、`SOPS_AGE_RECIPIENTS` fallback，以及 app/task/seal 中的单 public-key API 和私钥推导加密 recipient 逻辑均已删除。
 5. **Identity bundle**：显式 key file、`YEWSEAL_AGE_IDENTITIES`、既有 SOPS source、配置 key file 和默认 key file 按优先级解析一次，去重后作为完整 bundle 供整个解密批次复用。
-6. **Decrypt/Edit**：decrypt 遇到已失效 alias 时向 stderr 输出非致命 warning，并继续依据密文 metadata 解密；edit 必须命中配置，并保留原密文的完整 recipient 集合。
+6. **Decrypt/Edit**：decrypt 遇到已失效 alias 时向 stderr 输出非致命 warning，并继续依据密文 metadata 解密；edit 提供单个文件的解密、编辑、加密快捷流程。
 7. **Init 与 SOPS 配置**：init 写入 owner registry、defaults、显式 FilePair 及其 alias；`--force` 重建 key/policy/files，并在跳过 SOPS 配置时删除旧托管文件；key、主配置和 `.sops.yaml` 使用临时文件替换。
 8. **可审查输出**：plan 的表格和 JSON 均展示 alias、canonical recipients、effective authorization source 和 registry 来源；`.sops.yaml` 按文件生成稳定、多 recipient、完全托管的规则。
 
@@ -764,16 +764,9 @@ Decrypt 不比较当前配置授权集合和密文 metadata，也不因为 alias
 
 ## Edit
 
-如果本期继续保留现有 edit：
+`edit` 是对单个已登记文件执行“解密 → 编辑 → 加密”的快捷方式。它打开解密后的临时内容供编辑，用户退出编辑器后，将修改后的内容重新加密并写回对应的密文文件；没有修改时不重新加密。
 
-1. edit 必须命中已加载配置中的 FilePair；
-2. 删除 nil Config 时的 `DefaultConfig` 和固定 wrangler fallback；
-3. 解密后编辑并重新加密时，保留原密文的完整 recipient 集合；
-4. 不能只取 metadata 中的第一把 recipient；
-5. 不能使用当前配置集合自动替换原密文集合；
-6. 不借 edit 偷渡 rekey 语义。
-
-这样 edit 仍然是“编辑现有密文”，而不是“借编辑机会改变授权”。如果本期不实现 edit，则不扩大本期范围，但不能保留绕过配置治理边界的旧旁路。
+它不是批量命令，也不接受未登记文件。除去交互式编辑这一步，它复用单文件解密和加密的现有语义。
 
 ## Init
 
@@ -1008,7 +1001,7 @@ AGE-SECRET-KEY-1...
 13. decrypt 不因当前 registry alias 失效而阻塞历史密文。
 14. decrypt alias 失效时输出 stderr warning 且成功退出码不变。
 15. decrypt 不比较当前配置集合与密文 metadata。
-16. edit（若保留）重新加密时保留密文完整 recipient 集合。
+16. edit 能够命中单个已登记 FilePair，并完成解密、编辑和重新加密流程。
 
 ### Init 和 SOPS 配置测试
 
@@ -1051,13 +1044,13 @@ AGE-SECRET-KEY-1...
 2. 增加 `YEWSEAL_AGE_IDENTITIES` 逗号解析。
 3. 保持已有 SOPS 环境变量兼容。
 4. 明确显式 source 失败策略。
-5. 更新 decrypt、edit 和 sync 的多 identity 行为。
+5. 更新 decrypt 和 edit 的多 identity 行为。
 
 ### 第四阶段：Init、Edit 和迁移测试
 
 1. 让 init 写入 owner registry、defaults 和显式 wrangler FilePair。
 2. 实现 init --force 完全重建语义。
-3. 让 edit 命中配置并保留原密文 recipient 集合，或明确不在本期实现 edit。
+3. 让 edit 命中配置并完成单文件的解密、编辑、重新加密流程。
 4. 删除旧模型测试，新增新契约测试。
 5. 同步 CUE、example、导出的 JSON Schema 和 schema tripwire。
 6. 运行完整项目检查。

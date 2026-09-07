@@ -68,7 +68,7 @@
 
 **理由**：重新以 target 为根扫描会让 Group 的含义随调用方式变化，也导致目录目标与默认 scope 重复处理授权和显式映射裁决。统一主线应集中这些规则，而不是抹平加密当前授权与读取历史密文的区别。
 
-**边界**：配置加载时机不变。encrypt/plan 严格检查已加载配置所解析出的全部映射的最终授权；decrypt 保留当前 alias 失效时警告后依据密文 metadata 解密的例外。后续 view/diff 迁移也遵循该历史解密例外，edit 暂不调整；task、seal、sopsx 职责不变。
+**边界**：配置加载时机不变。encrypt/plan 严格检查已加载配置所解析出的全部映射的最终授权；decrypt 保留当前 alias 失效时警告后依据密文 metadata 解密的例外。view/diff 遵循历史解密例外；edit 是单个已登记文件的“解密、编辑、加密”快捷流程。task、seal、sopsx 职责不变。
 
 ### view 与 diff 的只读选择
 
