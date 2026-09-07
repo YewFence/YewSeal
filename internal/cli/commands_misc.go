@@ -2,11 +2,11 @@ package cli
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	yewsapp "github.com/YewFence/YewSeal/internal/app"
 	"github.com/YewFence/YewSeal/internal/config"
+	"github.com/YewFence/YewSeal/internal/presentation"
 	"github.com/YewFence/YewSeal/internal/project"
 
 	"github.com/spf13/cobra"
@@ -31,7 +31,9 @@ func initCommand() *cobra.Command {
 			return err
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return project.InitProject(force, input, output, format, createExample, skipSOPSConfig)
+			out := presentation.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false)
+			return project.InitProject(force, input, output, format, createExample, skipSOPSConfig,
+				out, out.Prompts(cmd.InOrStdin()))
 		},
 	}
 	cmd.Flags().BoolVarP(&force, "force", "f", false, "Rebuild keys and configuration; existing ciphertext may become undecryptable")
@@ -60,9 +62,10 @@ func editCommand(load configLoader, keyFile *string) *cobra.Command {
 		},
 		RunE: withConfig(load, func(cmd *cobra.Command, args []string, cfg *config.Config) error {
 			return yewsapp.EditEncryptedFile(yewsapp.EditRequest{
-				Config:  cfg,
-				File:    file,
-				KeyFile: *keyFile,
+				Presentation: presentation.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false),
+				Config:       cfg,
+				File:         file,
+				KeyFile:      *keyFile,
 			})
 		}),
 	}
@@ -86,7 +89,7 @@ func viewCommand(load configLoader, keyFile *string) *cobra.Command {
 			return nil
 		},
 		RunE: withConfig(load, func(cmd *cobra.Command, args []string, cfg *config.Config) error {
-			return yewsapp.WriteViewedTarget(os.Stdout, os.Stderr, cfg, args[0], *keyFile, verbose)
+			return yewsapp.WriteViewedTarget(cmd.OutOrStdout(), cmd.ErrOrStderr(), cfg, args[0], *keyFile, verbose)
 		}),
 	}
 	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose output")
@@ -107,14 +110,14 @@ func diffCommand(load configLoader, keyFile *string) *cobra.Command {
 					return err
 				}
 			}
-			_, err := yewsapp.ResolveDiffColor(color, os.Stdout)
+			_, err := presentation.ResolveDiffColor(color, cmd.OutOrStdout())
 			if err != nil {
 				return err
 			}
 			return resolveStrict(cmd, &strict)
 		},
 		RunE: withConfig(load, func(cmd *cobra.Command, args []string, cfg *config.Config) error {
-			_, err := yewsapp.DiffPlaintextAgainstEncryptedTargets(os.Stdout, os.Stderr, cfg, args, *keyFile, verbose, color, strict)
+			_, err := yewsapp.DiffPlaintextAgainstEncryptedTargets(cmd.OutOrStdout(), cmd.ErrOrStderr(), cfg, args, *keyFile, verbose, color, strict)
 			return err
 		}),
 	}

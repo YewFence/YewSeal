@@ -158,7 +158,7 @@ wrangler.toml
 }
 
 func TestCollectInitFilePairs_NonInteractiveDefaultsEncryptedName(t *testing.T) {
-	filePairs, err := collectInitFilePairs("app.toml", "", "")
+	filePairs, err := testInitializer().collectInitFilePairs("app.toml", "", "")
 	require.NoError(t, err)
 
 	require.Len(t, filePairs, 1)
@@ -167,7 +167,7 @@ func TestCollectInitFilePairs_NonInteractiveDefaultsEncryptedName(t *testing.T) 
 }
 
 func TestCollectInitFilePairs_NonInteractiveWithFormatOverride(t *testing.T) {
-	filePairs, err := collectInitFilePairs(".dev.vars", ".dev.vars.enc.yaml", "dotenv")
+	filePairs, err := testInitializer().collectInitFilePairs(".dev.vars", ".dev.vars.enc.yaml", "dotenv")
 	require.NoError(t, err)
 
 	require.Len(t, filePairs, 1)
@@ -177,7 +177,7 @@ func TestCollectInitFilePairs_NonInteractiveWithFormatOverride(t *testing.T) {
 }
 
 func TestCollectInitFilePairs_NonInteractiveAmbiguousFormatRequiresOverride(t *testing.T) {
-	filePairs, err := collectInitFilePairs(".dev.vars", ".dev.vars.enc.yaml", "")
+	filePairs, err := testInitializer().collectInitFilePairs(".dev.vars", ".dev.vars.enc.yaml", "")
 
 	assert.Empty(t, filePairs)
 	require.Error(t, err)
@@ -232,7 +232,7 @@ func TestConfirmInitOverwrite_NonInteractiveExistingConfig(t *testing.T) {
 	err := os.WriteFile(".yewseal.toml", []byte("existing = true"), 0644)
 	require.NoError(t, err)
 
-	allowed, err := confirmInitOverwrite(false, false)
+	allowed, err := testInitializer().confirmInitOverwrite(false, false)
 	assert.False(t, allowed)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "--force")
@@ -254,7 +254,7 @@ func TestCollectInitFilePairs_InteractiveMultiple(t *testing.T) {
 
 	os.Stdin = inputFile
 
-	filePairs, err := collectInitFilePairs("", "", "")
+	filePairs, err := testInitializer().collectInitFilePairs("", "", "")
 	require.NoError(t, err)
 	require.Len(t, filePairs, 2)
 	assert.Equal(t, "app.toml", filePairs[0].PlaintextPath)
@@ -280,7 +280,7 @@ func TestCollectInitSelections_InteractiveExamplePerFile(t *testing.T) {
 
 	os.Stdin = inputFile
 
-	selections, err := collectInitSelections("", "", "", false)
+	selections, err := testInitializer().collectInitSelections("", "", "", false)
 	require.NoError(t, err)
 	require.Len(t, selections.FilePairs, 2)
 	assert.Equal(t, "app.toml", selections.FilePairs[0].PlaintextPath)
@@ -292,7 +292,7 @@ func TestCollectInitSelections_InteractiveExamplePerFile(t *testing.T) {
 }
 
 func TestCollectInitSelections_NonInteractiveCreateExampleFlag(t *testing.T) {
-	selections, err := collectInitSelections("app.toml", "", "", true)
+	selections, err := testInitializer().collectInitSelections("app.toml", "", "", true)
 	require.NoError(t, err)
 
 	require.Len(t, selections.FilePairs, 1)
@@ -319,7 +319,7 @@ secret = "should-be-removed"
 	require.NoError(t, err)
 
 	// Create example file
-	createExampleFile(inputFile)
+	testInitializer().createExampleFile(inputFile)
 
 	// Verify example file was created
 	exampleFile := "config.example.toml"
@@ -334,7 +334,7 @@ func TestCreateExampleFile_InputNotExist(t *testing.T) {
 	withProjectWorkingDir(t, tempDir)
 
 	// Call with non-existent file (should not panic, just print warning)
-	createExampleFile("nonexistent.toml")
+	testInitializer().createExampleFile("nonexistent.toml")
 
 	// Verify no example file was created
 	_, err := os.Stat("nonexistent.example.toml")
@@ -351,7 +351,7 @@ func TestCreateExampleFile_WithPath(t *testing.T) {
 	err := os.WriteFile(inputFile, []byte("[test]\nkey = 1"), 0644)
 	require.NoError(t, err)
 
-	createExampleFile(inputFile)
+	testInitializer().createExampleFile(inputFile)
 
 	// Verify example file was created in same directory
 	exampleFile := filepath.Join("subdir", "config.example.toml")
@@ -377,7 +377,7 @@ func TestCreateExampleFile_PreservesExtension(t *testing.T) {
 		err := os.WriteFile(tc.inputFile, []byte("content"), 0644)
 		require.NoError(t, err)
 
-		createExampleFile(tc.inputFile)
+		testInitializer().createExampleFile(tc.inputFile)
 
 		// Verify example file name
 		_, err = os.Stat(tc.expectedFile)

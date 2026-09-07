@@ -47,6 +47,10 @@ VISUAL="code --wait" yews edit -f config.enc.toml
 VISUAL=vim yews edit -f config.enc.toml
 ```
 
+## 输出
+
+YewSeal 自身不向 stdout 写入内容。更新或未修改的结果、警告和错误写入 stderr。外部编辑器的输入输出由编辑器自身控制。
+
 ## 注意事项
 
 编辑器命令需要等待文件保存并关闭后再退出。比如 VS Code 需要使用 `code -w`，否则 YewSeal 可能在文件还没编辑完成时就继续执行。

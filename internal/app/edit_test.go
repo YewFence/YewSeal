@@ -8,6 +8,7 @@ import (
 
 	"github.com/YewFence/YewSeal/internal/agekey"
 	"github.com/YewFence/YewSeal/internal/config"
+	"github.com/YewFence/YewSeal/internal/presentation"
 	"github.com/YewFence/YewSeal/internal/seal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -43,10 +44,10 @@ sed -i "s/password = 'old'/password = 'new'/" "$1"
 	var output bytes.Buffer
 	t.Setenv("VISUAL", editorPath)
 	require.NoError(t, EditEncryptedFile(EditRequest{
-		Config:  &config.Config{Recipients: config.RecipientConfig{Registry: map[string]string{"owner": env.publicKey}}, Encryption: config.EncryptionConfig{Files: []config.FilePair{{PlaintextPath: "config.toml", EncryptedPath: "config.enc.toml", Format: "toml", Recipients: ptrStrings("owner")}}}},
-		File:    "config.enc.toml",
-		KeyFile: env.keyFile,
-		Output:  &output,
+		Config:       &config.Config{Recipients: config.RecipientConfig{Registry: map[string]string{"owner": env.publicKey}}, Encryption: config.EncryptionConfig{Files: []config.FilePair{{PlaintextPath: "config.toml", EncryptedPath: "config.enc.toml", Format: "toml", Recipients: ptrStrings("owner")}}}},
+		File:         "config.enc.toml",
+		KeyFile:      env.keyFile,
+		Presentation: presentation.New(nil, &output, false),
 	}))
 
 	decrypted, err := seal.DecryptToBytes(seal.DecryptBytesOptions{

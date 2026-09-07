@@ -1,7 +1,6 @@
 package task
 
 import (
-	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -73,10 +72,6 @@ func TestDecryptOutcomesAndSideEffects(t *testing.T) {
 				} else {
 					require.Zero(t, summary.SuccessCount)
 				}
-				var report bytes.Buffer
-				require.NoError(t, summary.Report(&report, "decrypted"))
-				require.Contains(t, report.String(), "SKIPPED other.enc.yaml")
-				require.Contains(t, report.String(), "encrypted content was not verified")
 			})
 		}
 	}

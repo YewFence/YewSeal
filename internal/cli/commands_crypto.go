@@ -3,6 +3,7 @@ package cli
 import (
 	yewsapp "github.com/YewFence/YewSeal/internal/app"
 	"github.com/YewFence/YewSeal/internal/config"
+	"github.com/YewFence/YewSeal/internal/presentation"
 
 	"github.com/spf13/cobra"
 )
@@ -22,7 +23,7 @@ func encryptCommand(load configLoader) *cobra.Command {
 		},
 		RunE: withConfig(load, func(cmd *cobra.Command, args []string, cfg *config.Config) error {
 			return yewsapp.EncryptFiles(cfg, yewsapp.EncryptRequest{
-				Verbose:               opts.Verbose,
+				Presentation:          presentation.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), opts.Verbose),
 				Output:                opts.Output,
 				OutputSet:             flagChangedOrEnvSet(cmd.Flags(), "output", "SOPS_OUTPUT_FILE"),
 				Targets:               args,
@@ -53,8 +54,8 @@ func decryptCommand(load configLoader, keyFile *string) *cobra.Command {
 		},
 		RunE: withConfig(load, func(cmd *cobra.Command, args []string, cfg *config.Config) error {
 			return yewsapp.DecryptFiles(cfg, yewsapp.DecryptRequest{
+				Presentation:          presentation.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), opts.Verbose),
 				KeyFile:               *keyFile,
-				Verbose:               opts.Verbose,
 				Output:                opts.Output,
 				OutputSet:             flagChangedOrEnvSet(cmd.Flags(), "output", "SOPS_OUTPUT_FILE"),
 				Targets:               args,
@@ -86,7 +87,7 @@ func planCommand(load configLoader) *cobra.Command {
 		RunE: withConfig(load, func(cmd *cobra.Command, args []string, cfg *config.Config) error {
 			return yewsapp.PrintPlan(cmd.OutOrStdout(), cfg, yewsapp.PlanRequest{
 				Targets: args,
-			}, yewsapp.PlanPrintOptions{
+			}, presentation.PlanPrintOptions{
 				JSON:    opts.JSON,
 				Verbose: opts.Verbose,
 			})

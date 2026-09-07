@@ -28,14 +28,12 @@ func UpdateGitignore(filePairs []config.FilePair) error {
 	if err == nil {
 		updatedContent, changed := mergeGitignoreEntries(string(existingData), plaintextFiles)
 		if !changed {
-			fmt.Println("⏭️  .gitignore already contains YewSeal entries")
 			return nil
 		}
 
 		if err := os.WriteFile(".gitignore", []byte(updatedContent), 0644); err != nil {
 			return fmt.Errorf("failed to update .gitignore: %w", err)
 		}
-		fmt.Println("✅ Updated .gitignore")
 		return nil
 	}
 
@@ -43,7 +41,6 @@ func UpdateGitignore(filePairs []config.FilePair) error {
 	if err := os.WriteFile(".gitignore", []byte(content), 0644); err != nil {
 		return fmt.Errorf("failed to create .gitignore: %w", err)
 	}
-	fmt.Println("✅ Created .gitignore")
 	return nil
 }
 

@@ -36,9 +36,18 @@ yews view config.enc.toml
 yews view config.enc.json | jq '.database'
 ```
 
+## 输出
+
+stdout 只包含解密后的明文，警告和错误写入 stderr；`--verbose` 的详细信息也写入 stderr，不混入明文。
+
+```bash
+# 只保存明文，详细信息仍显示在终端
+yews view config.enc.toml --verbose > inspected.toml
+```
+
 ## 与 decrypt 的区别
 
-`view` 只写标准输出，适合临时查看和管道处理。`decrypt` 会写入明文文件，并带有覆盖保护。
+`view` 将明文写到 stdout，适合临时查看和管道处理。`decrypt` 会写入明文文件，并带有覆盖保护。
 
 两者共用完整的配置选择与历史解密语义：格式来自配置或已登记路径，当前 recipient alias 失效时警告后继续，实际解密依据密文 metadata 与当前 Identity bundle。`view` 保持单目标；无法解密时失败，不生成空明文冒充成功，也不更新 `.gitignore` 或 `.sops.yaml`。
 

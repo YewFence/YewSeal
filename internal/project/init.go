@@ -10,6 +10,7 @@ import (
 	"filippo.io/age"
 	"github.com/YewFence/YewSeal/internal/agekey"
 	"github.com/YewFence/YewSeal/internal/config"
+	"github.com/YewFence/YewSeal/internal/presentation"
 	tools "github.com/YewFence/YewSeal/internal/prompt"
 )
 
@@ -20,33 +21,43 @@ type initSelections struct {
 	ExampleFiles []string
 }
 
+type initializer struct {
+	output  *presentation.Output
+	prompts *tools.Session
+}
+
 // InitProject initializes the project with Age keys and SOPS configuration.
-func InitProject(force bool, inputFile, outputFile, formatOverride string, createExampleFlag, skipSopsConfigFlag bool) error {
+func InitProject(force bool, inputFile, outputFile, formatOverride string, createExampleFlag, skipSopsConfigFlag bool, out *presentation.Output, prompts *tools.Session) (err error) {
+	i := initializer{output: presentation.OrDiscard(out), prompts: prompts}
+	defer func() { err = i.output.Finish(i.prompts.Check(err)) }()
 	interactive := inputFile == "" && outputFile == ""
 
-	shouldContinue, err := confirmInitOverwrite(force, interactive)
+	shouldContinue, err := i.confirmInitOverwrite(force, interactive)
 	if err != nil {
 		return err
 	}
 	if !shouldContinue {
-		fmt.Println("⏭️  Skipped init because existing config was kept")
+		i.output.InitKept()
 		return nil
 	}
 
-	selections, err := collectInitSelections(inputFile, outputFile, formatOverride, createExampleFlag)
+	selections, err := i.collectInitSelections(inputFile, outputFile, formatOverride, createExampleFlag)
 	if err != nil {
 		return err
 	}
 	filePairs := selections.FilePairs
 
-	shouldCreateSopsConfig := tools.PromptYesNoConditional(
-		skipSopsConfigFlag,
+	shouldCreateSopsConfig := i.prompts.PromptYesNoConditional(
+		!interactive || skipSopsConfigFlag,
 		!skipSopsConfigFlag,
 		"Create .sops.yaml? (optional, but convenient for direct sops commands)",
 	)
+	if err := i.prompts.Err(); err != nil {
+		return err
+	}
 
 	if force {
-		fmt.Println("⚠️  Force rebuild: the new owner identity may not decrypt existing ciphertext")
+		i.output.Warning("Force rebuild: the new owner identity may not decrypt existing ciphertext")
 	}
 
 	publicKey, err := setupAgeKey(force)
@@ -63,7 +74,6 @@ func InitProject(force bool, inputFile, outputFile, formatOverride string, creat
 			return fmt.Errorf("failed to update .sops.yaml: %w", err)
 		}
 	} else {
-		fmt.Println("⏭️  Skipped creating .sops.yaml")
 		if force {
 			if err := os.Remove(sopsYamlPath); err != nil && !os.IsNotExist(err) {
 				return fmt.Errorf("failed to remove managed .sops.yaml: %w", err)
@@ -84,13 +94,13 @@ func InitProject(force bool, inputFile, outputFile, formatOverride string, creat
 	}
 
 	for _, exampleFile := range selections.ExampleFiles {
-		createExampleFile(exampleFile)
+		i.createExampleFile(exampleFile)
 	}
-	printCompletionMessage(filePairs, len(selections.ExampleFiles) > 0, shouldCreateSopsConfig)
+	i.output.Initialized(len(filePairs), shouldCreateSopsConfig)
 	return nil
 }
 
-func confirmInitOverwrite(force, interactive bool) (bool, error) {
+func (i *initializer) confirmInitOverwrite(force, interactive bool) (bool, error) {
 	if force {
 		return true, nil
 	}
@@ -103,40 +113,38 @@ func confirmInitOverwrite(force, interactive bool) (bool, error) {
 		return false, fmt.Errorf(".yewseal.toml already exists, use --force to overwrite")
 	}
 
-	return tools.PromptYesNo(".yewseal.toml already exists, overwrite it?", false), nil
+	answer := i.prompts.PromptYesNo(".yewseal.toml already exists, overwrite it?", false)
+	return answer, i.prompts.Err()
 }
 
-func collectInitFilePairs(inputFile, outputFile, formatOverride string) ([]config.FilePair, error) {
+func (i *initializer) collectInitFilePairs(inputFile, outputFile, formatOverride string) ([]config.FilePair, error) {
 	if inputFile != "" || outputFile != "" {
-		filePair, err := newInitFilePair(inputFile, outputFile, formatOverride, false)
+		filePair, err := i.newInitFilePair(inputFile, outputFile, formatOverride, false)
 		if err != nil {
 			return nil, err
 		}
 		return []config.FilePair{filePair}, nil
 	}
 
-	fmt.Println("ℹ️  Init 会把所有文件统一写进 [[encryption.files]]。")
-	fmt.Println("ℹ️  先录入第一组文件，后面可以继续追加。")
-
-	firstFilePair, err := promptInitFilePair(true)
+	firstFilePair, err := i.promptInitFilePair(true)
 	if err != nil {
 		return nil, err
 	}
 	filePairs := []config.FilePair{firstFilePair}
-	for tools.PromptYesNo("Add another file to encrypt?", false) {
-		filePair, err := promptInitFilePair(false)
+	for i.prompts.PromptYesNo("Add another file to encrypt?", false) {
+		filePair, err := i.promptInitFilePair(false)
 		if err != nil {
 			return nil, err
 		}
 		filePairs = append(filePairs, filePair)
 	}
 
-	return filePairs, nil
+	return filePairs, i.prompts.Err()
 }
 
-func collectInitSelections(inputFile, outputFile, formatOverride string, createExampleFlag bool) (initSelections, error) {
+func (i *initializer) collectInitSelections(inputFile, outputFile, formatOverride string, createExampleFlag bool) (initSelections, error) {
 	if inputFile != "" || outputFile != "" {
-		filePairs, err := collectInitFilePairs(inputFile, outputFile, formatOverride)
+		filePairs, err := i.collectInitFilePairs(inputFile, outputFile, formatOverride)
 		if err != nil {
 			return initSelections{}, err
 		}
@@ -147,11 +155,8 @@ func collectInitSelections(inputFile, outputFile, formatOverride string, createE
 		return selections, nil
 	}
 
-	fmt.Println("ℹ️  Init 会把所有文件统一写进 [[encryption.files]]。")
-	fmt.Println("ℹ️  先录入第一组文件，后面可以继续追加。")
-
 	selections := initSelections{}
-	filePair, shouldCreateExample, err := promptInteractiveInitFilePair(true, createExampleFlag)
+	filePair, shouldCreateExample, err := i.promptInteractiveInitFilePair(true, createExampleFlag)
 	if err != nil {
 		return initSelections{}, err
 	}
@@ -160,8 +165,8 @@ func collectInitSelections(inputFile, outputFile, formatOverride string, createE
 		selections.ExampleFiles = append(selections.ExampleFiles, filePair.PlaintextPath)
 	}
 
-	for tools.PromptYesNo("Add another file to encrypt?", false) {
-		filePair, shouldCreateExample, err = promptInteractiveInitFilePair(false, createExampleFlag)
+	for i.prompts.PromptYesNo("Add another file to encrypt?", false) {
+		filePair, shouldCreateExample, err = i.promptInteractiveInitFilePair(false, createExampleFlag)
 		if err != nil {
 			return initSelections{}, err
 		}
@@ -171,25 +176,28 @@ func collectInitSelections(inputFile, outputFile, formatOverride string, createE
 		}
 	}
 
-	return selections, nil
+	return selections, i.prompts.Err()
 }
 
-func promptInitFilePair(first bool) (config.FilePair, error) {
+func (i *initializer) promptInitFilePair(first bool) (config.FilePair, error) {
 	var plaintextFile string
 	if first {
-		plaintextFile = tools.PromptWithDefault("Enter plaintext config file name", defaultInitPlaintextFile)
+		plaintextFile = i.prompts.PromptWithDefault("Enter plaintext config file name", defaultInitPlaintextFile)
 	} else {
 		var err error
-		plaintextFile, err = tools.PromptRequired("Enter plaintext config file name")
+		plaintextFile, err = i.prompts.PromptRequired("Enter plaintext config file name")
 		if err != nil {
 			return config.FilePair{}, fmt.Errorf("failed to read plaintext config file name: %w", err)
 		}
 	}
 
-	encryptedFile := tools.PromptWithDefault("Enter encrypted file name", defaultEncryptedOutputNameForFile(plaintextFile))
-	formatOverride, err := resolveInitFormatOverride(plaintextFile, "", true)
+	encryptedFile := i.prompts.PromptWithDefault("Enter encrypted file name", defaultEncryptedOutputNameForFile(plaintextFile))
+	if err := i.prompts.Err(); err != nil {
+		return config.FilePair{}, err
+	}
+	formatOverride, err := i.resolveInitFormatOverride(plaintextFile, "", true)
 	if err != nil {
-		fmt.Printf("⚠️  Warning: %v\n", err)
+		return config.FilePair{}, err
 	}
 
 	return config.FilePair{
@@ -199,8 +207,8 @@ func promptInitFilePair(first bool) (config.FilePair, error) {
 	}, nil
 }
 
-func promptInteractiveInitFilePair(first bool, createExampleFlag bool) (config.FilePair, bool, error) {
-	filePair, err := promptInitFilePair(first)
+func (i *initializer) promptInteractiveInitFilePair(first bool, createExampleFlag bool) (config.FilePair, bool, error) {
+	filePair, err := i.promptInitFilePair(first)
 	if err != nil {
 		return config.FilePair{}, false, err
 	}
@@ -208,11 +216,11 @@ func promptInteractiveInitFilePair(first bool, createExampleFlag bool) (config.F
 		return filePair, true, nil
 	}
 
-	shouldCreateExample := tools.PromptYesNo(
+	shouldCreateExample := i.prompts.PromptYesNo(
 		fmt.Sprintf("Create example file for %s?", filePair.PlaintextPath),
 		false,
 	)
-	return filePair, shouldCreateExample, nil
+	return filePair, shouldCreateExample, i.prompts.Err()
 }
 
 func defaultEncryptedOutputNameForFile(inputFile string) string {
@@ -225,7 +233,7 @@ func defaultEncryptedOutputName(inputBase, inputExt string) string {
 	return inputBase + ".enc" + inputExt
 }
 
-func newInitFilePair(inputFile, outputFile, formatOverride string, interactive bool) (config.FilePair, error) {
+func (i *initializer) newInitFilePair(inputFile, outputFile, formatOverride string, interactive bool) (config.FilePair, error) {
 	filePair := config.FilePair{PlaintextPath: defaultInitPlaintextFile}
 	if inputFile != "" {
 		filePair.PlaintextPath = inputFile
@@ -236,7 +244,7 @@ func newInitFilePair(inputFile, outputFile, formatOverride string, interactive b
 		filePair.EncryptedPath = defaultEncryptedOutputNameForFile(filePair.PlaintextPath)
 	}
 
-	resolvedFormat, err := resolveInitFormatOverride(filePair.PlaintextPath, formatOverride, interactive)
+	resolvedFormat, err := i.resolveInitFormatOverride(filePair.PlaintextPath, formatOverride, interactive)
 	if err != nil {
 		return config.FilePair{}, err
 	}
@@ -244,7 +252,7 @@ func newInitFilePair(inputFile, outputFile, formatOverride string, interactive b
 	return filePair, nil
 }
 
-func resolveInitFormatOverride(plaintextFile, providedFormat string, interactive bool) (string, error) {
+func (i *initializer) resolveInitFormatOverride(plaintextFile, providedFormat string, interactive bool) (string, error) {
 	if normalizedFormat, ok := normalizeInitFormat(providedFormat); ok {
 		return normalizedFormat, nil
 	}
@@ -260,15 +268,13 @@ func resolveInitFormatOverride(plaintextFile, providedFormat string, interactive
 		return "", fmt.Errorf("could not detect format for %s, please pass --format (toml, yaml, json, env, ini, binary). Hint: pass --format binary if this should be encrypted as a binary file", plaintextFile)
 	}
 
-	return promptInitFormatOverride(plaintextFile), nil
+	format := i.promptInitFormatOverride(plaintextFile)
+	return format, i.prompts.Err()
 }
 
-func promptInitFormatOverride(plaintextFile string) string {
-	fmt.Printf("ℹ️  Could not detect format from %s.\n", plaintextFile)
-	fmt.Println("ℹ️  Supported overrides: toml, yaml, json, env, ini, binary")
-
+func (i *initializer) promptInitFormatOverride(plaintextFile string) string {
 	for {
-		input := tools.PromptOptional("Enter format override (optional)")
+		input := i.prompts.PromptOptional("Format for " + plaintextFile + " (toml/yaml/json/env/ini/binary, optional)")
 		if input == "" {
 			return ""
 		}
@@ -277,7 +283,7 @@ func promptInitFormatOverride(plaintextFile string) string {
 			return normalizedFormat
 		}
 
-		fmt.Println("⚠️  Unsupported format. Use one of: toml, yaml, json, env, ini, binary")
+		i.output.Warning("Unsupported format. Use one of: toml, yaml, json, env, ini, binary")
 	}
 }
 
@@ -330,7 +336,6 @@ func setupAgeKey(force bool) (string, error) {
 
 	if keyExists && !force {
 		// Use existing key
-		fmt.Println("🔑 Found existing Age key, using it...")
 
 		bundle, err := agekey.GetIdentityBundle(keyFilePath)
 		if err != nil {
@@ -341,15 +346,7 @@ func setupAgeKey(force bool) (string, error) {
 			return "", fmt.Errorf("failed to parse existing owner identity: %w", err)
 		}
 		publicKey := identity.Recipient().String()
-		fmt.Printf("✅ Using existing public key: %s\n", publicKey)
 		return publicKey, nil
-	}
-
-	// Generate new key (either no key exists or force mode)
-	if force && keyExists {
-		fmt.Println("🔑 Force mode: Regenerating Age key pair...")
-	} else {
-		fmt.Println("🔑 Generating Age key pair...")
 	}
 
 	// Create .age directory
@@ -395,52 +392,22 @@ func setupAgeKey(force bool) (string, error) {
 
 	publicKey := identity.Recipient().String()
 
-	fmt.Println("✅ Age key generated at .age/keys.txt")
-	fmt.Printf("✅ Public key generated: %s\n", publicKey)
 	return publicKey, nil
 }
 
 // createExampleFile creates an example file from the input file
-func createExampleFile(inputFile string) {
+func (i *initializer) createExampleFile(inputFile string) {
 	if _, err := os.Stat(inputFile); err == nil {
 		exampleContent, err := os.ReadFile(inputFile)
 		if err == nil {
 			exampleFile := strings.TrimSuffix(inputFile, filepath.Ext(inputFile)) + ".example" + filepath.Ext(inputFile)
 			if err := os.WriteFile(exampleFile, exampleContent, 0644); err != nil {
-				fmt.Printf("⚠️  Warning: Failed to create %s: %v\n", exampleFile, err)
+				i.output.Warning(fmt.Sprintf("Failed to create %s: %v", exampleFile, err))
 			} else {
-				fmt.Printf("✅ Created %s (remember to remove sensitive values)\n", exampleFile)
+				i.output.Warning("Review " + exampleFile + " and remove sensitive values")
 			}
 		}
 	} else {
-		fmt.Printf("⚠️  Warning: Input file %s does not exist yet, skipping example creation\n", inputFile)
+		i.output.Warning(fmt.Sprintf("Input file %s does not exist yet, skipping example creation", inputFile))
 	}
-}
-
-// printCompletionMessage prints the initialization completion message
-func printCompletionMessage(filePairs []config.FilePair, shouldCreateExample, shouldCreateSopsConfig bool) {
-	fmt.Println("\n🎉 Initialization complete!")
-	fmt.Println("\nNext steps:")
-	step := 1
-	if shouldCreateExample {
-		fmt.Printf("  %d. Review the generated .example files and remove any sensitive values\n", step)
-		step++
-	}
-	fmt.Printf("  %d. Run 'yews encrypt' to encrypt the %d configured file(s)\n", step, len(filePairs))
-	step++
-	fmt.Printf("  %d. Run 'yews decrypt' whenever you need the plaintext back\n", step)
-	step++
-	fmt.Printf("  %d. After encrypting, commit .yewseal.toml, .gitignore", step)
-	if shouldCreateSopsConfig {
-		fmt.Print(", .sops.yaml")
-	}
-	if len(filePairs) == 1 {
-		fmt.Printf(", and %s", filePairs[0].EncryptedPath)
-	} else {
-		fmt.Print(", and the encrypted files")
-	}
-	fmt.Println(" to git")
-	step++
-	fmt.Printf("  %d. NEVER commit the plaintext files listed in .gitignore or .age/keys.txt!\n", step)
-	fmt.Println("\n⚠️  IMPORTANT: Back up your .age/keys.txt file securely!")
 }
