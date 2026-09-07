@@ -3,7 +3,6 @@ package seal
 import (
 	"bytes"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 
@@ -17,8 +16,6 @@ type EncryptOptions struct {
 	OutputFile     string
 	Recipients     []string
 	FormatOverride string
-	Verbose        bool
-	Output         io.Writer
 }
 
 type DecryptOptions struct {
@@ -26,9 +23,7 @@ type DecryptOptions struct {
 	OutputFile     string
 	IdentityBundle agekey.IdentityBundle
 	FormatOverride string
-	Verbose        bool
 	Force          bool
-	Output         io.Writer
 }
 
 type DecryptBytesOptions struct {
@@ -36,21 +31,15 @@ type DecryptBytesOptions struct {
 	OutputFile     string
 	IdentityBundle agekey.IdentityBundle
 	FormatOverride string
-	Verbose        bool
-	Output         io.Writer
 }
 
 type EncryptBytesOptions struct {
 	FormatFile     string
 	FormatOverride string
 	Recipients     []string
-	Verbose        bool
-	Output         io.Writer
 }
 
 func Encrypt(opts EncryptOptions) error {
-	out := outputWriter(opts.Output)
-
 	if _, err := os.Stat(opts.InputFile); os.IsNotExist(err) {
 		return &errx.NotFoundError{What: "input file", Path: opts.InputFile}
 	}
@@ -58,10 +47,6 @@ func Encrypt(opts EncryptOptions) error {
 	format, err := resolveFormat(opts.InputFile, opts.FormatOverride)
 	if err != nil {
 		return err
-	}
-
-	if opts.Verbose {
-		_, _ = fmt.Fprintf(out, "📖 Reading %s...\n", opts.InputFile)
 	}
 
 	plainData, err := os.ReadFile(opts.InputFile)
@@ -78,8 +63,6 @@ func Encrypt(opts EncryptOptions) error {
 		FormatFile:     opts.InputFile,
 		FormatOverride: opts.FormatOverride,
 		Recipients:     recipients,
-		Verbose:        opts.Verbose,
-		Output:         opts.Output,
 	})
 	if err != nil {
 		return err
@@ -89,7 +72,6 @@ func Encrypt(opts EncryptOptions) error {
 		return fmt.Errorf("failed to write output file: %w", err)
 	}
 
-	_, _ = fmt.Fprintf(out, "✅ Encrypted %s → %s\n", opts.InputFile, opts.OutputFile)
 	return nil
 }
 
@@ -102,12 +84,6 @@ func EncryptToBytes(plainData []byte, opts EncryptBytesOptions) ([]byte, error) 
 }
 
 func encryptBytes(plainData []byte, format string, opts EncryptBytesOptions) ([]byte, error) {
-	out := outputWriter(opts.Output)
-
-	if opts.Verbose {
-		_, _ = fmt.Fprintln(out, "🔐 Encrypting with SOPS...")
-	}
-
 	encData, err := sopsx.Encrypt(plainData, format, opts.Recipients)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encrypt: %w", err)
@@ -116,15 +92,11 @@ func encryptBytes(plainData []byte, format string, opts EncryptBytesOptions) ([]
 }
 
 func Decrypt(opts DecryptOptions) error {
-	out := outputWriter(opts.Output)
-
 	plainData, err := DecryptToBytes(DecryptBytesOptions{
 		InputFile:      opts.InputFile,
 		OutputFile:     opts.OutputFile,
 		IdentityBundle: opts.IdentityBundle,
 		FormatOverride: opts.FormatOverride,
-		Verbose:        opts.Verbose,
-		Output:         opts.Output,
 	})
 	if err != nil {
 		return err
@@ -134,13 +106,10 @@ func Decrypt(opts DecryptOptions) error {
 		return err
 	}
 
-	_, _ = fmt.Fprintf(out, "✅ Decrypted %s → %s\n", opts.InputFile, opts.OutputFile)
 	return nil
 }
 
 func DecryptToBytes(opts DecryptBytesOptions) ([]byte, error) {
-	out := outputWriter(opts.Output)
-
 	if _, err := os.Stat(opts.InputFile); os.IsNotExist(err) {
 		return nil, &errx.NotFoundError{What: "input file", Path: opts.InputFile}
 	}
@@ -148,15 +117,6 @@ func DecryptToBytes(opts DecryptBytesOptions) ([]byte, error) {
 	format, err := resolveFormat(opts.OutputFile, opts.FormatOverride)
 	if err != nil {
 		return nil, err
-	}
-
-	if opts.Verbose {
-		if _, err := fmt.Fprintf(out, "📖 Reading %s...\n", opts.InputFile); err != nil {
-			return nil, err
-		}
-		if _, err := fmt.Fprintln(out, "🔓 Decrypting with SOPS..."); err != nil {
-			return nil, err
-		}
 	}
 
 	if len(opts.IdentityBundle.Identities()) == 0 {
@@ -224,11 +184,4 @@ func writeDecryptedFile(inputFile, outputFile string, plainData []byte, force bo
 		return fmt.Errorf("failed to set output file permissions: %w", err)
 	}
 	return nil
-}
-
-func outputWriter(w io.Writer) io.Writer {
-	if w != nil {
-		return w
-	}
-	return os.Stdout
 }

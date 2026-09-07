@@ -53,9 +53,10 @@ yews encrypt ./configs --parallel 4
 ### Recipient 授权
 
 命令没有 `--public-key` 选项。每个文件的 recipient 由 `.yewseal.toml` 中的 alias 严格解析：显式 FilePair `recipients` 优先于 Group，Group 优先于顶层 `recipients.defaults`。最终集合为空、包含未知 alias 或多个 Group 对同一路径给出不同集合时，整个批次会在写入任何密文前失败。
+
 ### --verbose, -v
 
-输出详细的文件选择信息。
+向 stderr 额外输出文件选择信息和逐文件成功结果。
 
 ```bash
 yews encrypt -v
@@ -81,7 +82,11 @@ yews encrypt ./configs --pattern "*.toml"
 yews encrypt .dev.vars -o .dev.enc.env
 ```
 
-## 输出路径
+## 输出
+
+密文写入目标文件，stdout 为空。stderr 显示警告、逐文件失败原因和最终汇总；使用 `--verbose` 时还会显示文件选择信息和逐文件成功结果。
+
+### 输出路径
 
 显式 FilePair 使用配置中的 `encrypted` 路径；Group 扫描结果按格式协议生成对应的 `.enc.*` 路径。单文件目标可以用 `--output` 临时覆盖写入路径，但不会改变配置中的文件映射或授权集合。
 

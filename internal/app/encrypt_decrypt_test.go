@@ -1,13 +1,14 @@
 package app
 
 import (
+	"bytes"
 	"filippo.io/age"
-	"io"
 	"os"
 	"testing"
 
 	"github.com/YewFence/YewSeal/internal/agekey"
 	"github.com/YewFence/YewSeal/internal/config"
+	"github.com/YewFence/YewSeal/internal/presentation"
 	"github.com/YewFence/YewSeal/internal/seal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -273,20 +274,11 @@ func TestDecryptFilesWarnsForStaleAliasAndUsesEncryptedMetadata(t *testing.T) {
 	require.NoError(t, os.Remove("secret.yaml"))
 	aliases := []string{"retired-owner"}
 	cfg := &config.Config{Encryption: config.EncryptionConfig{Files: []config.FilePair{{PlaintextPath: "secret.yaml", EncryptedPath: "secret.enc.yaml", Format: "yaml", Recipients: &aliases, ConfigPath: ".yewseal.toml"}}}}
-	read, write, err := os.Pipe()
+	var warning bytes.Buffer
+	err := DecryptFiles(cfg, DecryptRequest{KeyFile: env.keyFile, Target: "secret.enc.yaml", Parallel: 1, Presentation: presentation.New(nil, &warning, false)})
 	require.NoError(t, err)
-	originalStderr := os.Stderr
-	os.Stderr = write
-	t.Cleanup(func() { os.Stderr = originalStderr })
-	err = DecryptFiles(cfg, DecryptRequest{KeyFile: env.keyFile, Target: "secret.enc.yaml", Parallel: 1})
-	require.NoError(t, write.Close())
-	os.Stderr = originalStderr
-	require.NoError(t, err)
-	warning, err := io.ReadAll(read)
-	require.NoError(t, err)
-	require.NoError(t, read.Close())
-	assert.Contains(t, string(warning), `unknown recipient alias "retired-owner"`)
-	assert.Contains(t, string(warning), ".yewseal.toml")
+	assert.Contains(t, warning.String(), `unknown recipient alias "retired-owner"`)
+	assert.Contains(t, warning.String(), ".yewseal.toml")
 	content, err := os.ReadFile("secret.yaml")
 	require.NoError(t, err)
 	assert.Equal(t, "token: value\n", string(content))

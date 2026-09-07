@@ -81,6 +81,10 @@ yews init \
 
 如果只传 `--input`，加密文件名会自动推断。`config.toml` 会推断为 `config.enc.toml`，其他格式会使用对应的 `.enc.*` 后缀。
 
+## 输出
+
+stdout 为空。交互问题、警告、错误和完成消息写入 stderr，答案从 stdin 读取。完成消息列出生成的配置映射数量及主要文件位置；选择保留已有配置时会提示未修改。
+
 ## 生成的文件
 
 ### .yewseal.toml

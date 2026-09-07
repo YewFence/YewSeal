@@ -20,7 +20,7 @@ type FilePair struct {
 type Options struct {
 	IdentityBundle agekey.IdentityBundle
 	Parallel       int
-	Verbose        bool
+	OnComplete     func(Result)
 	Force          bool
 	Strict         bool
 	FilePairs      []FilePair
@@ -31,7 +31,6 @@ func Encrypt(opts Options) (*Summary, error) {
 	if len(filePairs) == 0 {
 		return nil, fmt.Errorf("no configured file pairs to encrypt")
 	}
-	fmt.Printf("Encrypting %d files from config...\n", len(filePairs))
 
 	if err := ensureOutputDirs(filePairs, func(pair FilePair) string { return pair.EncryptedPath }); err != nil {
 		return nil, err
@@ -43,15 +42,13 @@ func Encrypt(opts Options) (*Summary, error) {
 			OutputFile:     pair.EncryptedPath,
 			Recipients:     pair.Recipients,
 			FormatOverride: pair.Format,
-			Verbose:        opts.Verbose,
 		})
 	}
 	describe := func(pair FilePair) (string, string) {
 		return pair.PlaintextPath, pair.EncryptedPath
 	}
 
-	summary := process(filePairs, opts.Parallel, describe, processor)
-	printSummary(summary, "encrypted")
+	summary := process(filePairs, opts.Parallel, describe, processor, opts.OnComplete)
 
 	if summary.FailedCount > 0 {
 		return summary, fmt.Errorf("%d of %d files failed to encrypt", summary.FailedCount, summary.TotalFiles)
@@ -64,7 +61,6 @@ func Decrypt(opts Options) (*Summary, error) {
 	if len(filePairs) == 0 {
 		return nil, fmt.Errorf("no configured file pairs to decrypt")
 	}
-	fmt.Printf("Decrypting %d files from config...\n", len(filePairs))
 
 	processor := func(pair FilePair) error {
 		return seal.Decrypt(seal.DecryptOptions{
@@ -72,7 +68,6 @@ func Decrypt(opts Options) (*Summary, error) {
 			OutputFile:     pair.PlaintextPath,
 			IdentityBundle: opts.IdentityBundle,
 			FormatOverride: pair.Format,
-			Verbose:        opts.Verbose,
 			Force:          opts.Force,
 		})
 	}
@@ -80,8 +75,7 @@ func Decrypt(opts Options) (*Summary, error) {
 		return pair.EncryptedPath, pair.PlaintextPath
 	}
 
-	summary := process(filePairs, opts.Parallel, describe, processor)
-	printSummary(summary, "decrypted")
+	summary := process(filePairs, opts.Parallel, describe, processor, opts.OnComplete)
 
 	return summary, summary.Check("decrypt", opts.Strict)
 }
@@ -106,29 +100,32 @@ func process(
 	parallel int,
 	describe func(FilePair) (string, string),
 	processor func(FilePair) error,
+	completed func(Result),
 ) *Summary {
 	if parallel > 1 {
-		return processParallel(pairs, parallel, describe, processor)
+		return processParallel(pairs, parallel, describe, processor, completed)
 	}
-	return processSequential(pairs, describe, processor)
+	return processSequential(pairs, describe, processor, completed)
 }
 
 func processSequential(
 	pairs []FilePair,
 	describe func(FilePair) (string, string),
 	processor func(FilePair) error,
+	completed func(Result),
 ) *Summary {
 	summary := &Summary{
 		Results: make([]Result, 0, len(pairs)),
 	}
 
-	for i, pair := range pairs {
+	for _, pair := range pairs {
 		source, target := describe(pair)
-		fmt.Printf("  [%d/%d] %s -> %s ... ", i+1, len(pairs), filepath.Base(source), filepath.Base(target))
 
 		err := processor(pair)
 		result := summary.Add(source, target, err)
-		fmt.Println(result.Status)
+		if completed != nil {
+			completed(result)
+		}
 	}
 
 	return summary
@@ -139,6 +136,7 @@ func processParallel(
 	parallel int,
 	describe func(FilePair) (string, string),
 	processor func(FilePair) error,
+	completed func(Result),
 ) *Summary {
 	summary := &Summary{
 		TotalFiles: len(pairs),
@@ -148,7 +146,6 @@ func processParallel(
 	var wg sync.WaitGroup
 	jobs := make(chan int, len(pairs))
 	var mu sync.Mutex
-	var completed int
 
 	for range parallel {
 		wg.Add(1)
@@ -162,11 +159,10 @@ func processParallel(
 				summary.Results[idx] = newResult(source, target, err)
 
 				mu.Lock()
-				completed++
-				current := completed
+				if completed != nil {
+					completed(summary.Results[idx])
+				}
 				mu.Unlock()
-
-				fmt.Printf("  [%d/%d] %s -> %s ... %s\n", current, summary.TotalFiles, filepath.Base(source), filepath.Base(target), summary.Results[idx].Status)
 			}
 		}()
 	}
@@ -183,9 +179,4 @@ func processParallel(
 	}
 
 	return summary
-}
-
-func printSummary(summary *Summary, action string) {
-	fmt.Println()
-	_ = summary.Report(os.Stdout, action)
 }

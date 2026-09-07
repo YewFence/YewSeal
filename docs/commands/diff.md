@@ -45,7 +45,7 @@ yews diff config.toml --color always
 
 ### --verbose, -v
 
-输出详细的文件选择信息。
+向 stderr 额外输出文件选择信息和逐文件比较完成提示。
 
 ```bash
 yews diff config.toml -v
@@ -73,7 +73,9 @@ yews diff --color never
 
 宽松模式的 `0` 既不代表文件一致，也不保证实际比较过任何文件。`--strict` 只要求可比较映射完成比较，不会把内容差异视为失败，也不要求缺失文件出现。`diff` 没有“差异即失败”的开关，不用于 CI 判定。
 
-stdout 只包含 diff 内容，跳过提示、错误和汇总写入 stderr，不需要 `--verbose`。
+## 输出
+
+stdout 只包含 diff 正文，没有实际差异时为空。警告、逐文件跳过或失败的原因和最终汇总写入 stderr，不需要 `--verbose`；使用 `--verbose` 时还会显示文件选择信息和逐文件比较完成提示。
 
 ```bash
 # changes.diff 仅包含 diff 正文，诊断仍显示在终端
@@ -82,8 +84,6 @@ yews diff --color never > changes.diff
 # 分开保存正文与诊断
 yews diff --color never > changes.diff 2> diagnostics.log
 ```
-
-没有实际差异时 stdout 为空；stderr 区分已经比较、缺少输入、身份不匹配和失败。verbose 信息也只写 stderr，不向 diff 正文插入状态标记。
 
 ## 相关命令
 

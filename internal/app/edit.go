@@ -3,7 +3,6 @@ package app
 import (
 	"crypto/sha256"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"strings"
@@ -11,23 +10,26 @@ import (
 	"github.com/YewFence/YewSeal/internal/agekey"
 	"github.com/YewFence/YewSeal/internal/config"
 	"github.com/YewFence/YewSeal/internal/errx"
+	"github.com/YewFence/YewSeal/internal/presentation"
 	"github.com/YewFence/YewSeal/internal/seal"
 )
 
 type EditRequest struct {
-	Config  *config.Config
-	File    string
-	KeyFile string
-	Output  io.Writer
+	Config       *config.Config
+	File         string
+	KeyFile      string
+	Presentation *presentation.Output
 }
 
-func EditEncryptedFile(req EditRequest) error {
-	out := outputWriter(req.Output)
+func EditEncryptedFile(req EditRequest) (err error) {
+	out := presentation.OrDiscard(req.Presentation)
+	defer func() { err = out.Finish(err) }()
 
 	cfg := req.Config
 	if cfg == nil {
 		return fmt.Errorf("edit requires a loaded YewSeal configuration")
 	}
+	out.SetDirectory(config.CurrentDir(cfg))
 	if strings.TrimSpace(req.File) == "" {
 		return fmt.Errorf("edit requires exactly one configured target")
 	}
@@ -57,7 +59,6 @@ func EditEncryptedFile(req EditRequest) error {
 		OutputFile:     resolved.PlaintextPath,
 		IdentityBundle: identityBundle,
 		FormatOverride: resolved.Format,
-		Output:         req.Output,
 	})
 	if err != nil {
 		return err
@@ -83,8 +84,6 @@ func EditEncryptedFile(req EditRequest) error {
 	originalHash := sha256.Sum256(plainData)
 	editorCmd := resolveEditor()
 
-	_, _ = fmt.Fprintf(out, "✏️  Opening %s in %s...\n", resolved.EncryptedPath, editorCmd)
-
 	parts, err := splitEditorCommand(editorCmd)
 	if err != nil {
 		return err
@@ -106,7 +105,7 @@ func EditEncryptedFile(req EditRequest) error {
 
 	editedHash := sha256.Sum256(editedData)
 	if originalHash == editedHash {
-		_, _ = fmt.Fprintln(out, "⏭️  No changes detected, skipping re-encryption")
+		out.Edited(resolved.EncryptedPath, false)
 		return nil
 	}
 
@@ -114,7 +113,6 @@ func EditEncryptedFile(req EditRequest) error {
 		FormatFile:     resolved.PlaintextPath,
 		FormatOverride: resolved.Format,
 		Recipients:     resolved.Recipients,
-		Output:         req.Output,
 	})
 	if err != nil {
 		return err
@@ -124,13 +122,6 @@ func EditEncryptedFile(req EditRequest) error {
 		return fmt.Errorf("failed to write encrypted file: %w", err)
 	}
 
-	_, _ = fmt.Fprintln(out, "✅ File edited and re-encrypted successfully")
+	out.Edited(resolved.EncryptedPath, true)
 	return nil
-}
-
-func outputWriter(w io.Writer) io.Writer {
-	if w != nil {
-		return w
-	}
-	return os.Stdout
 }

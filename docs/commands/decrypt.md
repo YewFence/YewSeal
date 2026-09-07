@@ -71,7 +71,7 @@ YEWSEAL_STRICT=true yews decrypt
 
 ### --verbose, -v
 
-输出详细的文件选择信息。
+向 stderr 额外输出文件选择信息和逐文件成功结果。
 
 ```bash
 yews decrypt -v
@@ -92,6 +92,15 @@ yews decrypt config.enc.toml -o config.toml
 # 在已配置 Group 的目录范围内筛选并解密
 yews decrypt ./configs --pattern "*.toml"
 
+```
+
+## 输出
+
+明文写入目标文件，stdout 为空。stderr 显示警告、逐文件跳过或失败的原因和最终汇总；使用 `--verbose` 时还会显示文件选择信息和逐文件成功结果。
+
+```bash
+# 明文仍写入目标文件，诊断消息单独保存
+yews decrypt --strict 2> decrypt.log
 ```
 
 ## 覆盖保护

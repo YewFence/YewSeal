@@ -2,6 +2,7 @@ package app
 
 import (
 	"github.com/YewFence/YewSeal/internal/config"
+	"github.com/YewFence/YewSeal/internal/presentation"
 	"github.com/YewFence/YewSeal/internal/seal"
 	"github.com/YewFence/YewSeal/internal/task"
 	"io"
@@ -11,13 +12,14 @@ func ValidateCLIFormatOverride(format string) (string, error) {
 	return config.ValidateFormatOverride(format)
 }
 
-func WriteViewedTarget(w, diagnostics io.Writer, cfg *config.Config, target, keyFile string, verbose bool) error {
-	diagnostics = &diagnosticWriter{Writer: diagnostics}
-	result, identityBundle, err := prepareRead(diagnostics, cfg, config.SelectionOptions{
+func WriteViewedTarget(w, diagnostics io.Writer, cfg *config.Config, target, keyFile string, verbose bool) (err error) {
+	out := presentation.New(w, diagnostics, verbose)
+	defer func() { err = out.Finish(err) }()
+	result, identityBundle, err := prepareRead(out, cfg, config.SelectionOptions{
 		Command:             task.ModeView,
 		Target:              target,
 		RequireSingleTarget: true,
-	}, keyFile, verbose)
+	}, keyFile)
 	if err != nil {
 		return err
 	}
@@ -28,17 +30,13 @@ func WriteViewedTarget(w, diagnostics io.Writer, cfg *config.Config, target, key
 		OutputFile:     filePair.PlaintextPath,
 		IdentityBundle: identityBundle,
 		FormatOverride: filePair.Format,
-		Verbose:        verbose,
-		Output:         diagnostics,
 	})
 	if err != nil {
 		return err
 	}
 
-	if n, err := w.Write(plainData); err != nil {
+	if _, err := out.Write(plainData); err != nil {
 		return err
-	} else if n != len(plainData) {
-		return io.ErrShortWrite
 	}
 	return nil
 }

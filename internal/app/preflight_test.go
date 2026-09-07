@@ -9,6 +9,7 @@ import (
 
 	"filippo.io/age"
 	"github.com/YewFence/YewSeal/internal/config"
+	"github.com/YewFence/YewSeal/internal/presentation"
 	"github.com/YewFence/YewSeal/internal/task"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -30,7 +31,7 @@ func TestPrintPlanJSONDoesNotRequireKeys(t *testing.T) {
 	var out bytes.Buffer
 	err = PrintPlan(&out, cfg, PlanRequest{
 		Target: ".dev.vars",
-	}, PlanPrintOptions{JSON: true})
+	}, presentation.PlanPrintOptions{JSON: true})
 	require.NoError(t, err)
 
 	var payload struct {

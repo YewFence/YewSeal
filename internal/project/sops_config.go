@@ -63,7 +63,6 @@ func syncResolvedSopsYaml(filePairs []config.ResolvedFilePair) error {
 		return err
 	}
 
-	fmt.Printf("✅ Synced .sops.yaml with %d rule(s)\n", len(creationRules))
 	return nil
 }
 

@@ -47,6 +47,10 @@ run = "go get -u ./... && go mod tidy"
 description = "Run Go tests"
 run = "go test -v ./..."
 
+[tasks."test:race"]
+description = "Check concurrent processing and command output for data races"
+run = "go test -race ./internal/presentation ./internal/task ./internal/app ./internal/project ./internal/prompt ./internal/cli"
+
 [tasks."fmt:check"]
 description = "Check Go code formatting"
 raw = true
@@ -91,6 +95,7 @@ run = [
   { task = "actions:check" },
   { task = "lint" },
   { task = "test" },
+  { task = "test:race" }
 ]
 alias = "c"
 

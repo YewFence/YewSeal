@@ -3,7 +3,6 @@ package task
 import (
 	"errors"
 	"fmt"
-	"io"
 
 	"github.com/YewFence/YewSeal/internal/sopsx"
 )
@@ -72,26 +71,4 @@ func (s *Summary) Check(action string, strict bool) error {
 		return fmt.Errorf("strict mode requires complete processing: %d of %d files skipped", s.SkippedCount, s.TotalFiles)
 	}
 	return nil
-}
-
-func (s *Summary) Report(w io.Writer, action string) error {
-	for _, result := range s.Results {
-		switch result.Status {
-		case Skipped:
-			if _, err := fmt.Fprintf(w, "SKIPPED %s: %s\n", result.SourceFile, sopsx.ErrNoMatchingIdentity); err != nil {
-				return err
-			}
-		case Failed:
-			if _, err := fmt.Fprintf(w, "FAILED %s: %v\n", result.SourceFile, result.Error); err != nil {
-				return err
-			}
-		}
-	}
-	if action == "compared" && (s.SkippedCount > 0 || s.FailedCount > 0) {
-		if _, err := fmt.Fprintln(w, "Comparison incomplete: some selected files were not compared."); err != nil {
-			return err
-		}
-	}
-	_, err := fmt.Fprintf(w, "Summary (%s): %d succeeded, %d skipped, %d failed (%d selected)\n", action, s.SuccessCount, s.SkippedCount, s.FailedCount, s.TotalFiles)
-	return err
 }
