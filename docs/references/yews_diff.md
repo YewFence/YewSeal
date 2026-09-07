@@ -15,7 +15,7 @@ yews diff [target] [flags]
 ```
       --color string   Colorize diff output (auto/always/never) (default "auto")
   -h, --help           help for diff
-      --strict         Require every selected file to be compared (default from YEWSEAL_STRICT)
+      --strict         Require comparison of files with both inputs present (default from YEWSEAL_STRICT)
   -v, --verbose        Enable verbose output
 ```
 

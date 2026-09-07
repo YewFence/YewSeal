@@ -1,39 +1,27 @@
 package app
 
 import (
-	"io"
-	"os"
-
-	"github.com/YewFence/YewSeal/internal/agekey"
 	"github.com/YewFence/YewSeal/internal/config"
 	"github.com/YewFence/YewSeal/internal/seal"
 	"github.com/YewFence/YewSeal/internal/task"
+	"io"
 )
 
 func ValidateCLIFormatOverride(format string) (string, error) {
 	return config.ValidateFormatOverride(format)
 }
 
-func WriteViewedTarget(w io.Writer, cfg *config.Config, target, keyFile string, verbose bool) error {
-	result, err := config.SelectFilePairs(cfg, config.SelectionOptions{
-		Command:             task.ModeDecrypt,
+func WriteViewedTarget(w, diagnostics io.Writer, cfg *config.Config, target, keyFile string, verbose bool) error {
+	diagnostics = &diagnosticWriter{Writer: diagnostics}
+	result, identityBundle, err := prepareRead(diagnostics, cfg, config.SelectionOptions{
+		Command:             task.ModeView,
 		Target:              target,
 		RequireSingleTarget: true,
-	})
+	}, keyFile, verbose)
 	if err != nil {
 		return err
 	}
-	filePairs, err := config.ValidateFilePairs(result.FilePairs)
-	if err != nil {
-		return err
-	}
-	filePair := filePairs[0]
-	config.PrintSelection(verbose, cfg, result)
-
-	identityBundle, err := agekey.GetIdentityBundle(keyFile)
-	if err != nil {
-		return err
-	}
+	filePair := result.FilePairs[0]
 
 	plainData, err := seal.DecryptToBytes(seal.DecryptBytesOptions{
 		InputFile:      filePair.EncryptedPath,
@@ -41,14 +29,16 @@ func WriteViewedTarget(w io.Writer, cfg *config.Config, target, keyFile string, 
 		IdentityBundle: identityBundle,
 		FormatOverride: filePair.Format,
 		Verbose:        verbose,
-		Output:         os.Stderr,
+		Output:         diagnostics,
 	})
 	if err != nil {
 		return err
 	}
 
-	if _, err := w.Write(plainData); err != nil {
+	if n, err := w.Write(plainData); err != nil {
 		return err
+	} else if n != len(plainData) {
+		return io.ErrShortWrite
 	}
 	return nil
 }

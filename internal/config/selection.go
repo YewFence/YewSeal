@@ -56,8 +56,8 @@ func SelectFilePairs(cfg *Config, opts SelectionOptions) (SelectionResult, error
 }
 
 func selectConfiguredFilePairs(cfg *Config, allConfigPairs []FilePair, opts SelectionOptions) (SelectionResult, error) {
-	if opts.Command == task.ModePlan && opts.OutputSet {
-		return SelectionResult{}, fmt.Errorf("plan does not support output overrides")
+	if !policyForCommand(opts.Command).writes && opts.OutputSet {
+		return SelectionResult{}, fmt.Errorf("%s does not support output overrides", opts.Command)
 	}
 	target := strings.TrimSpace(opts.Target)
 	if target != "" {
@@ -238,6 +238,7 @@ func configuredEncryptedPaths(cfg *Config) []string {
 }
 
 func scopedConfigGroupPairs(cfg *Config, mode string) ([]FilePair, error) {
+	policy := policyForCommand(mode)
 	groups := cfg.GetGroups()
 	if len(groups) == 0 {
 		return nil, nil
@@ -253,7 +254,7 @@ func scopedConfigGroupPairs(cfg *Config, mode string) ([]FilePair, error) {
 		}
 		groupAliases, groupRecipientSource := effectiveGroupAuthorization(cfg, group)
 		canonical := []string(nil)
-		if mode != task.ModeDecrypt && groupAliases != nil {
+		if !policy.historicalRecipients && groupAliases != nil {
 			var resolveErr error
 			canonical, resolveErr = cfg.resolveAliases(*groupAliases)
 			if resolveErr != nil {
@@ -266,7 +267,7 @@ func scopedConfigGroupPairs(cfg *Config, mode string) ([]FilePair, error) {
 			FormatRules:     group.FormatRules,
 			ExcludedPaths:   excludedPaths,
 			UnknownAsBinary: group.UnknownAsBinary,
-			Mode:            mode,
+			Mode:            policy.discoveryMode,
 		})
 		if err != nil {
 			return nil, err
@@ -327,6 +328,7 @@ func equalStrings(left, right []string) bool {
 }
 
 func filterCurrentDirectoryScope(filePairs []FilePair, command, cwd string) ([]FilePair, error) {
+	command = policyForCommand(command).scopeMode
 	selected := make([]FilePair, 0, len(filePairs))
 	for _, filePair := range filePairs {
 		path := filePair.PlaintextPath

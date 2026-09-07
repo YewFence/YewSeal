@@ -151,8 +151,12 @@ func DecryptToBytes(opts DecryptBytesOptions) ([]byte, error) {
 	}
 
 	if opts.Verbose {
-		_, _ = fmt.Fprintf(out, "📖 Reading %s...\n", opts.InputFile)
-		_, _ = fmt.Fprintln(out, "🔓 Decrypting with SOPS...")
+		if _, err := fmt.Fprintf(out, "📖 Reading %s...\n", opts.InputFile); err != nil {
+			return nil, err
+		}
+		if _, err := fmt.Fprintln(out, "🔓 Decrypting with SOPS..."); err != nil {
+			return nil, err
+		}
 	}
 
 	if len(opts.IdentityBundle.Identities()) == 0 {

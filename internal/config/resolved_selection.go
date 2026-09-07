@@ -200,7 +200,7 @@ func resolveFilePair(cfg *Config, filePair FilePair, opts SelectionOptions) (Res
 	}
 	var resolvedRecipients ResolvedRecipients
 	recipientWarning := ""
-	if opts.Command != task.ModeDecrypt || opts.StrictRecipients {
+	if !policyForCommand(opts.Command).historicalRecipients || opts.StrictRecipients {
 		resolvedRecipients, err = cfg.ResolveFileRecipients(filePair)
 		if err != nil {
 			return ResolvedFilePair{}, err
@@ -280,7 +280,7 @@ func selectedBy(opts SelectionOptions, result SelectionResult) string {
 }
 
 func checkWriteConflicts(command string, filePairs []ResolvedFilePair) error {
-	if command == task.ModePlan {
+	if !policyForCommand(command).writes {
 		return nil
 	}
 	seen := make(map[string]ResolvedFilePair, len(filePairs))

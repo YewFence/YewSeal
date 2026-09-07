@@ -86,7 +86,7 @@ func viewCommand(load configLoader, keyFile *string) *cobra.Command {
 			return nil
 		},
 		RunE: withConfig(load, func(cmd *cobra.Command, args []string, cfg *config.Config) error {
-			return yewsapp.WriteViewedTarget(os.Stdout, cfg, args[0], *keyFile, verbose)
+			return yewsapp.WriteViewedTarget(os.Stdout, os.Stderr, cfg, args[0], *keyFile, verbose)
 		}),
 	}
 	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose output")
@@ -117,7 +117,7 @@ func diffCommand(load configLoader, keyFile *string) *cobra.Command {
 		}),
 	}
 	cmd.Flags().StringVar(&color, "color", "auto", "Colorize diff output (auto/always/never)")
-	cmd.Flags().BoolVar(&strict, "strict", false, "Require every selected file to be compared (default from YEWSEAL_STRICT)")
+	cmd.Flags().BoolVar(&strict, "strict", false, "Require comparison of files with both inputs present (default from YEWSEAL_STRICT)")
 	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose output")
 	return cmd
 }
