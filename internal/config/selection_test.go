@@ -31,7 +31,7 @@ func TestScopedConfigGroupPairsSkipsConfiguredCustomEncryptedPaths(t *testing.T)
 		},
 	}
 
-	pairs, err := scopedConfigGroupPairs(cfg, task.ModeEncrypt, groupRequestOptions{})
+	pairs, err := scopedConfigGroupPairs(cfg, task.ModeEncrypt)
 	require.NoError(t, err)
 	require.Len(t, pairs, 1)
 	assert.Equal(t, otherPlaintext, pairs[0].PlaintextPath)
@@ -59,8 +59,7 @@ func TestSelectFilePairsDirectorySkipsConfiguredCustomEncryptedPaths(t *testing.
 	result, err := SelectFilePairs(cfg, SelectionOptions{Command: task.ModeEncrypt, Target: secretsDir})
 	require.NoError(t, err)
 	require.Len(t, result.FilePairs, 2)
-	assert.Equal(t, plaintext, result.FilePairs[0].PlaintextPath)
-	assert.Equal(t, otherPlaintext, result.FilePairs[1].PlaintextPath)
+	assert.ElementsMatch(t, []string{plaintext, otherPlaintext}, []string{result.FilePairs[0].PlaintextPath, result.FilePairs[1].PlaintextPath})
 }
 
 func TestSelectFilePairs_ConfigModeFiltersEncryptByCurrentPlaintextScope(t *testing.T) {
@@ -197,8 +196,9 @@ func TestResolvePlanSelection_RejectsUnconfiguredTarget(t *testing.T) {
 	root := t.TempDir()
 	cfg := &Config{CurrentDir: root}
 
-	_, err := ResolvePlanSelection(cfg, SelectionOptions{
-		Target: filepath.Join(root, ".dev.vars"),
+	_, err := ResolveSelection(cfg, SelectionOptions{
+		Command: task.ModePlan,
+		Target:  filepath.Join(root, ".dev.vars"),
 	})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "does not exist")
@@ -218,7 +218,7 @@ func TestResolvePlanSelectionEncryptedTargetStillRequiresAuthorization(t *testin
 	encrypted := filepath.Join(root, "config.enc.yaml")
 	require.NoError(t, os.WriteFile(encrypted, []byte("encrypted"), 0600))
 	cfg := &Config{CurrentDir: root, Encryption: EncryptionConfig{Files: []FilePair{{PlaintextPath: filepath.Join(root, "config.yaml"), EncryptedPath: encrypted, Format: "yaml"}}}}
-	_, err := ResolvePlanSelection(cfg, SelectionOptions{Target: encrypted})
+	_, err := ResolveSelection(cfg, SelectionOptions{Command: task.ModePlan, Target: encrypted})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "no recipient set")
 }
@@ -243,7 +243,7 @@ func TestResolvePlanSelection_NoTargetUsesEitherSideCurrentScope(t *testing.T) {
 		},
 	}
 
-	result, err := ResolvePlanSelection(cfg, SelectionOptions{})
+	result, err := ResolveSelection(cfg, SelectionOptions{Command: task.ModePlan})
 	require.NoError(t, err)
 	require.Len(t, result.FilePairs, 1)
 	assert.Equal(t, filepath.Join(apiDir, ".env.enc.yaml"), result.FilePairs[0].EncryptedPath)

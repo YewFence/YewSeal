@@ -16,7 +16,7 @@ yews encrypt [command options] [path]
 
 传入文件路径时，该路径必须匹配已加载配置中 FilePair 的 plaintext 或 encrypted 任一侧；命中后始终使用完整的已配置映射和授权集合。未登记文件不会被临时转换为加密目标。
 
-传入目录路径时，YewSeal 只扫描配置中 Group 管理的文件。没有已配置 Group 时会报错。
+传入目录路径时，YewSeal 从已登记映射中选择明文侧位于该目录内的项，包括显式 FilePair 和 Group 发现结果。Group 始终按所属配置目录和规则发现文件，不以目标目录为新根重新扫描；没有 Group 时仍可选择显式映射。
 
 临时加密一个未登记文件且不需要项目配置时，请直接使用 SOPS CLI，用法见[与 SOPS 配合使用](/guide/sops)。
 
@@ -34,7 +34,7 @@ yews encrypt config.toml -o config.enc.toml
 
 ### --pattern
 
-为配置模式或目录扫描指定匹配规则。
+进一步筛选配置范围或目录目标内已登记的映射。规则相对于当前工作目录，可匹配明文或密文路径，不覆盖 Group 的发现规则或登记额外文件。
 
 ```bash
 yews encrypt ./configs --pattern "*.toml" --pattern "!*.enc.toml"
@@ -89,4 +89,4 @@ yews encrypt .dev.vars -o .dev.enc.env
 
 ## 相关命令
 
-[plan](/commands/plan) 可以先预览文件选择，[decrypt](/commands/decrypt) 可以解密文件，[diff](/commands/diff) 可以比较明文和加密文件。
+[plan](/commands/plan) 可以检查当前配置映射及授权，但不是加密预演；[decrypt](/commands/decrypt) 可以解密文件，[diff](/commands/diff) 可以比较明文和加密文件。

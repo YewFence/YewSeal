@@ -1,10 +1,9 @@
 package cli
 
 import (
-	"os"
-
 	yewsapp "github.com/YewFence/YewSeal/internal/app"
 	"github.com/YewFence/YewSeal/internal/config"
+	"github.com/YewFence/YewSeal/internal/task"
 
 	"github.com/spf13/cobra"
 )
@@ -76,27 +75,24 @@ func decryptCommand(load configLoader, keyFile *string) *cobra.Command {
 }
 
 func planCommand(load configLoader) *cobra.Command {
-	opts := planOptions{
-		Output:   envValue("SOPS_OUTPUT_FILE"),
-		Parallel: 1,
-	}
+	opts := planOptions{}
 
 	cmd := &cobra.Command{
 		Use:   "plan [command options] [path]",
-		Short: "Run preflight and print the resolved file selection without writing files",
+		Short: "Check configured file mappings, formats, and recipient authorization without writing files",
 		Args: func(cmd *cobra.Command, args []string) error {
-			return validateBatchArgs(cmd, args, opts.Patterns, opts.Parallel)
+			if err := cobra.MaximumNArgs(1)(cmd, args); err != nil {
+				return err
+			}
+			_, err := task.ParsePatternRules(opts.Patterns)
+			return err
 		},
 		RunE: withConfig(load, func(cmd *cobra.Command, args []string, cfg *config.Config) error {
 			target := firstArg(args)
-			return yewsapp.PrintPlan(os.Stdout, cfg, yewsapp.PlanRequest{
-				Verbose:   opts.Verbose,
-				Output:    opts.Output,
-				OutputSet: flagChangedOrEnvSet(cmd.Flags(), "output", "SOPS_OUTPUT_FILE"),
-				Target:    target,
-				Patterns:  opts.Patterns,
-				Parallel:  opts.Parallel,
-			}, yewsapp.PreflightPrintOptions{
+			return yewsapp.PrintPlan(cmd.OutOrStdout(), cfg, yewsapp.PlanRequest{
+				Target:   target,
+				Patterns: opts.Patterns,
+			}, yewsapp.PlanPrintOptions{
 				JSON:    opts.JSON,
 				Verbose: opts.Verbose,
 			})
