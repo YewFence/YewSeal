@@ -1,18 +1,24 @@
 package main
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
 
+const subprocessTimeout = time.Minute
+
 func TestCLIConfigurationLoading(t *testing.T) {
 	binary := filepath.Join(t.TempDir(), "yews.exe")
-	build := exec.Command("go", "build", "-o", binary, ".")
+	ctx, cancel := context.WithTimeout(t.Context(), subprocessTimeout)
+	defer cancel()
+	build := exec.CommandContext(ctx, "go", "build", "-o", binary, ".")
 	output, err := build.CombinedOutput()
 	require.NoError(t, err, "%s", output)
 	for _, name := range []string{"AGE_KEY_FILE", "YEWSEAL_AGE_IDENTITIES", "SOPS_AGE_KEY", "SOPS_AGE_KEY_FILE", "SOPS_OUTPUT_FILE", "YEWSEAL_FORMAT", "SOPS_FORMAT"} {
@@ -42,7 +48,9 @@ func TestCLIConfigurationLoading(t *testing.T) {
 			}
 			for _, args := range infoCommands {
 				t.Run(strings.Join(args, " "), func(t *testing.T) {
-					cmd := exec.Command(binary, args...)
+					ctx, cancel := context.WithTimeout(t.Context(), subprocessTimeout)
+					defer cancel()
+					cmd := exec.CommandContext(ctx, binary, args...)
 					cmd.Dir = dir
 					output, err := cmd.CombinedOutput()
 					require.NoError(t, err, "%s", output)
@@ -68,10 +76,12 @@ func TestCLIConfigurationLoading(t *testing.T) {
 		{"missing-edit-file", []string{"edit"}, "edit requires exactly one configured target"},
 		{"invalid-color", []string{"diff", "--color", "invalid"}, "unsupported color mode"},
 	} {
-		t.Run(tc.name, func(t *testing.T) {
-			dir := t.TempDir()
-			require.NoError(t, os.WriteFile(filepath.Join(dir, ".yewseal.toml"), []byte("[broken"), 0600))
-			cmd := exec.Command(binary, tc.args...)
+			t.Run(tc.name, func(t *testing.T) {
+				dir := t.TempDir()
+				require.NoError(t, os.WriteFile(filepath.Join(dir, ".yewseal.toml"), []byte("[broken"), 0600))
+				ctx, cancel := context.WithTimeout(t.Context(), subprocessTimeout)
+				defer cancel()
+				cmd := exec.CommandContext(ctx, binary, tc.args...)
 			cmd.Dir = dir
 			output, err := cmd.CombinedOutput()
 			require.Error(t, err)
@@ -87,10 +97,12 @@ func TestCLIConfigurationLoading(t *testing.T) {
 		require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0755))
 		plainPath := filepath.Join(dir, "config.yaml")
 		plain := []byte("token: value\n")
-		require.NoError(t, os.WriteFile(plainPath, plain, 0600))
-		run := func(args ...string) []byte {
-			t.Helper()
-			cmd := exec.Command(binary, args...)
+			require.NoError(t, os.WriteFile(plainPath, plain, 0600))
+			run := func(args ...string) []byte {
+				t.Helper()
+				ctx, cancel := context.WithTimeout(t.Context(), subprocessTimeout)
+				defer cancel()
+				cmd := exec.CommandContext(ctx, binary, args...)
 			cmd.Dir = dir
 			output, err := cmd.CombinedOutput()
 			require.NoError(t, err, "%s", output)
@@ -114,10 +126,12 @@ func TestCLIConfigurationLoading(t *testing.T) {
 		dir := t.TempDir()
 		require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0755))
 		plain := []byte("TOKEN=value\n")
-		require.NoError(t, os.WriteFile(filepath.Join(dir, "secret"), plain, 0600))
-		run := func(args ...string) []byte {
-			t.Helper()
-			cmd := exec.Command(binary, args...)
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "secret"), plain, 0600))
+			run := func(args ...string) []byte {
+				t.Helper()
+				ctx, cancel := context.WithTimeout(t.Context(), subprocessTimeout)
+				defer cancel()
+				cmd := exec.CommandContext(ctx, binary, args...)
 			cmd.Dir = dir
 			output, err := cmd.CombinedOutput()
 			require.NoError(t, err, "%s", output)
