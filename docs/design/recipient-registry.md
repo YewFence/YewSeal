@@ -909,7 +909,7 @@ AGE-SECRET-KEY-1...
 - file/group/default 授权来源；
 - 最终 effective recipient set。
 
-`plan` 复用 encrypt preflight，并展示每个 pair 的最终授权信息。Plan 对 recipient 解析与 encrypt 使用相同的严格语义；未知 alias、空集合和 group 冲突直接失败，不使用 decrypt 的宽松 warning 语义。
+`plan` 是无方向的配置映射检查，与 encrypt/decrypt 共享映射解析主线，但不是它们的 dry run。Group 发现取明文与密文两侧并集，不从目标后缀推断操作方向。Plan 对 recipient 解析与 encrypt 使用相同的严格语义，对已加载配置所解析出的全部映射检查未知 alias、空集合和 group 冲突；不使用 decrypt 的宽松 warning 语义，也不加载 Identity bundle。后续定位决策见[配置作为唯一声明来源](configuration-authority.md)。
 
 后续 verify 可以复用：
 

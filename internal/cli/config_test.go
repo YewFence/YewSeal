@@ -57,10 +57,6 @@ func TestInvalidArgumentsNeverLoadConfig(t *testing.T) {
 	}{
 		{[]string{"--version", "--unknown-option"}, "unknown flag"},
 		{[]string{"decrypt", "--help", "--parallel", "bad"}, "invalid argument"},
-		{[]string{"encrypt", "one", "two"}, "accepts at most 1 arg"},
-		{[]string{"decrypt", "one", "two"}, "accepts at most 1 arg"},
-		{[]string{"plan", "one", "two"}, "accepts at most 1 arg"},
-		{[]string{"diff", "one", "two"}, "accepts at most 1 arg"},
 		{[]string{"view"}, "accepts 1 arg"},
 		{[]string{"view", " "}, "requires exactly one target"},
 		{[]string{"edit"}, "edit requires exactly one configured target"},
@@ -75,9 +71,13 @@ func TestInvalidArgumentsNeverLoadConfig(t *testing.T) {
 		{[]string{"diff", "--color", "bad"}, "unsupported color mode"},
 		{[]string{"encrypt", "--parallel", "0"}, "--parallel must be at least 1"},
 		{[]string{"decrypt", "--parallel", "-1"}, "--parallel must be at least 1"},
-		{[]string{"plan", "--parallel", "0"}, "--parallel must be at least 1"},
-		{[]string{"decrypt", "--pattern", "!"}, "missing pattern after negation"},
+		{[]string{"plan", "--parallel", "0"}, "unknown flag: --parallel"},
+		{[]string{"plan", "--output", "out.yaml"}, "unknown flag: --output"},
+		{[]string{"plan", "--pattern", "*.yaml"}, "unknown flag: --pattern"},
+		{[]string{"decrypt", "--pattern", "*.yaml"}, "unknown flag: --pattern"},
+		{[]string{"encrypt", "--pattern", "*.yaml"}, "unknown flag: --pattern"},
 		{[]string{"encrypt", "--output", "out.yaml"}, "--output is only supported"},
+		{[]string{"encrypt", "a.yaml", "b.yaml", "--output", "out.yaml"}, "--output is only supported"},
 	} {
 		t.Run(strings.Join(tc.args, " "), func(t *testing.T) {
 			calls := 0

@@ -7,7 +7,7 @@ title: yews diff
 Compare plaintext file with decrypted encrypted file
 
 ```
-yews diff [target] [flags]
+yews diff [path-or-pattern]... [flags]
 ```
 
 ### Options

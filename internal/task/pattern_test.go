@@ -75,3 +75,26 @@ func TestPatternMatcherHandlesUTF8QuestionMark(t *testing.T) {
 	assert.True(t, decided)
 	assert.True(t, included)
 }
+
+func TestPatternMatcherNegationWithSpaceAfterMarkerIsLiteral(t *testing.T) {
+	matcher, err := NewPatternMatcher([]string{"*.yaml", "! secrets.yaml"})
+	require.NoError(t, err)
+
+	// 遵循上游语义：`!` 之后的空格是模式的一部分，该规则否定的是带前导
+	// 空格的文件名，因此 secrets.yaml 仍被选中。
+	decided, included := matcher.Decision("secrets.yaml", false)
+	assert.True(t, decided)
+	assert.True(t, included)
+}
+
+func TestPatternMatcherEscapesMetaCharacters(t *testing.T) {
+	matcher, err := NewPatternMatcher([]string{`\[draft\].yaml`})
+	require.NoError(t, err)
+
+	decided, included := matcher.Decision("[draft].yaml", false)
+	assert.True(t, decided)
+	assert.True(t, included)
+
+	decided, _ = matcher.Decision("d.yaml", false)
+	assert.False(t, decided)
+}

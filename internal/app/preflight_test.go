@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"filippo.io/age"
 	"github.com/YewFence/YewSeal/internal/config"
+	"github.com/YewFence/YewSeal/internal/task"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -27,8 +29,8 @@ func TestPrintPlanJSONDoesNotRequireKeys(t *testing.T) {
 	cfg := &config.Config{CurrentDir: tempDir, Recipients: config.RecipientConfig{Defaults: &defaults, Registry: map[string]string{"owner": identity.Recipient().String()}}, Encryption: config.EncryptionConfig{Files: []config.FilePair{{PlaintextPath: ".dev.vars", EncryptedPath: ".dev.vars.enc.yaml", Format: "env", ConfigPath: ".yewseal.toml"}}}}
 	var out bytes.Buffer
 	err = PrintPlan(&out, cfg, PlanRequest{
-		Target: ".dev.vars",
-	}, PreflightPrintOptions{JSON: true})
+		Targets: []string{".dev.vars"},
+	}, PlanPrintOptions{JSON: true})
 	require.NoError(t, err)
 
 	var payload struct {
@@ -76,11 +78,38 @@ func TestOutputOverridePreservesInferredFormatProvenance(t *testing.T) {
 	require.NoError(t, os.WriteFile("config.yaml", []byte("token: value\n"), 0600))
 	require.NoError(t, os.WriteFile("config.enc.yaml", []byte("unused in preflight"), 0600))
 	cfg := configWithOwnerRecipient(&config.Config{Encryption: config.EncryptionConfig{Files: []config.FilePair{{PlaintextPath: "config.yaml", EncryptedPath: "config.enc.yaml", ConfigPath: ".yewseal.toml"}}}}, env.publicKey)
-	for _, target := range []string{"config.yaml", "config.enc.yaml"} {
-		selection, err := config.ResolvePlanSelection(cfg, config.SelectionOptions{Target: target, Output: "export.json", OutputSet: true})
+	for _, command := range []string{task.ModeEncrypt, task.ModeDecrypt} {
+		selection, err := config.ResolveSelection(cfg, config.SelectionOptions{Command: command, Targets: []string{"config.enc.yaml"}, Output: "export.json", OutputSet: true})
 		require.NoError(t, err)
 		require.Len(t, selection.FilePairs, 1)
 		require.Equal(t, "yaml", selection.FilePairs[0].Format)
 		require.Equal(t, config.ValueSourceFilename, selection.FilePairs[0].FormatSource.Kind)
+	}
+}
+
+func TestPreflightPreservesProjectAndTargetMetadataScopes(t *testing.T) {
+	env := newAppCryptoTestEnv(t)
+	for _, dir := range []string{"inside", "outside"} {
+		require.NoError(t, os.Mkdir(dir, 0755))
+	}
+	root, err := os.Getwd()
+	require.NoError(t, err)
+	cfg := configWithOwnerRecipient(&config.Config{CurrentDir: filepath.Join(root, "inside"), Encryption: config.EncryptionConfig{Files: []config.FilePair{
+		{PlaintextPath: filepath.Join(root, "inside", "config.yaml"), EncryptedPath: filepath.Join(root, "inside", "config.enc.yaml")},
+		{PlaintextPath: filepath.Join(root, "outside", "config.yaml"), EncryptedPath: filepath.Join(root, "outside", "config.enc.yaml")},
+	}}}, env.publicKey)
+	for _, target := range []string{"", cfg.CurrentDir, filepath.Join(cfg.CurrentDir, "config.enc.yaml")} {
+		encrypted, err := PreflightEncrypt(cfg, EncryptRequest{Targets: []string{target}})
+		require.NoError(t, err)
+		decrypted, err := PreflightDecrypt(cfg, DecryptRequest{Targets: []string{target}, KeyFile: env.keyFile})
+		require.NoError(t, err)
+		for _, result := range []PreflightResult{encrypted, decrypted} {
+			require.Len(t, result.Selection.FilePairs, 1)
+			if target == "" {
+				require.Len(t, result.MetadataPairs, 2)
+			} else {
+				require.Len(t, result.MetadataPairs, 1)
+			}
+		}
 	}
 }

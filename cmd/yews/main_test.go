@@ -141,7 +141,7 @@ func TestCLIConfigurationLoading(t *testing.T) {
 		run("encrypt", "secret", "-o", "export.json")
 		require.NoFileExists(t, filepath.Join(dir, "secret.enc.env"))
 		run("encrypt")
-		run("plan", "secret", "-o", "export.json", "--json")
+		run("plan", "secret", "--json")
 		run("decrypt", "secret.enc.env", "-o", "export.yaml", "--key-file", ".age/keys.txt")
 		exported, err := os.ReadFile(filepath.Join(dir, "export.yaml"))
 		require.NoError(t, err)

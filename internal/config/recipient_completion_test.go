@@ -57,7 +57,7 @@ func TestConfiguredGroupsRejectCanonicalRecipientConflict(t *testing.T) {
 		}},
 	}
 
-	_, err = configuredFilePairs(cfg, task.ModeEncrypt, groupRequestOptions{})
+	_, err = configuredFilePairs(cfg, task.ModeEncrypt)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "conflicting recipient sets")
 }
@@ -72,7 +72,8 @@ func TestDecryptResolutionWarnsForUnknownAlias(t *testing.T) {
 		}},
 	}
 
-	selection, err := ResolveSelection(cfg, SelectionOptions{Command: task.ModeDecrypt, Target: "config.enc.yaml"})
+	t.Chdir(cfg.CurrentDir)
+	selection, err := ResolveSelection(cfg, SelectionOptions{Command: task.ModeDecrypt, Targets: []string{"config.enc.yaml"}})
 	require.NoError(t, err)
 	require.Len(t, selection.FilePairs, 1)
 	assert.Contains(t, selection.FilePairs[0].RecipientWarning, `unknown recipient alias "removed"`)

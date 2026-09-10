@@ -5,7 +5,7 @@
 ## 语法
 
 ```bash
-yews encrypt [command options] [path]
+yews encrypt [command options] [path-or-pattern]...
 ```
 
 别名是 `e`。
@@ -16,7 +16,7 @@ yews encrypt [command options] [path]
 
 传入文件路径时，该路径必须匹配已加载配置中 FilePair 的 plaintext 或 encrypted 任一侧；命中后始终使用完整的已配置映射和授权集合。未登记文件不会被临时转换为加密目标。
 
-传入目录路径时，YewSeal 只扫描配置中 Group 管理的文件。没有已配置 Group 时会报错。
+传入目录路径时，YewSeal 从已登记映射中选择明文侧位于该目录内的项，包括显式 FilePair 和 Group 发现结果。Group 始终按所属配置目录和规则发现文件，不以目标目录为新根重新扫描；没有 Group 时仍可选择显式映射。
 
 临时加密一个未登记文件且不需要项目配置时，请直接使用 SOPS CLI，用法见[与 SOPS 配合使用](/guide/sops)。
 
@@ -32,15 +32,16 @@ yews encrypt config.toml -o config.enc.toml
 
 `--output` 只支持文件目标，不支持配置模式或目录扫描。
 
-### --pattern
+### 位置参数：文件、目录与模式
 
-为配置模式或目录扫描指定匹配规则。
+每个位置参数是一个选择器：已登记映射的明文或密文路径选中单个文件；已存在的目录选中其范围内（明文侧）的映射；含 `*`、`?` 等元字符的参数视为模式，与已登记映射的明文路径求交集。多个参数取并集，模式只包含不排除，排除规则由 Group 的 `patterns` 在配置中声明。任一参数没有命中都会报错。
 
 ```bash
-yews encrypt ./configs --pattern "*.toml" --pattern "!*.enc.toml"
+# 选中 ./configs 下所有已登记的 .toml 明文文件
+yews encrypt './configs/*.toml'
 ```
 
-规则支持 `*`、`?`、`**`、以 `!` 开头的排除规则、以 `/` 开头的根目录锚定规则和以 `/` 结尾的目录规则。
+`encrypt` 的模式只匹配明文路径，密文文件天然不会被重复加密。模式支持 `*`、`?`、`**`、以 `/` 开头的锚定规则，相对于当前工作目录。
 
 ### --parallel, -P
 
@@ -74,8 +75,8 @@ yews encrypt config.enc.toml
 # 为已配置目标临时覆盖输出路径
 yews encrypt config.toml -o review/config.enc.toml
 
-# 在已配置 Group 的目录范围内筛选文件
-yews encrypt ./configs --pattern "*.toml"
+# 用模式选中 ./configs 下已登记的 .toml 文件
+yews encrypt './configs/*.toml'
 
 # .dev.vars 的 ENV 格式应在项目配置中声明
 yews encrypt .dev.vars -o .dev.enc.env
@@ -89,4 +90,4 @@ yews encrypt .dev.vars -o .dev.enc.env
 
 ## 相关命令
 
-[plan](/commands/plan) 可以先预览文件选择，[decrypt](/commands/decrypt) 可以解密文件，[diff](/commands/diff) 可以比较明文和加密文件。
+[plan](/commands/plan) 可以检查当前配置映射及授权，但不是加密预演；[decrypt](/commands/decrypt) 可以解密文件，[diff](/commands/diff) 可以比较明文和加密文件。

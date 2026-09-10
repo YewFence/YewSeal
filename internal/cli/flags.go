@@ -8,14 +8,12 @@ import (
 
 type encryptOptions struct {
 	Output   string
-	Patterns []string
 	Parallel int
 	Verbose  bool
 }
 
 type decryptOptions struct {
 	Output   string
-	Patterns []string
 	Parallel int
 	Force    bool
 	Strict   bool
@@ -23,23 +21,18 @@ type decryptOptions struct {
 }
 
 type planOptions struct {
-	Output   string
-	Patterns []string
-	Parallel int
-	Verbose  bool
-	JSON     bool
+	Verbose bool
+	JSON    bool
 }
 
 func addEncryptFlags(flags *pflag.FlagSet, opts *encryptOptions) {
 	flags.StringVarP(&opts.Output, "output", "o", opts.Output, "Output encrypted file for a single file target")
-	flags.StringSliceVar(&opts.Patterns, "pattern", nil, "Pattern filter for configured groups")
 	flags.IntVarP(&opts.Parallel, "parallel", "P", opts.Parallel, "Number of parallel workers for batch mode (minimum 1)")
 	flags.BoolVarP(&opts.Verbose, "verbose", "v", false, "Enable verbose output")
 }
 
 func addDecryptFlags(flags *pflag.FlagSet, opts *decryptOptions) {
 	flags.StringVarP(&opts.Output, "output", "o", opts.Output, "Output plaintext file for a single file target")
-	flags.StringSliceVar(&opts.Patterns, "pattern", nil, "Pattern filter for configured groups")
 	flags.IntVarP(&opts.Parallel, "parallel", "P", opts.Parallel, "Number of parallel workers for batch mode (minimum 1)")
 	flags.BoolVarP(&opts.Force, "force", "f", false, "Force overwrite existing plaintext file when it differs from decrypted content")
 	flags.BoolVar(&opts.Strict, "strict", false, "Require every selected file to be decrypted (default from YEWSEAL_STRICT)")
@@ -47,11 +40,8 @@ func addDecryptFlags(flags *pflag.FlagSet, opts *decryptOptions) {
 }
 
 func addPlanFlags(flags *pflag.FlagSet, opts *planOptions) {
-	flags.StringVarP(&opts.Output, "output", "o", opts.Output, "Output file for a single file target")
-	flags.StringSliceVar(&opts.Patterns, "pattern", nil, "Group pattern for directory mode or encryption.groups override")
-	flags.IntVarP(&opts.Parallel, "parallel", "P", opts.Parallel, "Number of parallel workers for batch mode (minimum 1)")
 	flags.BoolVarP(&opts.Verbose, "verbose", "v", false, "Enable verbose output")
-	flags.BoolVar(&opts.JSON, "json", false, "Print preflight result as JSON")
+	flags.BoolVar(&opts.JSON, "json", false, "Print configured file mappings as JSON")
 }
 
 func flagChangedOrEnvSet(flags *pflag.FlagSet, name string, envNames ...string) bool {
