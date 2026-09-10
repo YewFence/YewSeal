@@ -14,11 +14,12 @@ import (
 
 type DiffResult struct {
 	Different bool
+	Summary   task.Summary
 }
 
-func DiffPlaintextAgainstEncryptedTargets(w io.Writer, cfg *config.Config, target, keyFile string, verbose bool, colorMode string) (DiffResult, error) {
+func DiffPlaintextAgainstEncryptedTargets(w, diagnostics io.Writer, cfg *config.Config, target, keyFile string, verbose bool, colorMode string, strict bool) (DiffResult, error) {
 	result, err := config.SelectFilePairs(cfg, config.SelectionOptions{
-		Command:              task.ModeEncrypt,
+		Command:              task.ModeDiff,
 		Target:               target,
 		AllowEmptyTarget:     true,
 		UseConfiguredDefault: true,
@@ -30,7 +31,11 @@ func DiffPlaintextAgainstEncryptedTargets(w io.Writer, cfg *config.Config, targe
 	if err != nil {
 		return DiffResult{}, err
 	}
-	config.PrintSelection(verbose, cfg, result)
+	if verbose {
+		if _, err := fmt.Fprintf(diagnostics, "Selected %d file pairs for comparison\n", len(filePairs)); err != nil {
+			return DiffResult{}, err
+		}
+	}
 
 	identityBundle, err := agekey.GetIdentityBundle(keyFile)
 	if err != nil {
@@ -42,7 +47,7 @@ func DiffPlaintextAgainstEncryptedTargets(w io.Writer, cfg *config.Config, targe
 		return DiffResult{}, err
 	}
 
-	different := false
+	comparison := DiffResult{}
 	for _, filePair := range filePairs {
 		result, err := diff.PlaintextAgainstEncrypted(diff.Options{
 			PlaintextFile:  filePair.PlaintextPath,
@@ -51,19 +56,23 @@ func DiffPlaintextAgainstEncryptedTargets(w io.Writer, cfg *config.Config, targe
 			FormatOverride: filePair.Format,
 			Verbose:        verbose,
 		})
-		if err != nil {
-			return DiffResult{}, err
+		outcome := comparison.Summary.Add(filePair.EncryptedPath, filePair.PlaintextPath, err)
+		if outcome.Status != task.Succeeded {
+			continue
 		}
 		if result.Different {
-			different = true
+			comparison.Different = true
 			output := diff.HighlightUnifiedDiff(result.Diff, colorEnabled)
 			if _, err := fmt.Fprint(w, output); err != nil {
-				return DiffResult{}, err
+				return comparison, fmt.Errorf("failed to write diff output: %w", err)
 			}
 		}
 	}
 
-	return DiffResult{Different: different}, nil
+	if err := comparison.Summary.Report(diagnostics, "compared"); err != nil {
+		return comparison, fmt.Errorf("failed to write comparison report: %w", err)
+	}
+	return comparison, comparison.Summary.Check("diff", strict)
 }
 
 func ResolveDiffColor(mode string, w io.Writer) (bool, error) {

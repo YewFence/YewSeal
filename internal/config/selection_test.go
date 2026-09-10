@@ -343,6 +343,26 @@ func TestDedupeFilePairsRejectsConflictingExplicitPairs(t *testing.T) {
 	_, err := dedupeFilePairs([]FilePair{
 		{PlaintextPath: "secret.yaml", EncryptedPath: "secret.enc.yaml", Source: PairSourceExact},
 		{PlaintextPath: "secret.yaml", EncryptedPath: "other.enc.yaml", Source: PairSourceExact},
-	})
+	}, task.ModeEncrypt)
 	require.EqualError(t, err, `conflicting file pairs for plaintext "secret.yaml" or encrypted "other.enc.yaml"`)
+}
+
+func TestDiffRejectsConflictingGroupMappings(t *testing.T) {
+	root := t.TempDir()
+	for _, name := range []string{"config.yaml", "config.yml", "config.enc.yaml"} {
+		require.NoError(t, os.WriteFile(filepath.Join(root, name), []byte("unused"), 0600))
+	}
+	cfg := &Config{CurrentDir: root, Encryption: EncryptionConfig{Groups: []GroupConfig{
+		{Patterns: []string{"*.yaml"}, ConfigDir: root},
+		{Patterns: []string{"*.yml"}, ConfigDir: root},
+	}}}
+	_, err := SelectFilePairs(cfg, SelectionOptions{Command: task.ModeDiff})
+	require.ErrorContains(t, err, "conflicting group file pairs for comparison")
+	cfg.Encryption.Files = []FilePair{{PlaintextPath: filepath.Join(root, "custom.yaml"), EncryptedPath: filepath.Join(root, "config.enc.yaml"), Format: "yaml"}}
+	for _, target := range []string{"", root} {
+		selection, err := SelectFilePairs(cfg, SelectionOptions{Command: task.ModeDiff, Target: target})
+		require.NoError(t, err)
+		require.Len(t, selection.FilePairs, 1)
+		require.Equal(t, filepath.Join(root, "custom.yaml"), selection.FilePairs[0].PlaintextPath)
+	}
 }

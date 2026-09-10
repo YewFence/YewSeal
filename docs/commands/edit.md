@@ -22,7 +22,7 @@ yews edit -f config.enc.toml
 
 ## 编辑器
 
-YewSeal 依次读取 `VISUAL`、`EDITOR`；均未设置或为空时，Windows 默认使用 `notepad`，其他系统默认使用 `vi`。不再提供 `--editor` / `-e` 选项。
+YewSeal 依次读取 `VISUAL`、`EDITOR`；均未设置或为空时，Windows 默认使用 `notepad`，其他系统默认使用 `vi`。没有 `--editor` / `-e` 选项。
 
 环境变量支持可执行文件及参数，采用以下受限语法，不是完整的 shell 命令：
 

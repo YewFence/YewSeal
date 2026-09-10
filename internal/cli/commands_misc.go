@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -97,6 +96,7 @@ func viewCommand(load configLoader, keyFile *string) *cobra.Command {
 func diffCommand(load configLoader, keyFile *string) *cobra.Command {
 	var color string
 	var verbose bool
+	var strict bool
 
 	cmd := &cobra.Command{
 		Use:   "diff [target]",
@@ -106,20 +106,18 @@ func diffCommand(load configLoader, keyFile *string) *cobra.Command {
 				return err
 			}
 			_, err := yewsapp.ResolveDiffColor(color, os.Stdout)
-			return err
-		},
-		RunE: withConfig(load, func(cmd *cobra.Command, args []string, cfg *config.Config) error {
-			result, err := yewsapp.DiffPlaintextAgainstEncryptedTargets(os.Stdout, cfg, firstArg(args), *keyFile, verbose, color)
 			if err != nil {
 				return err
 			}
-			if result.Different {
-				return errors.New("")
-			}
-			return nil
+			return resolveStrict(cmd, &strict)
+		},
+		RunE: withConfig(load, func(cmd *cobra.Command, args []string, cfg *config.Config) error {
+			_, err := yewsapp.DiffPlaintextAgainstEncryptedTargets(os.Stdout, os.Stderr, cfg, firstArg(args), *keyFile, verbose, color, strict)
+			return err
 		}),
 	}
 	cmd.Flags().StringVar(&color, "color", "auto", "Colorize diff output (auto/always/never)")
+	cmd.Flags().BoolVar(&strict, "strict", false, "Require every selected file to be compared (default from YEWSEAL_STRICT)")
 	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose output")
 	return cmd
 }
