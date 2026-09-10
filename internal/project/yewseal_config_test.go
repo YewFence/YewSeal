@@ -25,8 +25,8 @@ func TestSaveBootstrapConfigCreateNew(t *testing.T) {
 	assert.Contains(t, string(content), "[[encryption.files]]")
 	assert.Contains(t, string(content), "plaintext = 'secrets.toml'")
 	assert.Contains(t, string(content), "encrypted = 'secrets.enc.yaml'")
-	assert.Contains(t, string(content), "[key]")
-	assert.Contains(t, string(content), "file_path = '.age/keys.txt'")
+	assert.NotContains(t, string(content), "[key]")
+	assert.NotContains(t, string(content), "file_path")
 	assert.Contains(t, string(content), "defaults = ['owner']")
 	assert.Contains(t, string(content), "owner = 'age1testpublickey'")
 }
@@ -61,6 +61,8 @@ public_key = "age1existingkey"
 	assert.Contains(t, string(content), "new.enc.yaml")
 	assert.NotContains(t, string(content), "age1existingkey")
 	assert.NotContains(t, string(content), "old.toml")
+	assert.NotContains(t, string(content), "[key]")
+	assert.NotContains(t, string(content), "file_path")
 }
 
 func TestSaveBootstrapConfigMultipleFilePairs(t *testing.T) {

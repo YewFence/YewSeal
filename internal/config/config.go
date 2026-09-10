@@ -9,13 +9,9 @@ import (
 	toml "github.com/pelletier/go-toml/v2"
 )
 
-const defaultKeyFile = ".age/keys.txt"
-
 // Config represents the YewSeal configuration.
 type Config struct {
 	Encryption EncryptionConfig `toml:"encryption"`
-	Key        KeyConfig        `toml:"key"`
-	Sync       SyncConfig       `toml:"sync"`
 	Recipients RecipientConfig  `toml:"recipients"`
 
 	LoadedFiles []LoadedFile `toml:"-"`
@@ -75,34 +71,9 @@ type GroupConfig struct {
 	RecipientSource ValueSource `toml:"-"`
 }
 
-// KeyConfig defines key file location.
-type KeyConfig struct {
-	// FilePath is the path to Age private key file.
-	// Do NOT store the actual key value here to avoid leaking secrets.
-	FilePath string `toml:"file_path"`
-}
-
-// SyncConfig defines Age key synchronization settings.
-type SyncConfig struct {
-	// Provider is the secret management provider name.
-	Provider string `toml:"provider,omitempty"`
-	// ProjectID is the provider project identifier used by sync commands.
-	ProjectID string `toml:"project_id,omitempty"`
-	// SecretName is the remote secret name for the Age key file.
-	SecretName string `toml:"secret_name,omitempty"`
-	// Path is the remote path/folder in the provider.
-	Path string `toml:"path,omitempty"`
-	// Environment is the remote environment name in the provider.
-	Environment string `toml:"environment,omitempty"`
-}
-
 // DefaultConfig returns a config with default values.
 func DefaultConfig() *Config {
-	return &Config{
-		Key: KeyConfig{
-			FilePath: defaultKeyFile,
-		},
-	}
+	return &Config{}
 }
 
 // LoadConfig loads configuration from .yewseal.toml.
@@ -110,7 +81,7 @@ func DefaultConfig() *Config {
 // 1. .yewseal/.yewseal.toml
 // 2. .config/.yewseal.toml
 // 3. .yewseal.toml
-// If no file exists, it returns an empty selection config with only the default key path.
+// If no file exists, it returns an empty selection config.
 func LoadConfig() (*Config, error) {
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -129,9 +100,6 @@ func LoadConfig() (*Config, error) {
 	}
 
 	config := &Config{
-		Key: KeyConfig{
-			FilePath: defaultKeyFile,
-		},
 		CurrentDir: cwd,
 		UserConfig: true,
 	}
@@ -256,14 +224,16 @@ func loadConfigFile(configFile LoadedFile) (*Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse config file %s: %w", configFile.Path, err)
 	}
-	// Probe for the deprecated singular key to report a friendly error.
+	// Probe for removed fields to report actionable migration errors.
 	var probe struct {
 		Encryption struct {
 			Group any `toml:"group"`
 		} `toml:"encryption"`
 		Key struct {
 			PublicKey any `toml:"public_key"`
+			FilePath  any `toml:"file_path"`
 		} `toml:"key"`
+		Sync any `toml:"sync"`
 	}
 	if err := toml.Unmarshal(data, &probe); err != nil {
 		return nil, fmt.Errorf("failed to parse config file %s: %w", configFile.Path, err)
@@ -273,6 +243,12 @@ func loadConfigFile(configFile LoadedFile) (*Config, error) {
 	}
 	if probe.Key.PublicKey != nil {
 		return nil, fmt.Errorf("deprecated key.public_key is not supported; use recipients.registry and recipients.defaults")
+	}
+	if probe.Key.FilePath != nil {
+		return nil, fmt.Errorf("key.file_path is no longer supported; use --key-file or SOPS_AGE_KEY_FILE instead")
+	}
+	if probe.Sync != nil {
+		return nil, fmt.Errorf("sync configuration is no longer supported; remove the [sync] table and manage private keys externally")
 	}
 	if err := toml.Unmarshal(data, config); err != nil {
 		return nil, fmt.Errorf("failed to parse config file %s: %w", configFile.Path, err)
@@ -318,9 +294,6 @@ func loadConfigFile(configFile LoadedFile) (*Config, error) {
 func mergeConfig(dst, src *Config) error {
 	dst.LoadedFiles = append(dst.LoadedFiles, src.LoadedFiles...)
 
-	if strings.TrimSpace(src.Key.FilePath) != "" {
-		dst.Key.FilePath = resolveConfigPath(src.LoadedFiles[0].Dir, src.Key.FilePath)
-	}
 	if src.Recipients.Defaults != nil {
 		if dst.Recipients.Defaults != nil {
 			return fmt.Errorf("recipient defaults are defined more than once")
@@ -343,22 +316,6 @@ func mergeConfig(dst, src *Config) error {
 		if src.Recipients.RegistrySources != nil {
 			dst.Recipients.RegistrySources[alias] = src.Recipients.RegistrySources[alias]
 		}
-	}
-
-	if strings.TrimSpace(src.Sync.Provider) != "" {
-		dst.Sync.Provider = src.Sync.Provider
-	}
-	if strings.TrimSpace(src.Sync.ProjectID) != "" {
-		dst.Sync.ProjectID = src.Sync.ProjectID
-	}
-	if strings.TrimSpace(src.Sync.SecretName) != "" {
-		dst.Sync.SecretName = src.Sync.SecretName
-	}
-	if strings.TrimSpace(src.Sync.Path) != "" {
-		dst.Sync.Path = src.Sync.Path
-	}
-	if strings.TrimSpace(src.Sync.Environment) != "" {
-		dst.Sync.Environment = src.Sync.Environment
 	}
 
 	for _, filePair := range src.Encryption.Files {
@@ -398,68 +355,6 @@ func cleanAbsPath(path string) string {
 		return filepath.Clean(abs)
 	}
 	return filepath.Clean(path)
-}
-
-// GetKeyFile returns the key file path.
-// Priority: provided value > config file > default.
-func (c *Config) GetKeyFile(provided string) string {
-	if provided != "" {
-		return provided
-	}
-	if c.Key.FilePath != "" {
-		return c.Key.FilePath
-	}
-	return defaultKeyFile
-}
-
-// Priority: provided value > config file > default.
-func (c *Config) GetSyncProvider(provided string) string {
-	if provided != "" {
-		return provided
-	}
-	if c.Sync.Provider != "" {
-		return c.Sync.Provider
-	}
-	return "infisical"
-}
-
-// GetSyncSecretName returns the key sync secret name.
-// Priority: provided value > config file > default.
-func (c *Config) GetSyncSecretName(provided string) string {
-	if provided != "" {
-		return provided
-	}
-	if c.Sync.SecretName != "" {
-		return c.Sync.SecretName
-	}
-	return "AGE_KEY_FILE"
-}
-
-// GetSyncProjectID returns the key sync project identifier.
-// Priority: provided value > config file > default.
-func (c *Config) GetSyncProjectID(provided string) string {
-	if provided != "" {
-		return provided
-	}
-	return c.Sync.ProjectID
-}
-
-// GetSyncPath returns the key sync remote path.
-// Priority: provided value > config file > default.
-func (c *Config) GetSyncPath(provided string) string {
-	if provided != "" {
-		return provided
-	}
-	return c.Sync.Path
-}
-
-// GetSyncEnvironment returns the key sync remote environment.
-// Priority: provided value > config file > default.
-func (c *Config) GetSyncEnvironment(provided string) string {
-	if provided != "" {
-		return provided
-	}
-	return c.Sync.Environment
 }
 
 // GetFiles returns configured file mappings.
