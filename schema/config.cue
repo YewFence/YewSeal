@@ -57,8 +57,7 @@ recipients?: [string, ...string]
 
 // #GroupConfig 定义一组按模式匹配的加密文件。
 #GroupConfig: {
-	// glob 模式列表,如 "config/**/*.toml"。缺省时使用默认扫描模式:
-	// 加密扫描常见配置扩展名并排除 *.enc.*,解密扫描 *.enc.* 文件。
+	// glob 模式列表,如 "config/**/*.toml"。缺省时使用默认扫描模式;加密始终排除 YewSeal 协议格式的 *.enc.* 文件和显式 FilePair 的 encrypted 路径:
 	patterns?: [...string]
 
 	// 格式覆盖规则,语法为 "<glob>=<format>",如 "*.dev.vars=env"。

@@ -12,6 +12,57 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestScopedConfigGroupPairsSkipsConfiguredCustomEncryptedPaths(t *testing.T) {
+	root := t.TempDir()
+	secretsDir := filepath.Join(root, "secrets")
+	require.NoError(t, os.MkdirAll(secretsDir, 0755))
+	plaintext := filepath.Join(secretsDir, "app.yaml")
+	customEncrypted := filepath.Join(secretsDir, "app.sops.yaml")
+	otherPlaintext := filepath.Join(secretsDir, "other.yaml")
+	require.NoError(t, os.WriteFile(plaintext, []byte("token: secret\n"), 0644))
+	require.NoError(t, os.WriteFile(customEncrypted, []byte("encrypted"), 0644))
+	require.NoError(t, os.WriteFile(otherPlaintext, []byte("token: other\n"), 0644))
+
+	cfg := &Config{
+		CurrentDir: root,
+		Encryption: EncryptionConfig{
+			Files:  []FilePair{{PlaintextPath: plaintext, EncryptedPath: customEncrypted, Format: "yaml"}},
+			Groups: []GroupConfig{{Patterns: []string{"secrets/*.yaml"}, ConfigDir: root}},
+		},
+	}
+
+	pairs, err := scopedConfigGroupPairs(cfg, task.ModeEncrypt, groupRequestOptions{})
+	require.NoError(t, err)
+	require.Len(t, pairs, 1)
+	assert.Equal(t, otherPlaintext, pairs[0].PlaintextPath)
+}
+
+func TestSelectFilePairsDirectorySkipsConfiguredCustomEncryptedPaths(t *testing.T) {
+	root := t.TempDir()
+	secretsDir := filepath.Join(root, "secrets")
+	require.NoError(t, os.MkdirAll(secretsDir, 0755))
+	plaintext := filepath.Join(secretsDir, "app.yaml")
+	customEncrypted := filepath.Join(secretsDir, "app.sops.yaml")
+	otherPlaintext := filepath.Join(secretsDir, "other.yaml")
+	require.NoError(t, os.WriteFile(plaintext, []byte("token: secret\n"), 0644))
+	require.NoError(t, os.WriteFile(customEncrypted, []byte("encrypted"), 0644))
+	require.NoError(t, os.WriteFile(otherPlaintext, []byte("token: other\n"), 0644))
+
+	cfg := &Config{
+		CurrentDir: root,
+		Encryption: EncryptionConfig{
+			Files:  []FilePair{{PlaintextPath: plaintext, EncryptedPath: customEncrypted, Format: "yaml"}},
+			Groups: []GroupConfig{{Patterns: []string{"*.yaml"}, ConfigDir: root}},
+		},
+	}
+
+	result, err := SelectFilePairs(cfg, SelectionOptions{Command: task.ModeEncrypt, Target: secretsDir})
+	require.NoError(t, err)
+	require.Len(t, result.FilePairs, 2)
+	assert.Equal(t, plaintext, result.FilePairs[0].PlaintextPath)
+	assert.Equal(t, otherPlaintext, result.FilePairs[1].PlaintextPath)
+}
+
 func TestSelectFilePairs_ConfigModeFiltersEncryptByCurrentPlaintextScope(t *testing.T) {
 	root := t.TempDir()
 	apiDir := filepath.Join(root, "packages", "api")

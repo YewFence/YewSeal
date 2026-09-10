@@ -36,6 +36,26 @@ func TestBuildGroupFilePairsUsesPatternsAndFormatRules(t *testing.T) {
 	assert.Equal(t, "toml", pairs[1].Format)
 }
 
+func TestBuildGroupFilePairsEncryptSkipsStandardAndExcludedEncryptedPaths(t *testing.T) {
+	dir := t.TempDir()
+	secretsDir := filepath.Join(dir, "secrets")
+	require.NoError(t, os.MkdirAll(secretsDir, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(secretsDir, "app.yaml"), []byte("token: secret\n"), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(secretsDir, "app.enc.yaml"), []byte("encrypted"), 0644))
+	customEncrypted := filepath.Join(secretsDir, "custom.sops.yaml")
+	require.NoError(t, os.WriteFile(customEncrypted, []byte("encrypted"), 0644))
+
+	pairs, err := BuildGroupFilePairs(GroupOptions{
+		Root:          dir,
+		Patterns:      []string{"secrets/*"},
+		ExcludedPaths: []string{customEncrypted},
+		Mode:          ModeEncrypt,
+	})
+	require.NoError(t, err)
+	require.Len(t, pairs, 1)
+	assert.Equal(t, filepath.Join(secretsDir, "app.yaml"), pairs[0].PlaintextPath)
+}
+
 func TestBuildProjectGroupFilePairsDecryptUsesPlaintextPatterns(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, ".dev.vars.enc.env"), []byte("encrypted"), 0644))

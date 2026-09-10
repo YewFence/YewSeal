@@ -86,7 +86,7 @@ format_rules = [
 unknown_as_binary = false
 ```
 
-`patterns` 支持 `*`、`?`、`**`、以 `!` 开头的排除规则、以 `/` 开头的根目录锚定规则和以 `/` 结尾的目录规则。没有配置 `patterns` 时，加密会默认扫描 `.toml`、`.yaml`、`.yml`、`.json`、`.env`、`.ini`、`.bin`、`.binary`，并排除常见的 `.enc.*` 文件，解密会默认扫描 `.enc.toml`、`.enc.yaml`、`.enc.json`、`.enc.env`、`.enc.ini` 和 `.enc.bin`。
+`patterns` 支持 `*`、`?`、`**`、以 `!` 开头的排除规则、以 `/` 开头的根目录锚定规则和以 `/` 结尾的目录规则。加密 Group 始终排除 YewSeal 协议格式的 `.enc.toml`、`.enc.yaml`、`.enc.json`、`.enc.env`、`.enc.ini` 和 `.enc.bin` 文件；同时排除配置中显式 FilePair 的 `encrypted` 路径。没有配置 `patterns` 时，加密会默认扫描 `.toml`、`.yaml`、`.yml`、`.json`、`.env`、`.ini`、`.bin`、`.binary`，解密会默认扫描上述 `.enc.*` 文件。
 
 `format_rules` 使用 `<pattern>=<format>` 形式，会按匹配顺序决定格式。格式取值与 `format` 相同。`unknown_as_binary` 为 `true` 时，分组加密中无法识别格式的文件会按二进制文件处理。
 
