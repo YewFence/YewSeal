@@ -211,7 +211,7 @@ YewSeal 不提供私钥同步集成。因为不同开发者、机器和部署环
 ### 将加密文件和配置文件提交到版本控制
 
 ```bash
-git add .gitignore .yewseal.toml wrangler.enc.toml .sops.toml
+git add .gitignore .yewseal.toml wrangler.enc.toml .sops.yaml
 git commit -m "feat: 添加加密配置"
 ```
 
