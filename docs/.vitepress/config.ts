@@ -19,6 +19,7 @@ export default defineConfig({
         items: [
           { text: '快速开始', link: '/guide/getting-started' },
           { text: '配置说明', link: '/guide/configuration' },
+          { text: '与 SOPS 配合使用', link: '/guide/sops' },
           { text: '外部私钥来源', link: '/guide/private-keys' },
           { text: 'Docker 运行', link: '/guide/docker' },
           { text: 'CI/CD 集成', link: '/guide/ci-cd' },

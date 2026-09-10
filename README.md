@@ -33,13 +33,11 @@ yews d
 
 初始化完成后，建议将加密后的文件提交到版本控制，并妥善备份 `.age/keys.txt`。它包含 age 密钥对，一旦丢失就无法解密文件。
 
-**不想增加额外的配置文件？** 完全可以只用命令行参数运行：
+## YewSeal 与 SOPS
 
-```bash
-# 所有参数都可以通过命令行指定
-yews encrypt config.toml -o config.enc.toml -k .age/keys.txt -p "age1..."
-yews decrypt config.enc.toml -o config.toml -k .age/keys.txt
-```
+YewSeal 的重点是以项目配置统一管理多个文件的映射、分组和加密授权；文件和授权统一在 `.yewseal.toml` 中声明，传入路径只用于选择已登记的文件。
+
+对于简单的单文件任务，可以直接使用独立的 SOPS CLI 进行加密/解密操作，示例和边界见[与 SOPS 配合使用](docs/guide/sops.md)；其中原生 TOML 密文需要 sops 支持 TOML store。
 
 ## 安装
 

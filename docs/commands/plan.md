@@ -24,14 +24,6 @@ Plan 复用 encrypt 的严格授权 preflight。即使目标是 encrypted 路径
 yews plan config.toml -o config.enc.toml
 ```
 
-### --format
-
-为单文件目标预览格式覆盖。
-
-```bash
-yews plan .dev.vars --format env
-```
-
 ### --pattern
 
 为目录或配置模式筛选文件。

@@ -199,7 +199,6 @@ func TestResolvePlanSelection_RejectsUnconfiguredTarget(t *testing.T) {
 
 	_, err := ResolvePlanSelection(cfg, SelectionOptions{
 		Target: filepath.Join(root, ".dev.vars"),
-		Format: "env",
 	})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "does not exist")
