@@ -13,10 +13,9 @@ import (
 
 type SelectionOptions struct {
 	Command             string
-	Target              string
+	Targets             []string
 	Output              string
 	OutputSet           bool
-	Patterns            []string
 	RequireSingleTarget bool
 	AllowEmptyTarget    bool
 	StrictRecipients    bool
@@ -28,6 +27,8 @@ type SelectionResult struct {
 	ConfigMode      bool
 	TargetKind      string
 	CurrentDirScope string
+	// SelectedBy 记录每个被选中的 FilePair 的来源标签，键为明文路径。
+	SelectedBy map[string]string
 }
 
 func SelectFilePairs(cfg *Config, opts SelectionOptions) (SelectionResult, error) {
@@ -59,20 +60,15 @@ func selectConfiguredFilePairs(cfg *Config, allConfigPairs []FilePair, opts Sele
 	if opts.Command == task.ModePlan && opts.OutputSet {
 		return SelectionResult{}, fmt.Errorf("plan does not support output overrides")
 	}
-	target := strings.TrimSpace(opts.Target)
-	if target != "" {
-		selected, kind, err := selectTargetFilePairs(cfg, allConfigPairs, opts)
+	if hasTargets(opts.Targets) {
+		result, err := selectTargetFilePairs(cfg, allConfigPairs, opts)
 		if err != nil {
 			return SelectionResult{}, err
 		}
-		if opts.RequireSingleTarget && len(selected) != 1 {
+		if opts.RequireSingleTarget && len(result.FilePairs) != 1 {
 			return SelectionResult{}, fmt.Errorf("%s requires exactly one target", opts.Command)
 		}
-		return SelectionResult{
-			FilePairs:      selected,
-			AllConfigPairs: allConfigPairs,
-			TargetKind:     kind,
-		}, nil
+		return result, nil
 	}
 
 	if opts.RequireSingleTarget && !opts.AllowEmptyTarget {
@@ -83,10 +79,6 @@ func selectConfiguredFilePairs(cfg *Config, allConfigPairs []FilePair, opts Sele
 	}
 
 	selected, err := filterCurrentDirectoryScope(allConfigPairs, opts.Command, cwdFromConfig(cfg))
-	if err != nil {
-		return SelectionResult{}, err
-	}
-	selected, err = filterPairsByPatterns(selected, opts.Patterns, cwdFromConfig(cfg))
 	if err != nil {
 		return SelectionResult{}, err
 	}
@@ -104,6 +96,15 @@ func selectConfiguredFilePairs(cfg *Config, allConfigPairs []FilePair, opts Sele
 		TargetKind:      "none",
 		CurrentDirScope: cwdFromConfig(cfg),
 	}, nil
+}
+
+func hasTargets(targets []string) bool {
+	for _, target := range targets {
+		if strings.TrimSpace(target) != "" {
+			return true
+		}
+	}
+	return false
 }
 
 func ValidateFormatOverride(format string) (string, error) {
@@ -173,40 +174,123 @@ func DisplayPath(cwd, path string) string {
 	return filepath.Clean(path)
 }
 
-func selectTargetFilePairs(cfg *Config, allConfigPairs []FilePair, opts SelectionOptions) ([]FilePair, string, error) {
-	targetAbs := resolveCommandPath(cwdFromConfig(cfg), opts.Target)
-	info, statErr := os.Stat(targetAbs)
-	if statErr != nil && !os.IsNotExist(statErr) {
-		return nil, "", fmt.Errorf("failed to stat %s: %w", opts.Target, statErr)
+// selectTargetFilePairs 把每个位置参数解析为一组 FilePair 并取并集：
+// 精确路径命中任一已登记映射（明文或密文路径均可），目录按命令主侧收缩
+// 范围，含 glob 元字符的参数按模式与已登记映射求交集。任一参数零命中
+// 都会报错。
+func selectTargetFilePairs(cfg *Config, allConfigPairs []FilePair, opts SelectionOptions) (SelectionResult, error) {
+	cwd := cwdFromConfig(cfg)
+	result := SelectionResult{
+		AllConfigPairs: allConfigPairs,
+		SelectedBy:     make(map[string]string),
+	}
+	seen := make(map[string]struct{})
+	kinds := make(map[string]struct{})
+	dirScopes := make([]string, 0, 1)
+
+	addPairs := func(pairs []FilePair, kind, label string) {
+		for _, pair := range pairs {
+			key := cleanAbsPath(pair.PlaintextPath)
+			if _, ok := seen[key]; ok {
+				continue
+			}
+			seen[key] = struct{}{}
+			result.FilePairs = append(result.FilePairs, pair)
+			result.SelectedBy[key] = label
+			kinds[kind] = struct{}{}
+		}
 	}
 
-	if filePair, matched := findConfiguredPair(allConfigPairs, targetAbs); matched {
-		return []FilePair{filePair}, "file", nil
+	for _, rawTarget := range opts.Targets {
+		target := strings.TrimSpace(rawTarget)
+		if target == "" {
+			continue
+		}
+
+		if task.HasPatternMeta(target) {
+			pairs, err := matchPairsByPattern(allConfigPairs, target, opts.Command, cwd)
+			if err != nil {
+				return SelectionResult{}, err
+			}
+			if len(pairs) == 0 {
+				return SelectionResult{}, fmt.Errorf("target pattern %s matches no configured file pairs", target)
+			}
+			addPairs(pairs, "pattern", fmt.Sprintf("pattern %q", target))
+			continue
+		}
+
+		targetAbs := resolveCommandPath(cwd, target)
+		if filePair, matched := findConfiguredPair(allConfigPairs, targetAbs); matched {
+			addPairs([]FilePair{filePair}, "file", SelectedByPathTarget)
+			continue
+		}
+
+		info, statErr := os.Stat(targetAbs)
+		switch {
+		case statErr == nil && info.IsDir():
+			if opts.OutputSet {
+				return SelectionResult{}, fmt.Errorf("--output is only supported when the path target is a file")
+			}
+			pairs, err := filterCurrentDirectoryScope(allConfigPairs, opts.Command, targetAbs)
+			if err != nil {
+				return SelectionResult{}, err
+			}
+			if len(pairs) == 0 {
+				return SelectionResult{}, fmt.Errorf("no configured file pairs selected for target directory %s", target)
+			}
+			addPairs(pairs, "directory", SelectedByDirectoryTarget)
+			dirScopes = append(dirScopes, targetAbs)
+		case statErr == nil:
+			return SelectionResult{}, fmt.Errorf("target %s is not configured", target)
+		case os.IsNotExist(statErr):
+			return SelectionResult{}, fmt.Errorf("target file %s does not exist", target)
+		default:
+			return SelectionResult{}, fmt.Errorf("failed to stat %s: %w", target, statErr)
+		}
 	}
 
-	if statErr == nil && info.IsDir() {
-		if opts.OutputSet {
-			return nil, "", fmt.Errorf("--output is only supported when the path target is a file")
+	if len(kinds) == 1 {
+		for kind := range kinds {
+			result.TargetKind = kind
 		}
-		pairs, err := filterCurrentDirectoryScope(allConfigPairs, opts.Command, targetAbs)
-		if err != nil {
-			return nil, "", err
-		}
-		pairs, err = filterPairsByPatterns(pairs, opts.Patterns, cwdFromConfig(cfg))
-		if err != nil {
-			return nil, "", err
-		}
-		if len(pairs) == 0 {
-			return nil, "", fmt.Errorf("no configured file pairs selected for target directory %s", opts.Target)
-		}
-		return pairs, "directory", nil
+	} else if len(kinds) > 1 {
+		result.TargetKind = "multiple"
 	}
-
-	if statErr != nil && os.IsNotExist(statErr) {
-		return nil, "", fmt.Errorf("target file %s does not exist", opts.Target)
+	if len(dirScopes) == 1 && len(kinds) == 1 {
+		result.CurrentDirScope = dirScopes[0]
 	}
+	return result, nil
+}
 
-	return nil, "", fmt.Errorf("target %s is not configured", opts.Target)
+func matchPairsByPattern(filePairs []FilePair, pattern, command, cwd string) ([]FilePair, error) {
+	matcher, err := task.NewPatternMatcher([]string{pattern})
+	if err != nil {
+		return nil, err
+	}
+	selected := make([]FilePair, 0, len(filePairs))
+	for _, filePair := range filePairs {
+		if pairMatchesPattern(matcher, filePair, command, cwd) {
+			selected = append(selected, filePair)
+		}
+	}
+	return selected, nil
+}
+
+// pairMatchesPattern 按命令主侧匹配：decrypt 匹配密文路径，plan 和 diff
+// 匹配任一侧，其余命令匹配明文路径。
+func pairMatchesPattern(matcher task.PatternMatcher, filePair FilePair, command, cwd string) bool {
+	matches := func(path string) bool {
+		decided, included := matcher.Decision(DisplayPath(cwd, path), false)
+		return decided && included
+	}
+	switch command {
+	case task.ModeDecrypt:
+		return matches(filePair.EncryptedPath)
+	case task.ModePlan, task.ModeDiff:
+		return matches(filePair.PlaintextPath) || matches(filePair.EncryptedPath)
+	default:
+		return matches(filePair.PlaintextPath)
+	}
 }
 
 func configuredFilePairs(cfg *Config, mode string) ([]FilePair, error) {
@@ -344,34 +428,6 @@ func filterCurrentDirectoryScope(filePairs []FilePair, command, cwd string) ([]F
 			}
 		}
 		if inside {
-			selected = append(selected, filePair)
-		}
-	}
-	return selected, nil
-}
-
-func filterPairsByPatterns(filePairs []FilePair, patterns []string, cwd string) ([]FilePair, error) {
-	if len(patterns) == 0 {
-		return filePairs, nil
-	}
-	matcher, err := task.NewPatternMatcher(patterns)
-	if err != nil {
-		return nil, err
-	}
-	selected := make([]FilePair, 0, len(filePairs))
-	for _, filePair := range filePairs {
-		plain := DisplayPath(cwd, filePair.PlaintextPath)
-		enc := DisplayPath(cwd, filePair.EncryptedPath)
-		plainDecided, plainIncluded := matcher.Decision(filepath.ToSlash(plain), false)
-		encDecided, encIncluded := matcher.Decision(filepath.ToSlash(enc), false)
-		included := false
-		if plainDecided {
-			included = plainIncluded
-		}
-		if encDecided {
-			included = encIncluded
-		}
-		if included {
 			selected = append(selected, filePair)
 		}
 	}

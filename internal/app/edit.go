@@ -33,7 +33,7 @@ func EditEncryptedFile(req EditRequest) error {
 	}
 	selection, err := config.ResolveSelection(cfg, config.SelectionOptions{
 		Command:             "decrypt",
-		Target:              req.File,
+		Targets:             []string{req.File},
 		RequireSingleTarget: true,
 		AllowEmptyTarget:    false,
 		StrictRecipients:    true,

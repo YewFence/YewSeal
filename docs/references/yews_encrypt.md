@@ -7,17 +7,16 @@ title: yews encrypt
 Encrypt configuration file (supports .toml, .yaml, .yml, .json, .env, .ini, and binary output)
 
 ```
-yews encrypt [command options] [path] [flags]
+yews encrypt [command options] [path-or-pattern]... [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help              help for encrypt
-  -o, --output string     Output encrypted file for a single file target
-  -P, --parallel int      Number of parallel workers for batch mode (minimum 1) (default 1)
-      --pattern strings   Pattern filter for configured groups
-  -v, --verbose           Enable verbose output
+  -h, --help            help for encrypt
+  -o, --output string   Output encrypted file for a single file target
+  -P, --parallel int    Number of parallel workers for batch mode (minimum 1) (default 1)
+  -v, --verbose         Enable verbose output
 ```
 
 ### Options inherited from parent commands

@@ -25,7 +25,7 @@ func TestSelectFilePairsExplicitFileOverridesGroupPair(t *testing.T) {
 		},
 	}
 
-	result, err := SelectFilePairs(cfg, SelectionOptions{Command: task.ModeEncrypt, Target: plaintext})
+	result, err := SelectFilePairs(cfg, SelectionOptions{Command: task.ModeEncrypt, Targets: []string{plaintext}})
 	require.NoError(t, err)
 	require.Len(t, result.FilePairs, 1)
 	require.NotNil(t, result.FilePairs[0].Recipients)

@@ -73,7 +73,7 @@ func TestDecryptResolutionWarnsForUnknownAlias(t *testing.T) {
 	}
 
 	t.Chdir(cfg.CurrentDir)
-	selection, err := ResolveSelection(cfg, SelectionOptions{Command: task.ModeDecrypt, Target: "config.enc.yaml"})
+	selection, err := ResolveSelection(cfg, SelectionOptions{Command: task.ModeDecrypt, Targets: []string{"config.enc.yaml"}})
 	require.NoError(t, err)
 	require.Len(t, selection.FilePairs, 1)
 	assert.Contains(t, selection.FilePairs[0].RecipientWarning, `unknown recipient alias "removed"`)

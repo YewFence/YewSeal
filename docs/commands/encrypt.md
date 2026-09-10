@@ -5,7 +5,7 @@
 ## 语法
 
 ```bash
-yews encrypt [command options] [path]
+yews encrypt [command options] [path-or-pattern]...
 ```
 
 别名是 `e`。
@@ -32,15 +32,16 @@ yews encrypt config.toml -o config.enc.toml
 
 `--output` 只支持文件目标，不支持配置模式或目录扫描。
 
-### --pattern
+### 位置参数：文件、目录与模式
 
-进一步筛选配置范围或目录目标内已登记的映射。规则相对于当前工作目录，可匹配明文或密文路径，不覆盖 Group 的发现规则或登记额外文件。
+每个位置参数是一个选择器：已登记映射的明文或密文路径选中单个文件；已存在的目录选中其范围内（明文侧）的映射；含 `*`、`?` 等元字符的参数视为模式，与已登记映射的明文路径求交集。多个参数取并集，模式只包含不排除，排除规则由 Group 的 `patterns` 在配置中声明。任一参数没有命中都会报错。
 
 ```bash
-yews encrypt ./configs --pattern "*.toml" --pattern "!*.enc.toml"
+# 选中 ./configs 下所有已登记的 .toml 明文文件
+yews encrypt './configs/*.toml'
 ```
 
-规则支持 `*`、`?`、`**`、以 `!` 开头的排除规则、以 `/` 开头的根目录锚定规则和以 `/` 结尾的目录规则。
+`encrypt` 的模式只匹配明文路径，密文文件天然不会被重复加密。模式支持 `*`、`?`、`**`、以 `/` 开头的锚定规则，相对于当前工作目录。
 
 ### --parallel, -P
 
@@ -74,8 +75,8 @@ yews encrypt config.enc.toml
 # 为已配置目标临时覆盖输出路径
 yews encrypt config.toml -o review/config.enc.toml
 
-# 在已配置 Group 的目录范围内筛选文件
-yews encrypt ./configs --pattern "*.toml"
+# 用模式选中 ./configs 下已登记的 .toml 文件
+yews encrypt './configs/*.toml'
 
 # .dev.vars 的 ENV 格式应在项目配置中声明
 yews encrypt .dev.vars -o .dev.enc.env

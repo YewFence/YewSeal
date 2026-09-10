@@ -63,6 +63,6 @@ func TestPlanHelpAndCompletionDoNotExposeExecutionFlags(t *testing.T) {
 		require.NoError(t, cmd.Execute())
 		require.NotContains(t, output.String(), "--output")
 		require.NotContains(t, output.String(), "--parallel")
-		require.Contains(t, output.String(), "--pattern")
+		require.NotContains(t, output.String(), "--pattern")
 	}
 }

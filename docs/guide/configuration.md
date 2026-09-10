@@ -106,7 +106,7 @@ unknown_as_binary = false
 
 `format_rules` 使用 `<pattern>=<format>` 形式，会按匹配顺序决定格式。格式取值与 `format` 相同。`unknown_as_binary` 为 `true` 时，分组加密中无法识别格式的文件会按二进制文件处理。
 
-Group 的发现根目录始终是其所属配置目录。CLI 的目录 `path` 和 `--pattern` 只筛选已登记映射，不重新定义根目录或覆盖 Group 规则。目录范围在 encrypt 中看明文侧、decrypt 中看密文侧；没有 Group 时也能筛选显式 FilePair。
+Group 的发现根目录始终是其所属配置目录。CLI 的位置参数（文件、目录或模式）只筛选已登记映射，不重新定义根目录或覆盖 Group 规则。目录与模式范围在 encrypt 中看明文侧、decrypt 中看密文侧、plan 和 diff 看两侧；没有 Group 时也能筛选显式 FilePair。
 
 `plan` 是无方向的配置映射检查：Group 发现取明文与密文两侧的并集，目录范围匹配任一侧。它和 encrypt 对本次已加载配置所解析出的全部映射采用严格授权检查，未选中映射的授权错误也会失败；decrypt 保留失效 alias 的历史解密例外。`plan` 不读取私钥，不是加密或解密的 dry run，详见 [plan](/commands/plan)。
 

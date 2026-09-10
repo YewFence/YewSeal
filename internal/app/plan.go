@@ -18,15 +18,13 @@ type PlanPrintOptions struct {
 }
 
 type PlanRequest struct {
-	Target   string
-	Patterns []string
+	Targets []string
 }
 
 func PrintPlan(w io.Writer, cfg *config.Config, req PlanRequest, opts PlanPrintOptions) error {
 	selection, err := config.ResolveSelection(cfg, config.SelectionOptions{
-		Command:  task.ModePlan,
-		Target:   req.Target,
-		Patterns: req.Patterns,
+		Command: task.ModePlan,
+		Targets: req.Targets,
 	})
 	if err != nil {
 		return err

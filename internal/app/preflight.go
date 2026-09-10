@@ -15,10 +15,9 @@ type PreflightResult struct {
 func PreflightEncrypt(cfg *config.Config, req EncryptRequest) (PreflightResult, error) {
 	selection, err := config.ResolveSelection(cfg, config.SelectionOptions{
 		Command:   task.ModeEncrypt,
-		Target:    req.Target,
+		Targets:   req.Targets,
 		Output:    req.Output,
 		OutputSet: req.OutputSet,
-		Patterns:  req.Patterns,
 	})
 	if err != nil {
 		return PreflightResult{}, err
@@ -29,10 +28,9 @@ func PreflightEncrypt(cfg *config.Config, req EncryptRequest) (PreflightResult, 
 func PreflightDecrypt(cfg *config.Config, req DecryptRequest) (PreflightResult, error) {
 	selection, err := config.ResolveSelection(cfg, config.SelectionOptions{
 		Command:   task.ModeDecrypt,
-		Target:    req.Target,
+		Targets:   req.Targets,
 		Output:    req.Output,
 		OutputSet: req.OutputSet,
-		Patterns:  req.Patterns,
 	})
 	if err != nil {
 		return PreflightResult{}, err

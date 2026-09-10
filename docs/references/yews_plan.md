@@ -7,16 +7,15 @@ title: yews plan
 Check configured file mappings, formats, and recipient authorization without writing files
 
 ```
-yews plan [command options] [path] [flags]
+yews plan [command options] [path-or-pattern]... [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help              help for plan
-      --json              Print configured file mappings as JSON
-      --pattern strings   Pattern filter for registered file mappings
-  -v, --verbose           Enable verbose output
+  -h, --help      help for plan
+      --json      Print configured file mappings as JSON
+  -v, --verbose   Enable verbose output
 ```
 
 ### Options inherited from parent commands

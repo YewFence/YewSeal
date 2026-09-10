@@ -56,7 +56,7 @@ func TestSelectFilePairsDirectorySkipsConfiguredCustomEncryptedPaths(t *testing.
 		},
 	}
 
-	result, err := SelectFilePairs(cfg, SelectionOptions{Command: task.ModeEncrypt, Target: secretsDir})
+	result, err := SelectFilePairs(cfg, SelectionOptions{Command: task.ModeEncrypt, Targets: []string{secretsDir}})
 	require.NoError(t, err)
 	require.Len(t, result.FilePairs, 2)
 	assert.ElementsMatch(t, []string{plaintext, otherPlaintext}, []string{result.FilePairs[0].PlaintextPath, result.FilePairs[1].PlaintextPath})
@@ -142,7 +142,7 @@ func TestSelectFilePairs_TargetMatchesEitherSideOfConfiguredPair(t *testing.T) {
 
 	result, err := SelectFilePairs(cfg, SelectionOptions{
 		Command: task.ModeEncrypt,
-		Target:  filepath.Join(root, ".env.enc.yaml"),
+		Targets: []string{filepath.Join(root, ".env.enc.yaml")},
 	})
 	require.NoError(t, err)
 	require.Len(t, result.FilePairs, 1)
@@ -150,7 +150,7 @@ func TestSelectFilePairs_TargetMatchesEitherSideOfConfiguredPair(t *testing.T) {
 	assert.Equal(t, filepath.Join(root, ".env.enc.yaml"), result.FilePairs[0].EncryptedPath)
 }
 
-func TestSelectFilePairs_PatternFiltersPlaintextAndEncryptedPaths(t *testing.T) {
+func TestSelectFilePairs_PatternTargetMatchesCommandPrimarySide(t *testing.T) {
 	root := t.TempDir()
 	cfg := &Config{
 		CurrentDir: root,
@@ -171,14 +171,84 @@ func TestSelectFilePairs_PatternFiltersPlaintextAndEncryptedPaths(t *testing.T) 
 		},
 	}
 
+	// encrypt 匹配明文侧：packages/api/* 只选中 api 的映射
 	result, err := SelectFilePairs(cfg, SelectionOptions{
-		Command:          task.ModeEncrypt,
-		AllowEmptyTarget: true,
-		Patterns:         []string{"*.enc.yaml", "!packages/web/**"},
+		Command: task.ModeEncrypt,
+		Targets: []string{"packages/api/*"},
 	})
 	require.NoError(t, err)
 	require.Len(t, result.FilePairs, 1)
 	assert.Equal(t, filepath.Join(root, "packages", "api", ".env"), result.FilePairs[0].PlaintextPath)
+
+	// decrypt 匹配密文侧：*.enc.yaml 选中两个映射
+	result, err = SelectFilePairs(cfg, SelectionOptions{
+		Command: task.ModeDecrypt,
+		Targets: []string{"*.enc.yaml"},
+	})
+	require.NoError(t, err)
+	assert.Len(t, result.FilePairs, 2)
+
+	// encrypt 匹配明文侧：*.enc.yaml 不命中任何明文路径，报错
+	_, err = SelectFilePairs(cfg, SelectionOptions{
+		Command: task.ModeEncrypt,
+		Targets: []string{"*.enc.yaml"},
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "matches no configured file pairs")
+}
+
+func TestSelectFilePairs_MultipleTargetsUnionAndDedupe(t *testing.T) {
+	root := t.TempDir()
+	cfg := &Config{
+		CurrentDir: root,
+		UserConfig: true,
+		Encryption: EncryptionConfig{
+			Files: []FilePair{
+				{
+					PlaintextPath: filepath.Join(root, "a.yaml"),
+					EncryptedPath: filepath.Join(root, "a.enc.yaml"),
+					Format:        "yaml",
+				},
+				{
+					PlaintextPath: filepath.Join(root, "b.yaml"),
+					EncryptedPath: filepath.Join(root, "b.enc.yaml"),
+					Format:        "yaml",
+				},
+			},
+		},
+	}
+
+	// 精确路径与模式取并集，重叠的映射只选一次
+	result, err := SelectFilePairs(cfg, SelectionOptions{
+		Command: task.ModeEncrypt,
+		Targets: []string{filepath.Join(root, "a.yaml"), "*.yaml"},
+	})
+	require.NoError(t, err)
+	assert.Len(t, result.FilePairs, 2)
+}
+
+func TestSelectFilePairs_DirectoryTargetSetsCurrentDirScope(t *testing.T) {
+	root := t.TempDir()
+	subDir := filepath.Join(root, "configs")
+	require.NoError(t, os.MkdirAll(subDir, 0755))
+	cfg := &Config{
+		CurrentDir: root,
+		UserConfig: true,
+		Encryption: EncryptionConfig{
+			Files: []FilePair{
+				{
+					PlaintextPath: filepath.Join(subDir, "a.yaml"),
+					EncryptedPath: filepath.Join(subDir, "a.enc.yaml"),
+					Format:        "yaml",
+				},
+			},
+		},
+	}
+
+	result, err := SelectFilePairs(cfg, SelectionOptions{Command: task.ModeEncrypt, Targets: []string{subDir}})
+	require.NoError(t, err)
+	require.Len(t, result.FilePairs, 1)
+	assert.Equal(t, subDir, result.CurrentDirScope)
 }
 
 func TestPathWithinHandlesMixedSeparators(t *testing.T) {
@@ -198,7 +268,7 @@ func TestResolvePlanSelection_RejectsUnconfiguredTarget(t *testing.T) {
 
 	_, err := ResolveSelection(cfg, SelectionOptions{
 		Command: task.ModePlan,
-		Target:  filepath.Join(root, ".dev.vars"),
+		Targets: []string{filepath.Join(root, ".dev.vars")},
 	})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "does not exist")
@@ -208,9 +278,9 @@ func TestSelectFilePairsPatternCannotCreateTemporaryGroup(t *testing.T) {
 	root := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(root, "secret.yaml"), []byte("secret: value\n"), 0644))
 	cfg := &Config{CurrentDir: root}
-	_, err := SelectFilePairs(cfg, SelectionOptions{Command: task.ModeEncrypt, Patterns: []string{"*.yaml"}})
+	_, err := SelectFilePairs(cfg, SelectionOptions{Command: task.ModeEncrypt, Targets: []string{"*.yaml"}})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "no configured file pairs selected")
+	assert.Contains(t, err.Error(), "matches no configured file pairs")
 }
 
 func TestResolvePlanSelectionEncryptedTargetStillRequiresAuthorization(t *testing.T) {
@@ -218,7 +288,7 @@ func TestResolvePlanSelectionEncryptedTargetStillRequiresAuthorization(t *testin
 	encrypted := filepath.Join(root, "config.enc.yaml")
 	require.NoError(t, os.WriteFile(encrypted, []byte("encrypted"), 0600))
 	cfg := &Config{CurrentDir: root, Encryption: EncryptionConfig{Files: []FilePair{{PlaintextPath: filepath.Join(root, "config.yaml"), EncryptedPath: encrypted, Format: "yaml"}}}}
-	_, err := ResolveSelection(cfg, SelectionOptions{Command: task.ModePlan, Target: encrypted})
+	_, err := ResolveSelection(cfg, SelectionOptions{Command: task.ModePlan, Targets: []string{encrypted}})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "no recipient set")
 }
@@ -332,7 +402,7 @@ func TestResolveSelectionExplicitFileOverridesConflictingGroups(t *testing.T) {
 	secondAliases := []string{"second"}
 	explicitAliases := []string{"first"}
 	cfg := &Config{CurrentDir: root, UserConfig: true, Recipients: RecipientConfig{Registry: map[string]string{"first": first.Recipient().String(), "second": second.Recipient().String()}}, Encryption: EncryptionConfig{Files: []FilePair{{PlaintextPath: path, EncryptedPath: filepath.Join(root, "explicit.enc.yaml"), Format: "yaml", Recipients: &explicitAliases}}, Groups: []GroupConfig{{Patterns: []string{"config/*.yaml"}, ConfigDir: root, Recipients: &firstAliases}, {Patterns: []string{"config/*.yaml"}, ConfigDir: root, Recipients: &secondAliases}}}}
-	result, err := ResolveSelection(cfg, SelectionOptions{Command: task.ModeEncrypt, Target: path})
+	result, err := ResolveSelection(cfg, SelectionOptions{Command: task.ModeEncrypt, Targets: []string{path}})
 	require.NoError(t, err)
 	require.Len(t, result.FilePairs, 1)
 	assert.Equal(t, filepath.Join(root, "explicit.enc.yaml"), result.FilePairs[0].EncryptedPath)
@@ -360,7 +430,7 @@ func TestDiffRejectsConflictingGroupMappings(t *testing.T) {
 	require.ErrorContains(t, err, "conflicting group file pairs for comparison")
 	cfg.Encryption.Files = []FilePair{{PlaintextPath: filepath.Join(root, "custom.yaml"), EncryptedPath: filepath.Join(root, "config.enc.yaml"), Format: "yaml"}}
 	for _, target := range []string{"", root} {
-		selection, err := SelectFilePairs(cfg, SelectionOptions{Command: task.ModeDiff, Target: target})
+		selection, err := SelectFilePairs(cfg, SelectionOptions{Command: task.ModeDiff, Targets: []string{target}})
 		require.NoError(t, err)
 		require.Len(t, selection.FilePairs, 1)
 		require.Equal(t, filepath.Join(root, "custom.yaml"), selection.FilePairs[0].PlaintextPath)

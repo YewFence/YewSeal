@@ -5,7 +5,7 @@
 ## 语法
 
 ```bash
-yews decrypt [command options] [path]
+yews decrypt [command options] [path-or-pattern]...
 ```
 
 别名是 `d`。
@@ -32,15 +32,16 @@ yews decrypt config.enc.toml -o config.toml
 
 它表示一个输出文件，不是输出目录。批量模式即使只选中一个文件也不支持 `--output`。输出路径的扩展名不会改变解密格式，覆盖保护仍然生效。
 
-### --pattern
+### 位置参数：文件、目录与模式
 
-进一步筛选配置范围或目录目标内已登记的映射，不覆盖 Group 发现规则或登记额外文件。
+每个位置参数是一个选择器：已登记映射的明文或密文路径选中单个文件；已存在的目录选中其范围内（密文侧）的映射；含 `*`、`?` 等元字符的参数视为模式，与已登记映射的密文路径求交集。多个参数取并集，模式只包含不排除，排除规则由 Group 的 `patterns` 在配置中声明。任一参数没有命中都会报错。
 
 ```bash
-yews decrypt ./configs --pattern "*.toml"
+# 选中 ./configs 下所有已登记的 .enc.toml 密文
+yews decrypt './configs/*.enc.toml'
 ```
 
-`--pattern` 相对于当前工作目录匹配明文或密文路径。比如 `--pattern "*.toml"` 可以选中 `config.enc.toml` 所属的映射。
+模式支持 `*`、`?`、`**`、以 `/` 开头的锚定规则，相对于当前工作目录。
 
 ### --parallel, -P
 
@@ -89,8 +90,8 @@ yews decrypt config.enc.toml
 # 解密单个加密文件，并指定输出路径
 yews decrypt config.enc.toml -o config.toml
 
-# 在已配置 Group 的目录范围内筛选并解密
-yews decrypt ./configs --pattern "*.toml"
+# 用模式选中 ./configs 下已登记的密文并解密
+yews decrypt './configs/*.enc.toml'
 
 ```
 

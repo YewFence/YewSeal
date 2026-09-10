@@ -81,7 +81,7 @@ func ResolveSelection(cfg *Config, opts SelectionOptions) (ResolvedSelection, er
 	selected := make([]ResolvedFilePair, 0, len(result.FilePairs))
 	for _, pair := range result.FilePairs {
 		resolved := byPlaintext[cleanAbsPath(pair.PlaintextPath)]
-		resolved.SelectedBy = selectedBy(opts, result)
+		resolved.SelectedBy = selectedBy(result, pair)
 		if opts.OutputSet {
 			output := resolveCommandPath(cwdFromConfig(cfg), opts.Output)
 			source := ValueSource{Kind: ValueSourceArgument, Detail: "--output"}
@@ -263,15 +263,9 @@ func resolveFinalFormat(filePair FilePair) (string, ValueSource, error) {
 	return "", ValueSource{}, fmt.Errorf("could not detect format for %s (supported: toml, yaml, json, env, ini, binary)", filePair.PlaintextPath)
 }
 
-func selectedBy(opts SelectionOptions, result SelectionResult) string {
-	if len(opts.Patterns) > 0 {
-		return fmt.Sprintf("pattern %q", opts.Patterns[len(opts.Patterns)-1])
-	}
-	if strings.TrimSpace(opts.Target) != "" {
-		if result.TargetKind == "directory" {
-			return SelectedByDirectoryTarget
-		}
-		return SelectedByPathTarget
+func selectedBy(result SelectionResult, pair FilePair) string {
+	if label, ok := result.SelectedBy[cleanAbsPath(pair.PlaintextPath)]; ok && label != "" {
+		return label
 	}
 	if result.ConfigMode {
 		return SelectedByCurrentDirectory

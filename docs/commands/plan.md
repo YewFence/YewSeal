@@ -5,7 +5,7 @@
 ## 语法
 
 ```bash
-yews plan [command options] [path]
+yews plan [command options] [path-or-pattern]...
 ```
 
 ## 目标选择
@@ -20,12 +20,12 @@ Group 始终按所属配置目录和发现规则扫描，`plan` 使用明文侧�
 
 ## 选项
 
-### --pattern
+### 位置参数：文件、目录与模式
 
-进一步筛选配置范围或目录目标内已登记的映射，不覆盖 Group 的发现规则，也不会登记额外文件。筛选规则相对于当前工作目录，允许匹配明文或密文路径。
+每个位置参数是一个选择器：已登记映射的明文或密文路径选中单个文件；已存在的目录选中其范围内的映射；含 `*`、`?` 等元字符的参数视为模式，与已登记映射求交集（明文或密文路径命中均可）。多个参数取并集，模式只包含不排除。任一参数没有命中都会报错。
 
 ```bash
-yews plan ./configs --pattern "*.toml"
+yews plan './configs/*.toml'
 ```
 
 ### --json
@@ -56,8 +56,8 @@ yews plan
 yews plan config.toml
 yews plan config.enc.toml
 
-# 筛选目录内已登记的映射
-yews plan ./configs --pattern "*.toml"
+# 用模式筛选已登记的映射
+yews plan './configs/*.toml'
 
 # 输出 JSON 供脚本读取
 yews plan --json

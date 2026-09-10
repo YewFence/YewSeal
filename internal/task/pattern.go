@@ -30,6 +30,12 @@ func NewPatternMatcher(patterns []string) (PatternMatcher, error) {
 	return PatternMatcher{rules: rules}, nil
 }
 
+// HasPatternMeta 报告 value 是否包含 glob 元字符，用于把位置参数区分为
+// 精确路径或模式。
+func HasPatternMeta(value string) bool {
+	return strings.ContainsAny(value, "*?[")
+}
+
 // ParsePatternRules 校验并编译一组 gitignore 风格规则；空行和 # 开头的行
 // 会被跳过，`\#` 开头的规则按字面量 # 处理。
 func ParsePatternRules(patterns []string) ([]PatternRule, error) {

@@ -4,26 +4,33 @@ import (
 	"fmt"
 	"os"
 	"strconv"
-	"strings"
 
 	"github.com/YewFence/YewSeal/internal/task"
 	"github.com/spf13/cobra"
 )
 
-func validateBatchArgs(cmd *cobra.Command, args []string, patterns []string, parallel int) error {
-	if err := cobra.MaximumNArgs(1)(cmd, args); err != nil {
-		return err
-	}
+func validateBatchArgs(cmd *cobra.Command, args []string, parallel int) error {
 	if parallel < 1 {
 		return fmt.Errorf("--parallel must be at least 1")
 	}
-	if _, err := task.ParsePatternRules(patterns); err != nil {
-		return err
-	}
-	if strings.TrimSpace(firstArg(args)) == "" {
-		if flagChangedOrEnvSet(cmd.Flags(), "output", "SOPS_OUTPUT_FILE") {
-			return fmt.Errorf("--output is only supported when the path target is a file")
+	for _, arg := range args {
+		if err := validateTargetArg(arg); err != nil {
+			return err
 		}
+	}
+	if flagChangedOrEnvSet(cmd.Flags(), "output", "SOPS_OUTPUT_FILE") && len(args) != 1 {
+		return fmt.Errorf("--output is only supported with exactly one file target")
+	}
+	return nil
+}
+
+// validateTargetArg 校验单个位置参数：含 glob 元字符的参数必须是合法模式。
+func validateTargetArg(arg string) error {
+	if !task.HasPatternMeta(arg) {
+		return nil
+	}
+	if _, err := task.NewPatternMatcher([]string{arg}); err != nil {
+		return fmt.Errorf("invalid target pattern %q: %w", arg, err)
 	}
 	return nil
 }

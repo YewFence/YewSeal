@@ -20,7 +20,7 @@ func TestEncryptDecryptSingleFileOutputUsesConfiguredFormat(t *testing.T) {
 	cfg := configWithOwnerRecipient(&config.Config{Encryption: config.EncryptionConfig{Files: []config.FilePair{{PlaintextPath: "secrets.vars", EncryptedPath: "secrets.vars.enc.yaml", Format: "env"}}}}, env.publicKey)
 
 	err := EncryptFiles(cfg, EncryptRequest{
-		Target:    "secrets.vars",
+		Targets:   []string{"secrets.vars"},
 		Output:    "secrets.vars.enc.yaml",
 		OutputSet: true,
 		Parallel:  1,
@@ -30,7 +30,7 @@ func TestEncryptDecryptSingleFileOutputUsesConfiguredFormat(t *testing.T) {
 	require.NoError(t, os.Remove("secrets.vars"))
 	err = DecryptFiles(cfg, DecryptRequest{
 		KeyFile:   env.keyFile,
-		Target:    "secrets.vars.enc.yaml",
+		Targets:   []string{"secrets.vars.enc.yaml"},
 		Output:    "secrets.vars",
 		OutputSet: true,
 		Parallel:  1,
@@ -67,7 +67,7 @@ func TestEncryptFilesUsesPerFileRecipientAliases(t *testing.T) {
 		},
 	}
 
-	require.NoError(t, EncryptFiles(cfg, EncryptRequest{Target: "config.yaml", Parallel: 1}))
+	require.NoError(t, EncryptFiles(cfg, EncryptRequest{Targets: []string{"config.yaml"}, Parallel: 1}))
 
 	recipients, err := seal.ExtractAgeRecipientsFromEncryptedFile("config.enc.yaml", "config.yaml", "")
 	require.NoError(t, err)
@@ -79,7 +79,7 @@ func TestEncryptFiles_DirModeRejectsOutput(t *testing.T) {
 	tempDir := t.TempDir()
 
 	err := EncryptFiles(cfg, EncryptRequest{
-		Target:    tempDir,
+		Targets:   []string{tempDir},
 		Output:    "out.enc.yaml",
 		OutputSet: true,
 	})
@@ -93,7 +93,7 @@ func TestDecryptFiles_DirModeRejectsOutput(t *testing.T) {
 	tempDir := t.TempDir()
 
 	err := DecryptFiles(cfg, DecryptRequest{
-		Target:    tempDir,
+		Targets:   []string{tempDir},
 		Output:    "out.yaml",
 		OutputSet: true,
 	})
@@ -115,7 +115,7 @@ func TestEncryptFiles_TargetFileUsesConfiguredPair(t *testing.T) {
 	}, env.publicKey)
 
 	err := EncryptFiles(cfg, EncryptRequest{
-		Target:   ".dev.vars",
+		Targets:  []string{".dev.vars"},
 		Parallel: 1,
 	})
 	require.NoError(t, err)
@@ -132,7 +132,7 @@ func TestEncryptFilesConfiguredFormatHandlesExtensionlessInput(t *testing.T) {
 
 	cfg := configWithOwnerRecipient(&config.Config{Encryption: config.EncryptionConfig{Files: []config.FilePair{{PlaintextPath: "secret", EncryptedPath: "secret.enc.env", Format: "env"}}}}, env.publicKey)
 	err := EncryptFiles(cfg, EncryptRequest{
-		Target:   "secret",
+		Targets:  []string{"secret"},
 		Parallel: 1,
 	})
 	require.NoError(t, err)
@@ -146,7 +146,7 @@ func TestDecryptFiles_TargetFileOutputOverride(t *testing.T) {
 	require.NoError(t, os.WriteFile("config.yaml", []byte("token: secret\n"), 0644))
 	cfg := configWithOwnerRecipient(&config.Config{Encryption: config.EncryptionConfig{Files: []config.FilePair{{PlaintextPath: "config.yaml", EncryptedPath: "config.enc.yaml"}}}}, env.publicKey)
 	err := EncryptFiles(cfg, EncryptRequest{
-		Target:   "config.yaml",
+		Targets:  []string{"config.yaml"},
 		Parallel: 1,
 	})
 	require.NoError(t, err)
@@ -154,7 +154,7 @@ func TestDecryptFiles_TargetFileOutputOverride(t *testing.T) {
 
 	err = DecryptFiles(cfg, DecryptRequest{
 		KeyFile:   env.keyFile,
-		Target:    "config.enc.yaml",
+		Targets:   []string{"config.enc.yaml"},
 		Output:    "custom.json",
 		OutputSet: true,
 		Parallel:  1,
@@ -173,7 +173,7 @@ func TestEncryptFilesOutputOverrideKeepsInferredFormat(t *testing.T) {
 	plain := []byte("token: secret\n")
 	require.NoError(t, os.WriteFile("config.yaml", plain, 0600))
 	cfg := configWithOwnerRecipient(&config.Config{Encryption: config.EncryptionConfig{Files: []config.FilePair{{PlaintextPath: "config.yaml", EncryptedPath: "config.enc.yaml"}}}}, env.publicKey)
-	require.NoError(t, EncryptFiles(cfg, EncryptRequest{Target: "config.yaml", Output: "export.json", OutputSet: true}))
+	require.NoError(t, EncryptFiles(cfg, EncryptRequest{Targets: []string{"config.yaml"}, Output: "export.json", OutputSet: true}))
 	decrypted, err := seal.DecryptToBytes(seal.DecryptBytesOptions{
 		InputFile:      "export.json",
 		OutputFile:     "config.yaml",
@@ -230,7 +230,7 @@ func TestEncryptFilesRejectsMissingAuthorizationBeforeWrites(t *testing.T) {
 	t.Cleanup(func() { require.NoError(t, os.Chdir(oldWd)) })
 	require.NoError(t, os.WriteFile("secret.yaml", []byte("token: value\n"), 0644))
 	cfg := &config.Config{CurrentDir: root, UserConfig: true, Encryption: config.EncryptionConfig{Files: []config.FilePair{{PlaintextPath: "secret.yaml", EncryptedPath: "secret.enc.yaml", Format: "yaml"}}}}
-	err = EncryptFiles(cfg, EncryptRequest{Target: "secret.yaml", UpdateProjectMetadata: true})
+	err = EncryptFiles(cfg, EncryptRequest{Targets: []string{"secret.yaml"}, UpdateProjectMetadata: true})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "no recipient set")
 	_, statErr := os.Stat("secret.enc.yaml")
@@ -259,7 +259,7 @@ func TestEncryptFilesWritesPortableSopsPaths(t *testing.T) {
 	env := newAppCryptoTestEnv(t)
 	require.NoError(t, os.WriteFile("secret.yaml", []byte("token: value\n"), 0644))
 	cfg := configWithOwnerRecipient(&config.Config{CurrentDir: config.CurrentDir(&config.Config{}), Encryption: config.EncryptionConfig{Files: []config.FilePair{{PlaintextPath: "secret.yaml", EncryptedPath: "secret.enc.yaml", Format: "yaml"}}}}, env.publicKey)
-	require.NoError(t, EncryptFiles(cfg, EncryptRequest{Target: "secret.yaml", Parallel: 1, UpdateProjectMetadata: true}))
+	require.NoError(t, EncryptFiles(cfg, EncryptRequest{Targets: []string{"secret.yaml"}, Parallel: 1, UpdateProjectMetadata: true}))
 	content, err := os.ReadFile(".sops.yaml")
 	require.NoError(t, err)
 	assert.Contains(t, string(content), `path_regex: ^secret\.enc\.yaml$`)
@@ -278,7 +278,7 @@ func TestDecryptFilesWarnsForStaleAliasAndUsesEncryptedMetadata(t *testing.T) {
 	originalStderr := os.Stderr
 	os.Stderr = write
 	t.Cleanup(func() { os.Stderr = originalStderr })
-	err = DecryptFiles(cfg, DecryptRequest{KeyFile: env.keyFile, Target: "secret.enc.yaml", Parallel: 1})
+	err = DecryptFiles(cfg, DecryptRequest{KeyFile: env.keyFile, Targets: []string{"secret.enc.yaml"}, Parallel: 1})
 	require.NoError(t, write.Close())
 	os.Stderr = originalStderr
 	require.NoError(t, err)
@@ -302,7 +302,7 @@ func TestDecryptFilesUsesEnvironmentBundleWithoutKeyFile(t *testing.T) {
 	require.NoError(t, seal.Encrypt(seal.EncryptOptions{InputFile: "secret.yaml", OutputFile: "secret.enc.yaml", Recipients: []string{env.publicKey}, FormatOverride: "yaml"}))
 	require.NoError(t, os.Remove("secret.yaml"))
 	cfg := &config.Config{Encryption: config.EncryptionConfig{Files: []config.FilePair{{PlaintextPath: "secret.yaml", EncryptedPath: "secret.enc.yaml", Format: "yaml"}}}}
-	require.NoError(t, DecryptFiles(cfg, DecryptRequest{Target: "secret.enc.yaml", Parallel: 1}))
+	require.NoError(t, DecryptFiles(cfg, DecryptRequest{Targets: []string{"secret.enc.yaml"}, Parallel: 1}))
 	content, err := os.ReadFile("secret.yaml")
 	require.NoError(t, err)
 	assert.Equal(t, "token: value\n", string(content))
@@ -322,7 +322,7 @@ func TestDecryptFilesUsesSecondIdentityFromDefaultFile(t *testing.T) {
 	require.NoError(t, seal.Encrypt(seal.EncryptOptions{InputFile: "secret.yaml", OutputFile: "secret.enc.yaml", Recipients: []string{env.publicKey}, FormatOverride: "yaml"}))
 	require.NoError(t, os.Remove("secret.yaml"))
 	cfg := &config.Config{Encryption: config.EncryptionConfig{Files: []config.FilePair{{PlaintextPath: "secret.yaml", EncryptedPath: "secret.enc.yaml", Format: "yaml"}}}}
-	require.NoError(t, DecryptFiles(cfg, DecryptRequest{Target: "secret.enc.yaml", Parallel: 1}))
+	require.NoError(t, DecryptFiles(cfg, DecryptRequest{Targets: []string{"secret.enc.yaml"}, Parallel: 1}))
 	content, err := os.ReadFile("secret.yaml")
 	require.NoError(t, err)
 	assert.Equal(t, "token: value\n", string(content))

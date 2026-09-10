@@ -17,7 +17,7 @@ func ValidateCLIFormatOverride(format string) (string, error) {
 func WriteViewedTarget(w io.Writer, cfg *config.Config, target, keyFile string, verbose bool) error {
 	result, err := config.SelectFilePairs(cfg, config.SelectionOptions{
 		Command:             task.ModeDecrypt,
-		Target:              target,
+		Targets:             []string{target},
 		RequireSingleTarget: true,
 	})
 	if err != nil {

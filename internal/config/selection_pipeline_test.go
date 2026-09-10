@@ -34,19 +34,19 @@ func TestSelectionDirectoryOnlyFiltersRegisteredMappings(t *testing.T) {
 	registered := selectionFile(t, cfg.CurrentDir, "config/app.yaml")
 	selectionFile(t, cfg.CurrentDir, "extra/config/unregistered.yaml")
 	cfg.Encryption.Groups = []GroupConfig{{ConfigDir: cfg.CurrentDir, Patterns: []string{"/config/*.yaml"}}}
-	result, err := ResolveSelection(cfg, SelectionOptions{Command: task.ModeEncrypt, Target: filepath.Join(cfg.CurrentDir, "config")})
+	result, err := ResolveSelection(cfg, SelectionOptions{Command: task.ModeEncrypt, Targets: []string{filepath.Join(cfg.CurrentDir, "config")}})
 	require.NoError(t, err)
 	require.Len(t, result.FilePairs, 1)
 	require.Equal(t, registered, result.FilePairs[0].PlaintextPath)
 	require.Equal(t, PairSourceScan, result.FilePairs[0].Source)
 	require.Equal(t, SelectedByDirectoryTarget, result.FilePairs[0].SelectedBy)
-	filtered, err := ResolveSelection(cfg, SelectionOptions{Command: task.ModeEncrypt, Target: filepath.Join(cfg.CurrentDir, "config"), Patterns: []string{"/config/*.yaml"}})
+	filtered, err := ResolveSelection(cfg, SelectionOptions{Command: task.ModeEncrypt, Targets: []string{"config/*.yaml"}})
 	require.NoError(t, err)
 	require.Len(t, filtered.FilePairs, 1)
 	require.Equal(t, registered, filtered.FilePairs[0].PlaintextPath)
-	_, err = ResolveSelection(cfg, SelectionOptions{Command: task.ModeEncrypt, Target: filepath.Join(cfg.CurrentDir, "extra")})
+	_, err = ResolveSelection(cfg, SelectionOptions{Command: task.ModeEncrypt, Targets: []string{filepath.Join(cfg.CurrentDir, "extra")}})
 	require.Error(t, err)
-	_, err = ResolveSelection(cfg, SelectionOptions{Command: task.ModeEncrypt, Target: filepath.Join(cfg.CurrentDir, "extra"), Patterns: []string{"*.yaml"}})
+	_, err = ResolveSelection(cfg, SelectionOptions{Command: task.ModeEncrypt, Targets: []string{"extra/*.yaml"}})
 	require.Error(t, err, "a CLI pattern cannot register additional files")
 }
 
@@ -65,7 +65,7 @@ func TestSelectionExplicitDirectoryUsesCommandSide(t *testing.T) {
 		{"plan", "app", true}, {"plan", "secrets", true},
 	} {
 		t.Run(tc.command+"/"+tc.dir, func(t *testing.T) {
-			result, err := ResolveSelection(cfg, SelectionOptions{Command: tc.command, Target: filepath.Join(cfg.CurrentDir, tc.dir)})
+			result, err := ResolveSelection(cfg, SelectionOptions{Command: tc.command, Targets: []string{filepath.Join(cfg.CurrentDir, tc.dir)}})
 			if !tc.want {
 				require.Error(t, err)
 				return
@@ -84,7 +84,7 @@ func TestPlanDiscoversBothSidesWithoutInspectingContent(t *testing.T) {
 	}
 	cfg.Encryption.Groups = []GroupConfig{{ConfigDir: cfg.CurrentDir}}
 	for _, target := range []string{"", cfg.CurrentDir, filepath.Join(cfg.CurrentDir, "remote.enc.yaml")} {
-		result, err := ResolveSelection(cfg, SelectionOptions{Command: task.ModePlan, Target: target})
+		result, err := ResolveSelection(cfg, SelectionOptions{Command: task.ModePlan, Targets: []string{target}})
 		require.NoError(t, err)
 		require.Equal(t, "plan", result.Command)
 		if target == filepath.Join(cfg.CurrentDir, "remote.enc.yaml") {
@@ -125,7 +125,7 @@ func TestSelectionChecksUnselectedAuthorizationBeforeFiltering(t *testing.T) {
 		{PlaintextPath: filepath.Join(cfg.CurrentDir, "bad.yaml"), EncryptedPath: filepath.Join(cfg.CurrentDir, "bad.enc.yaml"), Recipients: &missing},
 	}
 	for _, command := range []string{task.ModeEncrypt, "plan"} {
-		_, err := ResolveSelection(cfg, SelectionOptions{Command: command, Target: good})
+		_, err := ResolveSelection(cfg, SelectionOptions{Command: command, Targets: []string{good}})
 		require.ErrorContains(t, err, "unknown recipient alias")
 	}
 	result, err := ResolveSelection(cfg, SelectionOptions{Command: task.ModeDecrypt})
@@ -165,7 +165,7 @@ func TestSelectionOutputOverridePreservesRegisteredSnapshot(t *testing.T) {
 	cfg.Encryption.Files = []FilePair{{PlaintextPath: plain, EncryptedPath: enc}}
 	for _, command := range []string{task.ModeEncrypt, task.ModeDecrypt} {
 		for _, target := range []string{plain, enc} {
-			result, err := ResolveSelection(cfg, SelectionOptions{Command: command, Target: target, OutputSet: true, Output: "export.json"})
+			result, err := ResolveSelection(cfg, SelectionOptions{Command: command, Targets: []string{target}, OutputSet: true, Output: "export.json"})
 			require.NoError(t, err)
 			require.Len(t, result.FilePairs, 1)
 			require.Len(t, result.AllConfigPairs, 1)
@@ -182,6 +182,6 @@ func TestSelectionOutputOverridePreservesRegisteredSnapshot(t *testing.T) {
 			}
 		}
 	}
-	_, err := ResolveSelection(cfg, SelectionOptions{Command: task.ModePlan, Target: plain, OutputSet: true, Output: "export.json"})
+	_, err := ResolveSelection(cfg, SelectionOptions{Command: task.ModePlan, Targets: []string{plain}, OutputSet: true, Output: "export.json"})
 	require.ErrorContains(t, err, "plan does not support output overrides")
 }

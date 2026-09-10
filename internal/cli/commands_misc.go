@@ -99,11 +99,13 @@ func diffCommand(load configLoader, keyFile *string) *cobra.Command {
 	var strict bool
 
 	cmd := &cobra.Command{
-		Use:   "diff [target]",
+		Use:   "diff [path-or-pattern]...",
 		Short: "Compare plaintext file with decrypted encrypted file",
 		Args: func(cmd *cobra.Command, args []string) error {
-			if err := cobra.MaximumNArgs(1)(cmd, args); err != nil {
-				return err
+			for _, arg := range args {
+				if err := validateTargetArg(arg); err != nil {
+					return err
+				}
 			}
 			_, err := yewsapp.ResolveDiffColor(color, os.Stdout)
 			if err != nil {
@@ -112,7 +114,7 @@ func diffCommand(load configLoader, keyFile *string) *cobra.Command {
 			return resolveStrict(cmd, &strict)
 		},
 		RunE: withConfig(load, func(cmd *cobra.Command, args []string, cfg *config.Config) error {
-			_, err := yewsapp.DiffPlaintextAgainstEncryptedTargets(os.Stdout, os.Stderr, cfg, firstArg(args), *keyFile, verbose, color, strict)
+			_, err := yewsapp.DiffPlaintextAgainstEncryptedTargets(os.Stdout, os.Stderr, cfg, args, *keyFile, verbose, color, strict)
 			return err
 		}),
 	}

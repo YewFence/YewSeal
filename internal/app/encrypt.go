@@ -10,8 +10,7 @@ type EncryptRequest struct {
 	Verbose               bool
 	Output                string
 	OutputSet             bool
-	Target                string
-	Patterns              []string
+	Targets               []string
 	Parallel              int
 	UpdateProjectMetadata bool
 }

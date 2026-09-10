@@ -77,7 +77,7 @@ yews encrypt config.toml
 yews encrypt config.toml -o config.enc.toml
 
 # 在已配置 Group 的目录范围内筛选并加密
-yews encrypt ./configs --pattern "*.toml"
+yews encrypt './configs/*.toml'
 ```
 
 ### 解密配置文件
@@ -93,7 +93,7 @@ yews decrypt config.enc.toml
 yews decrypt config.enc.toml -o config.toml
 
 # 在已配置 Group 的目录范围内筛选并解密
-yews decrypt ./configs --pattern "*.toml"
+yews decrypt './configs/*.enc.toml'
 ```
 
 默认情况下，`decrypt` 发现明文文件已存在且内容不一致时会拒绝覆盖，可以加上 `--force` 强制写入。
@@ -102,7 +102,7 @@ yews decrypt ./configs --pattern "*.toml"
 
 ```bash
 yews plan
-yews plan ./configs --pattern "*.toml"
+yews plan './configs/*.toml'
 yews plan --json
 ```
 
