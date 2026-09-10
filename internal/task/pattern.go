@@ -4,17 +4,20 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+
+	"github.com/go-git/go-git/v5/plumbing/format/gitignore"
 )
 
+// PatternRule 是一条通过校验的 gitignore 风格规则，匹配语义由 go-git 的
+// gitignore 实现提供。YewSeal 的 patterns 表达“选中”而非“忽略”：普通规则
+// 命中表示选中文件，`!` 规则命中表示排除文件。
 type PatternRule struct {
-	Raw           string
-	Negated       bool
-	DirectoryOnly bool
-	Anchored      bool
-	HasSlash      bool
-	Segments      []string
+	Raw     string
+	Negated bool
+	pattern gitignore.Pattern
 }
 
+// PatternMatcher 按顺序应用一组 PatternRule，最后一条命中的规则生效。
 type PatternMatcher struct {
 	rules []PatternRule
 }
@@ -27,10 +30,12 @@ func NewPatternMatcher(patterns []string) (PatternMatcher, error) {
 	return PatternMatcher{rules: rules}, nil
 }
 
+// ParsePatternRules 校验并编译一组 gitignore 风格规则；空行和 # 开头的行
+// 会被跳过，`\#` 开头的规则按字面量 # 处理。
 func ParsePatternRules(patterns []string) ([]PatternRule, error) {
 	rules := make([]PatternRule, 0, len(patterns))
 	for _, raw := range patterns {
-		ruleText := strings.TrimSpace(raw)
+		ruleText := raw
 		if ruleText == "" || strings.HasPrefix(ruleText, "#") {
 			continue
 		}
@@ -39,86 +44,62 @@ func ParsePatternRules(patterns []string) ([]PatternRule, error) {
 		}
 
 		rule := PatternRule{Raw: raw}
-		if strings.HasPrefix(ruleText, "!") {
+		// 匹配语义遵循上游 gitignore 与 Go filepath.Match：空白、转义与
+		// 路径分隔符都不做额外归一化（patterns 在所有平台以 `/` 作为
+		// 路径分隔符），本层只做结构校验。
+		check := ruleText
+		if strings.HasPrefix(check, "!") {
 			rule.Negated = true
-			ruleText = strings.TrimSpace(ruleText[1:])
-			if ruleText == "" {
+			check = check[1:]
+			if check == "" {
 				return nil, fmt.Errorf("invalid group pattern %q: missing pattern after negation", raw)
 			}
 		}
-		ruleText = filepath.ToSlash(ruleText)
-		if strings.HasSuffix(ruleText, "/") {
-			rule.DirectoryOnly = true
-			ruleText = strings.TrimRight(ruleText, "/")
-			if ruleText == "" {
+		if strings.HasSuffix(check, "/") {
+			check = strings.TrimRight(check, "/")
+			if check == "" {
 				return nil, fmt.Errorf("invalid group pattern %q: directory pattern is empty", raw)
 			}
 		}
-		if strings.HasPrefix(ruleText, "/") {
-			rule.Anchored = true
-			ruleText = strings.TrimLeft(ruleText, "/")
-			if ruleText == "" {
+		if strings.HasPrefix(check, "/") {
+			check = strings.TrimLeft(check, "/")
+			if check == "" {
 				return nil, fmt.Errorf("invalid group pattern %q: anchored pattern is empty", raw)
 			}
 		}
-
-		rule.HasSlash = strings.Contains(ruleText, "/")
-		rule.Segments = strings.Split(ruleText, "/")
-		for _, segment := range rule.Segments {
+		for _, segment := range strings.Split(check, "/") {
 			if segment == "" {
 				return nil, fmt.Errorf("invalid group pattern %q: empty path segment", raw)
 			}
 		}
+
+		rule.pattern = gitignore.ParsePattern(ruleText, nil)
 		rules = append(rules, rule)
 	}
 	return rules, nil
 }
 
+// Decision 报告路径是否被任何规则命中（decided），以及按最后命中规则
+// 计算的是否选中（included）。
 func (m PatternMatcher) Decision(path string, isDir bool) (bool, bool) {
 	normalized := normalizePatternPath(path)
 	if normalized == "" {
 		return false, false
 	}
+	segments := strings.Split(normalized, "/")
 
 	decided := false
 	included := false
 	for _, rule := range m.rules {
-		if !rule.matches(normalized, isDir) {
-			continue
+		switch rule.pattern.Match(segments, isDir) {
+		case gitignore.Exclude:
+			// gitignore 的“忽略”对应 YewSeal 的“选中”。
+			decided, included = true, true
+		case gitignore.Include:
+			decided, included = true, false
 		}
-		decided = true
-		included = !rule.Negated
 	}
 	return decided, included
-}
-
-func (r PatternRule) matches(path string, isDir bool) bool {
-	pathSegments := strings.Split(path, "/")
-	if r.Anchored || r.HasSlash {
-		if r.DirectoryOnly {
-			return (isDir && matchSegments(r.Segments, pathSegments)) || r.matchesDirectoryDescendant(pathSegments, isDir)
-		}
-		return matchSegments(r.Segments, pathSegments)
-	}
-
-	for i, segment := range pathSegments {
-		if matchSegment(r.Segments[0], segment) {
-			return !r.DirectoryOnly || isDir || i < len(pathSegments)-1
-		}
-	}
-	return false
-}
-
-func (r PatternRule) matchesDirectoryDescendant(pathSegments []string, isDir bool) bool {
-	if !r.DirectoryOnly || isDir {
-		return false
-	}
-	for i := 1; i < len(pathSegments); i++ {
-		if matchSegments(r.Segments, pathSegments[:i]) {
-			return true
-		}
-	}
-	return false
 }
 
 func normalizePatternPath(path string) string {
@@ -127,56 +108,4 @@ func normalizePatternPath(path string) string {
 	normalized = strings.TrimPrefix(normalized, "/")
 	normalized = strings.TrimSuffix(normalized, "/")
 	return normalized
-}
-
-func matchSegments(pattern, path []string) bool {
-	if len(pattern) == 0 {
-		return len(path) == 0
-	}
-	if pattern[0] == "**" {
-		if matchSegments(pattern[1:], path) {
-			return true
-		}
-		for i := range path {
-			if matchSegments(pattern[1:], path[i+1:]) {
-				return true
-			}
-		}
-		return false
-	}
-	if len(path) == 0 {
-		return false
-	}
-	return matchSegment(pattern[0], path[0]) && matchSegments(pattern[1:], path[1:])
-}
-
-func matchSegment(pattern, value string) bool {
-	return matchSegmentFrom([]rune(pattern), []rune(value), 0, 0)
-}
-
-func matchSegmentFrom(pattern, value []rune, patternIndex, valueIndex int) bool {
-	for patternIndex < len(pattern) {
-		switch pattern[patternIndex] {
-		case '*':
-			for nextValue := valueIndex; nextValue <= len(value); nextValue++ {
-				if matchSegmentFrom(pattern, value, patternIndex+1, nextValue) {
-					return true
-				}
-			}
-			return false
-		case '?':
-			if valueIndex >= len(value) {
-				return false
-			}
-			patternIndex++
-			valueIndex++
-		default:
-			if valueIndex >= len(value) || pattern[patternIndex] != value[valueIndex] {
-				return false
-			}
-			patternIndex++
-			valueIndex++
-		}
-	}
-	return valueIndex == len(value)
 }
