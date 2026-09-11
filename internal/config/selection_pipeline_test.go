@@ -62,6 +62,8 @@ func TestSelectionExplicitDirectoryUsesCommandSide(t *testing.T) {
 	}{
 		{task.ModeEncrypt, "app", true}, {task.ModeEncrypt, "secrets", false},
 		{task.ModeDecrypt, "app", false}, {task.ModeDecrypt, "secrets", true},
+		{task.ModeView, "app", false}, {task.ModeView, "secrets", true},
+		{task.ModeDiff, "app", true}, {task.ModeDiff, "secrets", false},
 		{"plan", "app", true}, {"plan", "secrets", true},
 	} {
 		t.Run(tc.command+"/"+tc.dir, func(t *testing.T) {
@@ -75,6 +77,40 @@ func TestSelectionExplicitDirectoryUsesCommandSide(t *testing.T) {
 			require.Equal(t, ValueSourceExact, result.FilePairs[0].PlaintextSource.Kind)
 		})
 	}
+}
+
+func TestReadSelectionUsesHistoricalAuthorizationAndRejectsOutputOverrides(t *testing.T) {
+	for _, mode := range []string{task.ModeView, task.ModeDiff} {
+		t.Run(mode, func(t *testing.T) {
+			cfg := selectionConfig(t)
+			plain := selectionFile(t, cfg.CurrentDir, "config/dev.yaml")
+			enc := selectionFile(t, cfg.CurrentDir, "config/dev.enc.yaml")
+			aliases := []string{"deleted"}
+			cfg.Encryption.Groups = []GroupConfig{{ConfigDir: cfg.CurrentDir, Patterns: []string{"config/*.yaml"}, Recipients: &aliases}}
+			for _, target := range []string{plain, enc} {
+				result, err := ResolveSelection(cfg, SelectionOptions{Command: mode, Targets: []string{target}})
+				require.NoError(t, err)
+				require.Len(t, result.FilePairs, 1)
+				require.Contains(t, result.FilePairs[0].RecipientWarning, "unknown recipient alias")
+				_, err = ResolveSelection(cfg, SelectionOptions{Command: mode, Targets: []string{target}, OutputSet: true, Output: "elsewhere.yaml"})
+				require.ErrorContains(t, err, "does not support output overrides")
+			}
+		})
+	}
+}
+
+func TestDiffSelectionDoesNotDiscoverCiphertextOnlyGroups(t *testing.T) {
+	cfg := selectionConfig(t)
+	enc := selectionFile(t, cfg.CurrentDir, "remote.enc.yaml")
+	cfg.Encryption.Groups = []GroupConfig{{ConfigDir: cfg.CurrentDir}}
+	_, err := ResolveSelection(cfg, SelectionOptions{Command: task.ModeDiff})
+	require.ErrorContains(t, err, "no configured file pairs selected")
+	_, err = ResolveSelection(cfg, SelectionOptions{Command: task.ModeDiff, Targets: []string{enc}})
+	require.ErrorContains(t, err, "not configured")
+	cfg.Encryption.Files = []FilePair{{PlaintextPath: filepath.Join(cfg.CurrentDir, "remote.yaml"), EncryptedPath: enc}}
+	result, err := ResolveSelection(cfg, SelectionOptions{Command: task.ModeDiff, Targets: []string{enc}})
+	require.NoError(t, err)
+	require.Len(t, result.FilePairs, 1)
 }
 
 func TestPlanDiscoversBothSidesWithoutInspectingContent(t *testing.T) {

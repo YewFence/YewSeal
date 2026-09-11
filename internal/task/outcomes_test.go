@@ -82,7 +82,7 @@ func TestDecryptOutcomesAndSideEffects(t *testing.T) {
 	}
 }
 
-func TestDiffGroupUnion(t *testing.T) {
+func TestDiffGroupDiscoversPlaintextOnly(t *testing.T) {
 	for _, names := range [][]string{
 		{"dev.yaml", "dev.enc.yaml", "prod.enc.yaml", "new.yaml"},
 		{"prod.enc.yaml"},
@@ -97,7 +97,9 @@ func TestDiffGroupUnion(t *testing.T) {
 			require.NoError(t, err)
 			expected := 1
 			if len(names) > 1 {
-				expected = 3
+				expected = 2
+			} else if names[0] == "prod.enc.yaml" {
+				expected = 0
 			}
 			require.Len(t, pairs, expected)
 			for _, pair := range pairs {
@@ -107,7 +109,7 @@ func TestDiffGroupUnion(t *testing.T) {
 	}
 }
 
-func TestDiffGroupUnionKeepsExistingYMLPath(t *testing.T) {
+func TestDiffGroupKeepsExistingYMLPath(t *testing.T) {
 	root := t.TempDir()
 	for _, name := range []string{"config.yml", "config.enc.yaml"} {
 		require.NoError(t, os.WriteFile(filepath.Join(root, name), []byte("unused"), 0600))
@@ -122,12 +124,12 @@ func TestDiffGroupUnionKeepsExistingYMLPath(t *testing.T) {
 	require.Len(t, pairs, 2, "configuration selection must arbitrate competing discovered mappings")
 }
 
-func TestDiffGroupUnionPreservesCompetingCiphertextCandidates(t *testing.T) {
+func TestPlanGroupUnionPreservesCompetingCiphertextCandidates(t *testing.T) {
 	root := t.TempDir()
 	for _, name := range []string{"config.conf", "config.conf.enc.env", "config.conf.enc.ini"} {
 		require.NoError(t, os.WriteFile(filepath.Join(root, name), []byte("unused"), 0600))
 	}
-	pairs, err := BuildProjectGroupFilePairs(GroupOptions{Root: root, Mode: ModeDiff, Patterns: []string{"*.conf"}, FormatRules: []string{"*.conf=env"}})
+	pairs, err := BuildProjectGroupFilePairs(GroupOptions{Root: root, Mode: ModePlan, Patterns: []string{"*.conf"}, FormatRules: []string{"*.conf=env"}})
 	require.NoError(t, err)
 	require.Len(t, pairs, 2)
 }
