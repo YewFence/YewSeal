@@ -284,7 +284,7 @@ func pairMatchesPattern(matcher task.PatternMatcher, filePair FilePair, command,
 		return decided && included
 	}
 	switch command {
-	case task.ModeDecrypt:
+	case task.ModeDecrypt, task.ModeView:
 		return matches(filePair.EncryptedPath)
 	case task.ModePlan, task.ModeDiff:
 		return matches(filePair.PlaintextPath) || matches(filePair.EncryptedPath)
