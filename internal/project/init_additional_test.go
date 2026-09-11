@@ -28,7 +28,7 @@ func mockProjectInput(t *testing.T, input string) {
 }
 
 func TestConfirmInitOverwrite_Force(t *testing.T) {
-	allowed, err := confirmInitOverwrite(true, false)
+	allowed, err := testInitializer().confirmInitOverwrite(true, false)
 	require.NoError(t, err)
 	assert.True(t, allowed)
 }
@@ -37,7 +37,7 @@ func TestConfirmInitOverwrite_NoExistingConfig(t *testing.T) {
 	tempDir := t.TempDir()
 	withProjectWorkingDir(t, tempDir)
 
-	allowed, err := confirmInitOverwrite(false, false)
+	allowed, err := testInitializer().confirmInitOverwrite(false, false)
 	require.NoError(t, err)
 	assert.True(t, allowed)
 }
@@ -92,26 +92,26 @@ func TestNormalizeInitFormat(t *testing.T) {
 
 func TestResolveInitFormatOverride(t *testing.T) {
 	t.Run("normalizes provided override", func(t *testing.T) {
-		format, err := resolveInitFormatOverride(".dev.vars", "dotenv", false)
+		format, err := testInitializer().resolveInitFormatOverride(".dev.vars", "dotenv", false)
 		require.NoError(t, err)
 		assert.Equal(t, "env", format)
 	})
 
 	t.Run("rejects unsupported explicit override", func(t *testing.T) {
-		format, err := resolveInitFormatOverride("config.yaml", "xml", false)
+		format, err := testInitializer().resolveInitFormatOverride("config.yaml", "xml", false)
 		assert.Empty(t, format)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), `unsupported format override "xml"`)
 	})
 
 	t.Run("returns empty override when format is auto detected", func(t *testing.T) {
-		format, err := resolveInitFormatOverride("config.yaml", "", false)
+		format, err := testInitializer().resolveInitFormatOverride("config.yaml", "", false)
 		require.NoError(t, err)
 		assert.Empty(t, format)
 	})
 
 	t.Run("rejects ambiguous format in non-interactive mode", func(t *testing.T) {
-		format, err := resolveInitFormatOverride(".dev.vars", "", false)
+		format, err := testInitializer().resolveInitFormatOverride(".dev.vars", "", false)
 		assert.Empty(t, format)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "please pass --format")
@@ -120,7 +120,7 @@ func TestResolveInitFormatOverride(t *testing.T) {
 
 	t.Run("prompts when format is ambiguous and interactive", func(t *testing.T) {
 		mockProjectInput(t, "env\n")
-		format, err := resolveInitFormatOverride(".dev.vars", "", true)
+		format, err := testInitializer().resolveInitFormatOverride(".dev.vars", "", true)
 		require.NoError(t, err)
 		assert.Equal(t, "env", format)
 	})
@@ -128,7 +128,7 @@ func TestResolveInitFormatOverride(t *testing.T) {
 
 func TestNewInitFilePair(t *testing.T) {
 	t.Run("uses default encrypted filename", func(t *testing.T) {
-		filePair, err := newInitFilePair("app.toml", "", "", false)
+		filePair, err := testInitializer().newInitFilePair("app.toml", "", "", false)
 		require.NoError(t, err)
 		assert.Equal(t, "app.toml", filePair.PlaintextPath)
 		assert.Equal(t, "app.enc.toml", filePair.EncryptedPath)
@@ -136,7 +136,7 @@ func TestNewInitFilePair(t *testing.T) {
 	})
 
 	t.Run("uses provided encrypted filename and normalized format", func(t *testing.T) {
-		filePair, err := newInitFilePair(".dev.vars", "secret.enc.yaml", "dotenv", false)
+		filePair, err := testInitializer().newInitFilePair(".dev.vars", "secret.enc.yaml", "dotenv", false)
 		require.NoError(t, err)
 		assert.Equal(t, ".dev.vars", filePair.PlaintextPath)
 		assert.Equal(t, "secret.enc.yaml", filePair.EncryptedPath)
@@ -179,7 +179,7 @@ func TestInitProject_NonInteractiveSkipSopsConfig(t *testing.T) {
 
 	require.NoError(t, os.WriteFile("app.toml", []byte("[app]\nname = \"demo\"\n"), 0o644))
 
-	err := InitProject(false, "app.toml", "", "", true, true)
+	err := testInitProject(false, "app.toml", "", "", true, true)
 	require.NoError(t, err)
 
 	_, err = os.Stat(".age/keys.txt")
@@ -201,7 +201,7 @@ func TestInitProject_NonInteractiveCreatesSopsConfig(t *testing.T) {
 
 	require.NoError(t, os.WriteFile("config.toml", []byte("[service]\nport = 8080\n"), 0o644))
 
-	err := InitProject(false, "config.toml", "", "", false, false)
+	err := testInitProject(false, "config.toml", "", "", false, false)
 	require.NoError(t, err)
 
 	_, err = os.Stat(".sops.yaml")
@@ -222,7 +222,7 @@ func TestInitProjectForceRebuildsPolicyAndRemovesSkippedSopsConfig(t *testing.T)
 	require.NoError(t, os.WriteFile(".yewseal.toml", []byte("[recipients.registry]\nbackup = \""+oldIdentity.Recipient().String()+"\"\n"), 0o644))
 	require.NoError(t, os.WriteFile(".sops.yaml", []byte("stale: true\n"), 0o644))
 	require.NoError(t, os.WriteFile("app.toml", []byte("value = true\n"), 0o644))
-	require.NoError(t, InitProject(true, "app.toml", "app.enc.toml", "", false, true))
+	require.NoError(t, testInitProject(true, "app.toml", "app.enc.toml", "", false, true))
 	keyData, err := os.ReadFile(".age/keys.txt")
 	require.NoError(t, err)
 	assert.NotContains(t, string(keyData), oldIdentity.String())

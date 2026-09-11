@@ -1,17 +1,15 @@
 package app
 
 import (
-	"fmt"
-	"os"
-
 	"github.com/YewFence/YewSeal/internal/config"
+	"github.com/YewFence/YewSeal/internal/presentation"
 	"github.com/YewFence/YewSeal/internal/project"
 	"github.com/YewFence/YewSeal/internal/task"
 )
 
 type DecryptRequest struct {
+	Presentation          *presentation.Output
 	KeyFile               string
-	Verbose               bool
 	Output                string
 	OutputSet             bool
 	Targets               []string
@@ -21,16 +19,15 @@ type DecryptRequest struct {
 	UpdateProjectMetadata bool
 }
 
-func DecryptFiles(cfg *config.Config, req DecryptRequest) error {
+func DecryptFiles(cfg *config.Config, req DecryptRequest) (err error) {
+	out := presentation.OrDiscard(req.Presentation)
+	out.SetDirectory(config.CurrentDir(cfg))
+	defer func() { err = out.Finish(err) }()
 	preflight, err := PreflightDecrypt(cfg, req)
 	if err != nil {
 		return err
 	}
-	for _, filePair := range preflight.Selection.FilePairs {
-		if filePair.RecipientWarning != "" {
-			_, _ = fmt.Fprintln(os.Stderr, filePair.RecipientWarning)
-		}
-	}
+	out.Selection(preflight.Selection)
 
 	if req.UpdateProjectMetadata {
 		metadataPairs := config.ResolvedFilePairsToFilePairs(preflight.MetadataPairs)
@@ -39,15 +36,15 @@ func DecryptFiles(cfg *config.Config, req DecryptRequest) error {
 		}
 	}
 
-	printResolvedSelection(req.Verbose, cfg, preflight.Selection)
 	opts := task.Options{
 		FilePairs:      config.ResolvedFilePairsToTaskPairs(preflight.Selection.FilePairs),
 		IdentityBundle: preflight.IdentityBundle,
 		Parallel:       req.Parallel,
-		Verbose:        req.Verbose,
+		OnComplete:     out.FileCompleted,
 		Force:          req.Force,
 		Strict:         req.Strict,
 	}
-	_, err = task.Decrypt(opts)
+	summary, err := task.Decrypt(opts)
+	out.BatchSummary(summary, "decrypted")
 	return err
 }

@@ -5,103 +5,107 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"strings"
 )
 
-var (
-	cachedStdin       *os.File
-	cachedStdinReader *bufio.Reader
-)
-
-func stdinReader() *bufio.Reader {
-	if cachedStdin != os.Stdin || cachedStdinReader == nil {
-		cachedStdin = os.Stdin
-		cachedStdinReader = bufio.NewReader(os.Stdin)
-	}
-	return cachedStdinReader
+// Session owns buffered input and prompt delivery for one interaction.
+// Once delivery fails, it never consumes another answer.
+type Session struct {
+	reader *bufio.Reader
+	writer io.Writer
+	err    error
 }
 
-// PromptWithDefault prompts user for input with a default value
-// If the user presses Enter without typing anything, returns the default value
-func PromptWithDefault(prompt, defaultValue string) string {
-	fmt.Printf("%s [%s]: ", prompt, defaultValue)
-	input, err := stdinReader().ReadString('\n')
-	if err != nil {
-		return defaultValue
-	}
+func New(reader io.Reader, writer io.Writer) *Session {
+	return &Session{reader: bufio.NewReader(reader), writer: writer}
+}
 
-	input = strings.TrimSpace(input)
-	if input == "" {
-		return defaultValue
+func (s *Session) Err() error { return s.err }
+
+func (s *Session) ask(text string) (string, error) {
+	if s.err != nil {
+		return "", s.err
+	}
+	n, err := io.WriteString(s.writer, text)
+	if err == nil && n != len(text) {
+		err = io.ErrShortWrite
+	}
+	if err != nil {
+		s.err = fmt.Errorf("failed to write prompt: %w", err)
+		return "", s.err
+	}
+	input, err := s.reader.ReadString('\n')
+	if err != nil {
+		s.err = fmt.Errorf("failed to read input: %w", err)
+	}
+	return input, err
+}
+
+func (s *Session) PromptWithDefault(prompt, fallback string) string {
+	input, err := s.ask(fmt.Sprintf("%s [%s]: ", prompt, fallback))
+	if err != nil {
+		if s.err != nil {
+			return ""
+		}
+		return fallback
+	}
+	if input = strings.TrimSpace(input); input == "" {
+		return fallback
 	}
 	return input
 }
 
-// PromptRequired prompts user until a non-empty value is entered.
-func PromptRequired(prompt string) (string, error) {
+func (s *Session) PromptRequired(prompt string) (string, error) {
 	for {
-		fmt.Printf("%s: ", prompt)
-		input, err := stdinReader().ReadString('\n')
+		input, err := s.ask(prompt + ": ")
 		input = strings.TrimSpace(input)
 		if input != "" {
 			return input, nil
 		}
-
 		if err != nil {
-			if errors.Is(err, io.EOF) {
-				fmt.Println()
-			}
 			return "", fmt.Errorf("failed to read input: %w", err)
 		}
-
-		fmt.Println("⚠️  Value cannot be empty.")
 	}
 }
 
-// PromptOptional prompts user once and returns trimmed input.
-// Empty input is allowed and returned as an empty string.
-func PromptOptional(prompt string) string {
-	fmt.Printf("%s: ", prompt)
-	input, err := stdinReader().ReadString('\n')
+func (s *Session) PromptOptional(prompt string) string {
+	input, err := s.ask(prompt + ": ")
 	if err != nil {
 		return ""
 	}
-
 	return strings.TrimSpace(input)
 }
 
-// PromptYesNo prompts user for a yes/no confirmation
-// defaultYes controls the default behavior when user presses Enter
-// Returns true for yes, false for no
-func PromptYesNo(prompt string, defaultYes bool) bool {
-	var suffix string
+func (s *Session) PromptYesNo(prompt string, defaultYes bool) bool {
+	suffix := "[y/N]"
 	if defaultYes {
 		suffix = "[Y/n]"
-	} else {
-		suffix = "[y/N]"
 	}
-
-	fmt.Printf("%s %s: ", prompt, suffix)
-	input, err := stdinReader().ReadString('\n')
+	input, err := s.ask(fmt.Sprintf("%s %s: ", prompt, suffix))
 	if err != nil {
+		if s.err != nil {
+			return false
+		}
 		return defaultYes
 	}
-
-	input = strings.TrimSpace(strings.ToLower(input))
+	input = strings.ToLower(strings.TrimSpace(input))
 	if input == "" {
 		return defaultYes
 	}
-
 	return input == "y" || input == "yes"
 }
 
-// PromptYesNoConditional conditionally prompts user based on whether a flag is set
-// If flagSet is true, returns defaultValue without prompting
-// If flagSet is false, prompts the user and returns their answer
-func PromptYesNoConditional(flagSet bool, defaultValue bool, prompt string) bool {
+func (s *Session) PromptYesNoConditional(flagSet, defaultValue bool, prompt string) bool {
 	if flagSet {
 		return defaultValue
 	}
-	return PromptYesNo(prompt, defaultValue)
+	return s.PromptYesNo(prompt, defaultValue)
+}
+
+// Check combines interaction delivery failure with any independently found error.
+func (s *Session) Check(err error) error {
+	if errors.Is(err, s.err) {
+		return err
+	}
+	return errors.Join(err, s.err)
 }

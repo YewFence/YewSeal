@@ -2,12 +2,13 @@ package app
 
 import (
 	"github.com/YewFence/YewSeal/internal/config"
+	"github.com/YewFence/YewSeal/internal/presentation"
 	"github.com/YewFence/YewSeal/internal/project"
 	"github.com/YewFence/YewSeal/internal/task"
 )
 
 type EncryptRequest struct {
-	Verbose               bool
+	Presentation          *presentation.Output
 	Output                string
 	OutputSet             bool
 	Targets               []string
@@ -15,7 +16,10 @@ type EncryptRequest struct {
 	UpdateProjectMetadata bool
 }
 
-func EncryptFiles(cfg *config.Config, req EncryptRequest) error {
+func EncryptFiles(cfg *config.Config, req EncryptRequest) (err error) {
+	out := presentation.OrDiscard(req.Presentation)
+	out.SetDirectory(config.CurrentDir(cfg))
+	defer func() { err = out.Finish(err) }()
 	preflight, err := PreflightEncrypt(cfg, req)
 	if err != nil {
 		return err
@@ -32,12 +36,13 @@ func EncryptFiles(cfg *config.Config, req EncryptRequest) error {
 		}
 	}
 
-	printResolvedSelection(req.Verbose, cfg, preflight.Selection)
+	out.Selection(preflight.Selection)
 	opts := task.Options{
-		FilePairs: config.ResolvedFilePairsToTaskPairs(preflight.Selection.FilePairs),
-		Parallel:  req.Parallel,
-		Verbose:   req.Verbose,
+		FilePairs:  config.ResolvedFilePairsToTaskPairs(preflight.Selection.FilePairs),
+		Parallel:   req.Parallel,
+		OnComplete: out.FileCompleted,
 	}
-	_, err = task.Encrypt(opts)
+	summary, err := task.Encrypt(opts)
+	out.BatchSummary(summary, "encrypted")
 	return err
 }

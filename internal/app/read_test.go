@@ -107,7 +107,7 @@ func TestReadCommandsPreserveHistoryAndOutputChannels(t *testing.T) {
 		var out, diagnostics bytes.Buffer
 		require.NoError(t, WriteViewedTarget(&out, &diagnostics, cfg, target, env.keyFile, true))
 		require.Equal(t, plain, out.Bytes())
-		require.Contains(t, diagnostics.String(), "warning:")
+		require.Contains(t, diagnostics.String(), "WARNING")
 		require.Contains(t, diagnostics.String(), "Selected 1")
 		require.NoFileExists(t, ".dev.vars")
 	}
@@ -116,7 +116,7 @@ func TestReadCommandsPreserveHistoryAndOutputChannels(t *testing.T) {
 	result, err := DiffPlaintextAgainstEncryptedTargets(&out, &diagnostics, cfg, []string{"secrets"}, env.keyFile, true, "never", true)
 	require.NoError(t, err)
 	require.True(t, result.Different)
-	require.Contains(t, diagnostics.String(), "warning:")
+	require.Contains(t, diagnostics.String(), "WARNING")
 	require.Equal(t, "--- .dev.vars\n+++ secrets (decrypted)\n@@\n-TOKEN=local\n+TOKEN=historical\n", out.String())
 	data, err := os.ReadFile(".dev.vars")
 	require.NoError(t, err)
@@ -160,7 +160,7 @@ func TestReadCommandsPropagateOutputErrors(t *testing.T) {
 	aliases := []string{"deleted"}
 	cfg := &config.Config{Encryption: config.EncryptionConfig{Files: []config.FilePair{{PlaintextPath: "config.yaml", EncryptedPath: "config.enc.yaml", Recipients: &aliases}}}}
 	for _, command := range []string{"view", "diff"} {
-		for _, match := range []string{"warning:", "Selected", "Reading", "Decrypting", ""} {
+		for _, match := range []string{"WARNING", "Selected", ""} {
 			t.Run(command+"/"+match, func(t *testing.T) {
 				var out bytes.Buffer
 				if command == "view" {
@@ -169,7 +169,7 @@ func TestReadCommandsPropagateOutputErrors(t *testing.T) {
 					_, err = DiffPlaintextAgainstEncryptedTargets(&out, rejectedOutput{match: match}, cfg, nil, env.keyFile, true, "never", false)
 				}
 				require.ErrorIs(t, err, errReadOutput)
-				require.Empty(t, out.String())
+				require.NotEmpty(t, out.String(), "diagnostic failure must not stop content delivery")
 			})
 		}
 	}

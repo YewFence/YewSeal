@@ -38,7 +38,7 @@ yews plan --json
 
 ### --verbose, -v
 
-展示已加载配置文件等详细信息。
+在 stdout 的表格报告中额外列出已加载的配置文件。与 `--json` 同用时不改变 JSON 输出。
 
 ```bash
 yews plan -v
@@ -61,6 +61,15 @@ yews plan './configs/*.toml'
 
 # 输出 JSON 供脚本读取
 yews plan --json
+```
+
+## 输出
+
+stdout 默认输出配置数量、选择范围和文件映射表格；指定 `--json` 时只输出 JSON。错误写入 stderr，不混入报告。
+
+```bash
+# 保存 JSON 报告，错误仍显示在终端
+yews plan --json > plan.json
 ```
 
 ## 相关命令

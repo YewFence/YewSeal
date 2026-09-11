@@ -128,11 +128,10 @@ func TestDecryptToBytesDoesNotWriteOutput(t *testing.T) {
 	assert.True(t, os.IsNotExist(statErr))
 }
 
-func TestEncryptVerboseWritesToProvidedOutput(t *testing.T) {
+func TestEncryptDoesNotPrint(t *testing.T) {
 	env := setupTestEnv(t)
 	require.NoError(t, os.WriteFile("config.yaml", []byte("secret: value\n"), 0644))
 
-	var output bytes.Buffer
 	var encryptErr error
 	stdout := captureStdout(t, func() {
 		encryptErr = Encrypt(EncryptOptions{
@@ -140,14 +139,11 @@ func TestEncryptVerboseWritesToProvidedOutput(t *testing.T) {
 			OutputFile:     "config.enc.yaml",
 			Recipients:     []string{env.publicKey},
 			FormatOverride: "yaml",
-			Verbose:        true,
-			Output:         &output,
 		})
 	})
 
 	require.NoError(t, encryptErr)
 	assert.Empty(t, stdout)
-	assert.Contains(t, output.String(), "Encrypted config.yaml")
 }
 
 func TestDecryptRefusesToOverwriteDifferentPlaintextUnlessForced(t *testing.T) {

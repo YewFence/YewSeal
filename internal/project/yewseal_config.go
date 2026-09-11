@@ -82,6 +82,5 @@ func SaveBootstrapConfig(ownerRecipient string, filePairs []config.FilePair) err
 		}
 	}
 
-	fmt.Println("✅ Wrote .yewseal.toml")
 	return nil
 }

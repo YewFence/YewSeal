@@ -1,158 +1,89 @@
 package prompt
 
 import (
-	"os"
+	"bytes"
+	"errors"
+	"io"
+	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// mockStdin replaces os.Stdin with a pipe containing the given input
-// Returns a cleanup function that restores the original stdin
-func mockStdin(t *testing.T, input string) func() {
-	t.Helper()
-
-	r, w, err := os.Pipe()
+func TestSessionPreservesBufferedAnswers(t *testing.T) {
+	var out bytes.Buffer
+	s := New(strings.NewReader("custom\n\n  optional  \n\nrequired\nYES\nno\n"), &out)
+	require.Equal(t, "custom", s.PromptWithDefault("First", "fallback"))
+	require.Equal(t, "fallback", s.PromptWithDefault("Second", "fallback"))
+	require.Equal(t, "optional", s.PromptOptional("Optional"))
+	value, err := s.PromptRequired("Required")
 	require.NoError(t, err)
-	oldStdin := os.Stdin
-	os.Stdin = r
-
-	go func() {
-		_, _ = w.Write([]byte(input))
-		_ = w.Close()
-	}()
-
-	return func() {
-		os.Stdin = oldStdin
-		_ = r.Close()
-	}
+	require.Equal(t, "required", value)
+	require.True(t, s.PromptYesNo("Continue?", false))
+	require.False(t, s.PromptYesNo("Continue?", true))
+	require.NoError(t, s.Err())
+	require.Contains(t, out.String(), "First [fallback]: ")
 }
 
-func TestPromptWithDefault_UserInput(t *testing.T) {
-	restore := mockStdin(t, "custom_value\n")
-	defer restore()
-
-	result := PromptWithDefault("Enter value", "default")
-	assert.Equal(t, "custom_value", result)
-}
-
-func TestPromptWithDefault_EmptyInput(t *testing.T) {
-	restore := mockStdin(t, "\n")
-	defer restore()
-
-	result := PromptWithDefault("Enter value", "default")
-	assert.Equal(t, "default", result)
-}
-
-func TestPromptWithDefault_WhitespaceInput(t *testing.T) {
-	restore := mockStdin(t, "   \n")
-	defer restore()
-
-	result := PromptWithDefault("Enter value", "default")
-	assert.Equal(t, "default", result)
-}
-
-func TestPromptOptional_UserInput(t *testing.T) {
-	restore := mockStdin(t, " custom_value \n")
-	defer restore()
-
-	result := PromptOptional("Enter value")
-	assert.Equal(t, "custom_value", result)
-}
-
-func TestPromptOptional_EmptyInput(t *testing.T) {
-	restore := mockStdin(t, "\n")
-	defer restore()
-
-	result := PromptOptional("Enter value")
-	assert.Equal(t, "", result)
-}
-
-func TestPromptYesNo_Yes(t *testing.T) {
-	tests := []struct {
-		input    string
-		expected bool
+func TestConfirmationAnswers(t *testing.T) {
+	for _, tc := range []struct {
+		input          string
+		fallback, want bool
 	}{
-		{"y\n", true},
-		{"Y\n", true},
-		{"yes\n", true},
-		{"YES\n", true},
-		{"Yes\n", true},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.input, func(t *testing.T) {
-			restore := mockStdin(t, tt.input)
-			defer restore()
-
-			result := PromptYesNo("Continue?", false)
-			assert.Equal(t, tt.expected, result)
-		})
+		{"y\n", false, true}, {"Y\n", false, true}, {"yes\n", false, true},
+		{"n\n", true, false}, {"NO\n", true, false}, {"maybe\n", true, false},
+		{"\n", true, true}, {"  \n", false, false}, {"", true, false},
+	} {
+		s := New(strings.NewReader(tc.input), io.Discard)
+		require.Equal(t, tc.want, s.PromptYesNo("Continue?", tc.fallback))
+		if tc.input == "" {
+			require.ErrorIs(t, s.Err(), io.EOF)
+		}
 	}
 }
 
-func TestPromptYesNo_No(t *testing.T) {
-	tests := []struct {
-		input    string
-		expected bool
-	}{
-		{"n\n", false},
-		{"N\n", false},
-		{"no\n", false},
-		{"NO\n", false},
-		{"No\n", false},
+func TestReadDefaultsAndRequiredError(t *testing.T) {
+	s := New(strings.NewReader(""), io.Discard)
+	require.Empty(t, s.PromptWithDefault("Value", "fallback"))
+	require.Empty(t, s.PromptOptional("Optional"))
+	_, err := s.PromptRequired("Required")
+	require.ErrorIs(t, err, io.EOF)
+	require.ErrorIs(t, s.Err(), io.EOF)
+}
+
+type unavailableInput struct{}
+
+func (unavailableInput) Read([]byte) (int, error) { panic("must not read after prompt failure") }
+
+type failedWriter struct {
+	err   error
+	calls int
+}
+
+func (w *failedWriter) Write([]byte) (int, error) { w.calls++; return 0, w.err }
+
+func TestPromptFailureDoesNotReadOrChooseDefault(t *testing.T) {
+	for _, failure := range []error{errors.New("closed"), nil} {
+		w := &failedWriter{err: failure}
+		s := New(unavailableInput{}, w)
+		require.False(t, s.PromptYesNo("Destroy?", true))
+		require.Empty(t, s.PromptWithDefault("Value", "fallback"))
+		require.Empty(t, s.PromptOptional("Value"))
+		_, err := s.PromptRequired("Value")
+		require.Error(t, err)
+		require.Error(t, s.Err())
+		require.Equal(t, 1, w.calls)
+		if failure == nil {
+			require.ErrorIs(t, s.Err(), io.ErrShortWrite)
+		}
 	}
-
-	for _, tt := range tests {
-		t.Run(tt.input, func(t *testing.T) {
-			restore := mockStdin(t, tt.input)
-			defer restore()
-
-			result := PromptYesNo("Continue?", true)
-			assert.Equal(t, tt.expected, result)
-		})
-	}
 }
 
-func TestPromptYesNo_DefaultYes(t *testing.T) {
-	restore := mockStdin(t, "\n")
-	defer restore()
-
-	result := PromptYesNo("Continue?", true)
-	assert.True(t, result)
-}
-
-func TestPromptYesNo_DefaultNo(t *testing.T) {
-	restore := mockStdin(t, "\n")
-	defer restore()
-
-	result := PromptYesNo("Continue?", false)
-	assert.False(t, result)
-}
-
-func TestPromptYesNo_InvalidInputUsesDefault(t *testing.T) {
-	restore := mockStdin(t, "maybe\n")
-	defer restore()
-
-	// Invalid input should not match "y" or "yes", so it returns false
-	result := PromptYesNo("Continue?", true)
-	assert.False(t, result)
-}
-
-func TestPromptYesNoConditional_FlagSet(t *testing.T) {
-	// When flag is set, should return defaultValue without reading stdin
-	result := PromptYesNoConditional(true, true, "Continue?")
-	assert.True(t, result)
-
-	result = PromptYesNoConditional(true, false, "Continue?")
-	assert.False(t, result)
-}
-
-func TestPromptYesNoConditional_FlagNotSet(t *testing.T) {
-	restore := mockStdin(t, "y\n")
-	defer restore()
-
-	result := PromptYesNoConditional(false, false, "Continue?")
-	assert.True(t, result)
+func TestConditionalQuestionDoesNotTouchStreams(t *testing.T) {
+	w := &failedWriter{err: errors.New("closed")}
+	s := New(unavailableInput{}, w)
+	require.True(t, s.PromptYesNoConditional(true, true, "Continue?"))
+	require.False(t, s.PromptYesNoConditional(true, false, "Continue?"))
+	require.Zero(t, w.calls)
+	require.NoError(t, s.Err())
 }

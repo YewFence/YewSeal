@@ -4,14 +4,12 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"strings"
 
 	"github.com/YewFence/YewSeal/internal/agekey"
 	"github.com/YewFence/YewSeal/internal/seal"
 	"github.com/YewFence/YewSeal/internal/sopsx"
-	"github.com/fatih/color"
 	"github.com/sergi/go-diff/diffmatchpatch"
 )
 
@@ -31,8 +29,6 @@ type Options struct {
 	EncryptedLabel string
 	IdentityBundle agekey.IdentityBundle
 	FormatOverride string
-	Verbose        bool
-	Diagnostics    io.Writer
 }
 
 func PlaintextAgainstEncrypted(opts Options) (DiffResult, error) {
@@ -40,17 +36,11 @@ func PlaintextAgainstEncrypted(opts Options) (DiffResult, error) {
 	if err != nil || missing != "" {
 		return DiffResult{Skipped: missing}, err
 	}
-	diagnostics := opts.Diagnostics
-	if diagnostics == nil {
-		diagnostics = io.Discard
-	}
 	decryptedData, err := seal.DecryptToBytes(seal.DecryptBytesOptions{
 		InputFile:      opts.EncryptedFile,
 		OutputFile:     opts.PlaintextFile,
 		IdentityBundle: opts.IdentityBundle,
 		FormatOverride: opts.FormatOverride,
-		Verbose:        opts.Verbose,
-		Output:         diagnostics,
 	})
 	if errors.Is(err, sopsx.ErrNoMatchingIdentity) {
 		return DiffResult{Skipped: NoMatchingIdentity}, nil
@@ -138,43 +128,6 @@ func UnifiedDiff(fromName, toName string, fromData, toData []byte) string {
 		writePrefixedLines(&out, prefix, diff.Text)
 	}
 
-	return out.String()
-}
-
-// HighlightUnifiedDiff applies terminal colors to a unified diff without changing its text shape.
-func HighlightUnifiedDiff(unifiedDiff string, enabled bool) string {
-	if !enabled || unifiedDiff == "" {
-		return unifiedDiff
-	}
-
-	headerColor := color.New(color.FgCyan, color.Bold)
-	hunkColor := color.New(color.FgMagenta)
-	deleteColor := color.New(color.FgRed)
-	insertColor := color.New(color.FgGreen)
-	for _, c := range []*color.Color{headerColor, hunkColor, deleteColor, insertColor} {
-		c.EnableColor()
-	}
-
-	var out strings.Builder
-	lines := strings.SplitAfter(unifiedDiff, "\n")
-	for _, line := range lines {
-		if line == "" {
-			continue
-		}
-
-		switch {
-		case strings.HasPrefix(line, "--- ") || strings.HasPrefix(line, "+++ "):
-			out.WriteString(headerColor.Sprint(line))
-		case strings.HasPrefix(line, "@@"):
-			out.WriteString(hunkColor.Sprint(line))
-		case strings.HasPrefix(line, "-"):
-			out.WriteString(deleteColor.Sprint(line))
-		case strings.HasPrefix(line, "+"):
-			out.WriteString(insertColor.Sprint(line))
-		default:
-			out.WriteString(line)
-		}
-	}
 	return out.String()
 }
 
