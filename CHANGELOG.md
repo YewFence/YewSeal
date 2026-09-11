@@ -1,3 +1,20 @@
+## [0.9.0] - 2026-09-11
+
+### 🚀 Features
+
+- *(cli)* [**breaking**] Identity skip and strict processing mode (#19)
+
+### 🐛 Bug Fixes
+
+- Prevent recursive encryption of ciphertext files (#15)
+
+### 🚜 Refactor
+
+- [**breaking**] Remove built-in key sync and project key-path config (#16)
+- *(cli)* [**breaking**] Tighten config loading timing and remove format overrides (#17)
+- *(selection)* [**breaking**] Unify file selection pipeline and clarify plan semantics (#20)
+- *(read)* Unify view and diff read paths (#21)
+- *(cli)* [**breaking**] Unify command output and diagnostics handling (#23)
 ## [0.8.0] - 2026-09-05
 
 ### 🚀 Features
