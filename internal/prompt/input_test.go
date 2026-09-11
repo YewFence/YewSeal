@@ -32,20 +32,23 @@ func TestConfirmationAnswers(t *testing.T) {
 	}{
 		{"y\n", false, true}, {"Y\n", false, true}, {"yes\n", false, true},
 		{"n\n", true, false}, {"NO\n", true, false}, {"maybe\n", true, false},
-		{"\n", true, true}, {"  \n", false, false}, {"", true, true},
+		{"\n", true, true}, {"  \n", false, false}, {"", true, false},
 	} {
 		s := New(strings.NewReader(tc.input), io.Discard)
 		require.Equal(t, tc.want, s.PromptYesNo("Continue?", tc.fallback))
+		if tc.input == "" {
+			require.ErrorIs(t, s.Err(), io.EOF)
+		}
 	}
 }
 
 func TestReadDefaultsAndRequiredError(t *testing.T) {
 	s := New(strings.NewReader(""), io.Discard)
-	require.Equal(t, "fallback", s.PromptWithDefault("Value", "fallback"))
+	require.Empty(t, s.PromptWithDefault("Value", "fallback"))
 	require.Empty(t, s.PromptOptional("Optional"))
 	_, err := s.PromptRequired("Required")
 	require.ErrorIs(t, err, io.EOF)
-	require.NoError(t, s.Err(), "existing EOF default behavior is unchanged")
+	require.ErrorIs(t, s.Err(), io.EOF)
 }
 
 type unavailableInput struct{}

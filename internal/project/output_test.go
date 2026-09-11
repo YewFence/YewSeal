@@ -55,6 +55,18 @@ func TestInitPromptFailureStopsBeforeWrites(t *testing.T) {
 	}
 }
 
+func TestInitEOFStopsBeforeWrites(t *testing.T) {
+	t.Chdir(t.TempDir())
+	var diagnostics bytes.Buffer
+	out := presentation.New(io.Discard, &diagnostics, false)
+	err := InitProject(false, "", "", "", false, false, out, out.Prompts(strings.NewReader("")))
+	require.ErrorIs(t, err, io.EOF)
+	for _, file := range []string{".age", ".yewseal.toml", ".gitignore", ".sops.yaml"} {
+		_, statErr := os.Stat(file)
+		require.ErrorIs(t, statErr, os.ErrNotExist)
+	}
+}
+
 func TestInitStreamsAndCompletion(t *testing.T) {
 	t.Chdir(t.TempDir())
 	var body, diagnostics bytes.Buffer

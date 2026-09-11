@@ -34,7 +34,11 @@ func (s *Session) ask(text string) (string, error) {
 		s.err = fmt.Errorf("failed to write prompt: %w", err)
 		return "", s.err
 	}
-	return s.reader.ReadString('\n')
+	input, err := s.reader.ReadString('\n')
+	if err != nil {
+		s.err = fmt.Errorf("failed to read input: %w", err)
+	}
+	return input, err
 }
 
 func (s *Session) PromptWithDefault(prompt, fallback string) string {
