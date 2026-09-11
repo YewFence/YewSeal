@@ -1,68 +1,68 @@
-# 解密结果与严格模式
+# Decryption results and strict mode
 
-多开发者、多环境可以持有不同的 Age 身份。`decrypt` 和 `diff` 默认允许跳过没有匹配身份的文件，但不会把密文损坏、读写失败或覆盖冲突当成正常跳过。`view` 和 `edit` 不采用宽松策略，无法解密目标时仍失败；加密的失败判定不变。
+Multiple developers and environments may hold different Age identities. `decrypt` and `diff` skip files with no matching identity by default, but they never treat corrupted ciphertext, read/write failures, or overwrite conflicts as ordinary skips. `view` and `edit` have no lenient mode and still fail when the target cannot be decrypted; the failure rules for encryption are unchanged.
 
-## 结果分类
+## Result classification
 
-- 成功：完成解密或比较。明文已经一致、比较没有差异也算成功，不要求实际写入文件或产生 diff。
-- 跳过：没有匹配的解密身份；diff 还会跳过缺少明文或密文输入的映射。跳过不算成功比较，不能据此断言内容相同或密文完好。
-- 失败：已检测到的密文或数据密钥异常、完整性校验失败、读写失败、未获允许的明文覆盖等。decrypt 的缺失输入仍为失败；diff 只把文件不存在归为缺输入跳过，不把权限错误等真正故障归为缺失。
+- Success: the decryption or comparison completed. Plaintext that is already identical, or a comparison with no differences, still counts as success; writing a file or producing a diff is not required.
+- Skipped: no matching decryption identity; diff also skips mappings that are missing the plaintext or the ciphertext input. A skip is not a successful comparison and proves neither that contents are equal nor that the ciphertext is intact.
+- Failure: detected ciphertext or data key anomalies, integrity check failures, read/write failures, and unauthorized plaintext overwrites. For decrypt, missing input remains a failure; diff classifies only a nonexistent file as a missing-input skip, not real faults such as permission errors.
 
-单文件失败后继续处理其他选中文件，最后汇总。参数、配置、身份来源解析以及无法完成扫描等前置错误仍会终止执行；输出通道故障也会使命令失败。
+After a single-file failure, the remaining selected files are still processed and summarized at the end. Pre-run errors — arguments, config, identity resolution, or an impossible scan — abort the run; output channel failures also fail the command.
 
-## 严格模式
+## Strict mode
 
 ```bash
-# 默认宽松，处理当前身份能访问的文件
+# lenient by default: process what the current identity can access
 yews decrypt
 yews diff
 
-# decrypt 要求所有选中文件完成解密
+# decrypt requires every selected file to complete
 yews decrypt --strict
-# diff 要求两侧输入均存在的选中映射完成比较
+# diff requires every comparable mapping (both inputs present) to complete
 yews diff --strict
 
-# 两个命令共用环境变量，显式 flag 优先
+# both commands share the env var; an explicit flag wins
 YEWSEAL_STRICT=true yews decrypt
 YEWSEAL_STRICT=true yews diff --strict=false
 ```
 
-未设置 `YEWSEAL_STRICT` 时默认为宽松模式。环境变量使用标准布尔解析，建议写 `true` 或 `false`；实际采用的值无法解析时会报参数错误，包括显式设置为空字符串。显式 `--strict` 或 `--strict=false` 会覆盖环境变量，即使环境变量本身无效。
+Without `YEWSEAL_STRICT` the default is lenient. The variable uses standard boolean parsing; write `true` or `false`. A value that cannot be parsed — including an explicitly empty string — is an argument error. An explicit `--strict` or `--strict=false` overrides the variable even when the variable itself is invalid.
 
-该变量只在 `decrypt`、`diff` 的业务参数校验阶段读取，不影响版本、帮助、补全、`init`、`encrypt`、`view` 或 `edit`，也没有对应的项目配置字段。decrypt 的严格模式要求所有选中项完成；diff 的严格模式只要求可比较映射完成，缺少输入不影响 strict 成功。两者均不扩大选择范围，也不意味着遇错停止或整批回滚。
+The variable is read only during business argument validation of `decrypt` and `diff`; it never affects version, help, completion, `init`, `encrypt`, `view`, or `edit`, and it has no project config counterpart. Strict decrypt requires every selected item to complete; strict diff only requires comparable mappings to complete, and missing input does not affect strict success. Neither mode widens the selection, stops on first error, or rolls back the batch.
 
-## 退出码
+## Exit codes
 
-| 情况 | 宽松 decrypt | 严格 decrypt | 宽松 diff | 严格 diff |
+| Situation | lenient decrypt | strict decrypt | lenient diff | strict diff |
 | --- | --- | --- | --- | --- |
-| 全部成功，无差异 | 0 | 0 | 0 | 0 |
-| 全部比较成功，有差异 | 不适用 | 不适用 | 0 | 0 |
-| 部分成功，其余因身份不匹配跳过 | 0 | 1 | 0 | 1 |
-| 全部因身份不匹配跳过 | 1 | 1 | 0 | 1 |
-| 全部因缺少输入而未处理 | 1 | 1 | 0 | 0 |
-| 部分成功，其余缺少输入 | 1 | 1 | 0 | 0 |
-| 存在真正错误 | 1 | 1 | 1 | 1 |
+| All succeeded, no differences | 0 | 0 | 0 | 0 |
+| All compared, differences found | n/a | n/a | 0 | 0 |
+| Partial success, rest skipped for missing identity | 0 | 1 | 0 | 1 |
+| All skipped for missing identity | 1 | 1 | 0 | 1 |
+| All unprocessed for missing input | 1 | 1 | 0 | 0 |
+| Partial success, rest missing input | 1 | 1 | 0 | 0 |
+| Any real error | 1 | 1 | 1 | 1 |
 
-上表以选中映射且前置校验成功为前提。`diff` 是开发预览命令，发现并展示差异本身不算失败；退出码不用于判断文件是否一致。参数、配置、身份来源或输出通道错误返回 `1`。同一批次既有差异又有真正错误时，仍输出已经得到的 diff，但以 `1` 退出。显式单文件没有匹配身份时，宽松 diff 返回 `0`，strict diff 和 decrypt 返回 `1`。
+The table assumes selected mappings and successful pre-run validation. `diff` is a development preview command: finding and showing differences is not a failure, and its exit code must not be used to decide whether files are identical. Argument, config, identity source, and output channel errors return `1`. When a batch produces both differences and a real error, the diffs already obtained are still printed and the exit code is `1`. An explicitly selected single file with no matching identity makes lenient diff exit `0`, while strict diff and decrypt exit `1`.
 
-## diff 的比较范围
+## What diff compares
 
-Group 按配置根目录与规则从明文侧发现映射，保留实际明文路径，例如 `config.yml` 与 `config.enc.yaml` 的对应关系。只有密文的 Group 条目不会成为 diff 候选；显式 FilePair 则按配置登记，即使缺少输入也可进入选中集合。cwd 和目录 target 按明文侧筛选，文件 target 可以匹配已发现映射任一侧，目录 target 不重新扫描。
+Groups discover mappings from the plaintext side using the config root and rules, keeping the real plaintext path — for example the correspondence between `config.yml` and `config.enc.yaml`. Group entries with only a ciphertext never become diff candidates; explicit file pairs are registered as configured and enter the selection even with missing inputs. The cwd and directory targets filter by the plaintext side; a file target may match either side of a discovered mapping; a directory target never rescans.
 
-没有选中映射仍然报选择错误，不等于已选中后全部跳过。选择成功后始终解析一次 Identity bundle，即使所有映射最后均缺少输入，无效的显式私钥来源仍会失败。
+Selecting no mapping at all is a selection error, which differs from selecting files that all end up skipped. Once a selection succeeds, the identity bundle is resolved exactly once: an invalid explicit private key source fails even if every mapping ultimately misses its inputs.
 
-每个映射先检查输入；明文、密文任一侧不存在就跳过，不尝试解密，不输出新增或删除补丁。两侧存在才执行解密与比较。缺少输入和身份不匹配分别统计，前者不影响 strict 成功，后者会使 strict 失败；已检测到的密文损坏或其他文件错误始终失败。
+Each mapping is input-checked first: when either the plaintext or the ciphertext side is missing, the mapping is skipped without decryption and without new/deleted patches. Only when both sides exist are decryption and comparison attempted. Missing inputs and identity mismatches are counted separately; the former never affects strict success, the latter fails strict mode. Detected ciphertext corruption and other per-file errors always fail.
 
-diff 保留历史解密的当前 alias 失效例外：警告后仍使用密文 metadata 和 Identity bundle 比较，不要求当前配置 recipients 与密文相等。基础配置合法性校验不变。
+diff keeps the historical-decrypt exception for stale aliases: after a warning, it still compares using the ciphertext metadata and the identity bundle, without requiring the current config recipients to match the ciphertext. Base config validation is unchanged.
 
-diff 正文只写 stdout，未生成差异时 stdout 为空。stderr 默认列出每个跳过或失败映射及原因，并汇总已比较、缺少输入、身份不匹配、失败的数量；身份不匹配或真正错误时提示 `Comparison incomplete`，只有缺输入时不报告 strict 完整性失败。verbose 和 alias warning 同样只写 stderr，无需向正文插入任何状态标记。
+The diff body goes to stdout only; when no diff is generated, stdout is empty. stderr lists every skipped or failed mapping with its reason by default, and summarizes the counts of compared, missing-input, identity-mismatched, and failed mappings; on identity mismatch or a real error it reports `Comparison incomplete`, while missing inputs alone never report a strict completeness failure. Verbose output and alias warnings also go to stderr; no status markers are ever injected into the body.
 
-宽松模式的退出 `0` 不代表已经比较的文件没有差异，也不保证实际比较过任何文件。`diff --strict` 只要求可比较映射完成比较，即使发现差异也返回 `0`；若全部缺输入，也可成功。`diff` 不用于 CI 判定文件一致或部署输入齐全。
+A lenient exit `0` neither means the compared files are identical nor guarantees that anything was compared at all. `diff --strict` only requires comparable mappings to complete and returns `0` even when differences are found; with all inputs missing it can still succeed. `diff` is not a CI gate for file equality or deployment input completeness.
 
-## 文件与元数据
+## Files and metadata
 
-跳过不会创建、删除或更新对应明文，也不会为它创建输出目录。已有旧明文保留，但不算本次处理成功，不能据此继续假定它是最新内容。`--force` 只允许覆盖能够成功解密的文件，不会删除或修改跳过的文件。
+A skip never creates, deletes, or updates the corresponding plaintext, nor creates its output directory. An existing stale plaintext is kept but does not count as processed; do not keep assuming it is up to date. `--force` only allows overwriting files that decrypt successfully and never deletes or modifies skipped files.
 
-`decrypt` 仍在处理文件前按现有项目或目标范围更新 `.gitignore`，包括可能被跳过的明文路径，以避免旧明文误提交。更新失败时不开始写出明文。因此全部跳过并失败时，`.gitignore` 仍可能已经发生变化。`diff` 不写明文或项目元数据。
+`decrypt` still updates `.gitignore` for the current project or target scope before processing files, including plaintext paths that may end up skipped, to prevent stale plaintext from being committed. If that update fails, writing plaintext never starts. Consequently, after an all-skipped failing run, `.gitignore` may already have changed. `diff` writes neither plaintext nor project metadata.
 
-已经成功处理的文件不会因为后续失败或严格模式不完整而回滚。在 CI/CD 中，应使用 `yews decrypt --strict`，并仅在它成功退出后执行部署。
+Files processed successfully are never rolled back because of later failures or strict incompleteness. In CI/CD, use `yews decrypt --strict` and deploy only after it exits successfully.

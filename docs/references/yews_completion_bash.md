@@ -44,7 +44,7 @@ yews completion bash
 ### Options inherited from parent commands
 
 ```
-  -k, --key-file string   Path to Age private key file
+  -k, --key-file string   Path to the Age private key file (env AGE_KEY_FILE; fallback: YEWSEAL_AGE_IDENTITIES, SOPS_AGE_KEY*, then .age/keys.txt)
 ```
 
 ### SEE ALSO

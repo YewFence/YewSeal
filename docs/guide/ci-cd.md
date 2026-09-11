@@ -1,10 +1,10 @@
-# CI/CD 集成
+# CI/CD integration
 
-CI 环境中没有交互终端，也没有本地 `.age/keys.txt`，通常通过环境变量注入 Age 私钥，再运行 `yews decrypt` 还原配置文件。
+A CI environment has no interactive terminal and no local `.age/keys.txt`; the usual pattern is to inject the Age private key through an environment variable and run `yews decrypt` to restore the configuration files.
 
 ## GitHub Actions
 
-在仓库的 `mise.toml` 中声明 `github:YewFence/YewSeal` 依赖后，可以用 [mise-action](https://github.com/jdx/mise-action) 安装，配合仓库 Secret 注入私钥：
+After declaring `github:YewFence/YewSeal` in the repository's `mise.toml`, install it with [mise-action](https://github.com/jdx/mise-action) and inject the key from repository secrets:
 
 ```yaml
 name: Deploy
@@ -29,18 +29,18 @@ jobs:
         run: wrangler deploy
 ```
 
-把 `.age/keys.txt` 里的私钥值存为仓库 Secret（上面的 `AGE_KEY`），解密时 `SOPS_AGE_KEY` 环境变量会被直接使用，私钥解析优先级见[配置说明 - 私钥读取](/guide/configuration#私钥读取)。
+Store the private key value from `.age/keys.txt` as a repository secret (`AGE_KEY` above); the `SOPS_AGE_KEY` environment variable is then used directly. See [Configuration - reading private keys](/guide/configuration#reading-private-keys) for the resolution order.
 
-## 配合 Infisical
+## With Infisical
 
-如果私钥托管在 Infisical，可以独立使用其 CLI 先导出当前部署环境的身份，再交给 `yews`。参考脚本和认证说明见[外部私钥来源](/guide/private-keys#infisical-参考脚本)。YewSeal 不调用 Infisical，也不要求生产环境与开发机共用私钥。
+If private keys are hosted in Infisical, use its CLI independently to export the current deployment environment's identity first, then hand it to `yews`. Reference scripts and authentication notes live in [External private key sources](/guide/private-keys#infisical-reference-script). YewSeal never calls Infisical and does not require production to share a key with development machines.
 
-## 其他 CI 系统
+## Other CI systems
 
-任何 CI 都适用同样的模式：
+The same pattern works for any CI:
 
-1. 安装 `yews`（mise、go install 或下载 Release 二进制，也可以用 [Docker 镜像](/guide/docker)）
-2. 通过环境变量或密钥文件提供 Age 私钥
-3. 运行 `yews decrypt --strict`，仅在成功退出后执行部署
+1. Install `yews` (mise, go install, a release binary, or the [Docker image](/guide/docker))
+2. Provide the Age private key via an environment variable or a key file
+3. Run `yews decrypt --strict` and deploy only after a successful exit
 
-开发环境可以容忍部分文件因身份不匹配而跳过，但部署通常要求全部选中文件成功解密。严格模式也可以通过 `YEWSEAL_STRICT=true` 启用；结果分类和退出码见[解密结果与严格模式](/guide/decryption-results)。
+Development environments can tolerate files skipped for missing identities, but deployment usually requires every selected file to decrypt. Strict mode can also be enabled with `YEWSEAL_STRICT=true`; see [Decryption results and strict mode](/guide/decryption-results) for result classification and exit codes.

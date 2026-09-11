@@ -1,10 +1,10 @@
-# Shell 补全
+# Shell completion
 
-YewSeal 使用 Cobra 原生补全能力，不需要额外引入生成工具。
+YewSeal uses Cobra's native completion; no extra generator tooling is required.
 
-## 生成补全脚本
+## Generating completion scripts
 
-构建二进制后，可以通过 `completion` 子命令生成 Bash、Zsh、Fish 和 PowerShell 的补全脚本。
+After building the binary, the `completion` subcommand emits scripts for Bash, Zsh, Fish, and PowerShell.
 
 ```bash
 mise run build
@@ -14,9 +14,9 @@ mise run build
 ./build/yews completion powershell > yews.ps1
 ```
 
-## 安装示例
+## Installation examples
 
-Zsh 可以把生成的 `_yews` 放到 `$fpath` 中已有的目录，或者放到自定义目录后在 `~/.zshrc` 里加入该目录。
+For Zsh, put the generated `_yews` into a directory already on `$fpath`, or into a custom directory added to `$fpath` in `~/.zshrc`.
 
 ```bash
 mkdir -p ~/.zsh/completions
@@ -29,7 +29,7 @@ autoload -Uz compinit
 compinit
 ```
 
-Bash 可以把补全脚本放到本地目录后手动 `source`，也可以交给系统的 bash-completion 目录管理。
+For Bash, drop the script into a local directory and `source` it, or let the system's bash-completion directory manage it.
 
 ```bash
 mkdir -p ~/.bash_completion.d
@@ -37,7 +37,7 @@ mkdir -p ~/.bash_completion.d
 source ~/.bash_completion.d/yews.bash
 ```
 
-Fish 可以直接写入用户补全目录。
+For Fish, write straight into the user completions directory.
 
 ```bash
 mkdir -p ~/.config/fish/completions

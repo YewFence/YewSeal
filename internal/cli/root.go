@@ -17,11 +17,27 @@ func newRootCommand(version string, load configLoader) *cobra.Command {
 	rootCmd := &cobra.Command{
 		Use:           "yews",
 		Short:         "YewSeal - Encrypt/decrypt configuration files using SOPS and Age (supports TOML, YAML, JSON, ENV, INI)",
+		Long: `YewSeal manages encrypted configuration files with SOPS and Age,
+natively supporting TOML, YAML, JSON, ENV, INI, and binary formats.
+
+File mappings, formats, and recipient authorization are declared once in
+.yewseal.toml ("yews init" scaffolds it); command arguments only select
+among the registered files.
+
+Configuration precedence: CLI flags > environment variables > config file
+> defaults.
+
+Identity resolution order: --key-file (env AGE_KEY_FILE), then
+YEWSEAL_AGE_IDENTITIES, SOPS_AGE_KEY, SOPS_AGE_KEY_FILE, SOPS_AGE_KEY_CMD,
+then .age/keys.txt in the current working directory.
+
+Documentation: ` + docsBaseURL + `/`,
 		Version:       version,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
-	rootCmd.PersistentFlags().StringVarP(&keyFile, "key-file", "k", envValue("AGE_KEY_FILE"), "Path to Age private key file")
+	rootCmd.PersistentFlags().StringVarP(&keyFile, "key-file", "k", envValue("AGE_KEY_FILE"),
+		"Path to the Age private key file (env AGE_KEY_FILE; fallback: YEWSEAL_AGE_IDENTITIES, SOPS_AGE_KEY*, then .age/keys.txt)")
 	rootCmd.DisableAutoGenTag = true
 
 	rootCmd.AddCommand(

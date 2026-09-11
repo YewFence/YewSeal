@@ -1,19 +1,19 @@
-# 快速开始
+# Getting started
 
-YewSeal 是一个基于 SOPS 和 Age 的配置文件加密管理工具，支持 TOML、YAML、JSON、ENV、INI 和二进制文件。所有格式（含 TOML）都由内嵌的 SOPS 引擎原生加密，不需要格式转换。
+YewSeal is a configuration file encryption manager built on SOPS and Age, supporting TOML, YAML, JSON, ENV, INI, and binary files. Every format (TOML included) is encrypted natively by the embedded SOPS engine with no format conversion.
 
-## 安装
+## Installation
 
-### mise（推荐）
+### mise (recommended)
 
-通过 [mise](https://mise.jdx.dev/) 的 [github backend](https://mise.jdx.dev/dev-tools/backends/github.html) 直接安装 release 中的预构建可执行文件：
+Install the prebuilt release binary via the [github backend](https://mise.jdx.dev/dev-tools/backends/github.html) of [mise](https://mise.jdx.dev/):
 
 ```bash
 mise use --global github:YewFence/YewSeal
 yews --version
 ```
 
-也可以在项目的 `mise.toml` 中声明 `github:YewFence/YewSeal` 依赖，让团队成员和 CI 使用同一版本。
+You can also declare `github:YewFence/YewSeal` in a project's `mise.toml` so teammates and CI share one pinned version.
 
 ### go install
 
@@ -21,38 +21,38 @@ yews --version
 go install github.com/YewFence/YewSeal/cmd/yews@latest
 ```
 
-需要 `$GOPATH/bin` 在 `$PATH` 中。
+Requires `$GOPATH/bin` on your `$PATH`.
 
-### GitHub Release
+### GitHub release
 
-从 [Releases 页面](https://github.com/YewFence/YewSeal/releases)下载适合你系统的预编译二进制文件。可执行文件名固定为 `yews`（Windows 下为 `yews.exe`）。
+Download the prebuilt binary for your system from the [releases page](https://github.com/YewFence/YewSeal/releases). The executable is always named `yews` (`yews.exe` on Windows).
 
-### 从源码构建
+### Build from source
 
 ```bash
 git clone https://github.com/YewFence/YewSeal.git
 cd YewSeal
-mise run install    # 安装到 $GOPATH/bin
-# 或只构建：mise run build → build/yews
+mise run install    # installs into $GOPATH/bin
+# or build only: mise run build → build/yews
 ```
 
 ### Docker
 
-不想安装二进制时，可以直接运行容器镜像 `ghcr.io/yewfence/yew-seal`，详见 [Docker 运行](/guide/docker)。
+Without installing a binary, run the container image `ghcr.io/yewfence/yew-seal` directly; see [Running with Docker](/guide/docker).
 
-## 初始化项目
+## Initialize a project
 
-在项目目录中运行 `init` 命令初始化 Age 密钥、`.yewseal.toml` 和可选的 `.sops.yaml`：
+Run `init` inside the project directory to set up the Age keys, `.yewseal.toml`, and the optional `.sops.yaml`:
 
 ```bash
 yews init
 ```
 
-该命令会生成 `.age/keys.txt`，把 Age 公钥写进 `.yewseal.toml`，交互式录入一个或多个 `[[encryption.files]]` 映射，并把私钥目录和明文文件写进 `.gitignore`。
+The command generates `.age/keys.txt`, writes the Age public key into `.yewseal.toml`, interactively records one or more `[[encryption.files]]` mappings, and adds the private key directory and plaintext files to `.gitignore`.
 
-### 非交互模式
+### Non-interactive mode
 
-如果需要在脚本中使用，可以为第一个配置条目直接传入明文文件和加密文件：
+For scripts, pass the plaintext and encrypted files of the first config entry directly:
 
 ```bash
 yews init \
@@ -62,43 +62,47 @@ yews init \
   --create-example
 ```
 
-## 基本使用
+## Basic usage
 
-### 加密配置文件
+Every command documents its full semantics in `--help` (English); this page only walks the happy paths.
+
+### Encrypt configuration files
 
 ```bash
-# 加密配置里的所有文件
+# encrypt every file registered in the config
 yews encrypt
 
-# 加密一个已配置的明文文件，使用配置中的 encrypted 路径和授权
+# encrypt one registered plaintext file, using the configured
+# encrypted path and authorization
 yews encrypt config.toml
 
-# 加密单个明文文件，并指定输出路径
+# encrypt a single file to an explicit output path
 yews encrypt config.toml -o config.enc.toml
 
-# 在已配置 Group 的目录范围内筛选并加密
+# filter and encrypt within a configured group's directory scope
 yews encrypt './configs/*.toml'
 ```
 
-### 解密配置文件
+### Decrypt configuration files
 
 ```bash
-# 解密配置里的所有文件
+# decrypt every file registered in the config
 yews decrypt
 
-# 解密一个已配置的加密文件，使用配置中的 plaintext 路径
+# decrypt one registered encrypted file, using the configured
+# plaintext path
 yews decrypt config.enc.toml
 
-# 解密单个加密文件，并指定输出路径
+# decrypt a single file to an explicit output path
 yews decrypt config.enc.toml -o config.toml
 
-# 在已配置 Group 的目录范围内筛选并解密
+# filter and decrypt within a configured group's directory scope
 yews decrypt './configs/*.enc.toml'
 ```
 
-默认情况下，`decrypt` 发现明文文件已存在且内容不一致时会拒绝覆盖，可以加上 `--force` 强制写入。
+By default, `decrypt` refuses to overwrite an existing plaintext file whose content differs; add `--force` to write anyway.
 
-### 预览选择结果
+### Preview the selection
 
 ```bash
 yews plan
@@ -106,35 +110,37 @@ yews plan './configs/*.toml'
 yews plan --json
 ```
 
-`plan` 检查并展示配置映射、格式、当前授权及来源，Group 发现取明文与密文两侧的并集，不会写入文件。它不是操作预演，也不验证当前身份能否解密。
+`plan` inspects and reports the config mappings, formats, and current authorization with its origins; group discovery takes the union of the plaintext and encrypted sides and nothing is written. It is not an operation dry run and does not verify that the current identity can decrypt.
 
-### 编辑加密文件
+### Edit an encrypted file
 
 ```bash
-# 使用默认编辑器
+# use the default editor (VISUAL, then EDITOR; vi or notepad as fallback)
 yews edit -f config.enc.toml
 
-# 指定编辑器
-yews edit -f config.enc.toml -e "code -w"
+# pick a specific editor for one invocation
+VISUAL="code --wait" yews edit -f config.enc.toml
 ```
 
-### 查看加密文件内容
+There is no editor flag; the editor always comes from `VISUAL` or `EDITOR`.
+
+### View an encrypted file
 
 ```bash
-# 输出到标准输出
+# print the decrypted plaintext to stdout
 yews view config.enc.toml
 ```
 
-### 比较差异
+### Compare differences
 
 ```bash
-# 比较明文文件和加密文件的差异
+# compare a plaintext file with its encrypted counterpart
 yews diff config.toml
 ```
 
-## 配置文件示例
+## Example config
 
-初始化后会生成类似下面的 `.yewseal.toml`：
+After initialization, `.yewseal.toml` looks roughly like this:
 
 ```toml
 [recipients]
@@ -148,8 +154,8 @@ plaintext = "config.toml"
 encrypted = "config.enc.toml"
 ```
 
-也可以用分组配置让 YewSeal 按模式扫描一批文件，详见[配置说明 - 分组扫描](/guide/configuration#分组扫描)。
+Groups can also let YewSeal scan batches of files by pattern; see [Configuration - group scanning](/guide/configuration#group-scanning).
 
-## 下一步
+## Next steps
 
-[命令参考](/commands/init) 可以查看所有命令选项，[配置说明](/guide/configuration) 可以了解 `.yewseal.toml`、`.sops.yaml` 和密钥同步的配置方式。
+Run `yews <command> --help` for the complete options and semantics of any command, or browse the generated [CLI reference](/references/yews). [Configuration](/guide/configuration) explains `.yewseal.toml`, `.sops.yaml`, and key provisioning; [Workflows](/guide/workflows) shows how the commands compose in daily use.

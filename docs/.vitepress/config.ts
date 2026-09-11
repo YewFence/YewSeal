@@ -2,46 +2,35 @@ import { defineConfig } from 'vitepress'
 
 export default defineConfig({
   base: '/YewSeal/',
-  lang: 'zh-CN',
+  lang: 'en-US',
   title: 'YewSeal',
-  description: '加密配置文件管理工具',
+  description: 'Encrypted configuration file manager',
 
   themeConfig: {
     nav: [
-      { text: '指南', link: '/guide/getting-started' },
-      { text: '命令参考', link: '/commands/init' },
+      { text: 'Guides', link: '/guide/getting-started' },
+      { text: 'CLI reference', link: '/references/yews' },
       { text: 'GitHub', link: 'https://github.com/YewFence/YewSeal' }
     ],
 
     sidebar: [
       {
-        text: '指南',
+        text: 'Guides',
         items: [
-          { text: '快速开始', link: '/guide/getting-started' },
-          { text: '配置说明', link: '/guide/configuration' },
-          { text: '解密结果与严格模式', link: '/guide/decryption-results' },
-          { text: '与 SOPS 配合使用', link: '/guide/sops' },
-          { text: '外部私钥来源', link: '/guide/private-keys' },
-          { text: 'Docker 运行', link: '/guide/docker' },
-          { text: 'CI/CD 集成', link: '/guide/ci-cd' },
-          { text: 'Shell 补全', link: '/guide/completion' }
+          { text: 'Getting started', link: '/guide/getting-started' },
+          { text: 'Configuration', link: '/guide/configuration' },
+          { text: 'Target selection', link: '/guide/target-selection' },
+          { text: 'Workflows', link: '/guide/workflows' },
+          { text: 'Decryption results and strict mode', link: '/guide/decryption-results' },
+          { text: 'Interop with SOPS', link: '/guide/sops' },
+          { text: 'External private key sources', link: '/guide/private-keys' },
+          { text: 'Running with Docker', link: '/guide/docker' },
+          { text: 'CI/CD integration', link: '/guide/ci-cd' },
+          { text: 'Shell completion', link: '/guide/completion' }
         ]
       },
       {
-        text: '命令参考',
-        items: [
-          { text: 'init - 初始化项目', link: '/commands/init' },
-          { text: 'encrypt - 加密文件', link: '/commands/encrypt' },
-          { text: 'decrypt - 解密文件', link: '/commands/decrypt' },
-          { text: 'plan - 预览选择', link: '/commands/plan' },
-          { text: 'edit - 编辑加密文件', link: '/commands/edit' },
-          { text: 'view - 查看加密文件', link: '/commands/view' },
-          { text: 'diff - 比较差异', link: '/commands/diff' }
-        ]
-      },
-      {
-        text: 'CLI 参考（自动生成）',
-        collapsed: true,
+        text: 'CLI reference (generated)',
         items: [
           { text: 'yews', link: '/references/yews' },
           { text: 'yews init', link: '/references/yews_init' },
@@ -67,19 +56,6 @@ export default defineConfig({
     footer: {
       message: 'Released under the MIT License.',
       copyright: 'Copyright © YewFence'
-    },
-
-    docFooter: {
-      prev: '上一页',
-      next: '下一页'
-    },
-
-    outline: {
-      label: '本页目录'
-    },
-
-    lastUpdated: {
-      text: '最后更新'
     }
   }
 })
