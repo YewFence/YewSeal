@@ -2,7 +2,7 @@
 title: Decryption results and strict mode
 ---
 
-Multiple developers and environments may hold different Age identities. `decrypt` and `diff` skip files with no matching identity by default, but they never treat corrupted ciphertext, read/write failures, or overwrite conflicts as ordinary skips. `view` and `edit` have no lenient mode and still fail when the target cannot be decrypted; the failure rules for encryption are unchanged.
+Multiple developers and environments may hold different Age identities. `decrypt` and `diff` [skip](/guide/glossary#skip) files with no matching identity by default, but they never treat corrupted ciphertext, read/write failures, or overwrite conflicts as ordinary skips. `view` and `edit` have no lenient mode and still fail when the target cannot be decrypted; the failure rules for encryption are unchanged.
 
 ## Result classification
 

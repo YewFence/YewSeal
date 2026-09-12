@@ -1,6 +1,5 @@
----
-title: 按文件授权的 Recipient 注册表设计
----
+# 按文件授权的 Recipient 注册表设计
+
 
 ## 状态
 

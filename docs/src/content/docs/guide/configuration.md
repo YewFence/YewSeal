@@ -6,7 +6,7 @@ YewSeal uses `.yewseal.toml` to manage file mappings and per-file authorization,
 
 ## Config loading order
 
-YewSeal loads configuration from the root of the current Git repository down to the current directory, picking at most one config file per directory. Within a single directory the priority is `.yewseal/.yewseal.toml` over `.config/.yewseal.toml` over `.yewseal.toml`.
+YewSeal loads configuration from the root of the current Git repository down to the current directory, picking at most one config file per directory. Outside a Git repository only the current directory is searched — the loader never walks above it. Within a single directory the priority is `.yewseal/.yewseal.toml` over `.config/.yewseal.toml` over `.yewseal.toml`.
 
 Child-directory configs override or extend parent ones: `[[encryption.files]]` entries replace their counterparts after deduplication by plaintext or encrypted path, and `[[encryption.groups]]` entries accumulate. Private key paths never participate in config inheritance or merging.
 
@@ -37,7 +37,7 @@ YewSeal maintains a JSON Schema for `.yewseal.toml`, generated from `schema/conf
 [encryption]
 ```
 
-[schema/example.yewseal.toml](https://github.com/YewFence/YewSeal/blob/main/schema/example.yewseal.toml) in the repository is a complete example covering every field, also kept fresh by CI. Submitting the schema to SchemaStore is planned; once listed, editors will recognize `.yewseal.toml` automatically without the manual association.
+[schema/example.yewseal.toml](https://github.com/YewFence/YewSeal/blob/main/schema/example.yewseal.toml) in the repository is a complete example covering every field, also kept fresh by CI.
 
 ### Basic structure
 
@@ -55,6 +55,12 @@ encrypted = "config.enc.toml"
 
 Every path processed at runtime must come from an explicit file pair or a group. A missing config, an empty config, or an unregistered target never auto-generates a file pair; the default private key file remains `.age/keys.txt`.
 
+Pair paths resolve at load time: a relative `plaintext` or `encrypted` path is interpreted against the directory of the config file that declares it — the same base as a group's [discovery root](/guide/glossary#discovery-root). 
+
+:::note
+An absolute path is taken literally and may point anywhere on disk. That works but is discouraged: it binds the config to a single machine, and clones, CI checkouts, or a moved project directory break it — keep everything outside the project on a symlink and register the relative link instead. `~` is never expanded, and on Windows an absolute path must include a drive letter.
+:::
+
 Files and encryption authorization are declared centrally in the project config. For one-off single-file tasks that do not need project-level management, use SOPS directly; see [Interop with SOPS](/guide/sops).
 
 ### Recipient authorization
@@ -67,7 +73,7 @@ When one path matches multiple groups, the resolved canonical recipient sets mus
 
 ### File mappings
 
-`[[encryption.files]]` declares the correspondence between one plaintext file and one encrypted file:
+`[[encryption.files]]` declares the correspondence between one plaintext file and one encrypted file — a [mapping](/guide/glossary#mapping):
 
 ```toml
 [[encryption.files]]
@@ -81,8 +87,6 @@ format = "env"
 ```
 
 `format` is optional and accepts `toml`, `yaml`, `json`, `env`, `ini`, and `binary` (aliases `yml`, `dotenv`, and `bin` are normalized at runtime). It suits files like `.dev.vars` whose format cannot be inferred from the extension.
-
-`encrypt`, `decrypt`, `plan`, `view`, and `diff` have no `--format` flag and never read `YEWSEAL_FORMAT` or `SOPS_FORMAT`. The format is determined by the file's `format`, the group's `format_rules`, or inference from the registered path; `--output` only changes the output location for this run, not the format. `init --format` remains, declaring the format of the file being created.
 
 ### Group scanning
 
@@ -105,13 +109,11 @@ format_rules = [
 unknown_as_binary = false
 ```
 
-`patterns` uses the gitignore dialect: `*`, `?`, `**`, `!` exclusions, `/`-prefixed root anchoring, and `/`-suffixed directory rules. Path separators are `/` on every platform including Windows; `\` is only used for escapes such as `\#`. Lines starting with `#` and blank lines are ignored; whitespace between `!` and the rest is part of the pattern. Encryption groups always exclude files in the YewSeal protocol formats `.enc.toml`, `.enc.yaml`, `.enc.json`, `.enc.env`, `.enc.ini`, and `.enc.bin`, plus the `encrypted` paths of explicit file pairs in the config. Without `patterns`, encryption scans `.toml`, `.yaml`, `.yml`, `.json`, `.env`, `.ini`, `.bin`, and `.binary` by default, and decryption scans the corresponding `.enc.*` files.
+`patterns` is required, which uses the gitignore dialect: `*`, `?`, `**`, and `!` exclusions; a leading `/` anchors a rule to the group's [discovery root](/guide/glossary#discovery-root) — never to a filesystem or repository root — and a trailing `/` restricts a rule to directories. Path separators are `/` on every platform including Windows; `\` retains its glob escape meaning. Encryption groups always exclude files in the [YewSeal protocol files](/guide/glossary#protocol-file) plus the `encrypted` paths of explicit file pairs in the config. Decryption discovers ciphertext by those same protocol suffixes and filters it through your `patterns` applied to the logical plaintext paths.
 
 `format_rules` uses `<pattern>=<format>` entries; the first matching rule decides the format, and the values are the same as `format`. When `unknown_as_binary` is `true`, files whose format cannot be recognized during group encryption are treated as binary.
 
-A group's discovery root is always the directory of the config that owns it. CLI arguments (files, directories, or patterns) only filter registered mappings; they never redefine the root or override group rules. Directory and pattern scopes look at the plaintext side in encrypt, the encrypted side in decrypt, and both sides in plan and diff; explicit file pairs can be filtered even when no group exists.
-
-`plan` is a directionless mapping check: group discovery takes the union of the plaintext and encrypted sides and directory scope matches either side. It applies the same strict authorization checking as encrypt to every mapping resolved from the loaded config, so authorization errors on unselected mappings also fail the run; decrypt keeps its historical-decrypt exception for stale aliases. `plan` never reads private keys and is not an encrypt or decrypt dry run; see the [yews plan reference](/references/yews_plan).
+A group's discovery root is always the directory of the config that owns it. CLI arguments (files, directories, or patterns) only filter registered mappings; they never redefine the root or override group rules.
 
 ## .sops.yaml
 
@@ -123,39 +125,7 @@ creation_rules:
     age: age1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
-YewSeal generates exact-match rules per encrypted file. When creating encrypted files with the plain `sops` CLI you can also hand-write looser regexes.
-
-### Multiple environments
-
-Different key sets can be configured for different file patterns:
-
-```yaml
-creation_rules:
-  # production configuration
-  - path_regex: \.prod\.enc\.toml$
-    age: age1prod_key_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-
-  # development configuration
-  - path_regex: \.dev\.enc\.toml$
-    age: age1dev_key_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-
-  # default rule
-  - path_regex: \.enc\.toml$
-    age: age1default_key_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-```
-
-### Multiple keys
-
-The same file can be encrypted to multiple recipients (team collaboration):
-
-```yaml
-creation_rules:
-  - path_regex: \.enc\.toml$
-    age: >-
-      age1key1_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,
-      age1key2_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,
-      age1key3_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-```
+YewSeal generates exact-match rules per encrypted file.
 
 ## Age key management
 
@@ -230,26 +200,34 @@ The recommended naming convention:
 
 ### Version control
 
-A recommended `.gitignore`:
+`init` (and `decrypt`) maintain `.gitignore` for you: each registered plaintext path is added with a `# YewSeal - Decrypted configuration files` header, and the default key file is excluded under `# YewSeal - Age private keys`. This is the exact content generated for the [Tutorial](/guide/tutorial) project:
 
 ```ini
-# Age private keys
-.age/
+# YewSeal - Decrypted configuration files
+config.toml
 
-# plaintext configuration files
+# YewSeal - Age private keys
+.age/keys.txt
+```
+
+If you prefer to ignore by pattern instead of per file — useful with [group scanning](#group-scanning), where plaintext files are discovered dynamically — extend the same structure with format-wide rules and re-include the protocol files:
+
+```ini
+# YewSeal - Decrypted configuration files
 *.toml
 *.yaml
 *.json
 *.env
 *.ini
-
-# but keep the encrypted files
-!.sops.yaml
-!.yewseal.toml
 !*.enc.toml
 !*.enc.yaml
 !*.enc.json
 !*.enc.env
 !*.enc.ini
 !*.enc.bin
+
+# YewSeal - Age private keys
+.age/
 ```
+
+YewSeal only ever appends its own entries; hand-written rules in the same file are preserved.

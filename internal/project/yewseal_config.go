@@ -29,17 +29,17 @@ func SaveBootstrapConfig(ownerRecipient string, filePairs []config.FilePair) err
 	}
 
 	var buffer bytes.Buffer
-	buffer.WriteString(`# YewSeal 配置文件
+	buffer.WriteString(`# YewSeal configuration file
 #
-# 配置优先级：
-# 1. 命令行参数（最高优先级）
-# 2. 环境变量
-# 3. 此配置文件
-# 4. 默认值（最低优先级）
+# Configuration precedence:
+# 1. Command-line arguments (highest)
+# 2. Environment variables
+# 3. This configuration file
+# 4. Built-in defaults (lowest)
 #
-# 所有敏感文件都统一写在 [[encryption.files]] 里：
-# - plaintext 表示明文文件
-# - encrypted 表示加密文件
+# Every sensitive file is declared in [[encryption.files]]:
+# - plaintext is the cleartext file
+# - encrypted is the encrypted file
 
 `)
 

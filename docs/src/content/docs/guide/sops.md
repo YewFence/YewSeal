@@ -44,15 +44,15 @@ SOPS_AGE_KEY_FILE=./.age/keys.txt \
 
 Encryption needs no private key. Decryption needs no repeated `--age`, but the identities required by the ciphertext must be reachable. Never commit private keys or decrypted plaintext; also confirm output paths before running — SOPS has no counterpart to YewSeal `decrypt`'s plaintext overwrite protection.
 
-SOPS uses its own flags, environment variables, and identity discovery rules and never reads `.yewseal.toml`. The example sets `SOPS_AGE_KEY_FILE` explicitly instead of relying on YewSeal's `.age/keys.txt` default fallback; likewise, `YEWSEAL_AGE_IDENTITIES` is not an identity variable for SOPS. See [External private key sources](/guide/private-keys) for provisioning options.
+SOPS uses its own flags, environment variables, and identity discovery rules, so the example sets `SOPS_AGE_KEY_FILE` explicitly. See [External private key sources](/guide/private-keys) for provisioning options.
 
 ## Format compatibility boundary
 
 YewSeal ciphertext in YAML, JSON, ENV, INI, and binary uses the corresponding SOPS stores and can be handled by a SOPS CLI that supports the format. When the extension alone cannot identify the format, pass SOPS's own `--input-type` / `--output-type`; for example, ENV is named `dotenv` in SOPS.
 
-Native TOML is the exception that needs a separate check: YewSeal uses the native TOML store of the [YewFence/sops fork](https://github.com/YewFence/sops). Handling such TOML ciphertext directly requires a SOPS CLI that includes the same store — a build of that fork, for example. Do not assume any upstream CLI is compatible; check whether `sops --help` lists `toml` first.
+Native TOML is the exception that needs a separate check: YewSeal uses the native TOML store of the [YewFence/sops fork](https://github.com/YewFence/sops). Handling such TOML ciphertext directly requires a SOPS CLI that includes the same store — a build of that fork, for example.
 
-Handing a plain TOML file to SOPS as binary (whole-file encryption) also works, but it produces binary-store ciphertext, not YewSeal's structured TOML ciphertext. Renaming the extension or forcing the binary type cannot read existing native TOML ciphertext.
+Or, handing a plain TOML file to SOPS as binary (whole-file encryption) also works.
 
 ## SOPS in an existing project
 

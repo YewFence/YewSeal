@@ -40,7 +40,7 @@ See also: "yews encrypt" to encrypt the registered files, "yews decrypt"
 to decrypt them. Private key storage and distribution are managed
 outside YewSeal.
 
-Documentation: https://yewfence.github.io/YewSeal/guide/getting-started
+Documentation: https://yewfence.github.io/YewSeal/guide/tutorial
 Private key handling: https://yewfence.github.io/YewSeal/guide/private-keys
 
 ```

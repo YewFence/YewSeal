@@ -2,7 +2,7 @@
 title: Running with Docker
 ---
 
-If you already have Docker but prefer not to install `yews`, run the container image `ghcr.io/yewfence/yew-seal:latest` directly. Swap the image tag in the examples as needed.
+If you already have Docker but prefer not to install `yews`, run the container image `ghcr.io/yewfence/yew-seal:latest` directly. 
 
 ## File permissions
 
@@ -40,7 +40,7 @@ docker run --rm \
   ghcr.io/yewfence/yew-seal:latest decrypt
 ```
 
-## Injecting the private key via environment variable
+### Injecting the private key via environment variable
 
 When the private key is injected through an environment variable (CI, for example), mounting a key file is unnecessary:
 
@@ -51,10 +51,6 @@ docker run --rm \
   -v "$PWD:/work" \
   ghcr.io/yewfence/yew-seal:latest decrypt
 ```
-
-## Exporting the key from Infisical
-
-Export the current environment's key with the Infisical CLI on the host, then mount it into the container. See the reference script in [External private key sources](/guide/private-keys#infisical-reference-script); the YewSeal image handles neither Infisical authentication nor remote operations.
 
 ## Limitations
 

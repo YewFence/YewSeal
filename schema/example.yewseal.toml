@@ -10,6 +10,7 @@
 [encryption]
 
 # 显式文件对:plaintext 是明文,encrypted 是加密产物
+# 路径相对本配置文件所在目录;绝对路径按字面生效但绑定单一机器,不推荐;~ 不展开
 [[encryption.files]]
 plaintext = "wrangler.toml"
 encrypted = "wrangler.enc.toml"

@@ -40,10 +40,14 @@ package schema
 
 // #FilePair 定义一对明文/加密文件映射。
 #FilePair: {
-	// 明文文件路径,用作 encrypt 的输入和 decrypt 的输出。
+	// 明文文件路径,用作 encrypt 的输入和 decrypt 的输出。相对路径按本
+	// 配置文件所在目录解析;绝对路径按字面生效但把配置绑定到单一机器
+	// (clone、CI、移动项目目录后失效),不推荐。~ 不展开;Windows 绝对
+	// 路径必须带盘符。
 	plaintext!: string
 
-	// 加密文件路径,用作 encrypt 的输出和 decrypt 的输入。
+	// 加密文件路径,用作 encrypt 的输出和 decrypt 的输入。解析规则同
+	// plaintext。
 	encrypted!: string
 
 	// 覆盖文件格式探测,用于扩展名不标准的文件(如 .dev.vars)。

@@ -31,7 +31,7 @@ jobs:
         run: wrangler deploy
 ```
 
-Store the private key value from `.age/keys.txt` as a repository secret (`AGE_KEY` above); the `SOPS_AGE_KEY` environment variable is then used directly. See [Configuration - reading private keys](/guide/configuration#reading-private-keys) for the resolution order.
+Store the private key value from `.age/keys.txt` as a repository secret (`AGE_KEY` above); the `SOPS_AGE_KEY` environment variable is then used directly — `gh secret set AGE_KEY < .age/keys.txt` does it in one command. See [Configuration - reading private keys](/guide/configuration#reading-private-keys) for the resolution order.
 
 ## With Infisical
 

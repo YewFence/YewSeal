@@ -40,7 +40,7 @@ warnings, and errors go to stderr.
 See also: "yews view" to inspect a file read-only, "yews decrypt" to
 write the plaintext to disk.
 
-Documentation: https://yewfence.github.io/YewSeal/guide/workflows
+Documentation: https://yewfence.github.io/YewSeal/guide/tutorial
 
 ```
 yews edit [flags]

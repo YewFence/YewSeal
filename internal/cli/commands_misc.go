@@ -57,7 +57,7 @@ See also: "yews encrypt" to encrypt the registered files, "yews decrypt"
 to decrypt them. Private key storage and distribution are managed
 outside YewSeal.
 
-Documentation: ` + docsGettingStarted + `
+Documentation: ` + docsTutorial + `
 Private key handling: ` + docsPrivateKeys,
 		Example: `  # Interactive setup
   yews init
@@ -133,7 +133,7 @@ warnings, and errors go to stderr.
 See also: "yews view" to inspect a file read-only, "yews decrypt" to
 write the plaintext to disk.
 
-Documentation: ` + docsWorkflows,
+Documentation: ` + docsTutorial,
 		Example: `  # Edit a registered encrypted file
   yews edit -f config.enc.toml
 

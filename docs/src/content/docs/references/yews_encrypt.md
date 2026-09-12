@@ -18,8 +18,8 @@ within the current directory scope):
     it (groups always scan by their own config directory, never by the
     target directory);
   - arguments containing *, ?, and similar metacharacters are patterns
-    matched against registered plaintext paths (a leading / anchors,
-    ** is supported), relative to the current working directory;
+    matched against registered plaintext paths (a leading / anchors to
+    the current working directory, ** is supported);
   - multiple arguments take the union; patterns only include, excludes
     come from group "patterns" in the config; any argument matching
     nothing is an error.

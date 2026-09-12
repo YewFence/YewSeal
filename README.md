@@ -50,9 +50,9 @@ Commit the encrypted files to version control and back up `.age/keys.txt` — it
 
 Every command is self-documenting: `yews <command> --help` carries the complete semantics (target selection, flags, exit codes, examples). The documentation site mirrors the same content plus guides:
 
-- [Getting started](https://yewfence.github.io/YewSeal/guide/getting-started) — install, init, first encrypt/decrypt
+- [Tutorial](https://yewfence.github.io/YewSeal/guide/tutorial) — init, encrypt, commit, clone, decrypt, end to end
 - [Configuration](https://yewfence.github.io/YewSeal/guide/configuration) — `.yewseal.toml`, `.sops.yaml`, environment variables
-- [Workflows](https://yewfence.github.io/YewSeal/guide/workflows) — how the commands compose in daily use
+- [Working with a team](https://yewfence.github.io/YewSeal/guide/working-with-a-team) — shared repositories, per-file authorization, strict mode
 - [CLI reference](https://yewfence.github.io/YewSeal/references/yews) — generated from the same source as `--help`
 
 For simple single-file tasks without a project config, use the standalone SOPS CLI; see [Interop with SOPS](https://yewfence.github.io/YewSeal/guide/sops).

@@ -5,9 +5,12 @@ template: splash
 hero:
   tagline: Encrypt the TOML, YAML, JSON, ENV, and INI configuration files in your repository with SOPS and Age, so sensitive settings can be committed safely.
   actions:
-    - text: Get started
-      link: guide/getting-started/
+    - text: Tutorial
+      link: guide/tutorial/
       variant: primary
+    - text: Installation
+      link: guide/installation/
+      variant: secondary
     - text: CLI reference
       link: references/yews/
       variant: secondary
