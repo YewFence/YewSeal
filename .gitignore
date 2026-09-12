@@ -4,8 +4,8 @@
 /coverage.out
 /coverage.html
 /docs/node_modules/
-/docs/.vitepress/cache/
-/docs/.vitepress/dist/
+/docs/dist/
+/docs/.astro/
 *.out
 *.test
 *.exe

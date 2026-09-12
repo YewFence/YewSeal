@@ -152,19 +152,19 @@ dir = "docs"
 run = "pnpm install --frozen-lockfile"
 
 [tasks.'docs:dev']
-description = "Start the VitePress documentation site"
+description = "Start the Astro Starlight documentation site"
 depends = ["docs:install:locked"]
 dir = "docs"
 run = "pnpm run dev"
 
 [tasks.'docs:build']
-description = "Build the VitePress documentation site"
+description = "Build the Astro Starlight documentation site"
 depends = ["docs:install:locked"]
 dir = "docs"
 run = "pnpm run build"
 
 [tasks.'docs:preview']
-description = "Preview the VitePress documentation site"
+description = "Preview the Astro Starlight documentation site"
 depends = ["docs:install:locked"]
 dir = "docs"
 run = "pnpm run preview"
