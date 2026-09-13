@@ -66,10 +66,11 @@ type jsonSchema struct {
 
 // schemaRequiredFields 显式锚定各定义的必填字段。
 // TOML 解码对缺省字段宽容(零值),真正的必填约束由 LoadConfig 校验
-// (目前只有 FilePair 的 plaintext/encrypted);Go struct 标签无法表达这一点,
-// 因此在此硬编码,schema 必填性变化必须同步更新本表。
+// (FilePair 的 plaintext/encrypted,GroupConfig 的 patterns);Go struct 标签
+// 无法表达这一点,因此在此硬编码,schema 必填性变化必须同步更新本表。
 var schemaRequiredFields = map[string][]string{
 	"FilePair": {"plaintext", "encrypted"},
+	"GroupConfig": {"patterns"},
 }
 
 // TestSchemaMatchesConfigStructs 是防漂移 tripwire:

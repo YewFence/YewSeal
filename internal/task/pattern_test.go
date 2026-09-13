@@ -16,6 +16,7 @@ func TestPatternMatcherDecision(t *testing.T) {
 		"/root.yaml",
 		"secrets/",
 		`\#literal`,
+		"#plain",
 	})
 	require.NoError(t, err)
 
@@ -35,6 +36,7 @@ func TestPatternMatcherDecision(t *testing.T) {
 		{name: "directory only includes descendant", path: "secrets/app.toml", wantDecided: true, wantIncluded: true},
 		{name: "directory only misses same named file", path: "secrets", wantDecided: false, wantIncluded: false},
 		{name: "literal hash", path: "#literal", wantDecided: true, wantIncluded: true},
+		{name: "plain hash is a literal, not a comment", path: "#plain", wantDecided: true, wantIncluded: true},
 	}
 
 	for _, tt := range tests {

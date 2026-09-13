@@ -102,7 +102,7 @@ func TestReadSelectionUsesHistoricalAuthorizationAndRejectsOutputOverrides(t *te
 func TestDiffSelectionDoesNotDiscoverCiphertextOnlyGroups(t *testing.T) {
 	cfg := selectionConfig(t)
 	enc := selectionFile(t, cfg.CurrentDir, "remote.enc.yaml")
-	cfg.Encryption.Groups = []GroupConfig{{ConfigDir: cfg.CurrentDir}}
+	cfg.Encryption.Groups = []GroupConfig{{ConfigDir: cfg.CurrentDir, Patterns: []string{"*.yaml"}}}
 	_, err := ResolveSelection(cfg, SelectionOptions{Command: task.ModeDiff})
 	require.ErrorContains(t, err, "no configured file pairs selected")
 	_, err = ResolveSelection(cfg, SelectionOptions{Command: task.ModeDiff, Targets: []string{enc}})
@@ -118,7 +118,7 @@ func TestPlanDiscoversBothSidesWithoutInspectingContent(t *testing.T) {
 	for _, name := range []string{"new.yaml", "remote.enc.yaml", "existing.yml", "existing.enc.yaml"} {
 		selectionFile(t, cfg.CurrentDir, name)
 	}
-	cfg.Encryption.Groups = []GroupConfig{{ConfigDir: cfg.CurrentDir}}
+	cfg.Encryption.Groups = []GroupConfig{{ConfigDir: cfg.CurrentDir, Patterns: []string{"*.yaml", "*.yml"}}}
 	for _, target := range []string{"", cfg.CurrentDir, filepath.Join(cfg.CurrentDir, "remote.enc.yaml")} {
 		result, err := ResolveSelection(cfg, SelectionOptions{Command: task.ModePlan, Targets: []string{target}})
 		require.NoError(t, err)
@@ -142,7 +142,7 @@ func TestPlanRejectsCompetingMappingsUnlessExplicitlyResolved(t *testing.T) {
 	for _, name := range []string{"config.yaml", "config.yml", "config.enc.yaml"} {
 		selectionFile(t, cfg.CurrentDir, name)
 	}
-	cfg.Encryption.Groups = []GroupConfig{{ConfigDir: cfg.CurrentDir}}
+	cfg.Encryption.Groups = []GroupConfig{{ConfigDir: cfg.CurrentDir, Patterns: []string{"*.yaml", "*.yml"}}}
 	_, err := ResolveSelection(cfg, SelectionOptions{Command: task.ModePlan})
 	require.ErrorContains(t, err, "conflicting group file pairs")
 	cfg.Encryption.Files = []FilePair{{PlaintextPath: filepath.Join(cfg.CurrentDir, "custom.yaml"), EncryptedPath: filepath.Join(cfg.CurrentDir, "config.enc.yaml"), Format: "yaml"}}

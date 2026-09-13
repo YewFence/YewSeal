@@ -55,8 +55,9 @@ recipients?: [string, ...string]
 
 // #GroupConfig 定义一组按模式匹配的加密文件。
 #GroupConfig: {
-	// glob 模式列表,如 "config/**/*.toml"。缺省时使用默认扫描模式;加密始终排除 YewSeal 协议格式的 *.enc.* 文件和显式 FilePair 的 encrypted 路径:
-	patterns?: [...string]
+	// glob 模式列表,如 "config/**/*.toml"。必填:无模式的组会隐式扫荡配置目录下所有"像配置"的文件,因此被拒绝。
+	// 加密始终排除 YewSeal 协议格式的 *.enc.* 文件和显式 FilePair 的 encrypted 路径:
+	patterns!: [...string]
 
 	// 格式覆盖规则,语法为 "<glob>=<format>",如 "*.dev.vars=env"。
 	// format 仅接受小写(Go 运行时对大小写宽容,schema 引导规范写法),

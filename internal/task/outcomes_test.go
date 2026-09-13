@@ -109,12 +109,12 @@ func TestDiffGroupKeepsExistingYMLPath(t *testing.T) {
 	for _, name := range []string{"config.yml", "config.enc.yaml"} {
 		require.NoError(t, os.WriteFile(filepath.Join(root, name), []byte("unused"), 0600))
 	}
-	pairs, err := BuildProjectGroupFilePairs(GroupOptions{Root: root, Mode: ModeDiff})
+	pairs, err := BuildProjectGroupFilePairs(GroupOptions{Root: root, Mode: ModeDiff, Patterns: []string{"*.yml", "*.yaml"}})
 	require.NoError(t, err)
 	require.Len(t, pairs, 1)
 	require.Equal(t, filepath.Join(root, "config.yml"), pairs[0].PlaintextPath)
 	require.NoError(t, os.WriteFile(filepath.Join(root, "config.yaml"), []byte("ambiguous"), 0600))
-	pairs, err = BuildProjectGroupFilePairs(GroupOptions{Root: root, Mode: ModeDiff})
+	pairs, err = BuildProjectGroupFilePairs(GroupOptions{Root: root, Mode: ModeDiff, Patterns: []string{"*.yml", "*.yaml"}})
 	require.NoError(t, err)
 	require.Len(t, pairs, 2, "configuration selection must arbitrate competing discovered mappings")
 }
