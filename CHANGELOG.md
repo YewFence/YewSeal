@@ -1,3 +1,8 @@
+## [0.10.0] - 2026-09-14
+
+### 🚜 Refactor
+
+- *(config)* [**breaking**] Require group patterns and drop '#' pattern syntax (#24)
 ## [0.9.0] - 2026-09-11
 
 ### 🚀 Features
