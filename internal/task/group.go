@@ -19,24 +19,11 @@ const (
 	ModeView    = "view"
 )
 
-var defaultEncryptPatterns = []string{
-	"*.toml",
-	"*.yaml",
-	"*.yml",
-	"*.json",
-	"*.env",
-	"*.ini",
-	"*.bin",
-	"*.binary",
-	"!*.enc.toml",
-	"!*.enc.yaml",
-	"!*.enc.json",
-	"!*.enc.env",
-	"!*.enc.ini",
-	"!*.enc.bin",
-}
-
-var defaultDecryptPatterns = []string{
+// protocolFilePatterns is how decryption discovers ciphertext: YewSeal
+// protocol files are recognized by their .enc.* suffix. This is the discovery
+// mechanism, not a user-facing default — group patterns are always required
+// and filter the logical plaintext paths.
+var protocolFilePatterns = []string{
 	"*.enc.toml",
 	"*.enc.yaml",
 	"*.enc.json",
@@ -76,6 +63,9 @@ func buildGroupFilePairs(opts GroupOptions, allowEmpty bool) ([]FilePair, error)
 	if mode != ModeEncrypt && mode != ModeDecrypt {
 		return nil, fmt.Errorf("invalid group mode %q", opts.Mode)
 	}
+	if len(opts.Patterns) == 0 {
+		return nil, fmt.Errorf("group patterns must not be empty")
+	}
 
 	root := strings.TrimSpace(opts.Root)
 	if root == "" {
@@ -90,9 +80,6 @@ func buildGroupFilePairs(opts GroupOptions, allowEmpty bool) ([]FilePair, error)
 	}
 
 	patterns := opts.Patterns
-	if len(patterns) == 0 {
-		patterns = defaultPatterns(mode)
-	}
 	matcher, err := NewPatternMatcher(patterns)
 	if err != nil {
 		return nil, err
@@ -172,6 +159,10 @@ func BuildProjectGroupFilePairs(opts GroupOptions) ([]FilePair, error) {
 }
 
 func buildProjectDecryptFilePairs(opts GroupOptions, allowEmpty bool) ([]FilePair, error) {
+	if len(opts.Patterns) == 0 {
+		return nil, fmt.Errorf("group patterns must not be empty")
+	}
+
 	root := strings.TrimSpace(opts.Root)
 	if root == "" {
 		root = "."
@@ -185,14 +176,11 @@ func buildProjectDecryptFilePairs(opts GroupOptions, allowEmpty bool) ([]FilePai
 	}
 
 	patterns := opts.Patterns
-	if len(patterns) == 0 {
-		patterns = defaultPatterns(ModeEncrypt)
-	}
 	logicalMatcher, err := NewPatternMatcher(patterns)
 	if err != nil {
 		return nil, err
 	}
-	encryptedMatcher, err := NewPatternMatcher(defaultPatterns(ModeDecrypt))
+	encryptedMatcher, err := NewPatternMatcher(protocolFilePatterns)
 	if err != nil {
 		return nil, err
 	}
@@ -407,11 +395,4 @@ func resolveFormatRule(matchPath string, rules []FormatRule) string {
 		}
 	}
 	return format
-}
-
-func defaultPatterns(mode string) []string {
-	if mode == ModeDecrypt {
-		return append([]string(nil), defaultDecryptPatterns...)
-	}
-	return append([]string(nil), defaultEncryptPatterns...)
 }

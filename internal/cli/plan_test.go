@@ -26,7 +26,7 @@ func TestPlanChecksMappingsWithoutExecutionEnvironment(t *testing.T) {
 	cfg := &config.Config{
 		CurrentDir: root,
 		Recipients: config.RecipientConfig{Defaults: &defaults, Registry: map[string]string{"owner": identity.Recipient().String()}},
-		Encryption: config.EncryptionConfig{Groups: []config.GroupConfig{{ConfigDir: root}}},
+		Encryption: config.EncryptionConfig{Groups: []config.GroupConfig{{ConfigDir: root, Patterns: []string{"*.yaml"}}}},
 	}
 	for _, args := range [][]string{{"plan", "--json"}, {"plan", "remote.enc.yaml", "--json"}, {"plan", root, "--json"}} {
 		calls := 0

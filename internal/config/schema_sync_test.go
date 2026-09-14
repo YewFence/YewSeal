@@ -60,16 +60,18 @@ type jsonSchema struct {
 	Enum                 []string              `json:"enum"`
 	Const                string                `json:"const"`
 	Pattern              string                `json:"pattern"`
+	MinItems             int                   `json:"minItems"`
 	AdditionalProperties *json.RawMessage      `json:"additionalProperties"`
 	Defs                 map[string]jsonSchema `json:"$defs"`
 }
 
 // schemaRequiredFields 显式锚定各定义的必填字段。
 // TOML 解码对缺省字段宽容(零值),真正的必填约束由 LoadConfig 校验
-// (目前只有 FilePair 的 plaintext/encrypted);Go struct 标签无法表达这一点,
-// 因此在此硬编码,schema 必填性变化必须同步更新本表。
+// (FilePair 的 plaintext/encrypted,GroupConfig 的 patterns);Go struct 标签
+// 无法表达这一点,因此在此硬编码,schema 必填性变化必须同步更新本表。
 var schemaRequiredFields = map[string][]string{
 	"FilePair": {"plaintext", "encrypted"},
+	"GroupConfig": {"patterns"},
 }
 
 // TestSchemaMatchesConfigStructs 是防漂移 tripwire:
@@ -80,6 +82,17 @@ func TestSchemaMatchesConfigStructs(t *testing.T) {
 	schema := loadJSONSchema(t)
 	require.Equal(t, "#/$defs/Config", schema.Ref)
 	assertDefMatchesStruct(t, schema.Defs, "Config", reflect.TypeOf(Config{}))
+}
+
+// TestSchemaGroupPatternsRequireEntry 锚定 patterns 的 minItems 约束:
+// LoadConfig 拒绝空数组,schema 必须同样拒绝,否则编辑器会把运行时
+// 必然失败的配置标为有效。混合数组中的空白项被 go-git 按 .gitignore
+// 行尾空格规则剥成空模式、永不命中(见 task 包的 pin 测试),无害,
+// 因此只约束"至少一项",不逐项约束非空白。
+func TestSchemaGroupPatternsRequireEntry(t *testing.T) {
+	schema := loadJSONSchema(t)
+	patterns := schema.Defs["GroupConfig"].Properties["patterns"]
+	require.Equal(t, 1, patterns.MinItems, "GroupConfig.patterns 应声明 minItems:1")
 }
 
 func loadJSONSchema(t *testing.T) jsonSchema {

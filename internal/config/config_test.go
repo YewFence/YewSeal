@@ -167,6 +167,26 @@ func TestLoadConfigRejectsSyncTable(t *testing.T) {
 	require.EqualError(t, err, "sync configuration is no longer supported; remove the [sync] table and manage private keys externally")
 }
 
+func TestLoadConfigRejectsGroupWithoutPatterns(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	content := `
+[[encryption.groups]]
+unknown_as_binary = false
+`
+	require.NoError(t, os.WriteFile(filepath.Join(dir, ".yewseal.toml"), []byte(content), 0600))
+	_, err := LoadConfig()
+	require.ErrorContains(t, err, "invalid encryption.groups[0]: patterns is required")
+
+	blank := `
+[[encryption.groups]]
+patterns = ['', '   ']
+`
+	require.NoError(t, os.WriteFile(filepath.Join(dir, ".yewseal.toml"), []byte(blank), 0600))
+	_, err = LoadConfig()
+	require.ErrorContains(t, err, "invalid encryption.groups[0]: patterns is required")
+}
+
 func TestLoadConfig_InvalidToml(t *testing.T) {
 	tmpDir := t.TempDir()
 	oldWd, err := os.Getwd()

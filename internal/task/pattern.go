@@ -36,23 +36,23 @@ func HasPatternMeta(value string) bool {
 	return strings.ContainsAny(value, "*?[")
 }
 
-// ParsePatternRules 校验并编译一组 gitignore 风格规则；空行和 # 开头的行
-// 会被跳过，`\#` 开头的规则按字面量 # 处理。
+// ParsePatternRules 校验并编译一组 gitignore 风格规则。patterns 是 TOML
+// 数组元素而不是 .gitignore 的行：注释用 TOML 自己的语法，空元素是配置
+// 错误。`#` 没有 gitignore 文件里的注释语义，只是 glob 里的字面量字符
+// （go-git 的 ParsePattern 不解析注释，转义 `\#` 也按原生 glob 转义处理）。
 func ParsePatternRules(patterns []string) ([]PatternRule, error) {
 	rules := make([]PatternRule, 0, len(patterns))
 	for _, raw := range patterns {
 		ruleText := raw
-		if ruleText == "" || strings.HasPrefix(ruleText, "#") {
-			continue
-		}
-		if strings.HasPrefix(ruleText, `\#`) {
-			ruleText = ruleText[1:]
+		if ruleText == "" {
+			return nil, fmt.Errorf("invalid group pattern: empty element; remove it or comment the TOML line")
 		}
 
 		rule := PatternRule{Raw: raw}
-		// 匹配语义遵循上游 gitignore 与 Go filepath.Match：空白、转义与
-		// 路径分隔符都不做额外归一化（patterns 在所有平台以 `/` 作为
-		// 路径分隔符），本层只做结构校验。
+		// 匹配语义遵循上游 gitignore 与 Go filepath.Match：本层不做额外
+		// 归一化（patterns 在所有平台以 `/` 作为路径分隔符），只做结构
+		// 校验。行尾空格由 go-git 按 .gitignore 规则剥除（`\ ` 转义保留），
+		// 纯空白模式因此剥成空模式、永不命中。
 		check := ruleText
 		if strings.HasPrefix(check, "!") {
 			rule.Negated = true

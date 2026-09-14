@@ -126,6 +126,16 @@ func LoadConfig() (*Config, error) {
 		}
 	}
 	for groupIndex, group := range config.Encryption.Groups {
+		hasPattern := false
+		for _, pattern := range group.Patterns {
+			if strings.TrimSpace(pattern) != "" {
+				hasPattern = true
+				break
+			}
+		}
+		if !hasPattern {
+			return nil, fmt.Errorf("invalid encryption.groups[%d]: patterns is required; a group without patterns would sweep every config-like file under the config directory", groupIndex)
+		}
 		for ruleIndex, rule := range group.FormatRules {
 			if strings.TrimSpace(rule) == "" {
 				return nil, fmt.Errorf("invalid encryption.groups[%d].format_rules[%d]: rule is empty", groupIndex, ruleIndex)
