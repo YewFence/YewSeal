@@ -3,7 +3,7 @@
     "$defs": {
         "Config": {
             "type": "object",
-            "description": "#Config 是 .yewseal.toml 的顶层结构。所有段落都可缺省。\n加密和 plan 选择阶段要求路径来自 files/groups,并要求最终授权集合非空。",
+            "description": "#Config is the top-level structure of .yewseal.toml. Every section is\noptional. The encryption and plan-selection stages require paths to come\nfrom files/groups and require the final authorized set to be non-empty.",
             "additionalProperties": false,
             "properties": {
                 "encryption": {
@@ -16,19 +16,19 @@
         },
         "EncryptionConfig": {
             "type": "object",
-            "description": "#EncryptionConfig 定义加密文件映射。",
+            "description": "#EncryptionConfig defines the encrypted file mapping.",
             "additionalProperties": false,
             "properties": {
                 "files": {
                     "type": "array",
-                    "description": "显式的明文/加密文件对。所有运行时处理的路径都必须来自这里或 groups。",
+                    "description": "Explicit plaintext/encrypted file pairs. Every path processed at\nruntime must come from here or from groups.",
                     "items": {
                         "$ref": "#/$defs/FilePair"
                     }
                 },
                 "groups": {
                     "type": "array",
-                    "description": "按 glob 模式批量匹配的加密文件组。",
+                    "description": "Groups of encrypted files matched in bulk by glob patterns.",
                     "items": {
                         "$ref": "#/$defs/GroupConfig"
                     }
@@ -37,24 +37,24 @@
         },
         "FilePair": {
             "type": "object",
-            "description": "#FilePair 定义一对明文/加密文件映射。",
+            "description": "#FilePair defines a plaintext/encrypted file pair.",
             "additionalProperties": false,
             "properties": {
                 "encrypted": {
                     "type": "string",
-                    "description": "加密文件路径,用作 encrypt 的输出和 decrypt 的输入。解析规则同\nplaintext。"
+                    "description": "Encrypted file path, used as the output of encrypt and the input of\ndecrypt. Resolution rules are the same as for plaintext."
                 },
                 "format": {
-                    "description": "覆盖文件格式探测,用于扩展名不标准的文件(如 .dev.vars)。",
+                    "description": "Overrides format detection, for files with non-standard extensions\n(e.g. .dev.vars).",
                     "$ref": "#/$defs/Format"
                 },
                 "plaintext": {
                     "type": "string",
-                    "description": "明文文件路径,用作 encrypt 的输入和 decrypt 的输出。相对路径按本\n配置文件所在目录解析;绝对路径按字面生效但把配置绑定到单一机器\n(clone、CI、移动项目目录后失效),不推荐。~ 不展开;Windows 绝对\n路径必须带盘符。"
+                    "description": "Plaintext file path, used as the input of encrypt and the output of\ndecrypt. Relative paths resolve against the directory containing\nthis config file; absolute paths take effect literally but bind the\nconfig to a single machine (it breaks after a clone, in CI, or after\nmoving the project directory), so they are not recommended. ~ is not\nexpanded; Windows absolute paths must include a drive letter."
                 },
                 "recipients": {
                     "type": "array",
-                    "description": "授权 alias 集合。省略时继承 group 或顶层 defaults。",
+                    "description": "Authorized alias set. When omitted, inherits from the group or the\ntop-level defaults.",
                     "items": {
                         "type": "string"
                     },
@@ -72,7 +72,7 @@
             ]
         },
         "Format": {
-            "description": "#Format 是 YewSeal 支持的加密文件格式。\n规范名之外还接受运行时别名(yml→yaml、dotenv→env、bin→binary),\n与 internal/seal.FormatSpellings 保持一致(有 Go 测试强制);运行时归一化为规范名。",
+            "description": "#Format lists the encrypted file formats supported by YewSeal.\nBeyond the canonical names, runtime aliases are accepted\n(yml→yaml, dotenv→env, bin→binary), kept consistent with\ninternal/seal.FormatSpellings (enforced by a Go test); the runtime\nnormalizes aliases to canonical names.",
             "enum": [
                 "toml",
                 "yaml",
@@ -87,12 +87,12 @@
         },
         "GroupConfig": {
             "type": "object",
-            "description": "#GroupConfig 定义一组按模式匹配的加密文件。",
+            "description": "#GroupConfig defines a set of encrypted files matched by patterns.",
             "additionalProperties": false,
             "properties": {
                 "format_rules": {
                     "type": "array",
-                    "description": "格式覆盖规则,语法为 \"<glob>=<format>\",如 \"*.dev.vars=env\"。\nformat 仅接受小写(Go 运行时对大小写宽容,schema 引导规范写法),\n与 #Format 一样接受 yml/dotenv/bin 别名。",
+                    "description": "Format override rules with the syntax \"<glob>=<format>\", e.g.\n\"*.dev.vars=env\".\nformat only accepts lowercase (the Go runtime is case-insensitive;\nthe schema nudges toward the canonical style). Like #Format, it\naccepts the yml/dotenv/bin aliases.",
                     "items": {
                         "type": "string",
                         "pattern": "^.+=(toml|yaml|yml|json|env|dotenv|ini|binary|bin)$"
@@ -100,7 +100,7 @@
                 },
                 "patterns": {
                     "type": "array",
-                    "description": "glob 模式列表,如 \"config/**/*.toml\"。必填:无模式的组会隐式扫荡配置目录下所有\"像配置\"的文件,因此被拒绝。\n至少一项(与 LoadConfig 的\"至少一个非空白模式\"约束对齐;混合数组中的空白项被 go-git\n按 .gitignore 行尾空格规则剥成空模式、永不命中,无害,故不逐项约束)。\n加密始终排除 YewSeal 协议格式的 *.enc.* 文件和显式 FilePair 的 encrypted 路径:",
+                    "description": "List of glob patterns, e.g. \"config/**/*.toml\". Required: a group\nwithout patterns would implicitly sweep every config-like file in\nthe config directory, so it is rejected.\nAt least one entry (aligned with LoadConfig's \"at least one\nnon-blank pattern\" constraint; blank entries in a mixed array are\nstripped into empty patterns by go-git per the .gitignore\ntrailing-whitespace rules and never match, which is harmless, so\nentries are not constrained individually).\nEncryption always excludes *.enc.* files in YewSeal protocol format\nand the encrypted paths of explicit FilePairs:",
                     "items": {
                         "type": "string"
                     },
@@ -113,7 +113,7 @@
                 },
                 "recipients": {
                     "type": "array",
-                    "description": "扫描结果的授权 alias 集合。省略时继承顶层 defaults。",
+                    "description": "Authorized alias set for scan results. When omitted, inherits from\nthe top-level defaults.",
                     "items": {
                         "type": "string"
                     },
@@ -126,7 +126,7 @@
                 },
                 "unknown_as_binary": {
                     "type": "boolean",
-                    "description": "无法探测格式的文件按 binary 处理。"
+                    "description": "Files whose format cannot be detected are treated as binary."
                 }
             },
             "required": [
@@ -135,12 +135,12 @@
         },
         "RecipientConfig": {
             "type": "object",
-            "description": "#RecipientConfig 定义公开 recipient 授权策略。\nregistry 只包含公开 Age recipient,不包含私钥。",
+            "description": "#RecipientConfig defines the public recipient authorization policy.\nThe registry contains public Age recipients only, never private keys.",
             "additionalProperties": false,
             "properties": {
                 "defaults": {
                     "type": "array",
-                    "description": "默认 alias 集合。缺省时每个 file/group 都必须显式声明 recipients。",
+                    "description": "Default alias set. When absent, every file/group must declare its\nown recipients explicitly.",
                     "items": {
                         "type": "string"
                     },
@@ -153,7 +153,7 @@
                 },
                 "registry": {
                     "type": "object",
-                    "description": "alias 到 Age recipient 公钥的映射。",
+                    "description": "Mapping from alias to an Age recipient public key.",
                     "additionalProperties": {
                         "type": "string"
                     }
@@ -162,6 +162,6 @@
         }
     },
     "type": "object",
-    "description": "Package schema 是 .yewseal.toml 的权威 schema,与 internal/config 的 Go struct 保持同步。\n\n三向锚定防漂移:\n  - mise run schema:check 用 cue vet 校验 example.yewseal.toml 符合本 schema\n  - internal/config 的 Go 测试 strict-unmarshal 同一 example(Go 不认识的字段会报错)\n  - 反射 tripwire 测试将 Go struct 与导出的 JSON Schema 逐字段结构对齐\n    (父级、类型、必填性),schema:check 的 diff 保证导出与本文件一致",
+    "description": "Package schema is the authoritative schema for .yewseal.toml, kept in sync\nwith the Go structs in internal/config.\n\nThree-way anchoring prevents drift:\n  - mise run schema:check uses cue vet to validate that example.yewseal.toml\n    conforms to this schema\n  - The Go tests in internal/config strict-unmarshal the same example\n    (fields unknown to Go fail the test)\n  - A reflection tripwire test aligns the Go structs with the exported JSON\n    Schema field by field (parents, types, requiredness); the diff inside\n    schema:check guarantees the export matches this file",
     "$ref": "#/$defs/Config"
 }

@@ -1,82 +1,104 @@
-// Package schema 是 .yewseal.toml 的权威 schema,与 internal/config 的 Go struct 保持同步。
+// Package schema is the authoritative schema for .yewseal.toml, kept in sync
+// with the Go structs in internal/config.
 //
-// 三向锚定防漂移:
-//   - mise run schema:check 用 cue vet 校验 example.yewseal.toml 符合本 schema
-//   - internal/config 的 Go 测试 strict-unmarshal 同一 example(Go 不认识的字段会报错)
-//   - 反射 tripwire 测试将 Go struct 与导出的 JSON Schema 逐字段结构对齐
-//     (父级、类型、必填性),schema:check 的 diff 保证导出与本文件一致
+// Three-way anchoring prevents drift:
+//   - mise run schema:check uses cue vet to validate that example.yewseal.toml
+//     conforms to this schema
+//   - The Go tests in internal/config strict-unmarshal the same example
+//     (fields unknown to Go fail the test)
+//   - A reflection tripwire test aligns the Go structs with the exported JSON
+//     Schema field by field (parents, types, requiredness); the diff inside
+//     schema:check guarantees the export matches this file
 package schema
 
-// #Config 是 .yewseal.toml 的顶层结构。所有段落都可缺省。
-// 加密和 plan 选择阶段要求路径来自 files/groups,并要求最终授权集合非空。
+// #Config is the top-level structure of .yewseal.toml. Every section is
+// optional. The encryption and plan-selection stages require paths to come
+// from files/groups and require the final authorized set to be non-empty.
 #Config: {
 	encryption?: #EncryptionConfig
 	recipients?: #RecipientConfig
 }
 
-// #Format 是 YewSeal 支持的加密文件格式。
-// 规范名之外还接受运行时别名(yml→yaml、dotenv→env、bin→binary),
-// 与 internal/seal.FormatSpellings 保持一致(有 Go 测试强制);运行时归一化为规范名。
+// #Format lists the encrypted file formats supported by YewSeal.
+// Beyond the canonical names, runtime aliases are accepted
+// (yml→yaml, dotenv→env, bin→binary), kept consistent with
+// internal/seal.FormatSpellings (enforced by a Go test); the runtime
+// normalizes aliases to canonical names.
 #Format: "toml" | "yaml" | "yml" | "json" | "env" | "dotenv" | "ini" | "binary" | "bin"
 
-// #EncryptionConfig 定义加密文件映射。
+// #EncryptionConfig defines the encrypted file mapping.
 #EncryptionConfig: {
-	// 显式的明文/加密文件对。所有运行时处理的路径都必须来自这里或 groups。
+	// Explicit plaintext/encrypted file pairs. Every path processed at
+	// runtime must come from here or from groups.
 	files?: [...#FilePair]
 
-	// 按 glob 模式批量匹配的加密文件组。
+	// Groups of encrypted files matched in bulk by glob patterns.
 	groups?: [...#GroupConfig]
 }
 
-// #RecipientConfig 定义公开 recipient 授权策略。
-// registry 只包含公开 Age recipient,不包含私钥。
+// #RecipientConfig defines the public recipient authorization policy.
+// The registry contains public Age recipients only, never private keys.
 #RecipientConfig: {
-	// 默认 alias 集合。缺省时每个 file/group 都必须显式声明 recipients。
+	// Default alias set. When absent, every file/group must declare its
+	// own recipients explicitly.
 	defaults?: [string, ...string]
 
-	// alias 到 Age recipient 公钥的映射。
+	// Mapping from alias to an Age recipient public key.
 	registry?: {[string]: string}
 }
 
-// #FilePair 定义一对明文/加密文件映射。
+// #FilePair defines a plaintext/encrypted file pair.
 #FilePair: {
-	// 明文文件路径,用作 encrypt 的输入和 decrypt 的输出。相对路径按本
-	// 配置文件所在目录解析;绝对路径按字面生效但把配置绑定到单一机器
-	// (clone、CI、移动项目目录后失效),不推荐。~ 不展开;Windows 绝对
-	// 路径必须带盘符。
+	// Plaintext file path, used as the input of encrypt and the output of
+	// decrypt. Relative paths resolve against the directory containing
+	// this config file; absolute paths take effect literally but bind the
+	// config to a single machine (it breaks after a clone, in CI, or after
+	// moving the project directory), so they are not recommended. ~ is not
+	// expanded; Windows absolute paths must include a drive letter.
 	plaintext!: string
 
-	// 加密文件路径,用作 encrypt 的输出和 decrypt 的输入。解析规则同
-	// plaintext。
+	// Encrypted file path, used as the output of encrypt and the input of
+	// decrypt. Resolution rules are the same as for plaintext.
 	encrypted!: string
 
-	// 覆盖文件格式探测,用于扩展名不标准的文件(如 .dev.vars)。
+	// Overrides format detection, for files with non-standard extensions
+	// (e.g. .dev.vars).
 	format?: #Format
 
-// 授权 alias 集合。省略时继承 group 或顶层 defaults。
-recipients?: [string, ...string]
+	// Authorized alias set. When omitted, inherits from the group or the
+	// top-level defaults.
+	recipients?: [string, ...string]
 }
 
-// #GroupConfig 定义一组按模式匹配的加密文件。
+// #GroupConfig defines a set of encrypted files matched by patterns.
 #GroupConfig: {
-	// glob 模式列表,如 "config/**/*.toml"。必填:无模式的组会隐式扫荡配置目录下所有"像配置"的文件,因此被拒绝。
-	// 至少一项(与 LoadConfig 的"至少一个非空白模式"约束对齐;混合数组中的空白项被 go-git
-	// 按 .gitignore 行尾空格规则剥成空模式、永不命中,无害,故不逐项约束)。
-	// 加密始终排除 YewSeal 协议格式的 *.enc.* 文件和显式 FilePair 的 encrypted 路径:
+	// List of glob patterns, e.g. "config/**/*.toml". Required: a group
+	// without patterns would implicitly sweep every config-like file in
+	// the config directory, so it is rejected.
+	// At least one entry (aligned with LoadConfig's "at least one
+	// non-blank pattern" constraint; blank entries in a mixed array are
+	// stripped into empty patterns by go-git per the .gitignore
+	// trailing-whitespace rules and never match, which is harmless, so
+	// entries are not constrained individually).
+	// Encryption always excludes *.enc.* files in YewSeal protocol format
+	// and the encrypted paths of explicit FilePairs:
 	patterns!: [string, ...string]
 
-	// 格式覆盖规则,语法为 "<glob>=<format>",如 "*.dev.vars=env"。
-	// format 仅接受小写(Go 运行时对大小写宽容,schema 引导规范写法),
-	// 与 #Format 一样接受 yml/dotenv/bin 别名。
+	// Format override rules with the syntax "<glob>=<format>", e.g.
+	// "*.dev.vars=env".
+	// format only accepts lowercase (the Go runtime is case-insensitive;
+	// the schema nudges toward the canonical style). Like #Format, it
+	// accepts the yml/dotenv/bin aliases.
 	format_rules?: [...=~"^.+=(toml|yaml|yml|json|env|dotenv|ini|binary|bin)$"]
 
-	// 无法探测格式的文件按 binary 处理。
+	// Files whose format cannot be detected are treated as binary.
 	unknown_as_binary?: bool
 
-// 扫描结果的授权 alias 集合。省略时继承顶层 defaults。
-recipients?: [string, ...string]
+	// Authorized alias set for scan results. When omitted, inherits from
+	// the top-level defaults.
+	recipients?: [string, ...string]
 }
 
-// 顶层默认引用,便于 cue vet/export 直接使用:
+// Top-level default reference, so cue vet/export can use it directly:
 //   cue vet ./schema example.yewseal.toml -d '#Config'
 #Config
