@@ -100,10 +100,16 @@
                 },
                 "patterns": {
                     "type": "array",
-                    "description": "glob 模式列表,如 \"config/**/*.toml\"。必填:无模式的组会隐式扫荡配置目录下所有\"像配置\"的文件,因此被拒绝。\n加密始终排除 YewSeal 协议格式的 *.enc.* 文件和显式 FilePair 的 encrypted 路径:",
+                    "description": "glob 模式列表,如 \"config/**/*.toml\"。必填:无模式的组会隐式扫荡配置目录下所有\"像配置\"的文件,因此被拒绝。\n至少一项(与 LoadConfig 的\"至少一个非空白模式\"约束对齐;混合数组中的空白项被 go-git\n按 .gitignore 行尾空格规则剥成空模式、永不命中,无害,故不逐项约束)。\n加密始终排除 YewSeal 协议格式的 *.enc.* 文件和显式 FilePair 的 encrypted 路径:",
                     "items": {
                         "type": "string"
-                    }
+                    },
+                    "prefixItems": [
+                        {
+                            "type": "string"
+                        }
+                    ],
+                    "minItems": 1
                 },
                 "recipients": {
                     "type": "array",

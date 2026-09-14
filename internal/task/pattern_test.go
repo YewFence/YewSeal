@@ -89,6 +89,22 @@ func TestPatternMatcherNegationWithSpaceAfterMarkerIsLiteral(t *testing.T) {
 	assert.True(t, included)
 }
 
+func TestPatternMatcherBlankPatternMatchesNothing(t *testing.T) {
+	// go-git 按 gitignore 规则剥除行尾空格:纯空白模式被剥成空模式,
+	// 任何路径都不命中——连名字恰好是空格的文件也不匹配(`\ ` 转义才能保留尾部空格)。
+	// 钉住这一上游语义:它是"混合数组里的空白项是惰性规则、无需逐项拒绝"的依据。
+	matcher, err := NewPatternMatcher([]string{"   "})
+	require.NoError(t, err)
+
+	decided, included := matcher.Decision("app.toml", false)
+	assert.False(t, decided)
+	assert.False(t, included)
+
+	decided, included = matcher.Decision("   ", false)
+	assert.False(t, decided)
+	assert.False(t, included)
+}
+
 func TestPatternMatcherEscapesMetaCharacters(t *testing.T) {
 	matcher, err := NewPatternMatcher([]string{`\[draft\].yaml`})
 	require.NoError(t, err)

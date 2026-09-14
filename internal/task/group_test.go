@@ -36,6 +36,25 @@ func TestBuildGroupFilePairsUsesPatternsAndFormatRules(t *testing.T) {
 	assert.Equal(t, "toml", pairs[1].Format)
 }
 
+func TestBuildGroupFilePairsRejectsEmptyPatternsBeforeRootDispatch(t *testing.T) {
+	dir := t.TempDir()
+	file := filepath.Join(dir, "app.toml")
+	require.NoError(t, os.WriteFile(file, []byte("token = \"secret\"\n"), 0644))
+
+	// 单文件 root 也不能绕过显式 patterns 的要求:选择永不回退到"目录下的一切"。
+	_, err := BuildGroupFilePairs(GroupOptions{Root: file, Mode: ModeEncrypt})
+	require.ErrorContains(t, err, "group patterns must not be empty")
+
+	_, err = BuildProjectGroupFilePairs(GroupOptions{Root: file, Mode: ModeDecrypt})
+	require.ErrorContains(t, err, "group patterns must not be empty")
+
+	_, err = BuildGroupFilePairs(GroupOptions{Root: dir, Mode: ModeEncrypt})
+	require.ErrorContains(t, err, "group patterns must not be empty")
+
+	_, err = BuildProjectGroupFilePairs(GroupOptions{Root: dir, Mode: ModeDecrypt})
+	require.ErrorContains(t, err, "group patterns must not be empty")
+}
+
 func TestBuildGroupFilePairsEncryptSkipsStandardAndExcludedEncryptedPaths(t *testing.T) {
 	dir := t.TempDir()
 	secretsDir := filepath.Join(dir, "secrets")

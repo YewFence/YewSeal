@@ -63,6 +63,9 @@ func buildGroupFilePairs(opts GroupOptions, allowEmpty bool) ([]FilePair, error)
 	if mode != ModeEncrypt && mode != ModeDecrypt {
 		return nil, fmt.Errorf("invalid group mode %q", opts.Mode)
 	}
+	if len(opts.Patterns) == 0 {
+		return nil, fmt.Errorf("group patterns must not be empty")
+	}
 
 	root := strings.TrimSpace(opts.Root)
 	if root == "" {
@@ -77,9 +80,6 @@ func buildGroupFilePairs(opts GroupOptions, allowEmpty bool) ([]FilePair, error)
 	}
 
 	patterns := opts.Patterns
-	if len(patterns) == 0 {
-		return nil, fmt.Errorf("group patterns must not be empty")
-	}
 	matcher, err := NewPatternMatcher(patterns)
 	if err != nil {
 		return nil, err
@@ -159,6 +159,10 @@ func BuildProjectGroupFilePairs(opts GroupOptions) ([]FilePair, error) {
 }
 
 func buildProjectDecryptFilePairs(opts GroupOptions, allowEmpty bool) ([]FilePair, error) {
+	if len(opts.Patterns) == 0 {
+		return nil, fmt.Errorf("group patterns must not be empty")
+	}
+
 	root := strings.TrimSpace(opts.Root)
 	if root == "" {
 		root = "."
@@ -171,9 +175,6 @@ func buildProjectDecryptFilePairs(opts GroupOptions, allowEmpty bool) ([]FilePai
 		return BuildGroupFilePairs(opts)
 	}
 
-	if len(opts.Patterns) == 0 {
-		return nil, fmt.Errorf("group patterns must not be empty")
-	}
 	patterns := opts.Patterns
 	logicalMatcher, err := NewPatternMatcher(patterns)
 	if err != nil {

@@ -49,9 +49,10 @@ func ParsePatternRules(patterns []string) ([]PatternRule, error) {
 		}
 
 		rule := PatternRule{Raw: raw}
-		// 匹配语义遵循上游 gitignore 与 Go filepath.Match：空白、转义与
-		// 路径分隔符都不做额外归一化（patterns 在所有平台以 `/` 作为
-		// 路径分隔符），本层只做结构校验。
+		// 匹配语义遵循上游 gitignore 与 Go filepath.Match：本层不做额外
+		// 归一化（patterns 在所有平台以 `/` 作为路径分隔符），只做结构
+		// 校验。行尾空格由 go-git 按 .gitignore 规则剥除（`\ ` 转义保留），
+		// 纯空白模式因此剥成空模式、永不命中。
 		check := ruleText
 		if strings.HasPrefix(check, "!") {
 			rule.Negated = true
