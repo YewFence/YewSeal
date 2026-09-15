@@ -67,7 +67,7 @@ Files and encryption authorization are declared centrally in the project config.
 
 `[recipients.registry]` maps reviewable aliases to single public Age recipients. Aliases are case-sensitive, must start with an ASCII letter, and may contain letters, digits, underscores, or hyphens; duplicate aliases, one public key under multiple aliases, and invalid keys are all errors. Private keys cannot live in the registry.
 
-`recipients` on file pairs and groups accepts aliases only. The effective set is chosen as explicit file pair over matching group over `recipients.defaults`; each level fully replaces the previous one rather than merging. An explicit empty array clears inheritance, but encrypt and plan then fail on the empty set.
+`recipients` on file pairs and groups accepts aliases only. The effective set is chosen as explicit file pair over matching group over `recipients.defaults`; each level fully replaces the previous one rather than merging. Recipient arrays must contain at least one alias — an empty array is rejected — and omitting the field is how you inherit from the matching group or `recipients.defaults`.
 
 When one path matches multiple groups, the resolved canonical recipient sets must be identical, otherwise a conflict is reported. An explicit file pair for the same path is the final arbiter. Recipients are sorted by public key before being handed to SOPS; alias order in the config never changes authorization semantics.
 
@@ -175,7 +175,7 @@ YewSeal provides no `sync`, `sync pull`, or `[sync]` configuration. Private keys
 | `SOPS_AGE_KEY_FILE` | Path to an Age private key file |
 | `SOPS_AGE_KEY_CMD` | Command whose output provides an Age identity bundle |
 | `SOPS_OUTPUT_FILE` | `--output` value for `encrypt` and `decrypt`; plan ignores it |
-| `YEWSEAL_STRICT` | Strict-mode default for `decrypt` and `diff`; an explicit `--strict` / `--strict=false` wins |
+| `YEWSEAL_STRICT` | Strict-mode default for `decrypt`; an explicit `--strict` / `--strict=false` wins |
 | `EDITOR` | Editor used by `edit` when `VISUAL` is unset |
 | `VISUAL` | Editor preferred by `edit` |
 

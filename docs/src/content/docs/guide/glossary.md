@@ -22,7 +22,7 @@ A private Age key (or a bundle of several in one file) that can decrypt files. I
 
 ## Lenient and strict
 
-The two postures of `decrypt` and `diff`. Lenient (the default) treats [skips](#skip) as acceptable, so people holding different [identities](#identity) can share one repository. Strict turns any skip into a failure, for deployment gates. See [Decryption results and strict mode](/guide/decryption-results).
+The two postures of `decrypt`. Lenient (the default) treats [skips](#skip) as acceptable, so people holding different [identities](#identity) can share one repository. Strict turns any skip into a failure, for deployment gates. `diff` has no strict mode — it is a development preview, not a gate. See [Decryption results and strict mode](/guide/decryption-results).
 
 ## Mapping
 
@@ -54,7 +54,7 @@ The set of mappings a command will process, produced by interpreting CLI argumen
 
 ## Sides
 
-The two paths of a [mapping](#mapping): the *plaintext side* (`config.toml`) and the *encrypted side* (`config.enc.toml`). Commands differ in which side they look at — `encrypt` matches by plaintext, `decrypt` by ciphertext, `plan` by either. See [Target selection](/guide/target-selection).
+The two paths of a [mapping](#mapping): the *plaintext side* (`config.toml`) and the *encrypted side* (`config.enc.toml`). Commands differ in which side they look at — `encrypt` and `diff` match by plaintext, `decrypt` by ciphertext, `plan` by either. See [Target selection](/guide/target-selection).
 
 ## Skip
 

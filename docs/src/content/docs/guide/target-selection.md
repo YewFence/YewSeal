@@ -51,7 +51,7 @@ Selects the registered mappings whose relevant side (see above) lies inside the 
 $ yews plan './configs/*.toml'
 ```
 
-An argument containing `*`, `?`, or `[` is a glob, matched against the registered paths that matter for the command — plaintext paths for `encrypt`, encrypted paths for `decrypt`, either for `plan` and `diff`. Patterns support `*`, `?`, and `**`; a pattern containing a `/` anywhere is anchored to the current working directory, and a leading `/` makes that anchoring explicit for single-segment patterns (`/notes.toml` matches only a top-level `notes.toml`, while `notes.toml` also matches `a/b/notes.toml`). The anchor is always the current working directory. This glob dialect is CLI-side only; group `patterns` in the config use the gitignore dialect instead (see [Configuration - group scanning](/guide/configuration#group-scanning)).
+An argument containing `*`, `?`, or `[` is a glob, matched against the registered paths that matter for the command — plaintext paths for `encrypt` and `diff`, encrypted paths for `decrypt`, either for `plan`. Patterns support `*`, `?`, and `**`; a pattern containing a `/` anywhere is anchored to the current working directory, and a leading `/` makes that anchoring explicit for single-segment patterns (`/notes.toml` matches only a top-level `notes.toml`, while `notes.toml` also matches `a/b/notes.toml`). The anchor is always the current working directory. This glob dialect is CLI-side only; group `patterns` in the config use the gitignore dialect instead (see [Configuration - group scanning](/guide/configuration#group-scanning)).
 
 Since `encrypt` patterns match plaintext paths only, and [protocol files](/guide/glossary#protocol-file) are excluded from group discovery anyway, a pattern can never double-encrypt.
 
@@ -64,7 +64,7 @@ Multiple arguments take the union of their selections. Patterns only include —
 | `encrypt` | every file and group in the current directory [scope](/guide/glossary#scope) | plaintext side | registered plaintext paths |
 | `decrypt` | registered mappings with the encrypted side in scope | encrypted side | registered encrypted paths |
 | `plan` | mappings with either side in scope | either side | either side |
-| `diff` | mappings by plaintext path in scope | plaintext side | either side |
+| `diff` | mappings by plaintext path in scope | plaintext side | registered plaintext paths |
 
 Two structural rules complete the picture:
 

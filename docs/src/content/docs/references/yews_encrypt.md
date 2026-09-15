@@ -4,7 +4,7 @@ title: yews encrypt
 
 Encrypt configuration file (supports .toml, .yaml, .yml, .json, .env, .ini, and binary output)
 
-### Synopsis
+## Synopsis
 
 Encrypt registered configuration files with SOPS and Age. Supported
 formats: .toml, .yaml, .yml, .json, .env, .ini, and binary output; every
@@ -54,7 +54,7 @@ Documentation: https://yewfence.github.io/YewSeal/guide/target-selection
 yews encrypt [command options] [path-or-pattern]... [flags]
 ```
 
-### Examples
+## Examples
 
 ```
   # Encrypt every file registered in the config
@@ -74,7 +74,7 @@ yews encrypt [command options] [path-or-pattern]... [flags]
   yews encrypt ./configs --parallel 4
 ```
 
-### Options
+## Options
 
 ```
   -h, --help            help for encrypt
@@ -83,12 +83,12 @@ yews encrypt [command options] [path-or-pattern]... [flags]
   -v, --verbose         Enable verbose output
 ```
 
-### Options inherited from parent commands
+## Options inherited from parent commands
 
 ```
   -k, --key-file string   Path to the Age private key file (env AGE_KEY_FILE; fallback: YEWSEAL_AGE_IDENTITIES, SOPS_AGE_KEY*, then .age/keys.txt)
 ```
 
-### SEE ALSO
+## SEE ALSO
 
-* [yews](yews/)	 - YewSeal - Encrypt/decrypt configuration files using SOPS and Age (supports TOML, YAML, JSON, ENV, INI)
+* [yews](/references/yews/)	 - YewSeal - Encrypt/decrypt configuration files using SOPS and Age (supports TOML, YAML, JSON, ENV, INI, and binary files)

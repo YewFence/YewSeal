@@ -95,7 +95,7 @@ Summary (decrypted): 1 succeeded, 1 skipped, 0 failed (2 selected)
 Error: strict mode requires complete processing: 1 of 2 files skipped
 ```
 
-Strict mode turns any skip into a failure — the same gate [CI/CD integration](/guide/ci-cd) uses before deploying. The full skip/failure taxonomy, including what `diff` does differently, is in [Decryption results and strict mode](/guide/decryption-results).
+Strict mode turns any skip into a failure — the same gate [CI/CD integration](/guide/ci-cd) uses before deploying. The full skip/failure taxonomy, including how `diff` treats skips differently, is in [Decryption results and strict mode](/guide/decryption-results).
 
 :::note
 A skip means "no matching identity", never "corrupted file". Detected tampering, integrity failures, and read/write errors are always failures, in lenient mode too.
@@ -103,7 +103,7 @@ A skip means "no matching identity", never "corrupted file". Detected tampering,
 
 ## Removing access and rotating keys
 
-Remove an alias from the file's `recipients` (or delete it from the registry), then run `yews encrypt` and commit. New ciphertext no longer carries the removed recipient — that is the whole act of revocation.
+Remove the alias from every authorization list that references it — the file's `recipients`, the matching group's `recipients`, or `recipients.defaults` — then delete the `[recipients.registry]` entry, and only afterward run `yews encrypt` and commit. Deleting the registry entry first makes `encrypt` and `plan` fail with `unknown recipient alias` for every set that still references it, and deleting the entry alone never changes existing ciphertext. New ciphertext no longer carries the removed recipient — that is the whole act of revocation.
 
 Two honest caveats:
 

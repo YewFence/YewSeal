@@ -220,7 +220,6 @@ Documentation: ` + docsTargetSelect,
 func diffCommand(load configLoader, keyFile *string) *cobra.Command {
 	var color string
 	var verbose bool
-	var strict bool
 
 	cmd := &cobra.Command{
 		Use:   "diff [path-or-pattern]...",
@@ -235,7 +234,7 @@ current directory scope):
   - an existing directory filters registered mappings by their plaintext
     side (no rescanning by the target directory);
   - arguments containing *, ?, and similar metacharacters are patterns
-    matched against either side of registered mappings;
+    matched against registered plaintext paths;
   - multiple arguments take the union; any argument matching nothing is
     an error.
 Groups are discovered from the plaintext side; group entries with only
@@ -254,12 +253,10 @@ The format and mapping come from the config; a stale recipient alias
 warns and continues, and decryption follows the historical ciphertext
 metadata rather than the current-config authorization.
 
-Exit codes: in lenient mode, 0 whenever no real error occurs, whether
-or not anything was actually compared (0 means neither "equal" nor
-"compared"). With --strict, missing inputs do not affect success, but a
-comparable mapping skipped for missing identities exits 1. There is no
-"differs means failure" switch, so diff is not a CI gate; obtained
-diffs are never rolled back.
+Exit codes: 0 whenever no real error occurs, whether or not anything
+was actually compared (0 means neither "equal" nor "compared"). There
+is no strict mode and no "differs means failure" switch, so diff is
+not a CI gate; obtained diffs are never rolled back.
 
 Output: stdout carries only the diff body (empty when nothing differs);
 warnings, per-file skip and failure reasons, and the summary go to
@@ -288,15 +285,14 @@ Documentation: ` + docsDecryptResults,
 			if err != nil {
 				return err
 			}
-			return resolveStrict(cmd, &strict)
+			return nil
 		},
 		RunE: withConfig(load, func(cmd *cobra.Command, args []string, cfg *config.Config) error {
-			_, err := yewsapp.DiffPlaintextAgainstEncryptedTargets(cmd.OutOrStdout(), cmd.ErrOrStderr(), cfg, args, *keyFile, verbose, color, strict)
+			_, err := yewsapp.DiffPlaintextAgainstEncryptedTargets(cmd.OutOrStdout(), cmd.ErrOrStderr(), cfg, args, *keyFile, verbose, color)
 			return err
 		}),
 	}
 	cmd.Flags().StringVar(&color, "color", "auto", "Colorize diff output (auto/always/never)")
-	cmd.Flags().BoolVar(&strict, "strict", false, "Require comparison of mappings with both inputs present (env YEWSEAL_STRICT; --strict=false overrides it)")
 	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose output (selection info and per-file completion notes on stderr)")
 	return cmd
 }

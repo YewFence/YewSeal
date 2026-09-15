@@ -17,35 +17,32 @@ After a single-file failure, the remaining selected files are still processed an
 ```bash
 # lenient by default: process what the current identity can access
 yews decrypt
-yews diff
 
 # decrypt requires every selected file to complete
 yews decrypt --strict
-# diff requires every comparable mapping (both inputs present) to complete
-yews diff --strict
 
-# both commands share the env var; an explicit flag wins
+# the env var sets the default; an explicit flag wins
 YEWSEAL_STRICT=true yews decrypt
-YEWSEAL_STRICT=true yews diff --strict=false
+YEWSEAL_STRICT=true yews decrypt --strict=false
 ```
 
 Without `YEWSEAL_STRICT` the default is lenient. The variable uses standard boolean parsing; write `true` or `false`. A value that cannot be parsed — including an explicitly empty string — is an argument error. An explicit `--strict` or `--strict=false` overrides the variable even when the variable itself is invalid.
 
-The variable is read only during business argument validation of `decrypt` and `diff`; it never affects version, help, completion, `init`, `encrypt`, `view`, or `edit`, and it has no project config counterpart. Strict decrypt requires every selected item to complete; strict diff only requires comparable mappings to complete, and missing input does not affect strict success. Neither mode widens the selection, stops on first error, or rolls back the batch.
+The variable is read only during business argument validation of `decrypt`; it never affects version, help, completion, `init`, `encrypt`, `view`, `edit`, or `diff`, and it has no project config counterpart. Strict decrypt requires every selected item to complete; it never widens the selection, stops on first error, or rolls back the batch. `diff` has no strict mode at all — it is a development preview, not a completeness gate.
 
 ## Exit codes
 
-| Situation | lenient decrypt | strict decrypt | lenient diff | strict diff |
-| --- | --- | --- | --- | --- |
-| All succeeded, no differences | 0 | 0 | 0 | 0 |
-| All compared, differences found | n/a | n/a | 0 | 0 |
-| Partial success, rest skipped for missing identity | 0 | 1 | 0 | 1 |
-| All skipped for missing identity | 1 | 1 | 0 | 1 |
-| All unprocessed for missing input | 1 | 1 | 0 | 0 |
-| Partial success, rest missing input | 1 | 1 | 0 | 0 |
-| Any real error | 1 | 1 | 1 | 1 |
+| Situation | lenient decrypt | strict decrypt | diff |
+| --- | --- | --- | --- |
+| All succeeded, no differences | 0 | 0 | 0 |
+| All compared, differences found | n/a | n/a | 0 |
+| Partial success, rest skipped for missing identity | 0 | 1 | 0 |
+| All skipped for missing identity | 1 | 1 | 0 |
+| All unprocessed for missing input | 1 | 1 | 0 |
+| Partial success, rest missing input | 1 | 1 | 0 |
+| Any real error | 1 | 1 | 1 |
 
-The table assumes selected mappings and successful pre-run validation. `diff` is a development preview command: finding and showing differences is not a failure, and its exit code must not be used to decide whether files are identical. Argument, config, identity source, and output channel errors return `1`. When a batch produces both differences and a real error, the diffs already obtained are still printed and the exit code is `1`. An explicitly selected single file with no matching identity makes lenient diff exit `0`, while strict diff and decrypt exit `1`.
+The table assumes selected mappings and successful pre-run validation. `diff` is a development preview command: finding and showing differences is not a failure, and its exit code must not be used to decide whether files are identical. Argument, config, identity source, and output channel errors return `1`. When a batch produces both differences and a real error, the diffs already obtained are still printed and the exit code is `1`. An explicitly selected single file with no matching identity still exits `0`.
 
 ## What diff compares
 
@@ -53,13 +50,13 @@ Groups discover mappings from the plaintext side using the config root and rules
 
 Selecting no mapping at all is a selection error, which differs from selecting files that all end up skipped. Once a selection succeeds, the identity bundle is resolved exactly once: an invalid explicit private key source fails even if every mapping ultimately misses its inputs.
 
-Each mapping is input-checked first: when either the plaintext or the ciphertext side is missing, the mapping is skipped without decryption and without new/deleted patches. Only when both sides exist are decryption and comparison attempted. Missing inputs and identity mismatches are counted separately; the former never affects strict success, the latter fails strict mode. Detected ciphertext corruption and other per-file errors always fail.
+Each mapping is input-checked first: when either the plaintext or the ciphertext side is missing, the mapping is skipped without decryption and without new/deleted patches. Only when both sides exist are decryption and comparison attempted. Missing inputs and identity mismatches are counted and reported separately. Detected ciphertext corruption and other per-file errors always fail.
 
 diff keeps the historical-decrypt exception for stale aliases: after a warning, it still compares using the ciphertext metadata and the identity bundle, without requiring the current config recipients to match the ciphertext. Base config validation is unchanged.
 
-The diff body goes to stdout only; when no diff is generated, stdout is empty. stderr lists every skipped or failed mapping with its reason by default, and summarizes the counts of compared, missing-input, identity-mismatched, and failed mappings; on identity mismatch or a real error it reports `Comparison incomplete`, while missing inputs alone never report a strict completeness failure. Verbose output and alias warnings also go to stderr; no status markers are ever injected into the body.
+The diff body goes to stdout only; when no diff is generated, stdout is empty. stderr lists every skipped or failed mapping with its reason by default, and summarizes the counts of compared, missing-input, identity-mismatched, and failed mappings; on identity mismatch or a real error it reports `Comparison incomplete`. Verbose output and alias warnings also go to stderr; no status markers are ever injected into the body.
 
-A lenient exit `0` neither means the compared files are identical nor guarantees that anything was compared at all. `diff --strict` only requires comparable mappings to complete and returns `0` even when differences are found; with all inputs missing it can still succeed. `diff` is not a CI gate for file equality or deployment input completeness.
+A diff exit `0` neither means the compared files are identical nor guarantees that anything was compared at all; with all inputs missing it still succeeds. `diff` is not a CI gate for file equality or deployment input completeness.
 
 ## Files and metadata
 

@@ -35,63 +35,61 @@ func TestDiffReadOutcomes(t *testing.T) {
 		{name: "broken-continues", inputs: []string{"broken", "different"}, compared: 1, failed: 1},
 		{name: "bad-input-continues", inputs: []string{"directory", "different"}, compared: 1, failed: 1},
 	} {
-		for _, strict := range []bool{false, true} {
-			t.Run(fmt.Sprintf("%s/strict=%v", tc.name, strict), func(t *testing.T) {
-				env := newAppCryptoTestEnv(t)
-				other, err := age.GenerateX25519Identity()
-				require.NoError(t, err)
-				cfg := &config.Config{}
-				for i, input := range tc.inputs {
-					plain, encrypted := fmt.Sprintf("%d.yaml", i), fmt.Sprintf("%d.enc.yaml", i)
-					cfg.Encryption.Files = append(cfg.Encryption.Files, config.FilePair{PlaintextPath: plain, EncryptedPath: encrypted})
-					if input != "no-plain" && input != "neither" {
-						data := []byte("token: value\n")
-						if input == "different" {
-							data = []byte("token: local\n")
-						}
-						if input == "directory" {
-							require.NoError(t, os.Mkdir(plain, 0700))
-						} else {
-							require.NoError(t, os.WriteFile(plain, data, 0600))
-						}
+		t.Run(tc.name, func(t *testing.T) {
+			env := newAppCryptoTestEnv(t)
+			other, err := age.GenerateX25519Identity()
+			require.NoError(t, err)
+			cfg := &config.Config{}
+			for i, input := range tc.inputs {
+				plain, encrypted := fmt.Sprintf("%d.yaml", i), fmt.Sprintf("%d.enc.yaml", i)
+				cfg.Encryption.Files = append(cfg.Encryption.Files, config.FilePair{PlaintextPath: plain, EncryptedPath: encrypted})
+				if input != "no-plain" && input != "neither" {
+					data := []byte("token: value\n")
+					if input == "different" {
+						data = []byte("token: local\n")
 					}
-					if input != "no-cipher" && input != "neither" {
-						key := env.publicKey
-						if input == "unavailable" {
-							key = other.Recipient().String()
-						}
-						data, err := sopsx.Encrypt([]byte("token: value\n"), "yaml", []string{key})
-						require.NoError(t, err)
-						if input == "broken" || input == "no-plain" {
-							data = []byte("not ciphertext")
-						}
-						require.NoError(t, os.WriteFile(encrypted, data, 0600))
+					if input == "directory" {
+						require.NoError(t, os.Mkdir(plain, 0700))
+					} else {
+						require.NoError(t, os.WriteFile(plain, data, 0600))
 					}
 				}
-				var out, diagnostics bytes.Buffer
-				result, err := DiffPlaintextAgainstEncryptedTargets(&out, &diagnostics, cfg, nil, env.keyFile, true, "never", strict)
-				if tc.failed > 0 || strict && tc.noIdentity > 0 {
-					require.Error(t, err)
-				} else {
+				if input != "no-cipher" && input != "neither" {
+					key := env.publicKey
+					if input == "unavailable" {
+						key = other.Recipient().String()
+					}
+					data, err := sopsx.Encrypt([]byte("token: value\n"), "yaml", []string{key})
 					require.NoError(t, err)
+					if input == "broken" || input == "no-plain" {
+						data = []byte("not ciphertext")
+					}
+					require.NoError(t, os.WriteFile(encrypted, data, 0600))
 				}
-				require.Equal(t, tc.compared, result.Summary.ComparedCount)
-				require.Equal(t, tc.missing, result.Summary.MissingInputCount)
-				require.Equal(t, tc.noIdentity, result.Summary.NoIdentityCount)
-				require.Equal(t, tc.failed, result.Summary.FailedCount)
-				if strings.Contains(strings.Join(tc.inputs, ","), "different") {
-					require.True(t, result.Different)
-					require.Contains(t, out.String(), "@@\n-token: local\n+token: value\n")
-				} else {
-					require.Empty(t, out.String())
-				}
-				require.NotContains(t, out.String(), "SKIPPED")
-				require.NotContains(t, out.String(), "Selected")
-				require.Contains(t, diagnostics.String(), "Summary:")
-				require.NoFileExists(t, ".gitignore")
-				require.NoFileExists(t, ".sops.yaml")
-			})
-		}
+			}
+			var out, diagnostics bytes.Buffer
+			result, err := DiffPlaintextAgainstEncryptedTargets(&out, &diagnostics, cfg, nil, env.keyFile, true, "never")
+			if tc.failed > 0 {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+			require.Equal(t, tc.compared, result.Summary.ComparedCount)
+			require.Equal(t, tc.missing, result.Summary.MissingInputCount)
+			require.Equal(t, tc.noIdentity, result.Summary.NoIdentityCount)
+			require.Equal(t, tc.failed, result.Summary.FailedCount)
+			if strings.Contains(strings.Join(tc.inputs, ","), "different") {
+				require.True(t, result.Different)
+				require.Contains(t, out.String(), "@@\n-token: local\n+token: value\n")
+			} else {
+				require.Empty(t, out.String())
+			}
+			require.NotContains(t, out.String(), "SKIPPED")
+			require.NotContains(t, out.String(), "Selected")
+			require.Contains(t, diagnostics.String(), "Summary:")
+			require.NoFileExists(t, ".gitignore")
+			require.NoFileExists(t, ".sops.yaml")
+		})
 	}
 }
 
@@ -113,7 +111,7 @@ func TestReadCommandsPreserveHistoryAndOutputChannels(t *testing.T) {
 	}
 	require.NoError(t, os.WriteFile(".dev.vars", []byte("TOKEN=local\n"), 0600))
 	var out, diagnostics bytes.Buffer
-	result, err := DiffPlaintextAgainstEncryptedTargets(&out, &diagnostics, cfg, []string{"secrets"}, env.keyFile, true, "never", true)
+	result, err := DiffPlaintextAgainstEncryptedTargets(&out, &diagnostics, cfg, []string{"secrets"}, env.keyFile, true, "never")
 	require.NoError(t, err)
 	require.True(t, result.Different)
 	require.Contains(t, diagnostics.String(), "WARNING")
@@ -132,7 +130,7 @@ func TestDiffAlwaysLoadsIdentityBeforeMissingInputSkips(t *testing.T) {
 	t.Chdir(t.TempDir())
 	cfg := &config.Config{Encryption: config.EncryptionConfig{Files: []config.FilePair{{PlaintextPath: "missing.yaml", EncryptedPath: "missing.enc.yaml"}}}}
 	var out, diagnostics bytes.Buffer
-	_, err := DiffPlaintextAgainstEncryptedTargets(&out, &diagnostics, cfg, nil, filepath.Join(t.TempDir(), "missing-key"), false, "never", false)
+	_, err := DiffPlaintextAgainstEncryptedTargets(&out, &diagnostics, cfg, nil, filepath.Join(t.TempDir(), "missing-key"), false, "never")
 	require.Error(t, err)
 	require.Empty(t, out.String())
 	require.Empty(t, diagnostics.String())
@@ -166,7 +164,7 @@ func TestReadCommandsPropagateOutputErrors(t *testing.T) {
 				if command == "view" {
 					err = WriteViewedTarget(&out, rejectedOutput{match: match}, cfg, "config.yaml", env.keyFile, true)
 				} else {
-					_, err = DiffPlaintextAgainstEncryptedTargets(&out, rejectedOutput{match: match}, cfg, nil, env.keyFile, true, "never", false)
+					_, err = DiffPlaintextAgainstEncryptedTargets(&out, rejectedOutput{match: match}, cfg, nil, env.keyFile, true, "never")
 				}
 				require.ErrorIs(t, err, errReadOutput)
 				require.NotEmpty(t, out.String(), "diagnostic failure must not stop content delivery")
@@ -174,8 +172,8 @@ func TestReadCommandsPropagateOutputErrors(t *testing.T) {
 		}
 	}
 	require.ErrorIs(t, WriteViewedTarget(rejectedOutput{}, io.Discard, cfg, "config.yaml", env.keyFile, false), errReadOutput)
-	_, err = DiffPlaintextAgainstEncryptedTargets(rejectedOutput{}, io.Discard, cfg, nil, env.keyFile, false, "never", false)
+	_, err = DiffPlaintextAgainstEncryptedTargets(rejectedOutput{}, io.Discard, cfg, nil, env.keyFile, false, "never")
 	require.ErrorIs(t, err, errReadOutput)
-	_, err = DiffPlaintextAgainstEncryptedTargets(io.Discard, rejectedOutput{match: "Summary"}, cfg, nil, env.keyFile, false, "never", false)
+	_, err = DiffPlaintextAgainstEncryptedTargets(io.Discard, rejectedOutput{match: "Summary"}, cfg, nil, env.keyFile, false, "never")
 	require.ErrorIs(t, err, errReadOutput)
 }

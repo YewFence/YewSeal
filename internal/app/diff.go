@@ -16,9 +16,9 @@ type DiffResult struct {
 	Summary   diff.Summary
 }
 
-func DiffPlaintextAgainstEncryptedTargets(w, diagnostics io.Writer, cfg *config.Config, targets []string, keyFile string, verbose bool, colorMode string, strict bool) (comparison DiffResult, err error) {
+func DiffPlaintextAgainstEncryptedTargets(w, diagnostics io.Writer, cfg *config.Config, targets []string, keyFile string, verbose bool, colorMode string) (comparison DiffResult, err error) {
 	out := presentation.New(w, diagnostics, verbose)
-	defer func() { err = out.Finish(errors.Join(err, comparison.Summary.Check(strict))) }()
+	defer func() { err = out.Finish(errors.Join(err, comparison.Summary.Check())) }()
 	selection, identityBundle, err := prepareRead(out, cfg, config.SelectionOptions{
 		Command:          task.ModeDiff,
 		Targets:          targets,

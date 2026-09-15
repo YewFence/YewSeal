@@ -58,6 +58,9 @@ func generate(output string) error {
 		if err := stripDuplicateHeading(path); err != nil {
 			return err
 		}
+		if err := rebaseSectionHeadings(path); err != nil {
+			return err
+		}
 		if err := trimTrailingBlankLines(path); err != nil {
 			return err
 		}
@@ -78,9 +81,10 @@ func trimTrailingBlankLines(path string) error {
 }
 
 // linkRewriter 把 cobra 生成的 "yews_init.md" 文件链接改写为 Starlight 的
-// "yews_init/" 目录路由链接。
+// "/references/yews_init/" 根绝对路由链接；构建期的 rebaseInternalLinks
+// 插件会再补上站点的 base 路径，父页面与子页面因此共用同一规则。
 func linkRewriter(link string) string {
-	return strings.TrimSuffix(link, ".md") + "/"
+	return "/references/" + strings.TrimSuffix(link, ".md") + "/"
 }
 
 // filePrepender 为每个生成的页面注入 Starlight frontmatter，
@@ -108,4 +112,28 @@ func stripDuplicateHeading(path string) error {
 		return nil
 	}
 	return os.WriteFile(path, []byte(frontmatter+trimmed), 0o644)
+}
+
+// rebaseSectionHeadings 把生成正文的标题整体上提一级：Starlight 会把
+// frontmatter title 渲染为页面一级标题，cobra 生成的 "### Options" 等
+// 三级、四级标题需改为二级、三级，避免大纲从 h1 直接跳到 h3。
+func rebaseSectionHeadings(path string) error {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	var rebased bytes.Buffer
+	changed := false
+	for _, line := range bytes.Split(content, []byte("\n")) {
+		if bytes.HasPrefix(line, []byte("###")) && bytes.HasPrefix(bytes.TrimLeft(line, "#"), []byte(" ")) {
+			line = line[1:]
+			changed = true
+		}
+		rebased.Write(line)
+		rebased.WriteByte('\n')
+	}
+	if !changed {
+		return nil
+	}
+	return os.WriteFile(path, bytes.TrimRight(rebased.Bytes(), "\n"), 0o644)
 }

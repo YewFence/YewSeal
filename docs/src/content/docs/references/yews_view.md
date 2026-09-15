@@ -4,7 +4,7 @@ title: yews view
 
 Print decrypted plaintext to standard output without writing files
 
-### Synopsis
+## Synopsis
 
 Print the decrypted plaintext of one registered encrypted file to
 standard output without writing any plaintext file.
@@ -32,7 +32,7 @@ Documentation: https://yewfence.github.io/YewSeal/guide/target-selection
 yews view [command options] <target> [flags]
 ```
 
-### Examples
+## Examples
 
 ```
   # Print the decrypted plaintext of a registered file
@@ -45,19 +45,19 @@ yews view [command options] <target> [flags]
   yews view config.enc.toml --verbose > inspected.toml
 ```
 
-### Options
+## Options
 
 ```
   -h, --help      help for view
   -v, --verbose   Enable verbose output (detail goes to stderr; stdout stays plaintext only)
 ```
 
-### Options inherited from parent commands
+## Options inherited from parent commands
 
 ```
   -k, --key-file string   Path to the Age private key file (env AGE_KEY_FILE; fallback: YEWSEAL_AGE_IDENTITIES, SOPS_AGE_KEY*, then .age/keys.txt)
 ```
 
-### SEE ALSO
+## SEE ALSO
 
-* [yews](yews/)	 - YewSeal - Encrypt/decrypt configuration files using SOPS and Age (supports TOML, YAML, JSON, ENV, INI)
+* [yews](/references/yews/)	 - YewSeal - Encrypt/decrypt configuration files using SOPS and Age (supports TOML, YAML, JSON, ENV, INI, and binary files)

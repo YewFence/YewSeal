@@ -4,7 +4,7 @@ title: yews edit
 
 Edit encrypted configuration file using SOPS
 
-### Synopsis
+## Synopsis
 
 Edit an encrypted file in place: decrypt it to a temporary file,
 open an editor, then re-encrypt and write the result back on save.
@@ -46,7 +46,7 @@ Documentation: https://yewfence.github.io/YewSeal/guide/tutorial
 yews edit [flags]
 ```
 
-### Examples
+## Examples
 
 ```
   # Edit a registered encrypted file
@@ -60,19 +60,19 @@ yews edit [flags]
   VISUAL=vim yews edit -f config.enc.toml
 ```
 
-### Options
+## Options
 
 ```
   -f, --file string   Encrypted file to edit (must be registered in .yewseal.toml; its configured plaintext path also works)
   -h, --help          help for edit
 ```
 
-### Options inherited from parent commands
+## Options inherited from parent commands
 
 ```
   -k, --key-file string   Path to the Age private key file (env AGE_KEY_FILE; fallback: YEWSEAL_AGE_IDENTITIES, SOPS_AGE_KEY*, then .age/keys.txt)
 ```
 
-### SEE ALSO
+## SEE ALSO
 
-* [yews](yews/)	 - YewSeal - Encrypt/decrypt configuration files using SOPS and Age (supports TOML, YAML, JSON, ENV, INI)
+* [yews](/references/yews/)	 - YewSeal - Encrypt/decrypt configuration files using SOPS and Age (supports TOML, YAML, JSON, ENV, INI, and binary files)

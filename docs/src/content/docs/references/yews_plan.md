@@ -4,7 +4,7 @@ title: yews plan
 
 Check configured file mappings, formats, and recipient authorization without writing files
 
-### Synopsis
+## Synopsis
 
 Inspect registered file mappings, formats, and current-config
 authorization without encrypting, decrypting, or writing any file. This
@@ -53,7 +53,7 @@ Documentation: https://yewfence.github.io/YewSeal/guide/configuration
 yews plan [command options] [path-or-pattern]... [flags]
 ```
 
-### Examples
+## Examples
 
 ```
   # Inspect the mappings within the current directory scope
@@ -70,7 +70,7 @@ yews plan [command options] [path-or-pattern]... [flags]
   yews plan --json > plan.json
 ```
 
-### Options
+## Options
 
 ```
   -h, --help      help for plan
@@ -78,12 +78,12 @@ yews plan [command options] [path-or-pattern]... [flags]
   -v, --verbose   Enable verbose output
 ```
 
-### Options inherited from parent commands
+## Options inherited from parent commands
 
 ```
   -k, --key-file string   Path to the Age private key file (env AGE_KEY_FILE; fallback: YEWSEAL_AGE_IDENTITIES, SOPS_AGE_KEY*, then .age/keys.txt)
 ```
 
-### SEE ALSO
+## SEE ALSO
 
-* [yews](yews/)	 - YewSeal - Encrypt/decrypt configuration files using SOPS and Age (supports TOML, YAML, JSON, ENV, INI)
+* [yews](/references/yews/)	 - YewSeal - Encrypt/decrypt configuration files using SOPS and Age (supports TOML, YAML, JSON, ENV, INI, and binary files)

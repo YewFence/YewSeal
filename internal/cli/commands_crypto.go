@@ -103,7 +103,7 @@ func decryptCommand(load configLoader, keyFile *string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "decrypt [command options] [path-or-pattern]...",
 		Aliases: []string{"d"},
-		Short:   "Decrypt encrypted file (output format determined by extension)",
+		Short:   "Decrypt encrypted file to its configured plaintext path",
 		Long: `Decrypt registered SOPS-encrypted files to their configured plaintext
 paths. The format comes from the project config or the registered file
 path; runtime format overrides and cross-format conversion are not

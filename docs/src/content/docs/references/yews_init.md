@@ -4,7 +4,7 @@ title: yews init
 
 Initialize project with Age keys and YewSeal config entries
 
-### Synopsis
+## Synopsis
 
 Initialize a project: generate an Age key pair, create .yewseal.toml
 with its first config entry, optionally sync .sops.yaml, and update
@@ -47,7 +47,7 @@ Private key handling: https://yewfence.github.io/YewSeal/guide/private-keys
 yews init [flags]
 ```
 
-### Examples
+## Examples
 
 ```
   # Interactive setup
@@ -64,7 +64,7 @@ yews init [flags]
   yews init --force
 ```
 
-### Options
+## Options
 
 ```
       --create-example     Create an example plaintext file (interactive: for recorded entries; non-interactive: for the first entry)
@@ -76,12 +76,12 @@ yews init [flags]
       --skip-sops-config   Skip creating or updating .sops.yaml (non-interactive mode)
 ```
 
-### Options inherited from parent commands
+## Options inherited from parent commands
 
 ```
   -k, --key-file string   Path to the Age private key file (env AGE_KEY_FILE; fallback: YEWSEAL_AGE_IDENTITIES, SOPS_AGE_KEY*, then .age/keys.txt)
 ```
 
-### SEE ALSO
+## SEE ALSO
 
-* [yews](yews/)	 - YewSeal - Encrypt/decrypt configuration files using SOPS and Age (supports TOML, YAML, JSON, ENV, INI)
+* [yews](/references/yews/)	 - YewSeal - Encrypt/decrypt configuration files using SOPS and Age (supports TOML, YAML, JSON, ENV, INI, and binary files)

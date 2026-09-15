@@ -4,7 +4,7 @@ title: yews completion powershell
 
 Generate the autocompletion script for powershell
 
-### Synopsis
+## Synopsis
 
 Generate the autocompletion script for powershell.
 
@@ -20,19 +20,19 @@ to your powershell profile.
 yews completion powershell [flags]
 ```
 
-### Options
+## Options
 
 ```
   -h, --help              help for powershell
       --no-descriptions   disable completion descriptions
 ```
 
-### Options inherited from parent commands
+## Options inherited from parent commands
 
 ```
   -k, --key-file string   Path to the Age private key file (env AGE_KEY_FILE; fallback: YEWSEAL_AGE_IDENTITIES, SOPS_AGE_KEY*, then .age/keys.txt)
 ```
 
-### SEE ALSO
+## SEE ALSO
 
-* [yews completion](yews_completion/)	 - Generate the autocompletion script for the specified shell
+* [yews completion](/references/yews_completion/)	 - Generate the autocompletion script for the specified shell

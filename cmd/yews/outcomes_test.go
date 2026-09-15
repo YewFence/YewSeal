@@ -38,20 +38,14 @@ func TestCLIProcessingOutcomes(t *testing.T) {
 		{name: "diff-partial-same", command: "diff"},
 		{name: "diff-complete-same", command: "diff", scenario: "complete"},
 		{name: "diff-complete-different", command: "diff", scenario: "complete", different: true},
-		{name: "diff-strict-complete-different", command: "diff", scenario: "complete", flags: []string{"--strict"}, different: true},
 		{name: "diff-partial-different", command: "diff", different: true},
-		{name: "diff-strict", command: "diff", flags: []string{"--strict"}, code: 1},
-		{name: "diff-strict-partial-different", command: "diff", flags: []string{"--strict"}, different: true, code: 1},
-		{name: "diff-env-strict", command: "diff", strictEnv: "true", code: 1},
-		{name: "diff-explicit-overrides-invalid", command: "diff", strictEnv: "bad", flags: []string{"--strict=false"}},
+		{name: "diff-ignores-strict-env", command: "diff", strictEnv: "true"},
+		{name: "diff-ignores-invalid-strict-env", command: "diff", strictEnv: "bad"},
 		{name: "diff-all-skipped", command: "diff", scenario: "all-skipped"},
-		{name: "diff-all-skipped-strict", command: "diff", scenario: "all-skipped", flags: []string{"--strict"}, code: 1},
 		{name: "diff-errors-dominate-differences", command: "diff", scenario: "broken", different: true, code: 1},
 		{name: "diff-missing-plaintext", command: "diff", scenario: "missing-plaintext"},
-		{name: "diff-missing-plaintext-strict", command: "diff", scenario: "missing-plaintext", flags: []string{"--strict"}},
-		{name: "diff-plaintext-discovery", command: "diff", scenario: "group-plaintext", flags: []string{"--strict"}},
+		{name: "diff-plaintext-discovery", command: "diff", scenario: "group-plaintext"},
 		{name: "diff-verbose", command: "diff", flags: []string{"--verbose"}},
-		{name: "diff-bad-env", command: "diff", strictEnv: "bad", code: 1},
 		{name: "decrypt-bad-env", command: "decrypt", strictEnv: "bad", code: 1},
 		{name: "diff-bad-flag", command: "diff", flags: []string{"--unknown-option"}, code: 1},
 		{name: "view-does-not-skip", command: "view", flags: []string{"other.enc.yaml"}, strictEnv: "bad", code: 1},
@@ -126,7 +120,7 @@ func TestCLIProcessingOutcomes(t *testing.T) {
 				require.ErrorAs(t, err, &exit, "%s\n%s", &stdout, &stderr)
 				require.Equal(t, tc.code, exit.ExitCode(), "%s\n%s", &stdout, &stderr)
 			}
-			if tc.name == "diff-bad-env" || tc.name == "decrypt-bad-env" || tc.name == "diff-bad-flag" {
+			if tc.name == "decrypt-bad-env" || tc.name == "diff-bad-flag" {
 				require.NotContains(t, stderr.String(), "Summary")
 				return
 			}

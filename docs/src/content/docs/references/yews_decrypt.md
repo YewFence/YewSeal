@@ -2,9 +2,9 @@
 title: yews decrypt
 ---
 
-Decrypt encrypted file (output format determined by extension)
+Decrypt encrypted file to its configured plaintext path
 
-### Synopsis
+## Synopsis
 
 Decrypt registered SOPS-encrypted files to their configured plaintext
 paths. The format comes from the project config or the registered file
@@ -64,7 +64,7 @@ Result classification and exit codes: https://yewfence.github.io/YewSeal/guide/d
 yews decrypt [command options] [path-or-pattern]... [flags]
 ```
 
-### Examples
+## Examples
 
 ```
   # Decrypt every file registered in the config
@@ -86,7 +86,7 @@ yews decrypt [command options] [path-or-pattern]... [flags]
   yews decrypt --strict
 ```
 
-### Options
+## Options
 
 ```
   -f, --force           Force overwrite existing plaintext file when it differs from decrypted content
@@ -97,12 +97,12 @@ yews decrypt [command options] [path-or-pattern]... [flags]
   -v, --verbose         Enable verbose output (selection info and per-file results on stderr)
 ```
 
-### Options inherited from parent commands
+## Options inherited from parent commands
 
 ```
   -k, --key-file string   Path to the Age private key file (env AGE_KEY_FILE; fallback: YEWSEAL_AGE_IDENTITIES, SOPS_AGE_KEY*, then .age/keys.txt)
 ```
 
-### SEE ALSO
+## SEE ALSO
 
-* [yews](yews/)	 - YewSeal - Encrypt/decrypt configuration files using SOPS and Age (supports TOML, YAML, JSON, ENV, INI)
+* [yews](/references/yews/)	 - YewSeal - Encrypt/decrypt configuration files using SOPS and Age (supports TOML, YAML, JSON, ENV, INI, and binary files)
