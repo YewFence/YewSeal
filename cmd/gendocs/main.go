@@ -1,4 +1,4 @@
-// gendocs 生成 yews CLI 的 Markdown 参考文档，每个命令一页，供 VitePress 站点使用。
+// gendocs 生成 yews CLI 的 Markdown 参考文档，每个命令一页，供 Astro Starlight 站点使用。
 package main
 
 import (
@@ -16,7 +16,7 @@ import (
 
 func main() {
 	var output string
-	flag.StringVar(&output, "o", "docs/references", "Output directory path")
+	flag.StringVar(&output, "o", "docs/src/content/docs/references", "Output directory path")
 	flag.Parse()
 
 	if err := generate(output); err != nil {
@@ -44,16 +44,23 @@ func generate(output string) error {
 		}
 	}
 
-	if err := doc.GenMarkdownTreeCustom(rootCmd, output, filePrepender, func(link string) string { return link }); err != nil {
+	if err := doc.GenMarkdownTreeCustom(rootCmd, output, filePrepender, linkRewriter); err != nil {
 		return err
 	}
 
+	// Starlight 将 frontmatter title 渲染为页面大标题，删除正文开头重复的命令标题行；
 	// cobra 生成的页面末尾有多余空行，修剪为单个换行符以通过 newline lint
 	pages, err := filepath.Glob(filepath.Join(output, "yews*.md"))
 	if err != nil {
 		return err
 	}
 	for _, path := range pages {
+		if err := stripDuplicateHeading(path); err != nil {
+			return err
+		}
+		if err := rebaseSectionHeadings(path); err != nil {
+			return err
+		}
 		if err := trimTrailingBlankLines(path); err != nil {
 			return err
 		}
@@ -73,9 +80,60 @@ func trimTrailingBlankLines(path string) error {
 	return os.WriteFile(path, trimmed, 0o644)
 }
 
-// filePrepender 为每个生成的页面注入 VitePress frontmatter，
+// linkRewriter 把 cobra 生成的 "yews_init.md" 文件链接改写为 Starlight 的
+// "/references/yews_init/" 根绝对路由链接；构建期的 rebaseInternalLinks
+// 插件会再补上站点的 base 路径，父页面与子页面因此共用同一规则。
+func linkRewriter(link string) string {
+	return "/references/" + strings.TrimSuffix(link, ".md") + "/"
+}
+
+// filePrepender 为每个生成的页面注入 Starlight frontmatter，
 // 用命令路径（如 "yews encrypt"）作为页面标题。
 func filePrepender(filename string) string {
-	name := strings.TrimSuffix(filepath.Base(filename), ".md")
-	return fmt.Sprintf("---\ntitle: %s\n---\n\n", strings.ReplaceAll(name, "_", " "))
+	return fmt.Sprintf("---\ntitle: %s\n---\n\n", commandTitle(filename))
+}
+
+// commandTitle 把页面文件名（如 "yews_encrypt.md"）转换为命令路径标题（如 "yews encrypt"）。
+func commandTitle(path string) string {
+	return strings.ReplaceAll(strings.TrimSuffix(filepath.Base(path), ".md"), "_", " ")
+}
+
+// stripDuplicateHeading 删除正文开头与 frontmatter title 相同的 "## <title>" 标题行，
+// 避免页面出现重复标题。
+func stripDuplicateHeading(path string) error {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	title := commandTitle(path)
+	frontmatter := "---\ntitle: " + title + "\n---\n\n"
+	trimmed := strings.TrimPrefix(string(content), frontmatter+"## "+title+"\n\n")
+	if trimmed == string(content) {
+		return nil
+	}
+	return os.WriteFile(path, []byte(frontmatter+trimmed), 0o644)
+}
+
+// rebaseSectionHeadings 把生成正文的标题整体上提一级：Starlight 会把
+// frontmatter title 渲染为页面一级标题，cobra 生成的 "### Options" 等
+// 三级、四级标题需改为二级、三级，避免大纲从 h1 直接跳到 h3。
+func rebaseSectionHeadings(path string) error {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	var rebased bytes.Buffer
+	changed := false
+	for _, line := range bytes.Split(content, []byte("\n")) {
+		if bytes.HasPrefix(line, []byte("###")) && bytes.HasPrefix(bytes.TrimLeft(line, "#"), []byte(" ")) {
+			line = line[1:]
+			changed = true
+		}
+		rebased.Write(line)
+		rebased.WriteByte('\n')
+	}
+	if !changed {
+		return nil
+	}
+	return os.WriteFile(path, bytes.TrimRight(rebased.Bytes(), "\n"), 0o644)
 }

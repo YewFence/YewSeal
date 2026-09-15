@@ -105,7 +105,7 @@ func TestDiffContentFailurePreservesBusinessFailure(t *testing.T) {
 		}
 		require.NoError(t, os.WriteFile(name+".enc.yaml", cipher, 0600))
 	}
-	result, err := DiffPlaintextAgainstEncryptedTargets(rejectedOutput{}, io.Discard, cfg, nil, env.keyFile, false, "never", false)
+	result, err := DiffPlaintextAgainstEncryptedTargets(rejectedOutput{}, io.Discard, cfg, nil, env.keyFile, false, "never")
 	require.ErrorIs(t, err, errReadOutput)
 	require.Equal(t, 1, result.Summary.FailedCount)
 	require.Equal(t, 1, result.Summary.ComparedCount)

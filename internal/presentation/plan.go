@@ -29,7 +29,7 @@ func printPlanTable(w io.Writer, cfg *config.Config, selection config.ResolvedSe
 	if scope == "" {
 		scope = "."
 	}
-	if _, err := fmt.Fprintf(w, "Loaded %d config files\n", len(selection.ConfigFiles)); err != nil {
+	if _, err := fmt.Fprintf(w, "Loaded %s\n", countNoun(len(selection.ConfigFiles), "config file")); err != nil {
 		return err
 	}
 	if _, err := fmt.Fprintf(w, "Command %s\n", selection.Command); err != nil {
@@ -38,7 +38,7 @@ func printPlanTable(w io.Writer, cfg *config.Config, selection config.ResolvedSe
 	if _, err := fmt.Fprintf(w, "Scope %s\n", scope); err != nil {
 		return err
 	}
-	if _, err := fmt.Fprintf(w, "Selected %d file pairs\n", len(selection.FilePairs)); err != nil {
+	if _, err := fmt.Fprintf(w, "Selected %s\n", countNoun(len(selection.FilePairs), "file pair")); err != nil {
 		return err
 	}
 	if opts.Verbose && len(selection.ConfigFiles) > 0 {

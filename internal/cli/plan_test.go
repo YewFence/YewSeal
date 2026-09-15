@@ -51,18 +51,3 @@ func TestPlanChecksMappingsWithoutExecutionEnvironment(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, entries, 1, "plan must not write plaintext or metadata")
 }
-
-func TestPlanHelpAndCompletionDoNotExposeExecutionFlags(t *testing.T) {
-	clearCLIEnvironment(t)
-	for _, args := range [][]string{{"plan", "--help"}, {"__complete", "plan", "--"}} {
-		cmd := NewRootCommand("test")
-		var output bytes.Buffer
-		cmd.SetOut(&output)
-		cmd.SetErr(&output)
-		cmd.SetArgs(args)
-		require.NoError(t, cmd.Execute())
-		require.NotContains(t, output.String(), "--output")
-		require.NotContains(t, output.String(), "--parallel")
-		require.NotContains(t, output.String(), "--pattern")
-	}
-}

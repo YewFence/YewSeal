@@ -26,17 +26,17 @@ type planOptions struct {
 }
 
 func addEncryptFlags(flags *pflag.FlagSet, opts *encryptOptions) {
-	flags.StringVarP(&opts.Output, "output", "o", opts.Output, "Output encrypted file for a single file target")
+	flags.StringVarP(&opts.Output, "output", "o", opts.Output, "Output encrypted file for a single file target (env SOPS_OUTPUT_FILE)")
 	flags.IntVarP(&opts.Parallel, "parallel", "P", opts.Parallel, "Number of parallel workers for batch mode (minimum 1)")
 	flags.BoolVarP(&opts.Verbose, "verbose", "v", false, "Enable verbose output")
 }
 
 func addDecryptFlags(flags *pflag.FlagSet, opts *decryptOptions) {
-	flags.StringVarP(&opts.Output, "output", "o", opts.Output, "Output plaintext file for a single file target")
+	flags.StringVarP(&opts.Output, "output", "o", opts.Output, "Output plaintext file for a single file target (env SOPS_OUTPUT_FILE)")
 	flags.IntVarP(&opts.Parallel, "parallel", "P", opts.Parallel, "Number of parallel workers for batch mode (minimum 1)")
 	flags.BoolVarP(&opts.Force, "force", "f", false, "Force overwrite existing plaintext file when it differs from decrypted content")
-	flags.BoolVar(&opts.Strict, "strict", false, "Require every selected file to be decrypted (default from YEWSEAL_STRICT)")
-	flags.BoolVarP(&opts.Verbose, "verbose", "v", false, "Enable verbose output")
+	flags.BoolVar(&opts.Strict, "strict", false, "Require every selected file to be decrypted (env YEWSEAL_STRICT; --strict=false overrides it)")
+	flags.BoolVarP(&opts.Verbose, "verbose", "v", false, "Enable verbose output (selection info and per-file results on stderr)")
 }
 
 func addPlanFlags(flags *pflag.FlagSet, opts *planOptions) {

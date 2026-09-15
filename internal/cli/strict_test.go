@@ -51,7 +51,7 @@ func TestInvalidStrictEnvironmentDoesNotBlockInformation(t *testing.T) {
 		quietCommand(cmd, args)
 		require.NoError(t, cmd.Execute())
 	}
-	for _, args := range [][]string{{"decrypt"}, {"diff"}} {
+	for _, args := range [][]string{{"decrypt"}} {
 		cmd := newRootCommand("test", func() (*config.Config, error) {
 			t.Fatal("invalid strict environment must fail before loading configuration")
 			return nil, nil

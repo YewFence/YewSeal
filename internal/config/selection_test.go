@@ -203,6 +203,22 @@ func TestSelectFilePairs_PatternTargetMatchesCommandPrimarySide(t *testing.T) {
 	})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "matches no configured file pairs")
+
+	// diff 与 encrypt 一样按明文侧匹配模式目标
+	result, err = SelectFilePairs(cfg, SelectionOptions{
+		Command: task.ModeDiff,
+		Targets: []string{"packages/web/*"},
+	})
+	require.NoError(t, err)
+	require.Len(t, result.FilePairs, 1)
+	assert.Equal(t, filepath.Join(root, "packages", "web", "config.yaml"), result.FilePairs[0].PlaintextPath)
+
+	_, err = SelectFilePairs(cfg, SelectionOptions{
+		Command: task.ModeDiff,
+		Targets: []string{"*.enc.yaml"},
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "matches no configured file pairs")
 }
 
 func TestSelectFilePairs_MultipleTargetsUnionAndDedupe(t *testing.T) {

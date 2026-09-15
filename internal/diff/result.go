@@ -42,12 +42,9 @@ func (s *Summary) Add(plaintext, encrypted string, result DiffResult, err error)
 	}
 }
 
-func (s *Summary) Check(strict bool) error {
+func (s *Summary) Check() error {
 	if s.FailedCount > 0 {
 		return fmt.Errorf("%d of %d files failed to compare", s.FailedCount, len(s.Results))
-	}
-	if strict && s.NoIdentityCount > 0 {
-		return fmt.Errorf("strict mode requires comparison of files with both inputs present: %d skipped without matching identity", s.NoIdentityCount)
 	}
 	return nil
 }

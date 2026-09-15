@@ -153,7 +153,7 @@ func (o *Output) Selection(selection config.ResolvedSelection) {
 	if !o.verbose {
 		return
 	}
-	o.diagnostic(fmt.Sprintf("Selected %d file pairs from %d config files\n", len(selection.FilePairs), len(selection.ConfigFiles)))
+	o.diagnostic(fmt.Sprintf("Selected %s from %s\n", countNoun(len(selection.FilePairs), "file pair"), countNoun(len(selection.ConfigFiles), "config file")))
 	for _, pair := range selection.FilePairs {
 		o.diagnostic(fmt.Sprintf("  %s -> %s\n", o.path(pair.PlaintextPath), o.path(pair.EncryptedPath)))
 	}
@@ -223,7 +223,7 @@ func (o *Output) Initialized(files int, sops bool) {
 	if sops {
 		paths += ", .sops.yaml"
 	}
-	o.diagnostic(fmt.Sprintf("Initialized %d file mappings: %s\n", files, paths))
+	o.diagnostic(fmt.Sprintf("Initialized %s: %s\n", countNoun(files, "file mapping"), paths))
 }
 
 func (o *Output) InitKept() { o.diagnostic("Unchanged: existing project configuration kept\n") }
