@@ -1,3 +1,20 @@
+## [0.11.0] - 2026-09-15
+
+### 🐛 Bug Fixes
+
+- *(docs)* Rebase root-absolute Markdown links with the base path
+
+### 🚜 Refactor
+
+- Migrate to Astro
+- *(cli)* [**breaking**] Drop diff --strict and align diff patterns with the plaintext side
+
+### 📚 Documentation
+
+- English documentation and self-documenting CLI help
+- [**breaking**] Restructure site into tutorial-driven guides
+- Translate schema comments to English
+- State the shared glob dialect precisely in target selection
 ## [0.10.0] - 2026-09-14
 
 ### 🚜 Refactor
