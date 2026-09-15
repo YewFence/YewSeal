@@ -1,3 +1,8 @@
+## [0.12.0] - 2026-09-15
+
+### 🚀 Features
+
+- *(skills)* Add YewSeal agent skills for CLI users (#28)
 ## [0.11.0] - 2026-09-15
 
 ### 🐛 Bug Fixes
