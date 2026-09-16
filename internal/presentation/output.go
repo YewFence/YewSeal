@@ -160,20 +160,38 @@ func (o *Output) Selection(selection config.ResolvedSelection) {
 }
 
 func (o *Output) FileCompleted(result task.Result) {
+	if result.Warning != "" {
+		o.Warning(o.path(result.SourceFile) + ": " + result.Warning)
+	}
 	switch result.Status {
 	case task.Skipped:
-		o.diagnostic(fmt.Sprintf("SKIPPED %s: %s\n", o.path(result.SourceFile), sopsx.ErrNoMatchingIdentity))
+		reason := sopsx.ErrNoMatchingIdentity.Error()
+		if result.Outcome == task.OutcomeMissingPlaintext {
+			reason = "plaintext file is missing; not encrypted"
+		}
+		o.diagnostic(fmt.Sprintf("SKIPPED %s: %s\n", o.path(result.SourceFile), reason))
 	case task.Failed:
 		o.diagnostic(fmt.Sprintf("FAILED %s: %v\n", o.path(result.SourceFile), result.Error))
 	case task.Succeeded:
 		if o.verbose {
-			o.diagnostic(fmt.Sprintf("SUCCEEDED %s -> %s\n", o.path(result.SourceFile), o.path(result.TargetFile)))
+			verb := "SUCCEEDED"
+			switch result.Outcome {
+			case task.OutcomeEncrypted:
+				verb = "ENCRYPTED"
+			case task.OutcomeUnchanged:
+				verb = "UNCHANGED"
+			}
+			o.diagnostic(fmt.Sprintf("%s %s -> %s\n", verb, o.path(result.SourceFile), o.path(result.TargetFile)))
 		}
 	}
 }
 
 func (o *Output) BatchSummary(summary *task.Summary, action string) {
 	if summary == nil {
+		return
+	}
+	if action == "encrypted" {
+		o.diagnostic(fmt.Sprintf("Summary (encrypted): %d encrypted, %d unchanged, %d missing plaintext, %d failed (%d selected)\n", summary.EncryptedCount, summary.UnchangedCount, summary.MissingPlaintextCount, summary.FailedCount, summary.TotalFiles))
 		return
 	}
 	o.diagnostic(fmt.Sprintf("Summary (%s): %d succeeded, %d skipped, %d failed (%d selected)\n", action, summary.SuccessCount, summary.SkippedCount, summary.FailedCount, summary.TotalFiles))

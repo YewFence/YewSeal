@@ -2,8 +2,6 @@ package task
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"sync"
 
 	"github.com/YewFence/YewSeal/internal/agekey"
@@ -32,17 +30,28 @@ func Encrypt(opts Options) (*Summary, error) {
 		return nil, fmt.Errorf("no configured file pairs to encrypt")
 	}
 
-	if err := ensureOutputDirs(filePairs, func(pair FilePair) string { return pair.EncryptedPath }); err != nil {
-		return nil, err
-	}
-
-	processor := func(pair FilePair) error {
-		return seal.Encrypt(seal.EncryptOptions{
-			InputFile:      pair.PlaintextPath,
-			OutputFile:     pair.EncryptedPath,
-			Recipients:     pair.Recipients,
-			FormatOverride: pair.Format,
+	processor := func(pair FilePair) (Outcome, string, error) {
+		result, err := seal.Update(seal.UpdateOptions{
+			EncryptOptions: seal.EncryptOptions{
+				InputFile:      pair.PlaintextPath,
+				OutputFile:     pair.EncryptedPath,
+				Recipients:     pair.Recipients,
+				FormatOverride: pair.Format,
+			},
+			IdentityBundle: opts.IdentityBundle,
+			Force:          opts.Force,
 		})
+		if err != nil {
+			return OutcomeProcessed, result.Warning, err
+		}
+		outcome := OutcomeEncrypted
+		switch result.Outcome {
+		case seal.Unchanged:
+			outcome = OutcomeUnchanged
+		case seal.MissingPlaintext:
+			outcome = OutcomeMissingPlaintext
+		}
+		return outcome, result.Warning, err
 	}
 	describe := func(pair FilePair) (string, string) {
 		return pair.PlaintextPath, pair.EncryptedPath
@@ -62,14 +71,15 @@ func Decrypt(opts Options) (*Summary, error) {
 		return nil, fmt.Errorf("no configured file pairs to decrypt")
 	}
 
-	processor := func(pair FilePair) error {
-		return seal.Decrypt(seal.DecryptOptions{
+	processor := func(pair FilePair) (Outcome, string, error) {
+		err := seal.Decrypt(seal.DecryptOptions{
 			InputFile:      pair.EncryptedPath,
 			OutputFile:     pair.PlaintextPath,
 			IdentityBundle: opts.IdentityBundle,
 			FormatOverride: pair.Format,
 			Force:          opts.Force,
 		})
+		return OutcomeProcessed, "", err
 	}
 	describe := func(pair FilePair) (string, string) {
 		return pair.EncryptedPath, pair.PlaintextPath
@@ -80,26 +90,11 @@ func Decrypt(opts Options) (*Summary, error) {
 	return summary, summary.Check("decrypt", opts.Strict)
 }
 
-func ensureOutputDirs(pairs []FilePair, target func(FilePair) string) error {
-	seen := map[string]bool{}
-	for _, pair := range pairs {
-		dir := filepath.Dir(target(pair))
-		if dir == "." || seen[dir] {
-			continue
-		}
-		seen[dir] = true
-		if err := os.MkdirAll(dir, 0755); err != nil {
-			return fmt.Errorf("failed to create output directory %s: %w", dir, err)
-		}
-	}
-	return nil
-}
-
 func process(
 	pairs []FilePair,
 	parallel int,
 	describe func(FilePair) (string, string),
-	processor func(FilePair) error,
+	processor func(FilePair) (Outcome, string, error),
 	completed func(Result),
 ) *Summary {
 	if parallel > 1 {
@@ -111,7 +106,7 @@ func process(
 func processSequential(
 	pairs []FilePair,
 	describe func(FilePair) (string, string),
-	processor func(FilePair) error,
+	processor func(FilePair) (Outcome, string, error),
 	completed func(Result),
 ) *Summary {
 	summary := &Summary{
@@ -121,8 +116,11 @@ func processSequential(
 	for _, pair := range pairs {
 		source, target := describe(pair)
 
-		err := processor(pair)
-		result := summary.Add(source, target, err)
+		outcome, warning, err := processor(pair)
+		result := newOutcomeResult(source, target, outcome, warning, err)
+		summary.Results = append(summary.Results, result)
+		summary.TotalFiles++
+		summary.count(result)
 		if completed != nil {
 			completed(result)
 		}
@@ -135,7 +133,7 @@ func processParallel(
 	pairs []FilePair,
 	parallel int,
 	describe func(FilePair) (string, string),
-	processor func(FilePair) error,
+	processor func(FilePair) (Outcome, string, error),
 	completed func(Result),
 ) *Summary {
 	summary := &Summary{
@@ -154,9 +152,9 @@ func processParallel(
 			for idx := range jobs {
 				pair := pairs[idx]
 				source, target := describe(pair)
-				err := processor(pair)
+				outcome, warning, err := processor(pair)
 
-				summary.Results[idx] = newResult(source, target, err)
+				summary.Results[idx] = newOutcomeResult(source, target, outcome, warning, err)
 
 				mu.Lock()
 				if completed != nil {

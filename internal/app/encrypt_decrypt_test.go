@@ -267,6 +267,108 @@ func TestEncryptFilesWritesPortableSopsPaths(t *testing.T) {
 	assert.NotContains(t, string(content), config.CurrentDir(cfg))
 }
 
+func TestEncryptFilesLeavesUnchangedCiphertextUntouched(t *testing.T) {
+	env := newAppCryptoTestEnv(t)
+	plain := []byte("token: value\n")
+	require.NoError(t, os.WriteFile("secret.yaml", plain, 0644))
+	cfg := configWithOwnerRecipient(&config.Config{Encryption: config.EncryptionConfig{Files: []config.FilePair{{PlaintextPath: "secret.yaml", EncryptedPath: "secret.enc.yaml", Format: "yaml"}}}}, env.publicKey)
+	require.NoError(t, EncryptFiles(cfg, EncryptRequest{KeyFile: env.keyFile, Parallel: 1}))
+	original, err := os.ReadFile("secret.enc.yaml")
+	require.NoError(t, err)
+	require.NoError(t, os.Chmod("secret.enc.yaml", 0400))
+
+	var diagnostics bytes.Buffer
+	err = EncryptFiles(cfg, EncryptRequest{KeyFile: env.keyFile, Parallel: 1, Presentation: presentation.New(nil, &diagnostics, true)})
+	require.NoError(t, err)
+	current, err := os.ReadFile("secret.enc.yaml")
+	require.NoError(t, err)
+	assert.Equal(t, original, current)
+	assert.Contains(t, diagnostics.String(), "UNCHANGED secret.yaml -> secret.enc.yaml")
+	assert.Contains(t, diagnostics.String(), "0 encrypted, 1 unchanged, 0 missing plaintext, 0 failed (1 selected)")
+}
+
+func TestEncryptFilesWithoutIdentityWarnsAndFreshlyEncrypts(t *testing.T) {
+	env := newAppCryptoTestEnv(t)
+	plain := []byte("token: value\n")
+	require.NoError(t, os.WriteFile("secret.yaml", plain, 0644))
+	cfg := configWithOwnerRecipient(&config.Config{Encryption: config.EncryptionConfig{Files: []config.FilePair{{PlaintextPath: "secret.yaml", EncryptedPath: "secret.enc.yaml", Format: "yaml"}}}}, env.publicKey)
+	require.NoError(t, EncryptFiles(cfg, EncryptRequest{KeyFile: env.keyFile, Parallel: 1}))
+	original, err := os.ReadFile("secret.enc.yaml")
+	require.NoError(t, err)
+	require.NoError(t, os.Remove(env.keyFile))
+	for _, name := range []string{"YEWSEAL_AGE_IDENTITIES", "SOPS_AGE_KEY", "SOPS_AGE_KEY_FILE", "SOPS_AGE_KEY_CMD"} {
+		t.Setenv(name, "")
+	}
+
+	var diagnostics bytes.Buffer
+	err = EncryptFiles(cfg, EncryptRequest{Parallel: 1, Presentation: presentation.New(nil, &diagnostics, false)})
+	require.NoError(t, err)
+	current, err := os.ReadFile("secret.enc.yaml")
+	require.NoError(t, err)
+	assert.NotEqual(t, original, current)
+	assert.Contains(t, diagnostics.String(), "no Age identity found")
+	assert.Contains(t, diagnostics.String(), "1 encrypted, 0 unchanged")
+}
+
+func TestEncryptFilesWithUnmatchedIdentityWarnsPerFileAndReplaces(t *testing.T) {
+	env := newAppCryptoTestEnv(t)
+	plain := []byte("token: value\n")
+	require.NoError(t, os.WriteFile("secret.yaml", plain, 0644))
+	cfg := configWithOwnerRecipient(&config.Config{Encryption: config.EncryptionConfig{Files: []config.FilePair{{PlaintextPath: "secret.yaml", EncryptedPath: "secret.enc.yaml", Format: "yaml"}}}}, env.publicKey)
+	require.NoError(t, EncryptFiles(cfg, EncryptRequest{KeyFile: env.keyFile, Parallel: 1}))
+	original, err := os.ReadFile("secret.enc.yaml")
+	require.NoError(t, err)
+	other, err := age.GenerateX25519Identity()
+	require.NoError(t, err)
+	otherKeyFile := "other-keys.txt"
+	require.NoError(t, os.WriteFile(otherKeyFile, []byte(other.String()+"\n"), 0600))
+
+	var diagnostics bytes.Buffer
+	err = EncryptFiles(cfg, EncryptRequest{KeyFile: otherKeyFile, Parallel: 1, Presentation: presentation.New(nil, &diagnostics, false)})
+	require.NoError(t, err)
+	current, err := os.ReadFile("secret.enc.yaml")
+	require.NoError(t, err)
+	assert.NotEqual(t, original, current)
+	assert.Contains(t, diagnostics.String(), "secret.yaml: no matching age identity for existing ciphertext")
+}
+
+func TestEncryptFilesProtectsBrokenCiphertextUnlessForced(t *testing.T) {
+	env := newAppCryptoTestEnv(t)
+	require.NoError(t, os.WriteFile("secret.yaml", []byte("token: value\n"), 0644))
+	broken := []byte("not sops\n")
+	require.NoError(t, os.WriteFile("secret.enc.yaml", broken, 0644))
+	cfg := configWithOwnerRecipient(&config.Config{Encryption: config.EncryptionConfig{Files: []config.FilePair{{PlaintextPath: "secret.yaml", EncryptedPath: "secret.enc.yaml", Format: "yaml"}}}}, env.publicKey)
+
+	err := EncryptFiles(cfg, EncryptRequest{KeyFile: env.keyFile, Parallel: 1})
+	require.Error(t, err)
+	current, readErr := os.ReadFile("secret.enc.yaml")
+	require.NoError(t, readErr)
+	assert.Equal(t, broken, current)
+
+	require.NoError(t, EncryptFiles(cfg, EncryptRequest{Parallel: 1, Force: true}))
+	decrypted, err := seal.DecryptToBytes(seal.DecryptBytesOptions{InputFile: "secret.enc.yaml", OutputFile: "secret.yaml", IdentityBundle: mustTestBundle(t, env.keyFile), FormatOverride: "yaml"})
+	require.NoError(t, err)
+	assert.Equal(t, "token: value\n", string(decrypted))
+}
+
+func TestEncryptFilesRejectsInvalidIdentityBeforeMetadataWrites(t *testing.T) {
+	env := newAppCryptoTestEnv(t)
+	require.NoError(t, os.WriteFile("secret.yaml", []byte("token: value\n"), 0644))
+	cfg := configWithOwnerRecipient(&config.Config{Encryption: config.EncryptionConfig{Files: []config.FilePair{{PlaintextPath: "secret.yaml", EncryptedPath: "secret.enc.yaml", Format: "yaml"}}}}, env.publicKey)
+	require.NoError(t, EncryptFiles(cfg, EncryptRequest{KeyFile: env.keyFile, Parallel: 1}))
+	original, err := os.ReadFile("secret.enc.yaml")
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile("invalid-keys.txt", []byte("invalid\n"), 0600))
+
+	err = EncryptFiles(cfg, EncryptRequest{KeyFile: "invalid-keys.txt", Parallel: 1, UpdateProjectMetadata: true})
+	require.Error(t, err)
+	current, readErr := os.ReadFile("secret.enc.yaml")
+	require.NoError(t, readErr)
+	assert.Equal(t, original, current)
+	require.NoFileExists(t, ".gitignore")
+	require.NoFileExists(t, ".sops.yaml")
+}
+
 func TestDecryptFilesWarnsForStaleAliasAndUsesEncryptedMetadata(t *testing.T) {
 	env := newAppCryptoTestEnv(t)
 	require.NoError(t, os.WriteFile("secret.yaml", []byte("token: value\n"), 0644))

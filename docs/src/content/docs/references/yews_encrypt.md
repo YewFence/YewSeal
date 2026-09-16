@@ -30,6 +30,15 @@ Recipients come strictly from alias resolution in .yewseal.toml (file
 disagreeing on the same path fails the whole batch before any ciphertext
 is written.
 
+When ciphertext already exists, encrypt uses an available private identity
+to verify and update it in place: unchanged files remain byte-identical,
+unchanged values retain their ciphertext, and recipient-only changes only
+rewrap the existing data key. If no identity is available, or none matches a
+specific file, encrypt warns and replaces that ciphertext from the current
+plaintext. --force always performs this fresh encryption and rotates the data
+key without reading the old ciphertext. Missing plaintext is reported and
+skipped without creating an output directory.
+
 --output only changes the location, never the format. There is no
 --format flag: non-standard extensions are declared via "format" or
 "format_rules" in the config. Group results get the format's standard
@@ -77,6 +86,7 @@ yews encrypt [command options] [path-or-pattern]... [flags]
 ## Options
 
 ```
+  -f, --force           Freshly encrypt every existing plaintext and rotate its data key
   -h, --help            help for encrypt
   -o, --output string   Output encrypted file for a single file target (env SOPS_OUTPUT_FILE)
   -P, --parallel int    Number of parallel workers for batch mode (minimum 1) (default 1)

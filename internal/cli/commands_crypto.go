@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func encryptCommand(load configLoader) *cobra.Command {
+func encryptCommand(load configLoader, keyFile *string) *cobra.Command {
 	opts := encryptOptions{
 		Output:   envValue("SOPS_OUTPUT_FILE"),
 		Parallel: 1,
@@ -41,6 +41,15 @@ Recipients come strictly from alias resolution in .yewseal.toml (file
 --public-key flag. An empty final set, an unknown alias, or groups
 disagreeing on the same path fails the whole batch before any ciphertext
 is written.
+
+When ciphertext already exists, encrypt uses an available private identity
+to verify and update it in place: unchanged files remain byte-identical,
+unchanged values retain their ciphertext, and recipient-only changes only
+rewrap the existing data key. If no identity is available, or none matches a
+specific file, encrypt warns and replaces that ciphertext from the current
+plaintext. --force always performs this fresh encryption and rotates the data
+key without reading the old ciphertext. Missing plaintext is reported and
+skipped without creating an output directory.
 
 --output only changes the location, never the format. There is no
 --format flag: non-standard extensions are declared via "format" or
@@ -82,10 +91,12 @@ Documentation: ` + docsTargetSelect,
 		RunE: withConfig(load, func(cmd *cobra.Command, args []string, cfg *config.Config) error {
 			return yewsapp.EncryptFiles(cfg, yewsapp.EncryptRequest{
 				Presentation:          presentation.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), opts.Verbose),
+				KeyFile:               *keyFile,
 				Output:                opts.Output,
 				OutputSet:             flagChangedOrEnvSet(cmd.Flags(), "output", "SOPS_OUTPUT_FILE"),
 				Targets:               args,
 				Parallel:              opts.Parallel,
+				Force:                 opts.Force,
 				UpdateProjectMetadata: true,
 			})
 		}),

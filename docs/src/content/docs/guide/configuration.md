@@ -151,7 +151,7 @@ yews decrypt config.enc.toml
 
 Relative paths given by flag or environment variable, like the default `.age/keys.txt`, are resolved against the current directory of the invocation, not the directory containing `.yewseal.toml`; use an absolute path when running from a subdirectory.
 
-Encryption uses only the canonical Age recipients resolved from `[recipients.registry]` and the file pair, group, or `recipients.defaults` alias sets. Private key files, `SOPS_AGE_RECIPIENTS`, and `.sops.yaml` never determine YewSeal's encryption authorization.
+Encryption authorization uses only the canonical Age recipients resolved from `[recipients.registry]` and the file pair, group, or `recipients.defaults` alias sets. When ciphertext already exists, `encrypt` uses an available private identity to verify and update it without rewriting unchanged files; unchanged values retain their ciphertext, and recipient-only changes rewrap the existing data key. Private key files, `SOPS_AGE_RECIPIENTS`, and `.sops.yaml` never determine YewSeal's encryption authorization. If no identity is available, or none matches a specific ciphertext, `encrypt` warns and freshly encrypts the current plaintext. Use `encrypt --force` to explicitly rotate the data key and rebuild existing ciphertext.
 
 ### Identity bundles
 

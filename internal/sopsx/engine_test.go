@@ -1,11 +1,16 @@
 package sopsx
 
 import (
+	"bytes"
 	"strings"
 	"testing"
 	"time"
 
 	"filippo.io/age"
+	sops "github.com/YewFence/sops/v3"
+	sopsaes "github.com/YewFence/sops/v3/aes"
+	sopsage "github.com/YewFence/sops/v3/age"
+	"github.com/YewFence/sops/v3/keyservice"
 	toml "github.com/pelletier/go-toml/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -65,6 +70,226 @@ func TestEncryptDecryptRoundTripAllFormats(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestEncryptUsesEncryptedSOPSMAC(t *testing.T) {
+	key := newTestKey(t)
+	for _, format := range []string{"toml", "yaml", "json", "env", "ini", "binary"} {
+		t.Run(format, func(t *testing.T) {
+			encData, err := Encrypt(samplePlaintext(format), format, []string{key.recipient})
+			require.NoError(t, err)
+			store, err := storeForFormat(format)
+			require.NoError(t, err)
+			tree, err := store.LoadEncryptedFile(encData)
+			require.NoError(t, err)
+			assert.True(t, strings.HasPrefix(tree.Metadata.MessageAuthenticationCode, "ENC[AES256_GCM,"))
+		})
+	}
+}
+
+func TestCiphertextInteroperatesWithNativeSOPSDecryptTree(t *testing.T) {
+	key := newTestKey(t)
+	t.Setenv("SOPS_AGE_KEY", key.identity)
+	plain := samplePlaintext("yaml")
+	encData, err := Encrypt(plain, "yaml", []string{key.recipient})
+	require.NoError(t, err)
+	store, err := storeForFormat("yaml")
+	require.NoError(t, err)
+	tree, err := store.LoadEncryptedFile(encData)
+	require.NoError(t, err)
+
+	dataKey, err := tree.Metadata.GetDataKeyWithKeyServices([]keyservice.KeyServiceClient{keyservice.NewLocalClient()}, nil)
+	require.NoError(t, err)
+	cipher := sopsaes.NewCipher()
+	computedMAC, err := tree.Decrypt(dataKey, cipher)
+	require.NoError(t, err)
+	storedMAC, err := cipher.Decrypt(tree.Metadata.MessageAuthenticationCode, dataKey, tree.Metadata.LastModified.Format(time.RFC3339))
+	require.NoError(t, err)
+	assert.Equal(t, computedMAC, storedMAC)
+	decrypted, err := store.EmitPlainFile(tree.Branches)
+	require.NoError(t, err)
+	assert.Contains(t, string(decrypted), "host: localhost")
+	assert.Contains(t, string(decrypted), "password: secret123")
+}
+
+func TestDecryptAndUpdateAcceptLegacyPlaintextMAC(t *testing.T) {
+	key := newTestKey(t)
+	plain := samplePlaintext("yaml")
+	encData, err := Encrypt(plain, "yaml", []string{key.recipient})
+	require.NoError(t, err)
+	store, err := storeForFormat("yaml")
+	require.NoError(t, err)
+	state, err := loadAndDecryptTree(store, encData, key.identity)
+	require.NoError(t, err)
+	legacyMAC, err := state.cipher.Decrypt(state.tree.Metadata.MessageAuthenticationCode, state.dataKey, state.tree.Metadata.LastModified.Format(time.RFC3339))
+	require.NoError(t, err)
+	encryptedTree, err := store.LoadEncryptedFile(encData)
+	require.NoError(t, err)
+	encryptedTree.Metadata.MessageAuthenticationCode = legacyMAC.(string)
+	legacyData, err := store.EmitEncryptedFile(encryptedTree)
+	require.NoError(t, err)
+
+	decrypted, err := Decrypt(legacyData, "yaml", key.identity)
+	require.NoError(t, err)
+	assert.Contains(t, string(decrypted), "password: secret123")
+	result, err := Update(UpdateOptions{Plaintext: plain, ExistingCiphertext: legacyData, Format: "yaml", AgeIdentity: key.identity, Recipients: []string{key.recipient}})
+	require.NoError(t, err)
+	assert.True(t, result.Unchanged)
+	assert.Equal(t, legacyData, result.Ciphertext)
+}
+
+func TestUpdateLeavesUnchangedCiphertextByteIdentical(t *testing.T) {
+	key := newTestKey(t)
+	for _, format := range []string{"toml", "yaml", "json", "env", "ini", "binary"} {
+		t.Run(format, func(t *testing.T) {
+			plain := samplePlaintext(format)
+			encData, err := Encrypt(plain, format, []string{key.recipient})
+			require.NoError(t, err)
+
+			result, err := Update(UpdateOptions{
+				Plaintext:          plain,
+				ExistingCiphertext: encData,
+				Format:             format,
+				AgeIdentity:        key.identity,
+				Recipients:         []string{key.recipient},
+			})
+			require.NoError(t, err)
+			assert.True(t, result.Unchanged)
+			assert.Equal(t, encData, result.Ciphertext)
+		})
+	}
+}
+
+func TestUpdateChangesOnlyModifiedStructuredValue(t *testing.T) {
+	key := newTestKey(t)
+	original := []byte("database:\n  host: localhost\n  password: old\n")
+	updated := []byte("database:\n  host: localhost\n  password: new\n")
+	encData, err := Encrypt(original, "yaml", []string{key.recipient})
+	require.NoError(t, err)
+	originalTree := loadEncryptedTreeForTest(t, encData, "yaml")
+	originalHost := branchValueForTest(t, originalTree.Branches[0], "database", "host")
+	originalPassword := branchValueForTest(t, originalTree.Branches[0], "database", "password")
+
+	result, err := Update(UpdateOptions{
+		Plaintext:          updated,
+		ExistingCiphertext: encData,
+		Format:             "yaml",
+		AgeIdentity:        key.identity,
+		Recipients:         []string{key.recipient},
+	})
+	require.NoError(t, err)
+	assert.True(t, result.ContentChanged)
+	assert.False(t, result.RecipientsChanged)
+	assert.False(t, result.Unchanged)
+
+	updatedTree := loadEncryptedTreeForTest(t, result.Ciphertext, "yaml")
+	assert.Equal(t, originalHost, branchValueForTest(t, updatedTree.Branches[0], "database", "host"))
+	assert.NotEqual(t, originalPassword, branchValueForTest(t, updatedTree.Branches[0], "database", "password"))
+	plain, err := Decrypt(result.Ciphertext, "yaml", key.identity)
+	require.NoError(t, err)
+	assert.Contains(t, string(plain), "host: localhost")
+	assert.Contains(t, string(plain), "password: new")
+}
+
+func TestUpdateRecipientsOnlyKeepsValuesAndMAC(t *testing.T) {
+	oldKey := newTestKey(t)
+	newKey := newTestKey(t)
+	plain := samplePlaintext("yaml")
+	encData, err := Encrypt(plain, "yaml", []string{oldKey.recipient})
+	require.NoError(t, err)
+	originalTree := loadEncryptedTreeForTest(t, encData, "yaml")
+
+	result, err := Update(UpdateOptions{
+		Plaintext:          plain,
+		ExistingCiphertext: encData,
+		Format:             "yaml",
+		AgeIdentity:        oldKey.identity,
+		Recipients:         []string{newKey.recipient},
+	})
+	require.NoError(t, err)
+	assert.False(t, result.ContentChanged)
+	assert.True(t, result.RecipientsChanged)
+	updatedTree := loadEncryptedTreeForTest(t, result.Ciphertext, "yaml")
+	assert.Equal(t, originalTree.Branches, updatedTree.Branches)
+	assert.Equal(t, originalTree.Metadata.MessageAuthenticationCode, updatedTree.Metadata.MessageAuthenticationCode)
+	assert.Equal(t, originalTree.Metadata.LastModified, updatedTree.Metadata.LastModified)
+	assert.Equal(t, []string{newKey.recipient}, ageRecipientsFromTree(updatedTree))
+
+	_, err = Decrypt(result.Ciphertext, "yaml", oldKey.identity)
+	require.ErrorIs(t, err, ErrNoMatchingIdentity)
+	decrypted, err := Decrypt(result.Ciphertext, "yaml", newKey.identity)
+	require.NoError(t, err)
+	originalPlaintext, err := Decrypt(encData, "yaml", oldKey.identity)
+	require.NoError(t, err)
+	assert.Equal(t, originalPlaintext, decrypted)
+}
+
+func TestUpdateRecipientComparisonIgnoresOrderButNotDuplicates(t *testing.T) {
+	first := newTestKey(t)
+	second := newTestKey(t)
+	plain := samplePlaintext("yaml")
+	encData, err := Encrypt(plain, "yaml", []string{first.recipient, second.recipient})
+	require.NoError(t, err)
+
+	reordered, err := Update(UpdateOptions{Plaintext: plain, ExistingCiphertext: encData, Format: "yaml", AgeIdentity: first.identity, Recipients: []string{second.recipient, first.recipient}})
+	require.NoError(t, err)
+	assert.True(t, reordered.Unchanged)
+	assert.Equal(t, encData, reordered.Ciphertext)
+
+	store, err := storeForFormat("yaml")
+	require.NoError(t, err)
+	tree, err := store.LoadEncryptedFile(encData)
+	require.NoError(t, err)
+	duplicate := *tree.Metadata.KeyGroups[0][0].(*sopsage.MasterKey)
+	tree.Metadata.KeyGroups[0] = append(tree.Metadata.KeyGroups[0], &duplicate)
+	withDuplicate, err := store.EmitEncryptedFile(tree)
+	require.NoError(t, err)
+
+	normalized, err := Update(UpdateOptions{Plaintext: plain, ExistingCiphertext: withDuplicate, Format: "yaml", AgeIdentity: first.identity, Recipients: []string{first.recipient, second.recipient}})
+	require.NoError(t, err)
+	assert.True(t, normalized.RecipientsChanged)
+	assert.Equal(t, []string{first.recipient, second.recipient}, ageRecipientsFromTree(loadEncryptedTreeForTest(t, normalized.Ciphertext, "yaml")))
+}
+
+func TestUpdateRejectsUnmatchedIdentityWithoutChangingInput(t *testing.T) {
+	owner := newTestKey(t)
+	other := newTestKey(t)
+	plain := samplePlaintext("yaml")
+	encData, err := Encrypt(plain, "yaml", []string{owner.recipient})
+	require.NoError(t, err)
+	original := bytes.Clone(encData)
+
+	_, err = Update(UpdateOptions{Plaintext: plain, ExistingCiphertext: encData, Format: "yaml", AgeIdentity: other.identity, Recipients: []string{owner.recipient}})
+	require.ErrorIs(t, err, ErrNoMatchingIdentity)
+	assert.Equal(t, original, encData)
+}
+
+func loadEncryptedTreeForTest(t *testing.T, data []byte, format string) sops.Tree {
+	t.Helper()
+	store, err := storeForFormat(format)
+	require.NoError(t, err)
+	tree, err := store.LoadEncryptedFile(data)
+	require.NoError(t, err)
+	return tree
+}
+
+func branchValueForTest(t *testing.T, branch sops.TreeBranch, path ...string) any {
+	t.Helper()
+	var current any = branch
+	for _, key := range path {
+		branch, ok := current.(sops.TreeBranch)
+		require.True(t, ok, "path %v does not contain a branch at %s", path, key)
+		found := false
+		for _, item := range branch {
+			if item.Key == key {
+				current = item.Value
+				found = true
+				break
+			}
+		}
+		require.True(t, found, "path %v does not contain %s", path, key)
+	}
+	return current
 }
 
 func TestEncryptTomlEmbedsSopsMetadataNatively(t *testing.T) {

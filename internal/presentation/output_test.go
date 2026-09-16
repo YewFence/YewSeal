@@ -106,3 +106,16 @@ func TestComparisonKeepsDistinctSkipReasons(t *testing.T) {
 	require.Contains(t, diagnostics.String(), "1 missing input, 1 no matching identity")
 	require.Contains(t, diagnostics.String(), "Comparison incomplete")
 }
+
+func TestEncryptionResultsKeepDistinctOutcomes(t *testing.T) {
+	var diagnostics bytes.Buffer
+	out := New(nil, &diagnostics, true)
+	out.FileCompleted(task.Result{SourceFile: "new.yaml", TargetFile: "new.enc.yaml", Status: task.Succeeded, Outcome: task.OutcomeEncrypted})
+	out.FileCompleted(task.Result{SourceFile: "same.yaml", TargetFile: "same.enc.yaml", Status: task.Succeeded, Outcome: task.OutcomeUnchanged})
+	out.FileCompleted(task.Result{SourceFile: "missing.yaml", TargetFile: "missing.enc.yaml", Status: task.Skipped, Outcome: task.OutcomeMissingPlaintext})
+	out.BatchSummary(&task.Summary{TotalFiles: 3, SuccessCount: 2, SkippedCount: 1, EncryptedCount: 1, UnchangedCount: 1, MissingPlaintextCount: 1}, "encrypted")
+	require.Contains(t, diagnostics.String(), "ENCRYPTED new.yaml -> new.enc.yaml")
+	require.Contains(t, diagnostics.String(), "UNCHANGED same.yaml -> same.enc.yaml")
+	require.Contains(t, diagnostics.String(), "SKIPPED missing.yaml: plaintext file is missing; not encrypted")
+	require.Contains(t, diagnostics.String(), "1 encrypted, 1 unchanged, 1 missing plaintext, 0 failed (3 selected)")
+}

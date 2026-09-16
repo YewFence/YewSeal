@@ -9,6 +9,7 @@ import (
 type encryptOptions struct {
 	Output   string
 	Parallel int
+	Force    bool
 	Verbose  bool
 }
 
@@ -28,6 +29,7 @@ type planOptions struct {
 func addEncryptFlags(flags *pflag.FlagSet, opts *encryptOptions) {
 	flags.StringVarP(&opts.Output, "output", "o", opts.Output, "Output encrypted file for a single file target (env SOPS_OUTPUT_FILE)")
 	flags.IntVarP(&opts.Parallel, "parallel", "P", opts.Parallel, "Number of parallel workers for batch mode (minimum 1)")
+	flags.BoolVarP(&opts.Force, "force", "f", false, "Freshly encrypt every existing plaintext and rotate its data key")
 	flags.BoolVarP(&opts.Verbose, "verbose", "v", false, "Enable verbose output")
 }
 
