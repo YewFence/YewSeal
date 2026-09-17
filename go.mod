@@ -1,6 +1,6 @@
 module github.com/YewFence/YewSeal
 
-go 1.26.3
+go 1.27.1
 
 require (
 	filippo.io/age v1.3.2
