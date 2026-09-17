@@ -19,6 +19,13 @@
   ],
   "packageRules": [
     {
+      "description": "Ship the maintainer's own sops fork updates immediately.",
+      "matchDepNames": [
+        "github.com/YewFence/sops/v3"
+      ],
+      "minimumReleaseAge": "0 days"
+    },
+    {
       "description": "Group GitHub Actions updates.",
       "matchManagers": [
         "github-actions"
