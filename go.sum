@@ -66,8 +66,8 @@ github.com/Nvveen/Gotty v0.0.0-20120604004816-cd527374f1e5 h1:TngWCqHvy9oXAN6lEV
 github.com/Nvveen/Gotty v0.0.0-20120604004816-cd527374f1e5/go.mod h1:lmUJ/7eu/Q8D7ML55dXQrVaamCz2vxCfdQBasLZfHKk=
 github.com/ProtonMail/go-crypto v1.4.1 h1:9RfcZHqEQUvP8RzecWEUafnZVtEvrBVL9BiF67IQOfM=
 github.com/ProtonMail/go-crypto v1.4.1/go.mod h1:e1OaTyu5SYVrO9gKOEhTc+5UcXtTUa+P3uLudwcgPqo=
-github.com/YewFence/sops/v3 v3.0.0-20260822074904-6fb6287244fa h1:E1NxfSM0Tr88f3h4BJX+df6jK32kr2vseRDH+DlHAG0=
-github.com/YewFence/sops/v3 v3.0.0-20260822074904-6fb6287244fa/go.mod h1:J77npHyqhy2OfZ6dchy9ZxHT/qkE5Kjm+NDsBwlT+Cs=
+github.com/YewFence/sops/v3 v3.0.0-20260917010022-e81f46a61f75 h1:zL/F7GTIYBwUxW8EWOZKUURGzyELXIKsbrYAu+QosDg=
+github.com/YewFence/sops/v3 v3.0.0-20260917010022-e81f46a61f75/go.mod h1:arGJKtWLT7VbvXKurOtLj8j7USHzeZ1oSjN9NR8+its=
 github.com/aws/aws-sdk-go-v2 v1.47.0 h1:0jsHallhJCeaU0Ko48c/3FK1ctOQ7NpzggxriJOQ8MQ=
 github.com/aws/aws-sdk-go-v2 v1.47.0/go.mod h1:bttEH6JqnUL8LepvDVfdrds/fZ5bCIxzpe3abyUrhDU=
 github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.20 h1:GPRlPwz40I2B2VrBEASOA3Bi77NyeqejNLkifosX0rs=
