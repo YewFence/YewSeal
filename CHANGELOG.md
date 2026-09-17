@@ -1,3 +1,9 @@
+## [0.12.0] - 2026-09-17
+
+### 🚀 Features
+
+- *(skills)* Add YewSeal agent skills for CLI users (#28)
+- *(encrypt)* Preserve unchanged ciphertext (#30)
 ## [0.11.0] - 2026-09-15
 
 ### 🐛 Bug Fixes
