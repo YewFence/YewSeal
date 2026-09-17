@@ -154,7 +154,7 @@ func Update(opts UpdateOptions) (UpdateResult, error) {
 	}
 
 	contentChanged := !bytes.Equal(oldPlaintext, opts.Plaintext) && !reflect.DeepEqual(state.tree.Branches, newBranches)
-	recipientsChanged := !sameRecipients(ageRecipientsFromTree(*state.tree), opts.Recipients)
+	recipientsChanged := !hasCanonicalAgeRecipients(*state.tree, opts.Recipients)
 	if !contentChanged && !recipientsChanged {
 		return UpdateResult{Ciphertext: opts.ExistingCiphertext, Unchanged: true}, nil
 	}
@@ -379,6 +379,22 @@ func sameRecipients(left, right []string) bool {
 	sort.Strings(left)
 	sort.Strings(right)
 	return reflect.DeepEqual(left, right)
+}
+
+func hasCanonicalAgeRecipients(tree sops.Tree, configured []string) bool {
+	if len(tree.Metadata.KeyGroups) != 1 || len(tree.Metadata.KeyGroups[0]) != len(configured) {
+		return false
+	}
+
+	recipients := make([]string, 0, len(configured))
+	for _, key := range tree.Metadata.KeyGroups[0] {
+		ageMK, ok := key.(*sopsage.MasterKey)
+		if !ok || ageMK == nil || ageMK.Recipient == "" {
+			return false
+		}
+		recipients = append(recipients, ageMK.Recipient)
+	}
+	return sameRecipients(recipients, configured)
 }
 
 // decryptTreeDataKey iterates age master keys in metadata, injects identities,

@@ -11,6 +11,7 @@ import (
 	sopsaes "github.com/YewFence/sops/v3/aes"
 	sopsage "github.com/YewFence/sops/v3/age"
 	"github.com/YewFence/sops/v3/keyservice"
+	sopspgp "github.com/YewFence/sops/v3/pgp"
 	toml "github.com/pelletier/go-toml/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -249,6 +250,42 @@ func TestUpdateRecipientComparisonIgnoresOrderButNotDuplicates(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, normalized.RecipientsChanged)
 	assert.Equal(t, []string{first.recipient, second.recipient}, ageRecipientsFromTree(loadEncryptedTreeForTest(t, normalized.Ciphertext, "yaml")))
+}
+
+func TestUpdateNormalizesUnsupportedKeyGroupStructure(t *testing.T) {
+	first := newTestKey(t)
+	second := newTestKey(t)
+	plain := samplePlaintext("yaml")
+	recipients := []string{first.recipient, second.recipient}
+	encData, err := Encrypt(plain, "yaml", recipients)
+	require.NoError(t, err)
+
+	tests := map[string]func(sops.Tree) sops.Tree{
+		"multiple age groups": func(tree sops.Tree) sops.Tree {
+			tree.Metadata.KeyGroups = []sops.KeyGroup{{tree.Metadata.KeyGroups[0][0]}, {tree.Metadata.KeyGroups[0][1]}}
+			return tree
+		},
+		"non-age key": func(tree sops.Tree) sops.Tree {
+			tree.Metadata.KeyGroups[0] = append(tree.Metadata.KeyGroups[0], sopspgp.NewMasterKeyFromFingerprint("0123456789ABCDEF"))
+			return tree
+		},
+	}
+
+	for name, mutate := range tests {
+		t.Run(name, func(t *testing.T) {
+			store, err := storeForFormat("yaml")
+			require.NoError(t, err)
+			tree := mutate(loadEncryptedTreeForTest(t, encData, "yaml"))
+			unsupported, err := store.EmitEncryptedFile(tree)
+			require.NoError(t, err)
+
+			result, err := Update(UpdateOptions{Plaintext: plain, ExistingCiphertext: unsupported, Format: "yaml", AgeIdentity: first.identity, Recipients: recipients})
+			require.NoError(t, err)
+			assert.True(t, result.RecipientsChanged)
+			assert.False(t, result.Unchanged)
+			assert.True(t, hasCanonicalAgeRecipients(loadEncryptedTreeForTest(t, result.Ciphertext, "yaml"), recipients))
+		})
+	}
 }
 
 func TestUpdateRejectsUnmatchedIdentityWithoutChangingInput(t *testing.T) {
