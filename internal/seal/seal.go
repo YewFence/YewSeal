@@ -2,6 +2,7 @@ package seal
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -16,6 +17,25 @@ type EncryptOptions struct {
 	OutputFile     string
 	Recipients     []string
 	FormatOverride string
+}
+
+type UpdateOptions struct {
+	EncryptOptions
+	IdentityBundle agekey.IdentityBundle
+	Force          bool
+}
+
+type EncryptOutcome string
+
+const (
+	Encrypted        EncryptOutcome = "encrypted"
+	Unchanged        EncryptOutcome = "unchanged"
+	MissingPlaintext EncryptOutcome = "missing-plaintext"
+)
+
+type UpdateResult struct {
+	Outcome EncryptOutcome
+	Warning string
 }
 
 type DecryptOptions struct {
@@ -68,11 +88,84 @@ func Encrypt(opts EncryptOptions) error {
 		return err
 	}
 
-	if err := os.WriteFile(opts.OutputFile, encData, 0644); err != nil {
-		return fmt.Errorf("failed to write output file: %w", err)
+	return writeEncryptedFile(opts.OutputFile, encData)
+}
+
+// Update reconciles one plaintext file with its encrypted output. It falls
+// back to fresh encryption when no supplied identity can unlock the existing
+// ciphertext; callers decide how to present that warning.
+func Update(opts UpdateOptions) (UpdateResult, error) {
+	info, err := os.Stat(opts.InputFile)
+	if os.IsNotExist(err) {
+		return UpdateResult{Outcome: MissingPlaintext}, nil
+	}
+	if err != nil {
+		return UpdateResult{}, fmt.Errorf("failed to inspect input file: %w", err)
+	}
+	if !info.Mode().IsRegular() {
+		return UpdateResult{}, fmt.Errorf("input file %s is not a regular file", opts.InputFile)
 	}
 
-	return nil
+	format, err := resolveFormat(opts.InputFile, opts.FormatOverride)
+	if err != nil {
+		return UpdateResult{}, err
+	}
+	if len(opts.Recipients) == 0 {
+		return UpdateResult{}, fmt.Errorf("at least one configured age recipient is required")
+	}
+	plainData, err := os.ReadFile(opts.InputFile)
+	if err != nil {
+		return UpdateResult{}, fmt.Errorf("failed to read input file: %w", err)
+	}
+
+	freshEncrypt := func(warning string) (UpdateResult, error) {
+		encData, err := encryptBytes(plainData, format, EncryptBytesOptions{
+			FormatFile:     opts.InputFile,
+			FormatOverride: opts.FormatOverride,
+			Recipients:     opts.Recipients,
+		})
+		if err != nil {
+			return UpdateResult{}, err
+		}
+		if err := writeEncryptedFile(opts.OutputFile, encData); err != nil {
+			return UpdateResult{}, err
+		}
+		return UpdateResult{Outcome: Encrypted, Warning: warning}, nil
+	}
+
+	if opts.Force {
+		return freshEncrypt("")
+	}
+	if len(opts.IdentityBundle.Identities()) == 0 {
+		return freshEncrypt("")
+	}
+	existing, err := os.ReadFile(opts.OutputFile)
+	if os.IsNotExist(err) {
+		return freshEncrypt("")
+	}
+	if err != nil {
+		return UpdateResult{}, fmt.Errorf("failed to read encrypted file: %w", err)
+	}
+	result, err := sopsx.Update(sopsx.UpdateOptions{
+		Plaintext:          plainData,
+		ExistingCiphertext: existing,
+		Format:             format,
+		AgeIdentity:        opts.IdentityBundle.String(),
+		Recipients:         opts.Recipients,
+	})
+	if errors.Is(err, sopsx.ErrNoMatchingIdentity) {
+		return freshEncrypt("no matching age identity for existing ciphertext; replacing it with newly encrypted plaintext")
+	}
+	if err != nil {
+		return UpdateResult{}, fmt.Errorf("failed to update encrypted file: %w", err)
+	}
+	if result.Unchanged {
+		return UpdateResult{Outcome: Unchanged}, nil
+	}
+	if err := writeEncryptedFile(opts.OutputFile, result.Ciphertext); err != nil {
+		return UpdateResult{}, err
+	}
+	return UpdateResult{Outcome: Encrypted}, nil
 }
 
 func EncryptToBytes(plainData []byte, opts EncryptBytesOptions) ([]byte, error) {
@@ -89,6 +182,16 @@ func encryptBytes(plainData []byte, format string, opts EncryptBytesOptions) ([]
 		return nil, fmt.Errorf("failed to encrypt: %w", err)
 	}
 	return encData, nil
+}
+
+func writeEncryptedFile(path string, data []byte) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return fmt.Errorf("failed to create output directory: %w", err)
+	}
+	if err := os.WriteFile(path, data, 0644); err != nil {
+		return fmt.Errorf("failed to write output file: %w", err)
+	}
+	return nil
 }
 
 func Decrypt(opts DecryptOptions) error {

@@ -8,34 +8,53 @@ import (
 )
 
 type Status string
+type Outcome string
 
 const (
 	Succeeded Status = "succeeded"
 	Skipped   Status = "skipped"
 	Failed    Status = "failed"
+
+	OutcomeProcessed        Outcome = "processed"
+	OutcomeEncrypted        Outcome = "encrypted"
+	OutcomeUnchanged        Outcome = "unchanged"
+	OutcomeMissingPlaintext Outcome = "missing-plaintext"
+	OutcomeNoIdentity       Outcome = "no-matching-identity"
 )
 
 type Result struct {
 	SourceFile string
 	TargetFile string
 	Status     Status
+	Outcome    Outcome
+	Warning    string
 	Error      error
 }
 
 type Summary struct {
-	TotalFiles   int
-	SuccessCount int
-	SkippedCount int
-	FailedCount  int
-	Results      []Result
+	TotalFiles            int
+	SuccessCount          int
+	SkippedCount          int
+	FailedCount           int
+	EncryptedCount        int
+	UnchangedCount        int
+	MissingPlaintextCount int
+	Results               []Result
 }
 
 func newResult(source, target string, err error) Result {
-	result := Result{SourceFile: source, TargetFile: target, Status: Succeeded, Error: err}
+	return newOutcomeResult(source, target, OutcomeProcessed, "", err)
+}
+
+func newOutcomeResult(source, target string, outcome Outcome, warning string, err error) Result {
+	result := Result{SourceFile: source, TargetFile: target, Status: Succeeded, Outcome: outcome, Warning: warning, Error: err}
 	if errors.Is(err, sopsx.ErrNoMatchingIdentity) {
 		result.Status = Skipped
+		result.Outcome = OutcomeNoIdentity
 	} else if err != nil {
 		result.Status = Failed
+	} else if outcome == OutcomeMissingPlaintext {
+		result.Status = Skipped
 	}
 	return result
 }
@@ -56,6 +75,14 @@ func (s *Summary) count(result Result) {
 		s.SkippedCount++
 	case Failed:
 		s.FailedCount++
+	}
+	switch result.Outcome {
+	case OutcomeEncrypted:
+		s.EncryptedCount++
+	case OutcomeUnchanged:
+		s.UnchangedCount++
+	case OutcomeMissingPlaintext:
+		s.MissingPlaintextCount++
 	}
 }
 

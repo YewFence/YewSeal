@@ -32,6 +32,7 @@ func TestEncryptDecryptFilePairsWithFormatOverride(t *testing.T) {
 	})
 	require.NoError(t, err)
 	assert.Equal(t, 1, encSummary.SuccessCount)
+	assert.Equal(t, 1, encSummary.EncryptedCount)
 
 	require.NoError(t, os.Remove(".dev.vars"))
 	decSummary, err := Decrypt(Options{
@@ -46,6 +47,51 @@ func TestEncryptDecryptFilePairsWithFormatOverride(t *testing.T) {
 	content, readErr := os.ReadFile(".dev.vars")
 	require.NoError(t, readErr)
 	assert.Equal(t, "TOKEN=secret\n", string(content))
+}
+
+func TestEncryptDistinguishesUnchangedAndMissingPlaintext(t *testing.T) {
+	_, publicKey, bundle := setupBatchTestEnv(t)
+	require.NoError(t, os.WriteFile("same.yaml", []byte("token: value\n"), 0644))
+	pairs := []FilePair{
+		{PlaintextPath: "same.yaml", EncryptedPath: "same.enc.yaml", Format: "yaml", Recipients: []string{publicKey}},
+		{PlaintextPath: "missing/value.yaml", EncryptedPath: "missing/output/value.enc.yaml", Format: "yaml", Recipients: []string{publicKey}},
+	}
+	first, err := Encrypt(Options{FilePairs: pairs[:1], IdentityBundle: bundle})
+	require.NoError(t, err)
+	require.Equal(t, 1, first.EncryptedCount)
+
+	second, err := Encrypt(Options{FilePairs: pairs, IdentityBundle: bundle})
+	require.NoError(t, err)
+	require.Equal(t, 1, second.UnchangedCount)
+	require.Equal(t, 1, second.MissingPlaintextCount)
+	require.Equal(t, 1, second.SkippedCount)
+	require.NoDirExists(t, "missing/output")
+}
+
+func TestEncryptFailureDoesNotCountAsEncrypted(t *testing.T) {
+	_, publicKey, bundle := setupBatchTestEnv(t)
+	require.NoError(t, os.WriteFile("broken.yaml", []byte("not: [valid\n"), 0644))
+	summary, err := Encrypt(Options{FilePairs: []FilePair{{PlaintextPath: "broken.yaml", EncryptedPath: "broken.enc.yaml", Format: "yaml", Recipients: []string{publicKey}}}, IdentityBundle: bundle})
+	require.Error(t, err)
+	require.Equal(t, 1, summary.FailedCount)
+	require.Zero(t, summary.EncryptedCount)
+}
+
+func TestEncryptForceFreshlyEncryptsExistingPlaintext(t *testing.T) {
+	_, publicKey, bundle := setupBatchTestEnv(t)
+	require.NoError(t, os.WriteFile("secret.yaml", []byte("first: value\nsecond: value\n"), 0644))
+	pair := FilePair{PlaintextPath: "secret.yaml", EncryptedPath: "secret.enc.yaml", Format: "yaml", Recipients: []string{publicKey}}
+	_, err := Encrypt(Options{FilePairs: []FilePair{pair}, IdentityBundle: bundle})
+	require.NoError(t, err)
+	original, err := os.ReadFile("secret.enc.yaml")
+	require.NoError(t, err)
+
+	summary, err := Encrypt(Options{FilePairs: []FilePair{pair}, Force: true})
+	require.NoError(t, err)
+	require.Equal(t, 1, summary.EncryptedCount)
+	refreshed, err := os.ReadFile("secret.enc.yaml")
+	require.NoError(t, err)
+	require.NotEqual(t, original, refreshed)
 }
 
 func setupBatchTestEnv(t *testing.T) (string, string, agekey.IdentityBundle) {

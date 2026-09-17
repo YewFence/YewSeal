@@ -15,8 +15,8 @@ func newRootCommand(version string, load configLoader) *cobra.Command {
 	var keyFile string
 
 	rootCmd := &cobra.Command{
-		Use:           "yews",
-		Short:         "YewSeal - Encrypt/decrypt configuration files using SOPS and Age (supports TOML, YAML, JSON, ENV, INI, and binary files)",
+		Use:   "yews",
+		Short: "YewSeal - Encrypt/decrypt configuration files using SOPS and Age (supports TOML, YAML, JSON, ENV, INI, and binary files)",
 		Long: `YewSeal manages encrypted configuration files with SOPS and Age,
 natively supporting TOML, YAML, JSON, ENV, INI, and binary formats.
 
@@ -42,7 +42,7 @@ Documentation: ` + docsBaseURL + `/`,
 
 	rootCmd.AddCommand(
 		initCommand(),
-		encryptCommand(load),
+		encryptCommand(load, &keyFile),
 		decryptCommand(load, &keyFile),
 		planCommand(load),
 		editCommand(load, &keyFile),

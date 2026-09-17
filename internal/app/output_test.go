@@ -39,7 +39,11 @@ func (w *failAtOutput) Write(p []byte) (int, error) {
 func TestBatchCompletesDespiteDiagnosticFailure(t *testing.T) {
 	for _, action := range []string{"encrypt", "decrypt"} {
 		for _, workers := range []int{1, 4} {
-			for _, failOn := range []string{"Selected", "SUCCEEDED", "Summary"} {
+			completed := "SUCCEEDED"
+			if action == "encrypt" {
+				completed = "ENCRYPTED"
+			}
+			for _, failOn := range []string{"Selected", completed, "Summary"} {
 				for _, short := range []bool{false, true} {
 					t.Run(fmt.Sprintf("%s/%d/%s/short=%v", action, workers, failOn, short), func(t *testing.T) {
 						env := newAppCryptoTestEnv(t)

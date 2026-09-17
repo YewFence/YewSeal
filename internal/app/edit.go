@@ -12,6 +12,7 @@ import (
 	"github.com/YewFence/YewSeal/internal/errx"
 	"github.com/YewFence/YewSeal/internal/presentation"
 	"github.com/YewFence/YewSeal/internal/seal"
+	"github.com/YewFence/YewSeal/internal/sopsx"
 )
 
 type EditRequest struct {
@@ -109,16 +110,22 @@ func EditEncryptedFile(req EditRequest) (err error) {
 		return nil
 	}
 
-	newEncData, err := seal.EncryptToBytes(editedData, seal.EncryptBytesOptions{
-		FormatFile:     resolved.PlaintextPath,
-		FormatOverride: resolved.Format,
-		Recipients:     resolved.Recipients,
+	existingData, err := os.ReadFile(resolved.EncryptedPath)
+	if err != nil {
+		return fmt.Errorf("failed to read encrypted file: %w", err)
+	}
+	update, err := sopsx.Update(sopsx.UpdateOptions{
+		Plaintext:          editedData,
+		ExistingCiphertext: existingData,
+		Format:             resolved.Format,
+		AgeIdentity:        identityBundle.String(),
+		Recipients:         resolved.Recipients,
 	})
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to update encrypted file: %w", err)
 	}
 
-	if err := os.WriteFile(resolved.EncryptedPath, newEncData, 0644); err != nil {
+	if err := os.WriteFile(resolved.EncryptedPath, update.Ciphertext, 0644); err != nil {
 		return fmt.Errorf("failed to write encrypted file: %w", err)
 	}
 
