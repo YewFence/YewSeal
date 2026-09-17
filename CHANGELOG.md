@@ -1,3 +1,11 @@
+## [0.12.1] - 2026-09-17
+
+### ⚙️ Miscellaneous Tasks
+
+- *(gomod-deps)* Update go modules (#31)
+- *(go-deps)* Update go module directive to v1.27.1 (#32)
+- *(renovate)* Exempt sops fork from minimum release age
+- *(gomod-deps)* Update module github.com/yewfence/sops/v3 to v3.0.0-20260917010022-e81f46a61f75 (#35)
 ## [0.12.0] - 2026-09-17
 
 ### 🚀 Features
