@@ -140,6 +140,8 @@ At decryption time, the Age private key resolves in this order (highest first):
 5. `SOPS_AGE_KEY_CMD`
 6. The default path `.age/keys.txt` under the current working directory
 
+Sources never merge across levels: the first one that yields an identity wins outright, and everything below it is not even read — with `--key-file` set, the environment variables and `.age/keys.txt` are ignored entirely. Only identities within the winning source combine into one bundle.
+
 ```bash
 yews --key-file ~/.age/my-key.txt decrypt config.enc.toml
 ```
