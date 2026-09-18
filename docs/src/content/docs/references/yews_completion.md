@@ -19,7 +19,7 @@ See each sub-command's help for details on how to use the generated script.
 ## Options inherited from parent commands
 
 ```
-  -k, --key-file string   Path to the Age private key file (env AGE_KEY_FILE; fallback: YEWSEAL_AGE_IDENTITIES, SOPS_AGE_KEY*, then .age/keys.txt)
+  -k, --key-file string   Path to the Age private key file (fallback: SOPS_AGE_KEY*, then .age/keys.txt) (env YEWSEAL_KEY_FILE)
 ```
 
 ## SEE ALSO

@@ -18,10 +18,7 @@ func TestCLIProcessingOutcomes(t *testing.T) {
 	binary := filepath.Join(t.TempDir(), "yews.exe")
 	output, err := exec.Command("go", "build", "-o", binary, ".").CombinedOutput()
 	require.NoError(t, err, "%s", output)
-	for _, name := range []string{"AGE_KEY_FILE", "YEWSEAL_AGE_IDENTITIES", "SOPS_AGE_KEY", "SOPS_AGE_KEY_FILE", "SOPS_AGE_KEY_CMD", "SOPS_OUTPUT_FILE", "YEWSEAL_STRICT"} {
-		t.Setenv(name, "")
-		require.NoError(t, os.Unsetenv(name))
-	}
+	clearCommandEnvironment(t)
 	for _, tc := range []struct {
 		name, command, scenario, strictEnv string
 		flags                              []string
@@ -108,7 +105,7 @@ func TestCLIProcessingOutcomes(t *testing.T) {
 			cmd := exec.Command(binary, append([]string{tc.command}, tc.flags...)...)
 			cmd.Dir = dir
 			if tc.strictEnv != "" {
-				cmd.Env = append(os.Environ(), "YEWSEAL_STRICT="+tc.strictEnv)
+				cmd.Env = append(os.Environ(), "YEWSEAL_DECRYPT_STRICT="+tc.strictEnv)
 			}
 			var stdout, stderr bytes.Buffer
 			cmd.Stdout, cmd.Stderr = &stdout, &stderr
@@ -133,7 +130,7 @@ func TestCLIProcessingOutcomes(t *testing.T) {
 					require.NoFileExists(t, filepath.Join(dir, "good.yaml"))
 					require.NoFileExists(t, filepath.Join(dir, ".gitignore"))
 				}
-				require.NotContains(t, stderr.String(), "invalid YEWSEAL_STRICT")
+				require.NotContains(t, stderr.String(), "invalid YEWSEAL_DECRYPT_STRICT")
 				return
 			}
 			if tc.command == "diff" {

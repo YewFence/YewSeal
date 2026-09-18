@@ -45,4 +45,4 @@ The same pattern works for any CI:
 2. Provide the Age private key via an environment variable or a key file
 3. Run `yews decrypt --strict` and deploy only after a successful exit
 
-Development environments can tolerate files skipped for missing identities, but deployment usually requires every selected file to decrypt. Strict mode can also be enabled with `YEWSEAL_STRICT=true`; see [Decryption results and strict mode](/guide/decryption-results) for result classification and exit codes.
+Development environments can tolerate files skipped for missing identities, but deployment usually requires every selected file to decrypt. Strict mode can also be enabled with `YEWSEAL_DECRYPT_STRICT=true`; see [Decryption results and strict mode](/guide/decryption-results) for result classification and exit codes.

@@ -296,7 +296,7 @@ func TestEncryptFilesWithoutIdentityWarnsAndFreshlyEncrypts(t *testing.T) {
 	original, err := os.ReadFile("secret.enc.yaml")
 	require.NoError(t, err)
 	require.NoError(t, os.Remove(env.keyFile))
-	for _, name := range []string{"YEWSEAL_AGE_IDENTITIES", "SOPS_AGE_KEY", "SOPS_AGE_KEY_FILE", "SOPS_AGE_KEY_CMD"} {
+	for _, name := range []string{"SOPS_AGE_KEY", "SOPS_AGE_KEY_FILE", "SOPS_AGE_KEY_CMD"} {
 		t.Setenv(name, "")
 	}
 
@@ -390,7 +390,7 @@ func TestDecryptFilesUsesEnvironmentBundleWithoutKeyFile(t *testing.T) {
 	env := newAppCryptoTestEnv(t)
 	bundle, err := agekey.GetIdentityBundle(env.keyFile)
 	require.NoError(t, err)
-	t.Setenv("YEWSEAL_AGE_IDENTITIES", bundle.String())
+	t.Setenv("SOPS_AGE_KEY", bundle.String())
 	require.NoError(t, os.Remove(env.keyFile))
 	require.NoError(t, os.WriteFile("secret.yaml", []byte("token: value\n"), 0644))
 	require.NoError(t, seal.Encrypt(seal.EncryptOptions{InputFile: "secret.yaml", OutputFile: "secret.enc.yaml", Recipients: []string{env.publicKey}, FormatOverride: "yaml"}))
@@ -404,7 +404,7 @@ func TestDecryptFilesUsesEnvironmentBundleWithoutKeyFile(t *testing.T) {
 
 func TestDecryptFilesUsesSecondIdentityFromDefaultFile(t *testing.T) {
 	env := newAppCryptoTestEnv(t)
-	for _, name := range []string{"YEWSEAL_AGE_IDENTITIES", "SOPS_AGE_KEY", "SOPS_AGE_KEY_FILE", "SOPS_AGE_KEY_CMD"} {
+	for _, name := range []string{"SOPS_AGE_KEY", "SOPS_AGE_KEY_FILE", "SOPS_AGE_KEY_CMD"} {
 		t.Setenv(name, "")
 	}
 	keyContent, err := os.ReadFile(env.keyFile)

@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -19,10 +18,7 @@ func TestCLIInitOutput(t *testing.T) {
 	binary := filepath.Join(t.TempDir(), "yews.exe")
 	output, err := exec.CommandContext(ctx, "go", "build", "-o", binary, ".").CombinedOutput()
 	require.NoError(t, err, "%s", output)
-	for _, name := range []string{"AGE_KEY_FILE", "YEWSEAL_AGE_IDENTITIES", "SOPS_AGE_KEY", "SOPS_AGE_KEY_FILE", "SOPS_AGE_KEY_CMD", "SOPS_OUTPUT_FILE", "YEWSEAL_STRICT"} {
-		t.Setenv(name, "")
-		require.NoError(t, os.Unsetenv(name))
-	}
+	clearCommandEnvironment(t)
 	t.Run("init-clean-stdout", func(t *testing.T) {
 		cmd := exec.CommandContext(ctx, binary, "init", "--input", "config.yaml")
 		cmd.Dir = t.TempDir()

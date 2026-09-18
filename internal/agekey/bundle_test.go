@@ -35,19 +35,10 @@ func TestGetIdentityBundleFromKeyFileCollectsValidIdentities(t *testing.T) {
 	require.Equal(t, []string{first.String(), second.String()}, bundle.Identities())
 }
 
-func TestGetIdentityBundleFromEnvRejectsEmptyItem(t *testing.T) {
-	first, err := age.GenerateX25519Identity()
-	require.NoError(t, err)
-	t.Setenv("YEWSEAL_AGE_IDENTITIES", first.String()+",,"+first.String())
-
-	_, err = GetIdentityBundle("")
-	require.EqualError(t, err, "YEWSEAL_AGE_IDENTITIES item 2 is empty")
-}
-
 func TestGetIdentityBundleExplicitFileDoesNotFallBack(t *testing.T) {
 	first, err := age.GenerateX25519Identity()
 	require.NoError(t, err)
-	t.Setenv("YEWSEAL_AGE_IDENTITIES", first.String())
+	t.Setenv("SOPS_AGE_KEY", first.String())
 
 	_, err = GetIdentityBundle(t.TempDir() + "/missing-keys.txt")
 	require.Error(t, err)
@@ -56,7 +47,7 @@ func TestGetIdentityBundleExplicitFileDoesNotFallBack(t *testing.T) {
 
 func TestGetIdentityBundleDefaultFileCollectsAllIdentities(t *testing.T) {
 	t.Chdir(t.TempDir())
-	for _, name := range []string{"YEWSEAL_AGE_IDENTITIES", "SOPS_AGE_KEY", "SOPS_AGE_KEY_FILE", "SOPS_AGE_KEY_CMD"} {
+	for _, name := range []string{"SOPS_AGE_KEY", "SOPS_AGE_KEY_FILE", "SOPS_AGE_KEY_CMD"} {
 		t.Setenv(name, "")
 	}
 	first, err := age.GenerateX25519Identity()
@@ -80,7 +71,7 @@ func TestGetIdentityBundleEnvironmentPrecedesDefaultFile(t *testing.T) {
 	require.NoError(t, os.Mkdir(".age", 0700))
 	fallbackPath := ".age/keys.txt"
 	require.NoError(t, os.WriteFile(fallbackPath, []byte(fallbackIdentity.String()+"\n"), 0600))
-	t.Setenv("YEWSEAL_AGE_IDENTITIES", environmentIdentity.String())
+	t.Setenv("SOPS_AGE_KEY", environmentIdentity.String())
 	bundle, err := GetIdentityBundle("")
 	require.NoError(t, err)
 	require.Equal(t, []string{environmentIdentity.String()}, bundle.Identities())
@@ -88,7 +79,7 @@ func TestGetIdentityBundleEnvironmentPrecedesDefaultFile(t *testing.T) {
 
 func TestGetIdentityBundleMissingDefaultFile(t *testing.T) {
 	t.Chdir(t.TempDir())
-	for _, name := range []string{"YEWSEAL_AGE_IDENTITIES", "SOPS_AGE_KEY", "SOPS_AGE_KEY_FILE", "SOPS_AGE_KEY_CMD"} {
+	for _, name := range []string{"SOPS_AGE_KEY", "SOPS_AGE_KEY_FILE", "SOPS_AGE_KEY_CMD"} {
 		t.Setenv(name, "")
 	}
 	_, err := GetIdentityBundle("")
@@ -100,7 +91,7 @@ func TestGetIdentityBundleExplicitFilePrecedesEnvironment(t *testing.T) {
 	require.NoError(t, err)
 	path := t.TempDir() + "/keys.txt"
 	require.NoError(t, os.WriteFile(path, []byte(identity.String()+"\n"), 0600))
-	t.Setenv("YEWSEAL_AGE_IDENTITIES", "invalid")
+	t.Setenv("SOPS_AGE_KEY", "invalid")
 	bundle, err := GetIdentityBundle(path)
 	require.NoError(t, err)
 	require.Equal(t, []string{identity.String()}, bundle.Identities())
@@ -110,7 +101,7 @@ func TestGetIdentityBundleSOPSSourcesPrecedeDefaultFile(t *testing.T) {
 	for _, source := range []string{"SOPS_AGE_KEY", "SOPS_AGE_KEY_FILE", "SOPS_AGE_KEY_CMD"} {
 		t.Run(source, func(t *testing.T) {
 			t.Chdir(t.TempDir())
-			for _, name := range []string{"YEWSEAL_AGE_IDENTITIES", "SOPS_AGE_KEY", "SOPS_AGE_KEY_FILE", "SOPS_AGE_KEY_CMD"} {
+			for _, name := range []string{"SOPS_AGE_KEY", "SOPS_AGE_KEY_FILE", "SOPS_AGE_KEY_CMD"} {
 				t.Setenv(name, "")
 			}
 			first, err := age.GenerateX25519Identity()

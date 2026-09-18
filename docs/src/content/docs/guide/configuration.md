@@ -133,12 +133,11 @@ YewSeal generates exact-match rules per encrypted file.
 
 At decryption time, the Age private key resolves in this order (highest first):
 
-1. The explicit global flag `--key-file` / `-k`, or `AGE_KEY_FILE`
-2. A comma-separated identity bundle in `YEWSEAL_AGE_IDENTITIES`
-3. A full multi-line bundle in `SOPS_AGE_KEY`
-4. `SOPS_AGE_KEY_FILE`
-5. `SOPS_AGE_KEY_CMD`
-6. The default path `.age/keys.txt` under the current working directory
+1. The explicit global flag `--key-file` / `-k`, or `YEWSEAL_KEY_FILE`
+2. A whitespace-separated or multi-line bundle in `SOPS_AGE_KEY`
+3. `SOPS_AGE_KEY_FILE`
+4. `SOPS_AGE_KEY_CMD`
+5. The default path `.age/keys.txt` under the current working directory
 
 ```bash
 yews --key-file ~/.age/my-key.txt decrypt config.enc.toml
@@ -155,10 +154,10 @@ Encryption authorization uses only the canonical Age recipients resolved from `[
 
 ### Identity bundles
 
-One key file may contain multiple Age private keys; YewSeal ignores comments, blank lines, and irrelevant lines, and deduplicates by first occurrence. CI can also pass a comma-separated list of private keys through the dedicated variable:
+One key file may contain multiple Age private keys; YewSeal ignores comments, blank lines, and irrelevant lines, and deduplicates by first occurrence. CI can also pass multiple private keys through the SOPS-compatible variable:
 
 ```bash
-YEWSEAL_AGE_IDENTITIES='AGE-SECRET-KEY-1...,AGE-SECRET-KEY-1...' yews decrypt config.enc.toml
+SOPS_AGE_KEY='AGE-SECRET-KEY-1... AGE-SECRET-KEY-1...' yews decrypt config.enc.toml
 ```
 
 ## External private key sources
@@ -169,13 +168,17 @@ YewSeal provides no `sync`, `sync pull`, or `[sync]` configuration. Private keys
 
 | Variable | Purpose |
 | --- | --- |
-| `AGE_KEY_FILE` | Default for the global `--key-file`, treated as an explicit key file |
-| `YEWSEAL_AGE_IDENTITIES` | Comma-separated Age identity bundle |
+Every YewSeal-defined flag has an environment variable. Global flags use `YEWSEAL_<FLAG>`; command flags use `YEWSEAL_<COMMAND>_<FLAG>`, with names uppercased and hyphens replaced by underscores. For example, `--key-file` uses `YEWSEAL_KEY_FILE`, `encrypt --parallel` uses `YEWSEAL_ENCRYPT_PARALLEL`, and `decrypt --strict` uses `YEWSEAL_DECRYPT_STRICT`. Each flag's `--help` entry shows its exact variable.
+
+Explicit flags override environment variables, which override flag defaults. Empty environment values are treated as unset; invalid non-empty booleans and integers fail before project configuration is loaded. Environment variables for other commands are ignored during the current invocation.
+
+Non-flag integration variables remain owned by their respective identity or editor modules:
+
+| Variable | Purpose |
+| --- | --- |
 | `SOPS_AGE_KEY` | Full multi-line Age identity bundle |
 | `SOPS_AGE_KEY_FILE` | Path to an Age private key file |
 | `SOPS_AGE_KEY_CMD` | Command whose output provides an Age identity bundle |
-| `SOPS_OUTPUT_FILE` | `--output` value for `encrypt` and `decrypt`; plan ignores it |
-| `YEWSEAL_STRICT` | Strict-mode default for `decrypt`; an explicit `--strict` / `--strict=false` wins |
 | `EDITOR` | Editor used by `edit` when `VISUAL` is unset |
 | `VISUAL` | Editor preferred by `edit` |
 

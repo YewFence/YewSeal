@@ -14,10 +14,9 @@ import (
 
 func TestPlanChecksMappingsWithoutExecutionEnvironment(t *testing.T) {
 	clearCLIEnvironment(t)
-	t.Setenv("SOPS_OUTPUT_FILE", "ignored-output.json")
-	t.Setenv("YEWSEAL_AGE_IDENTITIES", "invalid")
+	t.Setenv("YEWSEAL_ENCRYPT_OUTPUT", "ignored-output.json")
 	t.Setenv("SOPS_AGE_KEY_CMD", "exit 29")
-	t.Setenv("YEWSEAL_STRICT", "invalid")
+	t.Setenv("YEWSEAL_DECRYPT_STRICT", "invalid")
 	root := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(root, "remote.enc.yaml"), []byte("not valid ciphertext"), 0600))
 	identity, err := age.GenerateX25519Identity()

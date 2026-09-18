@@ -36,8 +36,7 @@ Exit codes: by default, files whose keys do not match the current
 identity are skipped; partial success with no real error exits 0, while
 an all-skipped batch or any real error exits 1. With --strict, any skip
 also exits 1, but remaining files are still processed and successful
-results are kept. --strict=false overrides the YEWSEAL_STRICT
-environment variable.
+results are kept. --strict=false overrides YEWSEAL_DECRYPT_STRICT.
 
 TOML ciphertext is decrypted natively by the embedded TOML store without
 format conversion; the output is normalized TOML (single-quoted literal
@@ -82,25 +81,25 @@ yews decrypt [command options] [path-or-pattern]... [flags]
   # Overwrite a plaintext file that differs from the decrypted content
   yews decrypt config.enc.toml --force
 
-  # Fail on any skipped file (or set YEWSEAL_STRICT=true)
+  # Fail on any skipped file (or set YEWSEAL_DECRYPT_STRICT=true)
   yews decrypt --strict
 ```
 
 ## Options
 
 ```
-  -f, --force           Force overwrite existing plaintext file when it differs from decrypted content
+  -f, --force           Force overwrite existing plaintext file when it differs from decrypted content (env YEWSEAL_DECRYPT_FORCE)
   -h, --help            help for decrypt
-  -o, --output string   Output plaintext file for a single file target (env SOPS_OUTPUT_FILE)
-  -P, --parallel int    Number of parallel workers for batch mode (minimum 1) (default 1)
-      --strict          Require every selected file to be decrypted (env YEWSEAL_STRICT; --strict=false overrides it)
-  -v, --verbose         Enable verbose output (selection info and per-file results on stderr)
+  -o, --output string   Output plaintext file for a single file target (env YEWSEAL_DECRYPT_OUTPUT)
+  -P, --parallel int    Number of parallel workers for batch mode (minimum 1) (env YEWSEAL_DECRYPT_PARALLEL) (default 1)
+      --strict          Require every selected file to be decrypted (env YEWSEAL_DECRYPT_STRICT)
+  -v, --verbose         Enable verbose output (selection info and per-file results on stderr) (env YEWSEAL_DECRYPT_VERBOSE)
 ```
 
 ## Options inherited from parent commands
 
 ```
-  -k, --key-file string   Path to the Age private key file (env AGE_KEY_FILE; fallback: YEWSEAL_AGE_IDENTITIES, SOPS_AGE_KEY*, then .age/keys.txt)
+  -k, --key-file string   Path to the Age private key file (fallback: SOPS_AGE_KEY*, then .age/keys.txt) (env YEWSEAL_KEY_FILE)
 ```
 
 ## SEE ALSO

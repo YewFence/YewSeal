@@ -74,14 +74,14 @@ yews plan [command options] [path-or-pattern]... [flags]
 
 ```
   -h, --help      help for plan
-      --json      Print configured file mappings as JSON
-  -v, --verbose   Enable verbose output
+      --json      Print configured file mappings as JSON (env YEWSEAL_PLAN_JSON)
+  -v, --verbose   Enable verbose output (env YEWSEAL_PLAN_VERBOSE)
 ```
 
 ## Options inherited from parent commands
 
 ```
-  -k, --key-file string   Path to the Age private key file (env AGE_KEY_FILE; fallback: YEWSEAL_AGE_IDENTITIES, SOPS_AGE_KEY*, then .age/keys.txt)
+  -k, --key-file string   Path to the Age private key file (fallback: SOPS_AGE_KEY*, then .age/keys.txt) (env YEWSEAL_KEY_FILE)
 ```
 
 ## SEE ALSO

@@ -8,11 +8,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func encryptCommand(load configLoader, keyFile *string) *cobra.Command {
+func encryptCommand(load configLoader) *cobra.Command {
 	opts := encryptOptions{
-		Output:   envValue("SOPS_OUTPUT_FILE"),
 		Parallel: 1,
 	}
+	var resolver *optionResolver
 
 	cmd := &cobra.Command{
 		Use:     "encrypt [command options] [path-or-pattern]...",
@@ -86,14 +86,14 @@ Documentation: ` + docsTargetSelect,
   # Encrypt a batch across four parallel workers
   yews encrypt ./configs --parallel 4`,
 		Args: func(cmd *cobra.Command, args []string) error {
-			return validateBatchArgs(cmd, args, opts.Parallel)
+			return validateBatchArgs(args, opts.Parallel, resolver.IsSet("output"))
 		},
 		RunE: withConfig(load, func(cmd *cobra.Command, args []string, cfg *config.Config) error {
 			return yewsapp.EncryptFiles(cfg, yewsapp.EncryptRequest{
 				Presentation:          presentation.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), opts.Verbose),
-				KeyFile:               *keyFile,
+				KeyFile:               opts.KeyFile,
 				Output:                opts.Output,
-				OutputSet:             flagChangedOrEnvSet(cmd.Flags(), "output", "SOPS_OUTPUT_FILE"),
+				OutputSet:             resolver.IsSet("output"),
 				Targets:               args,
 				Parallel:              opts.Parallel,
 				Force:                 opts.Force,
@@ -102,14 +102,16 @@ Documentation: ` + docsTargetSelect,
 		}),
 	}
 	addEncryptFlags(cmd.Flags(), &opts)
+	resolver = newOptionResolver(cmd, &opts)
+	cmd.Args = resolver.before(cmd.Args)
 	return cmd
 }
 
-func decryptCommand(load configLoader, keyFile *string) *cobra.Command {
+func decryptCommand(load configLoader) *cobra.Command {
 	opts := decryptOptions{
-		Output:   envValue("SOPS_OUTPUT_FILE"),
 		Parallel: 1,
 	}
+	var resolver *optionResolver
 
 	cmd := &cobra.Command{
 		Use:     "decrypt [command options] [path-or-pattern]...",
@@ -145,8 +147,7 @@ Exit codes: by default, files whose keys do not match the current
 identity are skipped; partial success with no real error exits 0, while
 an all-skipped batch or any real error exits 1. With --strict, any skip
 also exits 1, but remaining files are still processed and successful
-results are kept. --strict=false overrides the YEWSEAL_STRICT
-environment variable.
+results are kept. --strict=false overrides YEWSEAL_DECRYPT_STRICT.
 
 TOML ciphertext is decrypted natively by the embedded TOML store without
 format conversion; the output is normalized TOML (single-quoted literal
@@ -183,20 +184,17 @@ Result classification and exit codes: ` + docsDecryptResults,
   # Overwrite a plaintext file that differs from the decrypted content
   yews decrypt config.enc.toml --force
 
-  # Fail on any skipped file (or set YEWSEAL_STRICT=true)
+  # Fail on any skipped file (or set YEWSEAL_DECRYPT_STRICT=true)
   yews decrypt --strict`,
 		Args: func(cmd *cobra.Command, args []string) error {
-			if err := validateBatchArgs(cmd, args, opts.Parallel); err != nil {
-				return err
-			}
-			return resolveStrict(cmd, &opts.Strict)
+			return validateBatchArgs(args, opts.Parallel, resolver.IsSet("output"))
 		},
 		RunE: withConfig(load, func(cmd *cobra.Command, args []string, cfg *config.Config) error {
 			return yewsapp.DecryptFiles(cfg, yewsapp.DecryptRequest{
 				Presentation:          presentation.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), opts.Verbose),
-				KeyFile:               *keyFile,
+				KeyFile:               opts.KeyFile,
 				Output:                opts.Output,
-				OutputSet:             flagChangedOrEnvSet(cmd.Flags(), "output", "SOPS_OUTPUT_FILE"),
+				OutputSet:             resolver.IsSet("output"),
 				Targets:               args,
 				Parallel:              opts.Parallel,
 				Force:                 opts.Force,
@@ -206,6 +204,8 @@ Result classification and exit codes: ` + docsDecryptResults,
 		}),
 	}
 	addDecryptFlags(cmd.Flags(), &opts)
+	resolver = newOptionResolver(cmd, &opts)
+	cmd.Args = resolver.before(cmd.Args)
 	return cmd
 }
 
@@ -287,5 +287,7 @@ Documentation: ` + docsConfiguration,
 		}),
 	}
 	addPlanFlags(cmd.Flags(), &opts)
+	resolver := newOptionResolver(cmd, &opts)
+	cmd.Args = resolver.before(cmd.Args)
 	return cmd
 }

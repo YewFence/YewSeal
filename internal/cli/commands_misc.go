@@ -13,12 +13,7 @@ import (
 )
 
 func initCommand() *cobra.Command {
-	var force bool
-	var input string
-	var output string
-	var format string
-	var createExample bool
-	var skipSOPSConfig bool
+	opts := initOptions{}
 
 	cmd := &cobra.Command{
 		Use:   "init",
@@ -75,26 +70,28 @@ Private key handling: ` + docsPrivateKeys,
 			if err := cobra.NoArgs(cmd, args); err != nil {
 				return err
 			}
-			_, err := yewsapp.ValidateCLIFormatOverride(format)
+			_, err := yewsapp.ValidateCLIFormatOverride(opts.Format)
 			return err
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			out := presentation.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false)
-			return project.InitProject(force, input, output, format, createExample, skipSOPSConfig,
+			return project.InitProject(opts.Force, opts.Input, opts.Output, opts.Format, opts.CreateExample, opts.SkipSOPSConfig,
 				out, out.Prompts(cmd.InOrStdin()))
 		},
 	}
-	cmd.Flags().BoolVarP(&force, "force", "f", false, "Rebuild keys and configuration; existing ciphertext may become undecryptable")
-	cmd.Flags().StringVarP(&input, "input", "i", "", "Plaintext file for the first config entry (switches to non-interactive mode)")
-	cmd.Flags().StringVarP(&output, "output", "o", "", "Encrypted file for the first config entry (non-interactive mode)")
-	cmd.Flags().StringVar(&format, "format", "", "Format override for the first config entry (toml/yaml/json/env/ini/binary)")
-	cmd.Flags().BoolVar(&createExample, "create-example", false, "Create an example plaintext file (interactive: for recorded entries; non-interactive: for the first entry)")
-	cmd.Flags().BoolVar(&skipSOPSConfig, "skip-sops-config", false, "Skip creating or updating .sops.yaml (non-interactive mode)")
+	cmd.Flags().BoolVarP(&opts.Force, "force", "f", false, "Rebuild keys and configuration; existing ciphertext may become undecryptable")
+	cmd.Flags().StringVarP(&opts.Input, "input", "i", "", "Plaintext file for the first config entry (switches to non-interactive mode)")
+	cmd.Flags().StringVarP(&opts.Output, "output", "o", "", "Encrypted file for the first config entry (non-interactive mode)")
+	cmd.Flags().StringVar(&opts.Format, "format", "", "Format override for the first config entry (toml/yaml/json/env/ini/binary)")
+	cmd.Flags().BoolVar(&opts.CreateExample, "create-example", false, "Create an example plaintext file (interactive: for recorded entries; non-interactive: for the first entry)")
+	cmd.Flags().BoolVar(&opts.SkipSOPSConfig, "skip-sops-config", false, "Skip creating or updating .sops.yaml (non-interactive mode)")
+	resolver := newOptionResolver(cmd, &opts)
+	cmd.Args = resolver.before(cmd.Args)
 	return cmd
 }
 
-func editCommand(load configLoader, keyFile *string) *cobra.Command {
-	var file string
+func editCommand(load configLoader) *cobra.Command {
+	opts := editOptions{}
 
 	cmd := &cobra.Command{
 		Use:   "edit",
@@ -147,7 +144,7 @@ Documentation: ` + docsTutorial,
 			if err := cobra.NoArgs(cmd, args); err != nil {
 				return err
 			}
-			if strings.TrimSpace(file) == "" {
+			if strings.TrimSpace(opts.File) == "" {
 				return fmt.Errorf("edit requires exactly one configured target")
 			}
 			return nil
@@ -156,17 +153,19 @@ Documentation: ` + docsTutorial,
 			return yewsapp.EditEncryptedFile(yewsapp.EditRequest{
 				Presentation: presentation.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false),
 				Config:       cfg,
-				File:         file,
-				KeyFile:      *keyFile,
+				File:         opts.File,
+				KeyFile:      opts.KeyFile,
 			})
 		}),
 	}
-	cmd.Flags().StringVarP(&file, "file", "f", "", "Encrypted file to edit (must be registered in .yewseal.toml; its configured plaintext path also works)")
+	cmd.Flags().StringVarP(&opts.File, "file", "f", "", "Encrypted file to edit (must be registered in .yewseal.toml; its configured plaintext path also works)")
+	resolver := newOptionResolver(cmd, &opts)
+	cmd.Args = resolver.before(cmd.Args)
 	return cmd
 }
 
-func viewCommand(load configLoader, keyFile *string) *cobra.Command {
-	var verbose bool
+func viewCommand(load configLoader) *cobra.Command {
+	opts := viewOptions{}
 
 	cmd := &cobra.Command{
 		Use:   "view [command options] <target>",
@@ -210,16 +209,17 @@ Documentation: ` + docsTargetSelect,
 			return nil
 		},
 		RunE: withConfig(load, func(cmd *cobra.Command, args []string, cfg *config.Config) error {
-			return yewsapp.WriteViewedTarget(cmd.OutOrStdout(), cmd.ErrOrStderr(), cfg, args[0], *keyFile, verbose)
+			return yewsapp.WriteViewedTarget(cmd.OutOrStdout(), cmd.ErrOrStderr(), cfg, args[0], opts.KeyFile, opts.Verbose)
 		}),
 	}
-	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose output (detail goes to stderr; stdout stays plaintext only)")
+	cmd.Flags().BoolVarP(&opts.Verbose, "verbose", "v", false, "Enable verbose output (detail goes to stderr; stdout stays plaintext only)")
+	resolver := newOptionResolver(cmd, &opts)
+	cmd.Args = resolver.before(cmd.Args)
 	return cmd
 }
 
-func diffCommand(load configLoader, keyFile *string) *cobra.Command {
-	var color string
-	var verbose bool
+func diffCommand(load configLoader) *cobra.Command {
+	opts := diffOptions{Color: "auto"}
 
 	cmd := &cobra.Command{
 		Use:   "diff [path-or-pattern]...",
@@ -281,18 +281,20 @@ Documentation: ` + docsDecryptResults,
 					return err
 				}
 			}
-			_, err := presentation.ResolveDiffColor(color, cmd.OutOrStdout())
+			_, err := presentation.ResolveDiffColor(opts.Color, cmd.OutOrStdout())
 			if err != nil {
 				return err
 			}
 			return nil
 		},
 		RunE: withConfig(load, func(cmd *cobra.Command, args []string, cfg *config.Config) error {
-			_, err := yewsapp.DiffPlaintextAgainstEncryptedTargets(cmd.OutOrStdout(), cmd.ErrOrStderr(), cfg, args, *keyFile, verbose, color)
+			_, err := yewsapp.DiffPlaintextAgainstEncryptedTargets(cmd.OutOrStdout(), cmd.ErrOrStderr(), cfg, args, opts.KeyFile, opts.Verbose, opts.Color)
 			return err
 		}),
 	}
-	cmd.Flags().StringVar(&color, "color", "auto", "Colorize diff output (auto/always/never)")
-	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose output (selection info and per-file completion notes on stderr)")
+	cmd.Flags().StringVar(&opts.Color, "color", opts.Color, "Colorize diff output (auto/always/never)")
+	cmd.Flags().BoolVarP(&opts.Verbose, "verbose", "v", false, "Enable verbose output (selection info and per-file completion notes on stderr)")
+	resolver := newOptionResolver(cmd, &opts)
+	cmd.Args = resolver.before(cmd.Args)
 	return cmd
 }

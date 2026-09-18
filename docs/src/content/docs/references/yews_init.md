@@ -67,19 +67,19 @@ yews init [flags]
 ## Options
 
 ```
-      --create-example     Create an example plaintext file (interactive: for recorded entries; non-interactive: for the first entry)
-  -f, --force              Rebuild keys and configuration; existing ciphertext may become undecryptable
-      --format string      Format override for the first config entry (toml/yaml/json/env/ini/binary)
+      --create-example     Create an example plaintext file (interactive: for recorded entries; non-interactive: for the first entry) (env YEWSEAL_INIT_CREATE_EXAMPLE)
+  -f, --force              Rebuild keys and configuration; existing ciphertext may become undecryptable (env YEWSEAL_INIT_FORCE)
+      --format string      Format override for the first config entry (toml/yaml/json/env/ini/binary) (env YEWSEAL_INIT_FORMAT)
   -h, --help               help for init
-  -i, --input string       Plaintext file for the first config entry (switches to non-interactive mode)
-  -o, --output string      Encrypted file for the first config entry (non-interactive mode)
-      --skip-sops-config   Skip creating or updating .sops.yaml (non-interactive mode)
+  -i, --input string       Plaintext file for the first config entry (switches to non-interactive mode) (env YEWSEAL_INIT_INPUT)
+  -o, --output string      Encrypted file for the first config entry (non-interactive mode) (env YEWSEAL_INIT_OUTPUT)
+      --skip-sops-config   Skip creating or updating .sops.yaml (non-interactive mode) (env YEWSEAL_INIT_SKIP_SOPS_CONFIG)
 ```
 
 ## Options inherited from parent commands
 
 ```
-  -k, --key-file string   Path to the Age private key file (env AGE_KEY_FILE; fallback: YEWSEAL_AGE_IDENTITIES, SOPS_AGE_KEY*, then .age/keys.txt)
+  -k, --key-file string   Path to the Age private key file (fallback: SOPS_AGE_KEY*, then .age/keys.txt) (env YEWSEAL_KEY_FILE)
 ```
 
 ## SEE ALSO

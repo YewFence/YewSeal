@@ -14,7 +14,7 @@
 2. **严格授权解析**：file > group > defaults 的完整替换优先级已实现；canonical recipient 集合稳定排序；多个 Group 的 effective 集合冲突会失败，显式 FilePair 可对同路径冲突作最终裁决。
 3. **全量 encrypt/plan preflight**：所有选中 pair 会在 metadata 或密文写入前完成未知 alias、raw recipient、空集合、非法公钥及 Group 冲突检查；plan 对 encrypted target 同样采用严格授权语义。
 4. **旧入口删除**：`[key].public_key` 会返回迁移错误；`GetPublicKey`、`--public-key`、`SOPS_AGE_RECIPIENTS` fallback，以及 app/task/seal 中的单 public-key API 和私钥推导加密 recipient 逻辑均已删除。
-5. **Identity bundle**：显式 key file、`YEWSEAL_AGE_IDENTITIES`、既有 SOPS source、配置 key file 和默认 key file 按优先级解析一次，去重后作为完整 bundle 供整个解密批次复用。
+5. **Identity bundle**：显式 key file、既有 SOPS source 和默认 key file 按优先级解析一次，去重后作为完整 bundle 供整个解密批次复用。
 6. **Decrypt/Edit**：decrypt 遇到已失效 alias 时向 stderr 输出非致命 warning，并继续依据密文 metadata 解密；edit 提供单个文件的解密、编辑、加密快捷流程。
 7. **Init 与 SOPS 配置**：init 写入 owner registry、defaults、显式 FilePair 及其 alias；`--force` 重建 key/policy/files，并在跳过 SOPS 配置时删除旧托管文件；key、主配置和 `.sops.yaml` 使用临时文件替换。
 8. **可审查输出**：plan 的表格和 JSON 均展示 alias、canonical recipients、effective authorization source 和 registry 来源；`.sops.yaml` 按文件生成稳定、多 recipient、完全托管的规则。
@@ -544,42 +544,31 @@ AGE-SECRET-KEY-1...
 
 ### 环境变量输入
 
-YewSeal 增加专用环境变量：
+YewSeal 直接兼容 SOPS 的 identity bundle 环境变量：
 
 ```text
-YEWSEAL_AGE_IDENTITIES
+SOPS_AGE_KEY
 ```
 
-该变量使用逗号分隔多把私钥：
+该变量接受以空白分隔或分行书写的多把私钥：
 
 ```bash
-YEWSEAL_AGE_IDENTITIES='AGE-SECRET-KEY-1...,AGE-SECRET-KEY-1...' yews decrypt
+SOPS_AGE_KEY='AGE-SECRET-KEY-1... AGE-SECRET-KEY-1...' yews decrypt
 ```
 
 解析规则：
 
-1. 按逗号切分；
-2. 对每一项执行首尾空白清理；
-3. 空项直接报错；
-4. 每项验证为可用 Age identity；
-5. 重复 identity 按规范化文本去重；
-6. 内部转换为统一 IdentityBundle；
-7. 不在任何输出中显示 identity 内容。
-
-以下输入必须失败：
-
-```text
-,AGE-SECRET-KEY-1...
-AGE-SECRET-KEY-1...,
-AGE-SECRET-KEY-1...,,AGE-SECRET-KEY-1...
-```
+1. 使用 SOPS 的空白与多行 bundle 约定；
+2. 每项验证为可用 Age identity；
+3. 重复 identity 按规范化文本去重；
+4. 内部转换为统一 IdentityBundle；
+5. 不在任何输出中显示 identity 内容。
 
 ### SOPS 环境变量兼容
 
-`SOPS_AGE_KEY` 是外部 SOPS 约定的变量。YewSeal 不改变其原有语义：
+YewSeal 不改变 SOPS identity source 的原有语义：
 
-- `YEWSEAL_AGE_IDENTITIES` 才使用 YewSeal 定义的逗号集合语义；
-- `SOPS_AGE_KEY` 继续按完整多行 bundle 语义处理；
+- `SOPS_AGE_KEY` 按空白或多行 bundle 语义处理；
 - `SOPS_AGE_KEY_FILE` 和 `SOPS_AGE_KEY_CMD` 保持现有兼容语义；
 - 不把 `SOPS_AGE_KEY` 重新解释为逗号列表。
 
@@ -588,12 +577,11 @@ AGE-SECRET-KEY-1...,,AGE-SECRET-KEY-1...
 
 ```text
 显式 --key-file
-  > YEWSEAL_AGE_IDENTITIES
   > 既有 SOPS source 的原有优先级
   > 默认 .age/keys.txt
 ```
 
-具体来说，除显式 `--key-file` 和 `YEWSEAL_AGE_IDENTITIES` 外，继续保持当前 SOPS source 的顺序：
+具体来说，除显式 `--key-file` 外，继续保持当前 SOPS source 的顺序：
 
 ```text
 SOPS_AGE_KEY
@@ -602,14 +590,12 @@ SOPS_AGE_KEY
   > 默认 .age/keys.txt
 ```
 
-这里的列表表达 source 层级，而不是要求 YewSeal 重新解释 SOPS 变量的内容。`SOPS_AGE_KEY` 继续按完整多行 bundle 语义处理；只有 `YEWSEAL_AGE_IDENTITIES` 使用 YewSeal 定义的逗号集合语义。
+这里的列表表达 source 层级，而不是要求 YewSeal 重新解释 SOPS 变量的内容。`SOPS_AGE_KEY` 继续按 SOPS 的 bundle 语义处理。
 如果用户显式传入 `--key-file`：
 
 - 文件不存在、不可读或无法解析时直接失败；
 - 不回退到环境变量或默认文件；
 - 用户必须能明确知道实际使用的是哪一个 source。
-
-对于新定义的 `YEWSEAL_AGE_IDENTITIES`，变量非空时也视为明确 source，解析失败直接失败。既有 SOPS source 的历史回退行为继续保持，不擅自改变外部 SOPS 兼容性。
 
 ### Identity 与文件授权的关系
 
@@ -918,7 +904,7 @@ AGE-SECRET-KEY-1...
 
 1. recipient registry 中只能出现公开 Age recipient，绝不能出现私钥。
 2. identity bundle 不得进入普通输出、verbose 输出、JSON、错误链或测试快照。
-3. `YEWSEAL_AGE_IDENTITIES` 适合 CI 的临时注入，但安全性低于挂载的私钥文件；容器和长期运行环境优先使用 `--key-file`。
+3. `SOPS_AGE_KEY` 适合 CI 的临时注入，但安全性低于挂载的私钥文件；容器和长期运行环境优先使用 `--key-file`。
 4. 加密时不能从 identity bundle 推导 recipient。
 5. 未知 alias、重复 alias、非法公钥和空授权集合必须在写密文前失败。
 6. alias 解析错误可以显示 alias 和配置路径，但不能显示任何 identity 内容。
@@ -974,16 +960,12 @@ AGE-SECRET-KEY-1...
 3. 无法识别的非 identity 行被忽略。
 4. 收集到的 identity 会经过 Age parser 验证。
 5. 没有有效 identity 时返回明确错误。
-6. `YEWSEAL_AGE_IDENTITIES` 的逗号解析。
-7. 首尾空白清理。
-8. 空项拒绝。
-9. 重复 identity 文本去重。
-10. 去重后保持首次出现顺序。
-11. 显式 `--key-file` 失败时不回退。
-12. 新变量非空但解析失败时不回退。
-13. `SOPS_AGE_KEY` 保持多行语义。
-14. SOPS 旧 source 保持既有兼容语义。
-15. 错误和日志不包含私钥内容。
+6. 重复 identity 文本去重。
+7. 去重后保持首次出现顺序。
+8. 显式 `--key-file` 失败时不回退。
+9. `SOPS_AGE_KEY` 保持空白与多行语义。
+10. SOPS 旧 source 保持既有兼容语义。
+11. 错误和日志不包含私钥内容。
 
 ### 加密和解密测试
 
@@ -1042,10 +1024,9 @@ AGE-SECRET-KEY-1...
 ### 第三阶段：Identity bundle
 
 1. 把 key file 读取统一为完整 IdentityBundle。
-2. 增加 `YEWSEAL_AGE_IDENTITIES` 逗号解析。
-3. 保持已有 SOPS 环境变量兼容。
-4. 明确显式 source 失败策略。
-5. 更新 decrypt 和 edit 的多 identity 行为。
+2. 保持已有 SOPS 环境变量兼容并支持完整 bundle。
+3. 明确显式 source 失败策略。
+4. 更新 decrypt 和 edit 的多 identity 行为。
 
 ### 第四阶段：Init、Edit 和迁移测试
 
@@ -1066,7 +1047,7 @@ AGE-SECRET-KEY-1...
 6. Group 可以提供默认集合，FilePair 可以显式收窄或替换它。
 7. 加密结果中的 SOPS metadata 使用每个文件 alias 解析后的真实 Age 公钥集合。
 8. 一个消费者可以提供包含多把私钥的 IdentityBundle，并解密其有权访问的多个文件。
-9. 环境变量传入多把私钥时，`YEWSEAL_AGE_IDENTITIES` 使用逗号，不依赖跨环境不稳定的 `\\n` 转义。
+9. 环境变量传入多把私钥时，`SOPS_AGE_KEY` 使用空白或真实换行分隔，不依赖转义后的 `\\n`。
 10. 项目配置和所有正常输出中都不存在私钥。
 11. 未知 alias、重复定义、非法公钥或空授权集合不会被静默当成其他 recipient 处理。
 12. encrypt 在任何密文写入前完成完整授权预检。

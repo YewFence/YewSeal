@@ -86,17 +86,17 @@ yews encrypt [command options] [path-or-pattern]... [flags]
 ## Options
 
 ```
-  -f, --force           Freshly encrypt every existing plaintext and rotate its data key
+  -f, --force           Freshly encrypt every existing plaintext and rotate its data key (env YEWSEAL_ENCRYPT_FORCE)
   -h, --help            help for encrypt
-  -o, --output string   Output encrypted file for a single file target (env SOPS_OUTPUT_FILE)
-  -P, --parallel int    Number of parallel workers for batch mode (minimum 1) (default 1)
-  -v, --verbose         Enable verbose output
+  -o, --output string   Output encrypted file for a single file target (env YEWSEAL_ENCRYPT_OUTPUT)
+  -P, --parallel int    Number of parallel workers for batch mode (minimum 1) (env YEWSEAL_ENCRYPT_PARALLEL) (default 1)
+  -v, --verbose         Enable verbose output (env YEWSEAL_ENCRYPT_VERBOSE)
 ```
 
 ## Options inherited from parent commands
 
 ```
-  -k, --key-file string   Path to the Age private key file (env AGE_KEY_FILE; fallback: YEWSEAL_AGE_IDENTITIES, SOPS_AGE_KEY*, then .age/keys.txt)
+  -k, --key-file string   Path to the Age private key file (fallback: SOPS_AGE_KEY*, then .age/keys.txt) (env YEWSEAL_KEY_FILE)
 ```
 
 ## SEE ALSO

@@ -56,15 +56,6 @@ func GetIdentityBundle(keyFile string) (IdentityBundle, error) {
 		return readIdentityBundle(keyFile)
 	}
 
-	if value := os.Getenv("YEWSEAL_AGE_IDENTITIES"); value != "" {
-		parts := strings.Split(value, ",")
-		for i, part := range parts {
-			if strings.TrimSpace(part) == "" {
-				return IdentityBundle{}, fmt.Errorf("YEWSEAL_AGE_IDENTITIES item %d is empty", i+1)
-			}
-		}
-		return NewIdentityBundle(parts)
-	}
 	if value := os.Getenv("SOPS_AGE_KEY"); value != "" {
 		return parseIdentityFile(value)
 	}
@@ -86,7 +77,7 @@ func GetIdentityBundle(keyFile string) (IdentityBundle, error) {
 	}
 	bundle, err := readIdentityBundle(".age/keys.txt")
 	if errors.Is(err, os.ErrNotExist) {
-		return IdentityBundle{}, &errx.AgeKeyNotFoundError{Options: []string{"--key-file", "YEWSEAL_AGE_IDENTITIES", "SOPS_AGE_KEY", "SOPS_AGE_KEY_FILE", "SOPS_AGE_KEY_CMD", "or .age/keys.txt"}}
+		return IdentityBundle{}, &errx.AgeKeyNotFoundError{Options: []string{"--key-file", "SOPS_AGE_KEY", "SOPS_AGE_KEY_FILE", "SOPS_AGE_KEY_CMD", "or .age/keys.txt"}}
 	}
 	return bundle, err
 }
