@@ -22,7 +22,7 @@ A private Age key (or a bundle of several in one file) that can decrypt files. I
 
 ## Lenient and strict
 
-The two postures of `decrypt`. Lenient (the default) treats [skips](#skip) as acceptable, so people holding different [identities](#identity) can share one repository. Strict turns any skip into a failure, for deployment gates. `diff` has no strict mode — it is a development preview, not a gate. See [Decryption results and strict mode](/guide/decryption-results).
+The two postures of `decrypt`. Lenient (the default) treats [skips](#skip) as acceptable, so people holding different [identities](#identity) can share one repository. Strict turns any skip into a failure, for deployment gates, and applies to the selected mappings — never the whole repository — so no identity needs to be a recipient of everything. `diff` has no strict mode — it is a development preview, not a gate. See [Decryption results and strict mode](/guide/decryption-results).
 
 ## Mapping
 

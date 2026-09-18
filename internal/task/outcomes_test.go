@@ -47,7 +47,7 @@ func TestDecryptOutcomesAndSideEffects(t *testing.T) {
 					pairs = append([]FilePair{{PlaintextPath: "blocked/value.yaml", EncryptedPath: "owned.enc.yaml", Format: "yaml"}}, pairs...)
 				}
 				summary, err := Decrypt(Options{FilePairs: pairs, IdentityBundle: bundle, Parallel: workers, Strict: scenario == "strict", Force: true})
-				if scenario == "partial" {
+		  	if scenario == "partial" || scenario == "all-skipped" {
 					require.NoError(t, err)
 				} else {
 					require.Error(t, err)

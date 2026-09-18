@@ -87,12 +87,10 @@ func (s *Summary) count(result Result) {
 }
 
 // Check separates per-file outcomes from the caller's completeness requirement.
+// Lenient mode tolerates any number of skips, including a fully skipped batch.
 func (s *Summary) Check(action string, strict bool) error {
 	if s.FailedCount > 0 {
 		return fmt.Errorf("%d of %d files failed to %s (%d skipped)", s.FailedCount, s.TotalFiles, action, s.SkippedCount)
-	}
-	if s.SuccessCount == 0 {
-		return fmt.Errorf("no files successfully processed by %s (%d skipped)", action, s.SkippedCount)
 	}
 	if strict && s.SkippedCount > 0 {
 		return fmt.Errorf("strict mode requires complete processing: %d of %d files skipped", s.SkippedCount, s.TotalFiles)

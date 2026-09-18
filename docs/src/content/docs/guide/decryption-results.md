@@ -37,12 +37,32 @@ The variable is read only during business argument validation of `decrypt`; it n
 | All succeeded, no differences | 0 | 0 | 0 |
 | All compared, differences found | n/a | n/a | 0 |
 | Partial success, rest skipped for missing identity | 0 | 1 | 0 |
-| All skipped for missing identity | 1 | 1 | 0 |
+| All skipped for missing identity | 0 | 1 | 0 |
 | All unprocessed for missing input | 1 | 1 | 0 |
 | Partial success, rest missing input | 1 | 1 | 0 |
 | Any real error | 1 | 1 | 1 |
 
-The table assumes selected mappings and successful pre-run validation. `diff` is a development preview command: finding and showing differences is not a failure, and its exit code must not be used to decide whether files are identical. Argument, config, identity source, and output channel errors return `1`. When a batch produces both differences and a real error, the diffs already obtained are still printed and the exit code is `1`. An explicitly selected single file with no matching identity still exits `0`.
+The table assumes selected mappings and successful pre-run validation. `diff` is a development preview command: finding and showing differences is not a failure, and its exit code must not be used to decide whether files are identical. Argument, config, identity source, and output channel errors return `1`. When a batch produces both differences and a real error, the diffs already obtained are still printed and the exit code is `1`. In lenient mode identity skips never affect the exit code, even when every selected file is skipped; `--strict` turns any skip into exit `1`.
+
+## Probing and gating in scripts
+
+Lenient and strict serve two different script needs, and both compose with [target selection](/guide/target-selection).
+
+A lenient consumer that treats one credential as optional probes the JSON report, not the filesystem: a plaintext left by an earlier run still exists when this run skips it, so an existence check passes on stale data.
+
+```bash
+# exit 0 only if this run actually decrypted the image-scan credential
+yews decrypt --json |
+  jq -e '.files[] | select(.encrypted == "scan/registry.enc.json") | .status == "succeeded"'
+```
+
+A strict consumer gates on completeness within its selection — a deploy job decrypts exactly the scope it deploys and requires that scope to complete, catching a mapping whose recipients no longer include the deploy identity:
+
+```bash
+yews decrypt ./deploy --strict
+```
+
+`--strict` applies to the selected mappings, never the whole repository, so no identity needs to be a recipient of everything; a repository partitioned by identity runs one strict gate per scope.
 
 ## What diff compares
 
@@ -62,6 +82,6 @@ A diff exit `0` neither means the compared files are identical nor guarantees th
 
 A skip never creates, deletes, or updates the corresponding plaintext, nor creates its output directory. An existing stale plaintext is kept but does not count as processed; do not keep assuming it is up to date. `--force` only allows overwriting files that decrypt successfully and never deletes or modifies skipped files.
 
-`decrypt` still updates `.gitignore` for the current project or target scope before processing files, including plaintext paths that may end up skipped, to prevent stale plaintext from being committed. If that update fails, writing plaintext never starts. Consequently, after an all-skipped failing run, `.gitignore` may already have changed. `diff` writes neither plaintext nor project metadata.
+`decrypt` still updates `.gitignore` for the current project or target scope before processing files, including plaintext paths that may end up skipped, to prevent stale plaintext from being committed. If that update fails, writing plaintext never starts. Consequently, `.gitignore` may already have changed even when files end up skipped or the run fails later. `diff` writes neither plaintext nor project metadata.
 
 Files processed successfully are never rolled back because of later failures or strict incompleteness. In CI/CD, use `yews decrypt --strict` and deploy only after it exits successfully.

@@ -64,8 +64,8 @@ targets. Encryption always finishes before synchronization is attempted.
 A synchronization failure leaves completed ciphertext work in place but
 makes the command fail.
 
-Exit codes: 0 on success (skips without real errors allowed); 1 when
-any file fails, an all-skipped batch occurs, .sops.yaml synchronization
+Exit codes: 0 on success (skips without real errors allowed, including
+a fully skipped batch); 1 when any file fails, .sops.yaml synchronization
 fails, or output delivery fails. Exit 1 does not imply that no ciphertext
 was written; 2 for calling errors: invalid arguments, a missing or invalid
 .yewseal.toml, selection or authorization failure, or an unusable
@@ -165,13 +165,15 @@ Overwrite protection: an existing plaintext file whose content differs
 from the decryption result is not overwritten unless --force is set.
 
 Exit codes: by default, files whose keys do not match the current
-identity are skipped; partial success with no real error exits 0, while
-an all-skipped batch, any real error, or an output delivery failure
-exits 1. With --strict, any skip also exits 1, but remaining files are
-still processed and successful results are kept; --strict=false
-overrides YEWSEAL_DECRYPT_STRICT. Calling errors (invalid arguments, a
-missing or invalid .yewseal.toml, selection failure, or an unusable
-identity source) exit 2.
+identity are skipped and never fail the run; even a fully skipped batch
+exits 0, so lenient callers can treat "no matching identity" as a
+degradable condition. Real errors (a missing or corrupted ciphertext,
+read or write failures, overwrite conflicts) and output delivery
+failures exit 1. With --strict, any skip also exits 1, but remaining
+files are still processed and successful results are kept;
+--strict=false overrides YEWSEAL_DECRYPT_STRICT. Calling errors
+(invalid arguments, a missing or invalid .yewseal.toml, selection
+failure, or an unusable identity source) exit 2.
 
 TOML ciphertext is decrypted natively by the embedded TOML store without
 format conversion; the output is normalized TOML (single-quoted literal
