@@ -14,6 +14,31 @@ import (
 
 const subprocessTimeout = time.Minute
 
+func clearCommandEnvironment(t *testing.T) {
+	t.Helper()
+	for _, entry := range os.Environ() {
+		name, _, _ := strings.Cut(entry, "=")
+		if !strings.HasPrefix(name, "YEWSEAL_") && !strings.HasPrefix(name, "SOPS_") && name != "VISUAL" && name != "EDITOR" {
+			continue
+		}
+		t.Setenv(name, "")
+		require.NoError(t, os.Unsetenv(name))
+	}
+}
+
+func TestClearCommandEnvironmentUsesNamespaces(t *testing.T) {
+	t.Setenv("YEWSEAL_FUTURE_OPTION", "enabled")
+	t.Setenv("SOPS_FUTURE_OPTION", "enabled")
+	t.Setenv("VISUAL", "editor")
+	t.Setenv("UNRELATED_OPTION", "kept")
+	clearCommandEnvironment(t)
+	for _, name := range []string{"YEWSEAL_FUTURE_OPTION", "SOPS_FUTURE_OPTION", "VISUAL"} {
+		_, exists := os.LookupEnv(name)
+		require.False(t, exists)
+	}
+	require.Equal(t, "kept", os.Getenv("UNRELATED_OPTION"))
+}
+
 func TestCLIConfigurationLoading(t *testing.T) {
 	binary := filepath.Join(t.TempDir(), "yews.exe")
 	ctx, cancel := context.WithTimeout(t.Context(), subprocessTimeout)
@@ -21,10 +46,7 @@ func TestCLIConfigurationLoading(t *testing.T) {
 	build := exec.CommandContext(ctx, "go", "build", "-o", binary, ".")
 	output, err := build.CombinedOutput()
 	require.NoError(t, err, "%s", output)
-	for _, name := range []string{"AGE_KEY_FILE", "YEWSEAL_AGE_IDENTITIES", "SOPS_AGE_KEY", "SOPS_AGE_KEY_FILE", "SOPS_OUTPUT_FILE", "YEWSEAL_FORMAT", "SOPS_FORMAT", "YEWSEAL_STRICT"} {
-		t.Setenv(name, "")
-		require.NoError(t, os.Unsetenv(name))
-	}
+	clearCommandEnvironment(t)
 	t.Setenv("SOPS_AGE_KEY_CMD", "exit 29")
 
 	infoCommands := [][]string{
@@ -76,12 +98,12 @@ func TestCLIConfigurationLoading(t *testing.T) {
 		{"missing-edit-file", []string{"edit"}, "edit requires exactly one configured target"},
 		{"invalid-color", []string{"diff", "--color", "invalid"}, "unsupported color mode"},
 	} {
-			t.Run(tc.name, func(t *testing.T) {
-				dir := t.TempDir()
-				require.NoError(t, os.WriteFile(filepath.Join(dir, ".yewseal.toml"), []byte("[broken"), 0600))
-				ctx, cancel := context.WithTimeout(t.Context(), subprocessTimeout)
-				defer cancel()
-				cmd := exec.CommandContext(ctx, binary, tc.args...)
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			require.NoError(t, os.WriteFile(filepath.Join(dir, ".yewseal.toml"), []byte("[broken"), 0600))
+			ctx, cancel := context.WithTimeout(t.Context(), subprocessTimeout)
+			defer cancel()
+			cmd := exec.CommandContext(ctx, binary, tc.args...)
 			cmd.Dir = dir
 			output, err := cmd.CombinedOutput()
 			require.Error(t, err)
@@ -97,12 +119,12 @@ func TestCLIConfigurationLoading(t *testing.T) {
 		require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0755))
 		plainPath := filepath.Join(dir, "config.yaml")
 		plain := []byte("token: value\n")
-			require.NoError(t, os.WriteFile(plainPath, plain, 0600))
-			run := func(args ...string) []byte {
-				t.Helper()
-				ctx, cancel := context.WithTimeout(t.Context(), subprocessTimeout)
-				defer cancel()
-				cmd := exec.CommandContext(ctx, binary, args...)
+		require.NoError(t, os.WriteFile(plainPath, plain, 0600))
+		run := func(args ...string) []byte {
+			t.Helper()
+			ctx, cancel := context.WithTimeout(t.Context(), subprocessTimeout)
+			defer cancel()
+			cmd := exec.CommandContext(ctx, binary, args...)
 			cmd.Dir = dir
 			output, err := cmd.CombinedOutput()
 			require.NoError(t, err, "%s", output)
@@ -126,12 +148,12 @@ func TestCLIConfigurationLoading(t *testing.T) {
 		dir := t.TempDir()
 		require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0755))
 		plain := []byte("TOKEN=value\n")
-			require.NoError(t, os.WriteFile(filepath.Join(dir, "secret"), plain, 0600))
-			run := func(args ...string) []byte {
-				t.Helper()
-				ctx, cancel := context.WithTimeout(t.Context(), subprocessTimeout)
-				defer cancel()
-				cmd := exec.CommandContext(ctx, binary, args...)
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "secret"), plain, 0600))
+		run := func(args ...string) []byte {
+			t.Helper()
+			ctx, cancel := context.WithTimeout(t.Context(), subprocessTimeout)
+			defer cancel()
+			cmd := exec.CommandContext(ctx, binary, args...)
 			cmd.Dir = dir
 			output, err := cmd.CombinedOutput()
 			require.NoError(t, err, "%s", output)

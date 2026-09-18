@@ -70,15 +70,15 @@ yews diff [path-or-pattern]... [flags]
 ## Options
 
 ```
-      --color string   Colorize diff output (auto/always/never) (default "auto")
+      --color string   Colorize diff output (auto/always/never) (env YEWSEAL_DIFF_COLOR) (default "auto")
   -h, --help           help for diff
-  -v, --verbose        Enable verbose output (selection info and per-file completion notes on stderr)
+  -v, --verbose        Enable verbose output (selection info and per-file completion notes on stderr) (env YEWSEAL_DIFF_VERBOSE)
 ```
 
 ## Options inherited from parent commands
 
 ```
-  -k, --key-file string   Path to the Age private key file (env AGE_KEY_FILE; fallback: YEWSEAL_AGE_IDENTITIES, SOPS_AGE_KEY*, then .age/keys.txt)
+  -k, --key-file string   Path to the Age private key file (fallback: SOPS_AGE_KEY*, then .age/keys.txt) (env YEWSEAL_KEY_FILE)
 ```
 
 ## SEE ALSO

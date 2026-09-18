@@ -37,7 +37,7 @@
 
 **理由**：私钥路径是个人或机器的状态，进入共享的项目配置会泄漏本地布局、在多台机器间冲突，也让 CI 无法用环境变量灵活切换身份。
 
-**边界**：解密身份来自 `--key-file`、`YEWSEAL_AGE_IDENTITIES`、`SOPS_*` 环境变量或默认 `.age/keys.txt`；加密授权只来自 registry/defaults，私钥文件不决定加密授权。
+**边界**：解密身份来自 `--key-file`、`SOPS_*` 环境变量或默认 `.age/keys.txt`；加密授权只来自 registry/defaults，私钥文件不决定加密授权。
 
 ### 不提供内置私钥同步
 
@@ -89,7 +89,7 @@
 
 ### plan 是配置映射检查，不是 dry run
 
-**决策**：plan 无方向地检查映射、格式、当前配置授权及来源；Group 发现采用明文和密文两侧并集，目录范围匹配任一侧。不从 target 后缀推断方向，移除 --output、--parallel 及 SOPS_OUTPUT_FILE 输入，也不展示 metadata 写入计划。
+**决策**：plan 无方向地检查映射、格式、当前配置授权及来源；Group 发现采用明文和密文两侧并集，目录范围匹配任一侧。不从 target 后缀推断方向，不提供 --output、--parallel 或对应环境变量，也不展示 metadata 写入计划。
 
 **理由**：原先的 plan 混合了双向目标选择和 encrypt 的严格授权检查，无法准确预演 decrypt。把它定位为配置映射检查，可以同时呈现只有明文或只有密文的映射，不暗示实际操作一定成功。
 

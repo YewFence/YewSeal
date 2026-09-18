@@ -22,11 +22,11 @@ yews decrypt
 yews decrypt --strict
 
 # the env var sets the default; an explicit flag wins
-YEWSEAL_STRICT=true yews decrypt
-YEWSEAL_STRICT=true yews decrypt --strict=false
+YEWSEAL_DECRYPT_STRICT=true yews decrypt
+YEWSEAL_DECRYPT_STRICT=true yews decrypt --strict=false
 ```
 
-Without `YEWSEAL_STRICT` the default is lenient. The variable uses standard boolean parsing; write `true` or `false`. A value that cannot be parsed — including an explicitly empty string — is an argument error. An explicit `--strict` or `--strict=false` overrides the variable even when the variable itself is invalid.
+Without `YEWSEAL_DECRYPT_STRICT` the default is lenient. The variable accepts the same boolean syntax as the flag. A non-empty value that cannot be parsed is an argument error; an empty value is treated as unset. An explicit `--strict` or `--strict=false` overrides the variable even when the variable itself is invalid.
 
 The variable is read only during business argument validation of `decrypt`; it never affects version, help, completion, `init`, `encrypt`, `view`, `edit`, or `diff`, and it has no project config counterpart. Strict decrypt requires every selected item to complete; it never widens the selection, stops on first error, or rolls back the batch. `diff` has no strict mode at all — it is a development preview, not a completeness gate.
 

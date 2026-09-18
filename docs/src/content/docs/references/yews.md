@@ -13,12 +13,12 @@ File mappings, formats, and recipient authorization are declared once in
 .yewseal.toml ("yews init" scaffolds it); command arguments only select
 among the registered files.
 
-Configuration precedence: CLI flags > environment variables > config file
-> defaults.
+CLI option precedence: flags > command environment variables > defaults.
+Project mappings and authorization come only from .yewseal.toml.
 
-Identity resolution order: --key-file (env AGE_KEY_FILE), then
-YEWSEAL_AGE_IDENTITIES, SOPS_AGE_KEY, SOPS_AGE_KEY_FILE, SOPS_AGE_KEY_CMD,
-then .age/keys.txt in the current working directory.
+Identity resolution order: --key-file (env YEWSEAL_KEY_FILE), then
+SOPS_AGE_KEY, SOPS_AGE_KEY_FILE, SOPS_AGE_KEY_CMD, then .age/keys.txt in
+the current working directory.
 
 Documentation: https://yewfence.github.io/YewSeal/
 
@@ -26,7 +26,7 @@ Documentation: https://yewfence.github.io/YewSeal/
 
 ```
   -h, --help              help for yews
-  -k, --key-file string   Path to the Age private key file (env AGE_KEY_FILE; fallback: YEWSEAL_AGE_IDENTITIES, SOPS_AGE_KEY*, then .age/keys.txt)
+  -k, --key-file string   Path to the Age private key file (fallback: SOPS_AGE_KEY*, then .age/keys.txt) (env YEWSEAL_KEY_FILE)
 ```
 
 ## SEE ALSO

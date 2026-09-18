@@ -49,13 +49,13 @@ yews view [command options] <target> [flags]
 
 ```
   -h, --help      help for view
-  -v, --verbose   Enable verbose output (detail goes to stderr; stdout stays plaintext only)
+  -v, --verbose   Enable verbose output (detail goes to stderr; stdout stays plaintext only) (env YEWSEAL_VIEW_VERBOSE)
 ```
 
 ## Options inherited from parent commands
 
 ```
-  -k, --key-file string   Path to the Age private key file (env AGE_KEY_FILE; fallback: YEWSEAL_AGE_IDENTITIES, SOPS_AGE_KEY*, then .age/keys.txt)
+  -k, --key-file string   Path to the Age private key file (fallback: SOPS_AGE_KEY*, then .age/keys.txt) (env YEWSEAL_KEY_FILE)
 ```
 
 ## SEE ALSO
