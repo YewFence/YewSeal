@@ -10,7 +10,8 @@ import (
 
 func encryptCommand(load configLoader) *cobra.Command {
 	opts := encryptOptions{
-		Parallel: 1,
+		Parallel:       1,
+		SyncSOPSConfig: true,
 	}
 	var resolver *optionResolver
 
@@ -57,6 +58,11 @@ skipped without creating an output directory.
 .enc.* path; --output applies to single file targets only, never to
 config-wide or directory-driven batches.
 
+After processing, --sync-sops-config (enabled by default) rewrites
+.sops.yaml from the complete resolved project policy, not only the selected
+targets. A synchronization failure is reported as a warning and does not
+change the encryption exit code.
+
 Exit codes: 0 on success, 1 when any file fails or the selection is
 empty. Output: ciphertext goes to files and stdout stays empty; warnings,
 per-file failure reasons, and the summary go to stderr (--verbose adds
@@ -98,6 +104,7 @@ Documentation: ` + docsTargetSelect,
 				Parallel:              opts.Parallel,
 				Force:                 opts.Force,
 				UpdateProjectMetadata: true,
+				SyncSOPSConfig:        opts.SyncSOPSConfig,
 			})
 		}),
 	}

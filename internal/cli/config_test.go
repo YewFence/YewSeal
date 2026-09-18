@@ -16,7 +16,7 @@ func clearCLIEnvironment(t *testing.T) {
 	t.Helper()
 	for _, name := range []string{
 		"YEWSEAL_KEY_FILE",
-		"YEWSEAL_INIT_FORCE", "YEWSEAL_INIT_INPUT", "YEWSEAL_INIT_OUTPUT", "YEWSEAL_INIT_FORMAT", "YEWSEAL_INIT_CREATE_EXAMPLE", "YEWSEAL_INIT_SKIP_SOPS_CONFIG",
+		"YEWSEAL_INIT_FORCE", "YEWSEAL_INIT_INPUT", "YEWSEAL_INIT_OUTPUT", "YEWSEAL_INIT_FORMAT", "YEWSEAL_INIT_CREATE_EXAMPLE", "YEWSEAL_INIT_SYNC_SOPS_CONFIG",
 		"YEWSEAL_ENCRYPT_OUTPUT", "YEWSEAL_ENCRYPT_PARALLEL", "YEWSEAL_ENCRYPT_FORCE", "YEWSEAL_ENCRYPT_VERBOSE",
 		"YEWSEAL_DECRYPT_OUTPUT", "YEWSEAL_DECRYPT_PARALLEL", "YEWSEAL_DECRYPT_FORCE", "YEWSEAL_DECRYPT_STRICT", "YEWSEAL_DECRYPT_VERBOSE",
 		"YEWSEAL_PLAN_VERBOSE", "YEWSEAL_PLAN_JSON", "YEWSEAL_EDIT_FILE", "YEWSEAL_VIEW_VERBOSE", "YEWSEAL_DIFF_COLOR", "YEWSEAL_DIFF_VERBOSE",
@@ -183,7 +183,7 @@ func TestInitDoesNotLoadOrSilentlyOverwriteBrokenConfig(t *testing.T) {
 		t.Fatal("init must not load project configuration")
 		return nil, nil
 	}
-	args := []string{"init", "--input", "config.yaml", "--output", "config.enc.yaml", "--skip-sops-config"}
+	args := []string{"init", "--input", "config.yaml", "--output", "config.enc.yaml", "--sync-sops-config=false"}
 	cmd := newRootCommand("test", load)
 	quietCommand(cmd, args)
 	require.ErrorContains(t, cmd.Execute(), "already exists, use --force to overwrite")

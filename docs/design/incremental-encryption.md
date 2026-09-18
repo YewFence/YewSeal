@@ -136,7 +136,7 @@ func Update(opts UpdateOptions) (UpdateResult, error)
 
 密文能被识别为目标但解析失败、匹配 identity 解密失败、MAC 不一致或 store 处理失败时，默认保护旧密文并将该文件记为失败；其他文件继续处理，批次最终退出 1。用户可通过 `--force` 明确跳过旧密文读取并完整覆盖。
 
-recipient 配置解析仍保持现有严格行为，不因明文缺失或增量更新新增授权豁免。`.gitignore` 和 `.sops.yaml` 继续按现有 encrypt 职责同步；增量更新不改变配置作为授权唯一声明来源的原则。
+recipient 配置解析仍保持现有严格行为，不因明文缺失或增量更新新增授权豁免。`.gitignore` 继续在加密前同步；启用时，`.sops.yaml` 在任务结束后根据完整项目策略尽力同步，失败只产生 warning。增量更新不改变配置作为授权唯一声明来源的原则。
 
 ## 结果与输出
 

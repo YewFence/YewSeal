@@ -2,10 +2,11 @@ package app
 
 import (
 	"bytes"
-	"filippo.io/age"
 	"os"
+	"strings"
 	"testing"
 
+	"filippo.io/age"
 	"github.com/YewFence/YewSeal/internal/agekey"
 	"github.com/YewFence/YewSeal/internal/config"
 	"github.com/YewFence/YewSeal/internal/presentation"
@@ -275,11 +276,78 @@ func TestEncryptFilesWritesPortableSopsPaths(t *testing.T) {
 	env := newAppCryptoTestEnv(t)
 	require.NoError(t, os.WriteFile("secret.yaml", []byte("token: value\n"), 0644))
 	cfg := configWithOwnerRecipient(&config.Config{CurrentDir: config.CurrentDir(&config.Config{}), Encryption: config.EncryptionConfig{Files: []config.FilePair{{PlaintextPath: "secret.yaml", EncryptedPath: "secret.enc.yaml", Format: "yaml"}}}}, env.publicKey)
-	require.NoError(t, EncryptFiles(cfg, EncryptRequest{Targets: []string{"secret.yaml"}, Parallel: 1, UpdateProjectMetadata: true}))
+	require.NoError(t, EncryptFiles(cfg, EncryptRequest{Targets: []string{"secret.yaml"}, Parallel: 1, UpdateProjectMetadata: true, SyncSOPSConfig: true}))
 	content, err := os.ReadFile(".sops.yaml")
 	require.NoError(t, err)
 	assert.Contains(t, string(content), `path_regex: ^secret\.enc\.yaml$`)
 	assert.NotContains(t, string(content), config.CurrentDir(cfg))
+}
+
+func TestTargetedEncryptSyncsCompleteProjectSopsPolicy(t *testing.T) {
+	env := newAppCryptoTestEnv(t)
+	for _, path := range []string{"first.yaml", "second.yaml"} {
+		require.NoError(t, os.WriteFile(path, []byte("token: value\n"), 0o600))
+	}
+	cfg := configWithOwnerRecipient(&config.Config{Encryption: config.EncryptionConfig{Files: []config.FilePair{
+		{PlaintextPath: "first.yaml", EncryptedPath: "first.enc.yaml", Format: "yaml"},
+		{PlaintextPath: "second.yaml", EncryptedPath: "second.enc.yaml", Format: "yaml"},
+	}}}, env.publicKey)
+
+	require.NoError(t, EncryptFiles(cfg, EncryptRequest{
+		Targets:               []string{"first.yaml"},
+		Output:                "review.enc.yaml",
+		OutputSet:             true,
+		Parallel:              1,
+		UpdateProjectMetadata: true,
+		SyncSOPSConfig:        true,
+	}))
+
+	content, err := os.ReadFile(".sops.yaml")
+	require.NoError(t, err)
+	assert.Contains(t, string(content), `path_regex: ^first\.enc\.yaml$`)
+	assert.Contains(t, string(content), `path_regex: ^second\.enc\.yaml$`)
+	assert.NotContains(t, string(content), "review")
+	require.FileExists(t, "review.enc.yaml")
+	require.NoFileExists(t, "second.enc.yaml")
+}
+
+func TestEncryptLeavesSopsConfigUntouchedWhenSyncDisabled(t *testing.T) {
+	env := newAppCryptoTestEnv(t)
+	require.NoError(t, os.WriteFile("secret.yaml", []byte("token: value\n"), 0o600))
+	stale := []byte("custom: untouched\n")
+	require.NoError(t, os.WriteFile(".sops.yaml", stale, 0o600))
+	cfg := configWithOwnerRecipient(&config.Config{Encryption: config.EncryptionConfig{Files: []config.FilePair{{PlaintextPath: "secret.yaml", EncryptedPath: "secret.enc.yaml", Format: "yaml"}}}}, env.publicKey)
+
+	require.NoError(t, EncryptFiles(cfg, EncryptRequest{Parallel: 1, UpdateProjectMetadata: true}))
+	content, err := os.ReadFile(".sops.yaml")
+	require.NoError(t, err)
+	assert.Equal(t, stale, content)
+}
+
+func TestEncryptReportsSopsSyncFailureWithoutReplacingTaskResult(t *testing.T) {
+	env := newAppCryptoTestEnv(t)
+	require.NoError(t, os.WriteFile("good.yaml", []byte("token: value\n"), 0o600))
+	require.NoError(t, os.WriteFile("blocked.yaml", []byte("token: value\n"), 0o600))
+	require.NoError(t, os.Mkdir("blocked.enc.yaml", 0o700))
+	require.NoError(t, os.Mkdir(".sops.yaml", 0o700))
+	cfg := configWithOwnerRecipient(&config.Config{Encryption: config.EncryptionConfig{Files: []config.FilePair{
+		{PlaintextPath: "good.yaml", EncryptedPath: "good.enc.yaml", Format: "yaml"},
+		{PlaintextPath: "blocked.yaml", EncryptedPath: "blocked.enc.yaml", Format: "yaml"},
+	}}}, env.publicKey)
+	var diagnostics bytes.Buffer
+
+	err := EncryptFiles(cfg, EncryptRequest{
+		Presentation:          presentation.New(nil, &diagnostics, false),
+		Parallel:              1,
+		UpdateProjectMetadata: true,
+		SyncSOPSConfig:        true,
+	})
+	require.ErrorContains(t, err, "1 of 2 files failed to encrypt")
+	require.FileExists(t, "good.enc.yaml")
+	warningIndex := strings.Index(diagnostics.String(), "WARNING failed to update .sops.yaml")
+	summaryIndex := strings.Index(diagnostics.String(), "Summary (encrypted)")
+	require.GreaterOrEqual(t, warningIndex, 0)
+	require.Greater(t, summaryIndex, warningIndex)
 }
 
 func TestEncryptFilesLeavesUnchangedCiphertextUntouched(t *testing.T) {

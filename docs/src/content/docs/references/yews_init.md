@@ -13,7 +13,8 @@ with its first config entry, optionally sync .sops.yaml, and update
 Run without flags for interactive mode: YewSeal asks whether to rebuild
 an existing configuration, whether to create .sops.yaml, and records
 one or more plaintext/encrypted mappings. Passing --input or --output
-switches to non-interactive mode for scripts.
+switches to non-interactive mode for scripts. An explicit
+--sync-sops-config value skips its interactive question.
 
 Generated files:
   .yewseal.toml  main YewSeal config (recipient registry, defaults,
@@ -21,7 +22,7 @@ Generated files:
   .age/keys.txt  Age private key; must not be committed to version
                  control
   .sops.yaml     SOPS config for direct sops usage; skipped with
-                 --skip-sops-config
+                 --sync-sops-config=false
 
 When only --input is given, the encrypted file name is inferred
 (config.toml becomes config.enc.toml; other formats use the matching
@@ -30,7 +31,9 @@ When only --input is given, the encrypted file name is inferred
 --force rebuilds keys, recipient registry, defaults, file entries, and
 the managed .sops.yaml; old aliases and mappings are not preserved, and
 existing ciphertext may become undecryptable for the new owner
-identity.
+identity. With --sync-sops-config=false, a force rebuild removes the old
+managed .sops.yaml instead. A failure to create .sops.yaml is warned and
+the remaining initialization continues.
 
 Output: stdout stays empty; prompts, warnings, errors, and the
 completion summary (mapping count and key file locations) go to stderr,
@@ -73,7 +76,7 @@ yews init [flags]
   -h, --help               help for init
   -i, --input string       Plaintext file for the first config entry (switches to non-interactive mode) (env YEWSEAL_INIT_INPUT)
   -o, --output string      Encrypted file for the first config entry (non-interactive mode) (env YEWSEAL_INIT_OUTPUT)
-      --skip-sops-config   Skip creating or updating .sops.yaml (non-interactive mode) (env YEWSEAL_INIT_SKIP_SOPS_CONFIG)
+      --sync-sops-config   Create or update .sops.yaml; explicit true or false skips the interactive prompt (env YEWSEAL_INIT_SYNC_SOPS_CONFIG) (default true)
 ```
 
 ## Options inherited from parent commands

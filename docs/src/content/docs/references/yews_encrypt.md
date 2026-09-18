@@ -45,6 +45,11 @@ skipped without creating an output directory.
 .enc.* path; --output applies to single file targets only, never to
 config-wide or directory-driven batches.
 
+After processing, --sync-sops-config (enabled by default) rewrites
+.sops.yaml from the complete resolved project policy, not only the selected
+targets. A synchronization failure is reported as a warning and does not
+change the encryption exit code.
+
 Exit codes: 0 on success, 1 when any file fails or the selection is
 empty. Output: ciphertext goes to files and stdout stays empty; warnings,
 per-file failure reasons, and the summary go to stderr (--verbose adds
@@ -86,11 +91,12 @@ yews encrypt [command options] [path-or-pattern]... [flags]
 ## Options
 
 ```
-  -f, --force           Freshly encrypt every existing plaintext and rotate its data key (env YEWSEAL_ENCRYPT_FORCE)
-  -h, --help            help for encrypt
-  -o, --output string   Output encrypted file for a single file target (env YEWSEAL_ENCRYPT_OUTPUT)
-  -P, --parallel int    Number of parallel workers for batch mode (minimum 1) (env YEWSEAL_ENCRYPT_PARALLEL) (default 1)
-  -v, --verbose         Enable verbose output (env YEWSEAL_ENCRYPT_VERBOSE)
+  -f, --force              Freshly encrypt every existing plaintext and rotate its data key (env YEWSEAL_ENCRYPT_FORCE)
+  -h, --help               help for encrypt
+  -o, --output string      Output encrypted file for a single file target (env YEWSEAL_ENCRYPT_OUTPUT)
+  -P, --parallel int       Number of parallel workers for batch mode (minimum 1) (env YEWSEAL_ENCRYPT_PARALLEL) (default 1)
+      --sync-sops-config   Sync the complete project policy to .sops.yaml after encryption (env YEWSEAL_ENCRYPT_SYNC_SOPS_CONFIG) (default true)
+  -v, --verbose            Enable verbose output (env YEWSEAL_ENCRYPT_VERBOSE)
 ```
 
 ## Options inherited from parent commands

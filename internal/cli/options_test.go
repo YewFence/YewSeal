@@ -146,6 +146,21 @@ func TestInvalidEnvironmentDoesNotBlockInformationCommands(t *testing.T) {
 	}
 }
 
+func TestInitSyncEnvironmentCanDisableSopsConfig(t *testing.T) {
+	clearCLIEnvironment(t)
+	t.Chdir(t.TempDir())
+	t.Setenv("YEWSEAL_INIT_INPUT", "config.yaml")
+	t.Setenv("YEWSEAL_INIT_SYNC_SOPS_CONFIG", "false")
+	cmd := newRootCommand("test", func() (*config.Config, error) {
+		t.Fatal("init must not load project configuration")
+		return nil, nil
+	})
+	quietCommand(cmd, []string{"init"})
+	require.NoError(t, cmd.Execute())
+	require.FileExists(t, ".yewseal.toml")
+	require.NoFileExists(t, ".sops.yaml")
+}
+
 func TestInactiveCommandEnvironmentIsIgnored(t *testing.T) {
 	t.Setenv("YEWSEAL_DECRYPT_PARALLEL", "invalid")
 	failure := errors.New("config read failed")

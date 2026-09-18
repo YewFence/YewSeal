@@ -130,9 +130,11 @@ func TestCLIConfigurationLoading(t *testing.T) {
 			require.NoError(t, err, "%s", output)
 			return output
 		}
-		run("init", "--input", "config.yaml", "--output", "config.enc.yaml", "--skip-sops-config")
+		run("init", "--input", "config.yaml", "--output", "config.enc.yaml", "--sync-sops-config=false")
+		require.NoFileExists(t, filepath.Join(dir, ".sops.yaml"))
 		run("plan")
 		run("encrypt")
+		require.FileExists(t, filepath.Join(dir, ".sops.yaml"))
 		require.NoError(t, os.Remove(plainPath))
 		run("decrypt", "--key-file", ".age/keys.txt")
 		decrypted, err := os.ReadFile(plainPath)
@@ -159,7 +161,7 @@ func TestCLIConfigurationLoading(t *testing.T) {
 			require.NoError(t, err, "%s", output)
 			return output
 		}
-		run("init", "--input", "secret", "--output", "secret.enc.env", "--format", "env", "--skip-sops-config")
+		run("init", "--input", "secret", "--output", "secret.enc.env", "--format", "env", "--sync-sops-config=false")
 		run("encrypt", "secret", "-o", "export.json")
 		require.NoFileExists(t, filepath.Join(dir, "secret.enc.env"))
 		run("encrypt")

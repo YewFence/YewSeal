@@ -280,7 +280,7 @@ func TestCollectInitSelections_InteractiveExamplePerFile(t *testing.T) {
 
 	os.Stdin = inputFile
 
-	selections, err := testInitializer().collectInitSelections("", "", "", false)
+	selections, err := testInitializer().collectInitSelections("", "", "", false, false)
 	require.NoError(t, err)
 	require.Len(t, selections.FilePairs, 2)
 	assert.Equal(t, "app.toml", selections.FilePairs[0].PlaintextPath)
@@ -292,7 +292,7 @@ func TestCollectInitSelections_InteractiveExamplePerFile(t *testing.T) {
 }
 
 func TestCollectInitSelections_NonInteractiveCreateExampleFlag(t *testing.T) {
-	selections, err := testInitializer().collectInitSelections("app.toml", "", "", true)
+	selections, err := testInitializer().collectInitSelections("app.toml", "", "", true, true)
 	require.NoError(t, err)
 
 	require.Len(t, selections.FilePairs, 1)

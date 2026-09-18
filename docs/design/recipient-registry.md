@@ -838,7 +838,7 @@ creation_rules:
 6. 每次同步完全重写全部 `creation_rules`；
 7. 不保留用户手工添加的额外 rules。
 
-用户手工修改 `.sops.yaml` 的内容会在下一次 init、sync 或自动同步时丢失。CLI、文档和生成文件头必须明确说明这一点。
+用户手工修改 `.sops.yaml` 的内容会在下一次 init 或启用的 encrypt 同步时丢失。CLI、文档和生成文件头必须明确说明这一点。
 
 ### YewSeal 与 `.sops.yaml` 的边界
 

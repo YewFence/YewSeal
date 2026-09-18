@@ -16,6 +16,7 @@ type EncryptRequest struct {
 	Parallel              int
 	Force                 bool
 	UpdateProjectMetadata bool
+	SyncSOPSConfig        bool
 }
 
 func EncryptFiles(cfg *config.Config, req EncryptRequest) (err error) {
@@ -36,10 +37,6 @@ func EncryptFiles(cfg *config.Config, req EncryptRequest) (err error) {
 		if err := project.UpdateGitignore(metadataDisplayPairs); err != nil {
 			return err
 		}
-		metadataResolvedDisplay := config.DisplayResolvedFilePairs(preflight.MetadataPairs, config.CurrentDir(cfg))
-		if err := project.SyncResolvedSopsYaml(metadataResolvedDisplay); err != nil {
-			return err
-		}
 	}
 
 	out.Selection(preflight.Selection)
@@ -50,7 +47,13 @@ func EncryptFiles(cfg *config.Config, req EncryptRequest) (err error) {
 		OnComplete:     out.FileCompleted,
 		Force:          req.Force,
 	}
-	summary, err := task.Encrypt(opts)
+	summary, encryptErr := task.Encrypt(opts)
+	if req.UpdateProjectMetadata && req.SyncSOPSConfig {
+		resolvedDisplay := config.DisplayResolvedFilePairs(preflight.Selection.AllConfigPairs, config.CurrentDir(cfg))
+		if syncErr := project.SyncResolvedSopsYaml(resolvedDisplay); syncErr != nil {
+			out.Warning("failed to update .sops.yaml: " + syncErr.Error())
+		}
+	}
 	out.BatchSummary(summary, "encrypted")
-	return err
+	return encryptErr
 }

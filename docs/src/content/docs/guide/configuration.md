@@ -117,7 +117,7 @@ A group's discovery root is always the directory of the config that owns it. CLI
 
 ## .sops.yaml
 
-`.sops.yaml` is SOPS's own config; YewSeal's `init` and `encrypt` keep it in sync with the current file mappings. Skipping `.sops.yaml` does not affect YewSeal's own encryption through the embedded SOPS engine, but having it makes direct `sops` usage more convenient.
+`.sops.yaml` is SOPS's own config. `init` creates it by default, while interactive initialization asks unless `--sync-sops-config` was explicitly set. `encrypt` defaults to synchronizing it after processing; use `--sync-sops-config=false` or `YEWSEAL_ENCRYPT_SYNC_SOPS_CONFIG=false` to leave it untouched. Skipping `.sops.yaml` does not affect YewSeal's own encryption through the embedded SOPS engine, but having it makes direct `sops` usage more convenient.
 
 ```yaml
 creation_rules:
@@ -125,7 +125,7 @@ creation_rules:
     age: age1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
-YewSeal generates exact-match rules per encrypted file.
+YewSeal generates exact-match rules for the complete resolved project policy. Encrypt targets only select ciphertext work: synchronizing after a single target or an `--output` override still rewrites `.sops.yaml` from every configured mapping and the registered group scan results. Synchronization failure is a warning and does not replace the encryption result.
 
 ## Age key management
 
