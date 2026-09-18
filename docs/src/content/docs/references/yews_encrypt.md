@@ -51,11 +51,19 @@ targets. Encryption always finishes before synchronization is attempted.
 A synchronization failure leaves completed ciphertext work in place but
 makes the command fail.
 
-Exit codes: 0 on success, 1 when any file fails, the selection is empty,
-or .sops.yaml synchronization fails. Exit 1 does not imply that no
-ciphertext was written. Output: ciphertext goes to files and stdout stays
-empty; warnings, per-file failure reasons, and the summary go to stderr
-(--verbose adds selection info and per-file success).
+Exit codes: 0 on success (skips without real errors allowed); 1 when
+any file fails, an all-skipped batch occurs, .sops.yaml synchronization
+fails, or output delivery fails. Exit 1 does not imply that no ciphertext
+was written; 2 for calling errors: invalid arguments, a missing or invalid
+.yewseal.toml, selection or authorization failure, or an unusable
+identity source.
+
+Output: ciphertext goes to files and stdout stays empty; warnings,
+per-file failure reasons, and the summary go to stderr (--verbose adds
+selection info and per-file success). --json replaces stdout with the
+batch report (summary and per-file outcomes); stderr diagnostics stay
+unchanged, and when the run never starts (a calling error, exit 2)
+stdout stays empty.
 
 To encrypt an unregistered file ad hoc without a project config, use
 the SOPS CLI directly.
@@ -88,6 +96,9 @@ yews encrypt [command options] [path-or-pattern]... [flags]
 
   # Encrypt a batch across four parallel workers
   yews encrypt ./configs --parallel 4
+
+  # Print the batch report for scripts (diagnostics stay on stderr)
+  yews encrypt --json > report.json
 ```
 
 ## Options
@@ -95,6 +106,7 @@ yews encrypt [command options] [path-or-pattern]... [flags]
 ```
   -f, --force              Freshly encrypt every existing plaintext and rotate its data key (env YEWSEAL_ENCRYPT_FORCE)
   -h, --help               help for encrypt
+      --json               Print the batch report as JSON on stdout (diagnostics stay on stderr) (env YEWSEAL_ENCRYPT_JSON)
   -o, --output string      Output encrypted file for a single file target (env YEWSEAL_ENCRYPT_OUTPUT)
   -P, --parallel int       Number of parallel workers for batch mode (minimum 1) (env YEWSEAL_ENCRYPT_PARALLEL) (default 1)
       --sync-sops-config   Sync the complete project policy to .sops.yaml after encryption (env YEWSEAL_ENCRYPT_SYNC_SOPS_CONFIG) (default true)

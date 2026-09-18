@@ -19,6 +19,20 @@
 
 输出规则集中在 presentation，文件处理模块不承担呈现职责。通过 `io.Writer` 接入终端、内存缓冲区和测试用故障 writer，不增加日志框架或通用事件总线。
 
+## 退出码
+
+**决策**：进程退出码分三段：0 成功（含非 strict 的部分跳过、diff 有差异）；1 业务失败（文件处理失败、全跳过批次、strict 违规、输出写入故障）；2 调用错误（参数校验、配置加载、目标选择、身份源解析——文件处理开始前即可确定的失败）。
+
+**实现**：`errx.UsageError` 标记调用类错误并实现 `errx.ExitCoder`；`config.ResolveSelection`、`agekey.GetIdentityBundle`、CLI 参数校验与配置加载在这些入口统一包装，flag 解析错误经 `SetFlagErrorFunc` 包装，未知命令经"返回错误的命令不可执行"判定；main 据 `errors.As` 映射 `os.Exit`。选择三段而非更细分（例如为部分失败单设退出码），是因为"修正调用"与"处理业务失败"是脚本唯一能自动消费的分叉，更细的码不会被消费并会僵化。
+
+## 结构化输出
+
+**决策**：除 edit（交互式）与 completion（静态）外，所有业务命令提供 `--json`：encrypt/decrypt 输出批处理报告（summary 与逐文件 status/outcome/warning/error），view 输出内容信封（path/format/encoding/content，binary 以 base64 编码），diff 输出比较报告（逐文件 changed/skipped/error 并内嵌 diff 正文），init 输出初始化报告（mappings、key 文件、.sops.yaml 结果；保留既有配置时仅报告 kept），plan 沿用既有 JSON 形状。
+
+**契约**：`--json` 只替换 stdout 正文，stderr 诊断与汇总文案保持不变。业务执行过就输出完整 JSON——部分失败也输出，逐文件错误包含在内且退出码为 1；预检失败（退出码 2）时 stdout 为空、错误只在 stderr，因此"stdout 为空则失败"成立，消费方不会解析到半截 JSON。JSON 形状以各命令 `--help` 为准；早期开发阶段不承诺字段稳定性，也不携带 schema 版本号。
+
+**边界**：binary 内容必须 base64（JSON 字符串不能承载任意字节），文本格式按 UTF-8 原文；diff 的 changed 对 skipped/error 条目缺席（可空布尔）而非 false，避免"未比较"与"比较后相同"混淆。渲染集中在 presentation，task/diff 只保留结构化结果（diff.Outcome 携带正文与差异标记），不感知 JSON。
+
 ## 输出失败
 
 正文写入直接返回输出错误；普通诊断调用只记录故障，命令结束时统一取得错误。两者不能共用一个让所有业务调用遇输出错误就返回的策略。业务错误与输出错误同时存在时保留两者身份；失效 stderr 不回退到 stdout。
@@ -31,6 +45,6 @@
 
 ## 验证与范围
 
-测试通过呈现和命令接口检查正文不污染、默认与 verbose 信息量、重复报告、短写、并行完整行，以及 init 问题失败不执行后续操作。`mise run check` 执行常规检查，`mise run test:race` 检查受影响模块的数据竞争。
+测试通过呈现和命令接口检查正文不污染、默认与 verbose 信息量、重复报告、短写、并行完整行，以及 init 问题失败不执行后续操作；退出码以子进程断言覆盖未知命令、未知 flag、配置缺失、参数数量、未注册目标与业务失败；JSON 报告以渲染单测和 app 集成测试覆盖各命令形状与"跑过才出 JSON"。`mise run check` 执行常规检查，`mise run test:race` 检查受影响模块的数据竞争。
 
-本次不改变文件选择、授权或编辑写回规则，不新增命令、通用日志模式、动态 TTY 进度或编辑器终端接管机制。
+本设计不改变文件选择、授权或编辑写回规则，不引入通用日志模式、动态 TTY 进度或编辑器终端接管机制。

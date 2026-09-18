@@ -12,14 +12,21 @@ func ValidateCLIFormatOverride(format string) (string, error) {
 	return config.ValidateFormatOverride(format)
 }
 
-func WriteViewedTarget(w, diagnostics io.Writer, cfg *config.Config, target, keyFile string, verbose bool) (err error) {
-	out := presentation.New(w, diagnostics, verbose)
+type ViewRequest struct {
+	Target   string
+	KeyFile  string
+	Verbose  bool
+	JSON     bool
+}
+
+func ViewTarget(w, diagnostics io.Writer, cfg *config.Config, req ViewRequest) (err error) {
+	out := presentation.New(w, diagnostics, req.Verbose)
 	defer func() { err = out.Finish(err) }()
 	result, identityBundle, err := prepareRead(out, cfg, config.SelectionOptions{
 		Command:             task.ModeView,
-		Targets:             []string{target},
+		Targets:             []string{req.Target},
 		RequireSingleTarget: true,
-	}, keyFile)
+	}, req.KeyFile)
 	if err != nil {
 		return err
 	}
@@ -35,6 +42,13 @@ func WriteViewedTarget(w, diagnostics io.Writer, cfg *config.Config, target, key
 		return err
 	}
 
+	if req.JSON {
+		format := filePair.Format
+		if normalized, ok := seal.NormalizeFormatOverride(format); ok {
+			format = normalized
+		}
+		return out.ViewReportJSON(filePair.EncryptedPath, format, plainData)
+	}
 	if _, err := out.Write(plainData); err != nil {
 		return err
 	}

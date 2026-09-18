@@ -31,6 +31,7 @@ type InitOptions struct {
 	CreateExampleSet  bool
 	SyncSOPSConfig    bool
 	SyncSOPSConfigSet bool
+	JSON              bool
 }
 
 type initializer struct {
@@ -50,6 +51,9 @@ func InitProject(opts InitOptions, out *presentation.Output, prompts *tools.Sess
 	}
 	if !shouldContinue {
 		i.output.InitKept()
+		if opts.JSON {
+			return i.output.InitReportJSON(presentation.InitReport{Kept: true})
+		}
 		return nil
 	}
 
@@ -103,7 +107,35 @@ func InitProject(opts InitOptions, out *presentation.Output, prompts *tools.Sess
 		i.createExampleFile(exampleFile)
 	}
 	i.output.Initialized(len(filePairs), shouldCreateSopsConfig)
+	if opts.JSON {
+		if err := i.output.InitReportJSON(i.buildInitReport(filePairs, selections.ExampleFiles, shouldCreateSopsConfig)); err != nil {
+			return err
+		}
+	}
 	return nil
+}
+
+func (i *initializer) buildInitReport(filePairs []config.FilePair, exampleFiles []string, sopsConfigSynced bool) presentation.InitReport {
+	mappings := make([]presentation.InitMapping, 0, len(filePairs))
+	for _, filePair := range filePairs {
+		var recipients []string
+		if filePair.Recipients != nil {
+			recipients = *filePair.Recipients
+		}
+		mappings = append(mappings, presentation.InitMapping{
+			Plaintext:  filePair.PlaintextPath,
+			Encrypted:  filePair.EncryptedPath,
+			Format:     filePair.Format,
+			Recipients: recipients,
+		})
+	}
+	return presentation.InitReport{
+		ConfigFile:   ".yewseal.toml",
+		KeyFile:      privateKeyPath,
+		SOPSConfig:   sopsConfigSynced,
+		Mappings:     mappings,
+		ExampleFiles: exampleFiles,
+	}
 }
 
 func (i *initializer) confirmInitOverwrite(force, interactive bool) (bool, error) {

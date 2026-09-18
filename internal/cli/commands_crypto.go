@@ -64,11 +64,19 @@ targets. Encryption always finishes before synchronization is attempted.
 A synchronization failure leaves completed ciphertext work in place but
 makes the command fail.
 
-Exit codes: 0 on success, 1 when any file fails, the selection is empty,
-or .sops.yaml synchronization fails. Exit 1 does not imply that no
-ciphertext was written. Output: ciphertext goes to files and stdout stays
-empty; warnings, per-file failure reasons, and the summary go to stderr
-(--verbose adds selection info and per-file success).
+Exit codes: 0 on success (skips without real errors allowed); 1 when
+any file fails, an all-skipped batch occurs, .sops.yaml synchronization
+fails, or output delivery fails. Exit 1 does not imply that no ciphertext
+was written; 2 for calling errors: invalid arguments, a missing or invalid
+.yewseal.toml, selection or authorization failure, or an unusable
+identity source.
+
+Output: ciphertext goes to files and stdout stays empty; warnings,
+per-file failure reasons, and the summary go to stderr (--verbose adds
+selection info and per-file success). --json replaces stdout with the
+batch report (summary and per-file outcomes); stderr diagnostics stay
+unchanged, and when the run never starts (a calling error, exit 2)
+stdout stays empty.
 
 To encrypt an unregistered file ad hoc without a project config, use
 the SOPS CLI directly.
@@ -92,7 +100,10 @@ Documentation: ` + docsTargetSelect,
   yews encrypt './configs/*.toml'
 
   # Encrypt a batch across four parallel workers
-  yews encrypt ./configs --parallel 4`,
+  yews encrypt ./configs --parallel 4
+
+  # Print the batch report for scripts (diagnostics stay on stderr)
+  yews encrypt --json > report.json`,
 		Args: func(cmd *cobra.Command, args []string) error {
 			return validateBatchArgs(args, opts.Parallel, resolver.IsSet("output"))
 		},
@@ -105,6 +116,7 @@ Documentation: ` + docsTargetSelect,
 				Targets:               args,
 				Parallel:              opts.Parallel,
 				Force:                 opts.Force,
+				JSON:                  opts.JSON,
 				UpdateProjectMetadata: true,
 				SyncSOPSConfig:        opts.SyncSOPSConfig,
 			})
@@ -154,9 +166,12 @@ from the decryption result is not overwritten unless --force is set.
 
 Exit codes: by default, files whose keys do not match the current
 identity are skipped; partial success with no real error exits 0, while
-an all-skipped batch or any real error exits 1. With --strict, any skip
-also exits 1, but remaining files are still processed and successful
-results are kept. --strict=false overrides YEWSEAL_DECRYPT_STRICT.
+an all-skipped batch, any real error, or an output delivery failure
+exits 1. With --strict, any skip also exits 1, but remaining files are
+still processed and successful results are kept; --strict=false
+overrides YEWSEAL_DECRYPT_STRICT. Calling errors (invalid arguments, a
+missing or invalid .yewseal.toml, selection failure, or an unusable
+identity source) exit 2.
 
 TOML ciphertext is decrypted natively by the embedded TOML store without
 format conversion; the output is normalized TOML (single-quoted literal
@@ -165,7 +180,10 @@ layout from the handwritten original).
 
 Output: plaintext goes to files and stdout stays empty; warnings,
 per-file skip and failure reasons, and the summary go to stderr
-(--verbose adds selection info and per-file success).
+(--verbose adds selection info and per-file success). --json replaces
+stdout with the batch report (summary and per-file outcomes); stderr
+diagnostics stay unchanged, and when the run never starts (a calling
+error, exit 2) stdout stays empty.
 
 To decrypt an unregistered file ad hoc without a project config, use
 the SOPS CLI directly (a fork build with the native TOML store is needed
@@ -194,7 +212,10 @@ Result classification and exit codes: ` + docsDecryptResults,
   yews decrypt config.enc.toml --force
 
   # Fail on any skipped file (or set YEWSEAL_DECRYPT_STRICT=true)
-  yews decrypt --strict`,
+  yews decrypt --strict
+
+  # Print the batch report for scripts (diagnostics stay on stderr)
+  yews decrypt --json > report.json`,
 		Args: func(cmd *cobra.Command, args []string) error {
 			return validateBatchArgs(args, opts.Parallel, resolver.IsSet("output"))
 		},
@@ -208,6 +229,7 @@ Result classification and exit codes: ` + docsDecryptResults,
 				Parallel:              opts.Parallel,
 				Force:                 opts.Force,
 				Strict:                opts.Strict,
+				JSON:                  opts.JSON,
 				UpdateProjectMetadata: true,
 			})
 		}),
@@ -260,6 +282,9 @@ mappings); --json prints only JSON; errors go to stderr and never mix
 into the report. plan defines no output or worker flags, reads no
 output-related environment variables, and its report contains no
 metadata write plan.
+
+Exit codes: 0 on success; calling errors (invalid patterns, a missing
+or invalid .yewseal.toml, or authorization conflicts) exit 2.
 
 See also: "yews encrypt" and "yews decrypt" share the registered-mapping
 selection, with different discovery sides and historical-decrypt

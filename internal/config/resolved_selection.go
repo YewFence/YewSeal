@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/YewFence/YewSeal/internal/errx"
 	"github.com/YewFence/YewSeal/internal/fileformat"
 	"github.com/YewFence/YewSeal/internal/seal"
 	"github.com/YewFence/YewSeal/internal/task"
@@ -60,6 +61,14 @@ type ResolvedSelection struct {
 }
 
 func ResolveSelection(cfg *Config, opts SelectionOptions) (ResolvedSelection, error) {
+	selection, err := resolveSelection(cfg, opts)
+	if err != nil {
+		return selection, errx.Usage(err)
+	}
+	return selection, nil
+}
+
+func resolveSelection(cfg *Config, opts SelectionOptions) (ResolvedSelection, error) {
 	filePairs, err := configuredFilePairs(cfg, opts.Command)
 	if err != nil {
 		return ResolvedSelection{}, err

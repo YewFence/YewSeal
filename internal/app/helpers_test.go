@@ -39,7 +39,7 @@ func TestValidateCLIFormatOverride_Invalid(t *testing.T) {
 	assert.Contains(t, err.Error(), "unsupported format")
 }
 
-func TestWriteViewedTarget_WritesPlaintextToWriterOnly(t *testing.T) {
+func TestViewTarget_WritesPlaintextToWriterOnly(t *testing.T) {
 	tempDir := t.TempDir()
 	oldWd, err := os.Getwd()
 	require.NoError(t, err)
@@ -74,7 +74,7 @@ func TestWriteViewedTarget_WritesPlaintextToWriterOnly(t *testing.T) {
 
 	var out bytes.Buffer
 	var diagnostics bytes.Buffer
-	err = WriteViewedTarget(&out, &diagnostics, cfg, encryptedFile, keyFile, false)
+	err = ViewTarget(&out, &diagnostics, cfg, ViewRequest{Target: encryptedFile, KeyFile: keyFile})
 	require.NoError(t, err)
 
 	assert.Contains(t, out.String(), "localhost")

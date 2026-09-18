@@ -17,6 +17,8 @@ type Outcome struct {
 	PlaintextFile string
 	EncryptedFile string
 	Skipped       SkipReason
+	Diff          string
+	Different     bool
 	Error         error
 }
 
@@ -29,7 +31,14 @@ type Summary struct {
 }
 
 func (s *Summary) Add(plaintext, encrypted string, result DiffResult, err error) {
-	s.Results = append(s.Results, Outcome{PlaintextFile: plaintext, EncryptedFile: encrypted, Skipped: result.Skipped, Error: err})
+	s.Results = append(s.Results, Outcome{
+		PlaintextFile: plaintext,
+		EncryptedFile: encrypted,
+		Skipped:       result.Skipped,
+		Diff:          result.Diff,
+		Different:     result.Different,
+		Error:         err,
+	})
 	switch {
 	case err != nil:
 		s.FailedCount++

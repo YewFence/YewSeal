@@ -43,6 +43,9 @@ into the report. plan defines no output or worker flags, reads no
 output-related environment variables, and its report contains no
 metadata write plan.
 
+Exit codes: 0 on success; calling errors (invalid patterns, a missing
+or invalid .yewseal.toml, or authorization conflicts) exit 2.
+
 See also: "yews encrypt" and "yews decrypt" share the registered-mapping
 selection, with different discovery sides and historical-decrypt
 authorization handling.

@@ -1,7 +1,11 @@
 package project
 
 import (
+	"bytes"
+	"encoding/json"
+	"io"
 	"os"
+	"strings"
 	"testing"
 
 	"filippo.io/age"
@@ -212,7 +216,45 @@ func TestInitProject_NonInteractiveCreatesSopsConfig(t *testing.T) {
 	assert.True(t, os.IsNotExist(err))
 }
 
+func TestInitProjectJSONReportsMappingsAndKept(t *testing.T) {
+	tempDir := t.TempDir()
+	withProjectWorkingDir(t, tempDir)
+	require.NoError(t, os.WriteFile("config.toml", []byte("[service]\nport = 8080\n"), 0o644))
+
+	var stdout bytes.Buffer
+	type initReport struct {
+		Kept     bool   `json:"kept"`
+		KeyFile  string `json:"key_file"`
+		SOPS     bool   `json:"sops_config"`
+		Mappings []struct {
+			Plaintext  string   `json:"plaintext"`
+			Encrypted  string   `json:"encrypted"`
+			Recipients []string `json:"recipients"`
+		} `json:"mappings"`
+	}
+	runInit := func(opts InitOptions, input io.Reader) initReport {
+		var report initReport
+		stdout.Reset()
+		out := presentation.New(&stdout, io.Discard, false)
+		require.NoError(t, InitProject(opts, out, out.Prompts(input)))
+		require.NoError(t, json.Unmarshal(stdout.Bytes(), &report))
+		return report
+	}
+
+	fresh := runInit(InitOptions{InputFile: "config.toml", SyncSOPSConfig: false, SyncSOPSConfigSet: true, JSON: true}, unreadableInput{})
+	require.False(t, fresh.Kept)
+	require.Equal(t, ".age/keys.txt", fresh.KeyFile)
+	require.Len(t, fresh.Mappings, 1)
+	require.Equal(t, "config.enc.toml", fresh.Mappings[0].Encrypted)
+	require.Equal(t, []string{"owner"}, fresh.Mappings[0].Recipients)
+
+	kept := runInit(InitOptions{JSON: true}, strings.NewReader("n\n"))
+	require.True(t, kept.Kept)
+	require.Empty(t, kept.Mappings)
+}
+
 func TestInitProjectForceRebuildsPolicyAndPreservesSopsConfigWhenSyncDisabled(t *testing.T) {
+
 	tempDir := t.TempDir()
 	withProjectWorkingDir(t, tempDir)
 	require.NoError(t, os.MkdirAll(".age", 0o700))

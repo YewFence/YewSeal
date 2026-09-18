@@ -50,7 +50,13 @@ makes initialization fail.
 
 Output: stdout stays empty; prompts, warnings, errors, and the
 completion summary (mapping count and key file locations) go to stderr,
-answers are read from stdin.
+answers are read from stdin. --json additionally prints the
+initialization report (mappings, key file, .sops.yaml outcome) on
+stdout, which suits non-interactive scripting.
+
+Exit codes: 0 on success (including keeping an existing configuration
+after declining the overwrite prompt); 1 when writing project files
+fails; 2 for calling errors (invalid arguments or an invalid --format).
 
 See also: "yews encrypt" to encrypt the registered files, "yews decrypt"
 to decrypt them. Private key storage and distribution are managed
@@ -69,7 +75,10 @@ Private key handling: ` + docsPrivateKeys,
 
   # Rebuild keys and configuration from scratch (existing ciphertext
   # may become undecryptable)
-  yews init --force`,
+  yews init --force
+
+  # Report the initialization result as JSON for scripts
+  yews init --input config.toml --json`,
 		Args: func(cmd *cobra.Command, args []string) error {
 			if err := cobra.NoArgs(cmd, args); err != nil {
 				return err
@@ -88,6 +97,7 @@ Private key handling: ` + docsPrivateKeys,
 				CreateExampleSet:  resolver.IsSet("create-example"),
 				SyncSOPSConfig:    opts.SyncSOPSConfig,
 				SyncSOPSConfigSet: resolver.IsSet("sync-sops-config"),
+				JSON:              opts.JSON,
 			}, out, out.Prompts(cmd.InOrStdin()))
 		},
 	}
@@ -97,6 +107,7 @@ Private key handling: ` + docsPrivateKeys,
 	cmd.Flags().StringVar(&opts.Format, "format", "", "Format override for the first config entry (toml/yaml/json/env/ini/binary)")
 	cmd.Flags().BoolVar(&opts.CreateExample, "create-example", false, "Create an example plaintext file (interactive: for recorded entries; non-interactive: for the first entry)")
 	cmd.Flags().BoolVar(&opts.SyncSOPSConfig, "sync-sops-config", opts.SyncSOPSConfig, "Create or update .sops.yaml; explicit true or false skips the interactive prompt")
+	cmd.Flags().BoolVar(&opts.JSON, "json", false, "Print the initialization report as JSON on stdout (prompts and diagnostics stay on stderr)")
 	resolver = newOptionResolver(cmd, &opts)
 	cmd.Args = resolver.before(cmd.Args)
 	return cmd
@@ -135,6 +146,11 @@ temporary file path as the final, separate argument.
 The editor must exit only after the file is saved and closed (for
 example "code --wait"), otherwise YewSeal re-encrypts before editing
 finishes.
+
+Exit codes: 0 on success (changed or unchanged); 1 when editing or
+re-encryption fails; 2 for calling errors (no target, an unregistered
+file, a missing or invalid .yewseal.toml, or an unusable identity
+source).
 
 Output: stdout stays empty; the update result (or "unchanged"),
 warnings, and errors go to stderr.
@@ -197,7 +213,13 @@ bundle. It stays single-target: it fails without emitting empty
 plaintext and never touches .gitignore or .sops.yaml.
 
 Output: stdout carries only the plaintext; warnings, errors, and
---verbose detail go to stderr, so the plaintext stays pipeable.
+--verbose detail go to stderr, so the plaintext stays pipeable. --json
+wraps the plaintext in a JSON envelope (path, format, encoding,
+content); binary formats encode the content as base64.
+
+Exit codes: 0 on success; 1 when decryption or output delivery fails;
+2 for calling errors (wrong argument count, an unregistered target, a
+missing or invalid .yewseal.toml, or an unusable identity source).
 
 See also: "yews decrypt" to write plaintext files with overwrite
 protection, "yews edit" to edit the encrypted file directly.
@@ -210,7 +232,10 @@ Documentation: ` + docsTargetSelect,
   yews view config.enc.json | jq '.database'
 
   # Save only the plaintext; detail stays on stderr
-  yews view config.enc.toml --verbose > inspected.toml`,
+  yews view config.enc.toml --verbose > inspected.toml
+
+  # Wrap the plaintext in a JSON envelope for scripts
+  yews view config.enc.toml --json`,
 		Args: func(cmd *cobra.Command, args []string) error {
 			if err := cobra.ExactArgs(1)(cmd, args); err != nil {
 				return err
@@ -221,10 +246,16 @@ Documentation: ` + docsTargetSelect,
 			return nil
 		},
 		RunE: withConfig(load, func(cmd *cobra.Command, args []string, cfg *config.Config) error {
-			return yewsapp.WriteViewedTarget(cmd.OutOrStdout(), cmd.ErrOrStderr(), cfg, args[0], opts.KeyFile, opts.Verbose)
+			return yewsapp.ViewTarget(cmd.OutOrStdout(), cmd.ErrOrStderr(), cfg, yewsapp.ViewRequest{
+				Target:  args[0],
+				KeyFile: opts.KeyFile,
+				Verbose: opts.Verbose,
+				JSON:    opts.JSON,
+			})
 		}),
 	}
 	cmd.Flags().BoolVarP(&opts.Verbose, "verbose", "v", false, "Enable verbose output (detail goes to stderr; stdout stays plaintext only)")
+	cmd.Flags().BoolVar(&opts.JSON, "json", false, "Print the decrypted content as a JSON envelope on stdout (base64 for binary formats)")
 	resolver := newOptionResolver(cmd, &opts)
 	cmd.Args = resolver.before(cmd.Args)
 	return cmd
@@ -266,13 +297,18 @@ warns and continues, and decryption follows the historical ciphertext
 metadata rather than the current-config authorization.
 
 Exit codes: 0 whenever no real error occurs, whether or not anything
-was actually compared (0 means neither "equal" nor "compared"). There
-is no strict mode and no "differs means failure" switch, so diff is
-not a CI gate; obtained diffs are never rolled back.
+was actually compared (0 means neither "equal" nor "compared"); 1 when
+any comparison fails or output delivery fails. There is no strict mode
+and no "differs means failure" switch, so diff is not a CI gate;
+obtained diffs are never rolled back. Calling errors (invalid patterns,
+a missing or invalid .yewseal.toml, selection failure, or an unusable
+identity source) exit 2.
 
 Output: stdout carries only the diff body (empty when nothing differs);
 warnings, per-file skip and failure reasons, and the summary go to
 stderr (--verbose adds selection info and per-file completion notes).
+--json replaces the streamed diff body with the comparison report
+(per-file status with embedded diff bodies).
 
 See also: "yews encrypt" to re-encrypt changed plaintext, "yews view"
 to inspect ciphertext content.
@@ -286,7 +322,10 @@ Documentation: ` + docsDecryptResults,
   yews diff config.enc.toml
 
   # Disable color in scripts; diagnostics stay on stderr
-  yews diff --color never > changes.diff`,
+  yews diff --color never > changes.diff
+
+  # Print the comparison report for scripts
+  yews diff --json > report.json`,
 		Args: func(cmd *cobra.Command, args []string) error {
 			for _, arg := range args {
 				if err := validateTargetArg(arg); err != nil {
@@ -300,12 +339,19 @@ Documentation: ` + docsDecryptResults,
 			return nil
 		},
 		RunE: withConfig(load, func(cmd *cobra.Command, args []string, cfg *config.Config) error {
-			_, err := yewsapp.DiffPlaintextAgainstEncryptedTargets(cmd.OutOrStdout(), cmd.ErrOrStderr(), cfg, args, opts.KeyFile, opts.Verbose, opts.Color)
+			_, err := yewsapp.DiffTargets(cmd.OutOrStdout(), cmd.ErrOrStderr(), cfg, yewsapp.DiffRequest{
+				Targets:   args,
+				KeyFile:   opts.KeyFile,
+				Verbose:   opts.Verbose,
+				ColorMode: opts.Color,
+				JSON:      opts.JSON,
+			})
 			return err
 		}),
 	}
 	cmd.Flags().StringVar(&opts.Color, "color", opts.Color, "Colorize diff output (auto/always/never)")
 	cmd.Flags().BoolVarP(&opts.Verbose, "verbose", "v", false, "Enable verbose output (selection info and per-file completion notes on stderr)")
+	cmd.Flags().BoolVar(&opts.JSON, "json", false, "Print the comparison report as JSON on stdout (per-file status with embedded diff bodies)")
 	resolver := newOptionResolver(cmd, &opts)
 	cmd.Args = resolver.before(cmd.Args)
 	return cmd

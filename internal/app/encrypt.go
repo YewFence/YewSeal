@@ -18,6 +18,7 @@ type EncryptRequest struct {
 	Targets               []string
 	Parallel              int
 	Force                 bool
+	JSON                  bool
 	UpdateProjectMetadata bool
 	SyncSOPSConfig        bool
 }
@@ -59,5 +60,9 @@ func EncryptFiles(cfg *config.Config, req EncryptRequest) (err error) {
 			syncErr = fmt.Errorf("failed to update .sops.yaml after encryption: %w\nCiphertext processing completed. Fix the synchronization error, or use --sync-sops-config=false when direct SOPS interoperability is not required", err)
 		}
 	}
-	return errors.Join(encryptErr, syncErr)
+	var reportErr error
+	if req.JSON {
+		reportErr = out.BatchReportJSON("encrypt", summary)
+	}
+	return errors.Join(encryptErr, syncErr, reportErr)
 }

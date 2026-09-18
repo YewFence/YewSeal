@@ -1,6 +1,8 @@
 package app
 
 import (
+	"errors"
+
 	"github.com/YewFence/YewSeal/internal/config"
 	"github.com/YewFence/YewSeal/internal/presentation"
 	"github.com/YewFence/YewSeal/internal/project"
@@ -16,6 +18,7 @@ type DecryptRequest struct {
 	Parallel              int
 	Force                 bool
 	Strict                bool
+	JSON                  bool
 	UpdateProjectMetadata bool
 }
 
@@ -47,5 +50,8 @@ func DecryptFiles(cfg *config.Config, req DecryptRequest) (err error) {
 	}
 	summary, err := task.Decrypt(opts)
 	out.BatchSummary(summary, "decrypted")
+	if req.JSON {
+		err = errors.Join(err, out.BatchReportJSON("decrypt", summary))
+	}
 	return err
 }
