@@ -16,6 +16,8 @@ This project is in early development and does not require backward compatibility
 
 **配置 Schema**：`.yewseal.toml` 的权威 schema 是 `schema/config.cue`（CUE），`schema/yewseal.schema.json` 由它导出（不要手改，用 `mise run schema:export` 重新导出）。修改 `internal/config` 的配置 struct 时，必须同步更新 `schema/config.cue` 和全字段锚点 `schema/example.yewseal.toml` 并重新导出；`internal/config/schema_sync_test.go` 的 tripwire 测试和 `mise run schema:check`（已含在 `mise run check`）会强制这一约定。
 
+**CLI 帮助是命令契约的唯一来源**：每个业务命令的 `--help`（Cobra 的 `Long`、`Example` 和 flag usage）必须自带完整契约——用途、目标选择、每个 flag、退出码、输出通道和可运行示例，并以文档站 deep-link 收尾。改命令语义就在同一提交改 help，再跑 `mise run cli:docs` 重新生成 `docs/src/content/docs/references/`（生成物不手改；`cmd/gendocs/main_test.go` 的 tripwire 会比对生成物与已提交页面）。不再写按 flag 罗列的手写命令参考页（`docs/commands/` 已删除）：命令出现在 guide 里必须处于工作流或概念语境，概念页可以比 help 更详细，help 用浓缩版加链接回指它。文档站 URL 集中在 `internal/cli/doclinks.go`，`internal/cli/help_tripwire_test.go` 强制每个业务命令的 `Long`、`Example` 和 deep-link 非空。guide 与 help 或 `docs/design/` 冲突时以后者为准，改 guide。
+
 **内嵌库依赖**：`filippo.io/age`（密钥生成）、`github.com/YewFence/sops/v3`（加解密引擎——作者的个人 fork，带原生 TOML store；引擎层问题应在 fork 仓库开 Issue 或修复） 
 
 **加密引擎边界**：`internal/sopsx` 是 engine facade，对外暴露 `Encrypt`/`Decrypt`/`Inspect`/`Rekey`/`ExtractAgeRecipients`，格式参数使用 YewSeal 命名（`toml/yaml/json/env/ini/binary`）。其余包只允许通过 facade 调用，不直接 import sops 类型。
