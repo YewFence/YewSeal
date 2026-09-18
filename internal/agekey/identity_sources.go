@@ -2,12 +2,16 @@ package agekey
 
 import (
 	"errors"
+	"fmt"
 	"io/fs"
 	"os"
+	"runtime"
+	"strings"
 
 	"filippo.io/age"
 
 	"github.com/YewFence/YewSeal/internal/errx"
+	"github.com/YewFence/YewSeal/internal/execx"
 )
 
 // ResolvedIdentity 是一个已解析的 Age 私钥身份及其推导出的公钥。
@@ -125,6 +129,27 @@ func collectShadowed(layers []identityLayer) []string {
 		}
 	}
 	return shadowed
+}
+
+// runKeyCommand 执行 SOPS_AGE_KEY_CMD 并返回其输出的身份内容。
+func runKeyCommand() (string, error) {
+	keyCmd := os.Getenv("SOPS_AGE_KEY_CMD")
+	shell := "sh"
+	args := []string{"-c", keyCmd}
+	if runtime.GOOS == "windows" {
+		shell = "cmd"
+		args = []string{"/c", keyCmd}
+	}
+
+	stdout, stderr, err := execx.ExecCommand(shell, args...)
+	if err != nil {
+		return "", &errx.ExternalCommandError{Op: "failed to execute SOPS_AGE_KEY_CMD", Cmd: shell, Args: args, Stderr: stderr, Err: err}
+	}
+	key := strings.TrimSpace(stdout)
+	if key == "" {
+		return "", fmt.Errorf("SOPS_AGE_KEY_CMD returned empty output")
+	}
+	return key, nil
 }
 
 func withPublicKeys(bundle IdentityBundle) ([]ResolvedIdentity, error) {

@@ -71,29 +71,6 @@ func (e *ProtectedOverwriteError) Error() string {
 	)
 }
 
-// KeyFileReadError indicates a key file could not be read.
-type KeyFileReadError struct {
-	Path string
-	Err  error
-}
-
-func (e *KeyFileReadError) Unwrap() error {
-	return e.Err
-}
-
-func (e *KeyFileReadError) Error() string {
-	return fmt.Sprintf("failed to read key file %s: %v", e.Path, e.Err)
-}
-
-// AgeSecretKeyNotFoundError indicates a file did not contain a valid Age secret key.
-type AgeSecretKeyNotFoundError struct {
-	Path string
-}
-
-func (e *AgeSecretKeyNotFoundError) Error() string {
-	return fmt.Sprintf("no valid Age secret key found in %s", e.Path)
-}
-
 // ExternalCommandError wraps an external command failure while retaining stderr.
 type ExternalCommandError struct {
 	Op     string
