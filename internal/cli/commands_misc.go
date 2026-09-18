@@ -126,12 +126,11 @@ func identitiesCommand(load configLoader) *cobra.Command {
 resolution chain, which present sources it shadowed, and every identity in
 the winning source with its derived public key and registry alias.
 
-Identity resolution is first-win, never merged: --key-file (env
-YEWSEAL_KEY_FILE), then YEWSEAL_AGE_IDENTITIES, SOPS_AGE_KEY,
-SOPS_AGE_KEY_FILE, SOPS_AGE_KEY_CMD, then .age/keys.txt in the current
-directory. Only the first source that yields an identity applies, and
-everything below it is not even read; shadowed lists the sources that were
-present but skipped, as file:<path> or env:<NAME>.
+Identity resolution is first-win, never merged: only the first source
+that yields an identity applies, and everything below it is not even
+read — the exact order is the --key-file fallback chain shown among the
+flags below. shadowed lists the sources that were present but skipped,
+as file:<path> or env:<NAME>.
 
 The command requires a .yewseal.toml like every other command beyond
 version, help, and completion: each derived public key is looked up in

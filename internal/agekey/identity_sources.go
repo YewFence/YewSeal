@@ -35,7 +35,7 @@ type identityLayer struct {
 	load    func() (IdentityBundle, error)
 }
 
-var identitySourceOptions = []string{"--key-file", "YEWSEAL_AGE_IDENTITIES", "SOPS_AGE_KEY", "SOPS_AGE_KEY_FILE", "SOPS_AGE_KEY_CMD", "or .age/keys.txt"}
+var identitySourceOptions = []string{"--key-file", "YEWSEAL_AGE_IDENTITIES", "SOPS_AGE_KEY", "SOPS_AGE_KEY_FILE", "YEWSEAL_AGE_KEY_CMD", "SOPS_AGE_KEY_CMD", "or .age/keys.txt"}
 
 // ResolveIdentitySources 按 GetIdentityBundle 的同一优先级链解析身份，
 // 并额外报告生效来源与被短路的候选来源。来源标识为扁平字符串：文件
@@ -100,10 +100,21 @@ func identityLayers(keyFile string) []identityLayer {
 			},
 		},
 		{
+			label:   "env:YEWSEAL_AGE_KEY_CMD",
+			present: func() bool { return os.Getenv("YEWSEAL_AGE_KEY_CMD") != "" },
+			load: func() (IdentityBundle, error) {
+				value, err := runKeyCommand("YEWSEAL_AGE_KEY_CMD")
+				if err != nil {
+					return IdentityBundle{}, err
+				}
+				return parseIdentityFile(value)
+			},
+		},
+		{
 			label:   "env:SOPS_AGE_KEY_CMD",
 			present: func() bool { return os.Getenv("SOPS_AGE_KEY_CMD") != "" },
 			load: func() (IdentityBundle, error) {
-				value, err := runKeyCommand()
+				value, err := runKeyCommand("SOPS_AGE_KEY_CMD")
 				if err != nil {
 					return IdentityBundle{}, err
 				}
@@ -131,9 +142,9 @@ func collectShadowed(layers []identityLayer) []string {
 	return shadowed
 }
 
-// runKeyCommand 执行 SOPS_AGE_KEY_CMD 并返回其输出的身份内容。
-func runKeyCommand() (string, error) {
-	keyCmd := os.Getenv("SOPS_AGE_KEY_CMD")
+// runKeyCommand 执行由 envName 指定的身份命令并返回其输出内容。
+func runKeyCommand(envName string) (string, error) {
+	keyCmd := os.Getenv(envName)
 	shell := "sh"
 	args := []string{"-c", keyCmd}
 	if runtime.GOOS == "windows" {
@@ -143,11 +154,11 @@ func runKeyCommand() (string, error) {
 
 	stdout, stderr, err := execx.ExecCommand(shell, args...)
 	if err != nil {
-		return "", &errx.ExternalCommandError{Op: "failed to execute SOPS_AGE_KEY_CMD", Cmd: shell, Args: args, Stderr: stderr, Err: err}
+		return "", &errx.ExternalCommandError{Op: "failed to execute " + envName, Cmd: shell, Args: args, Stderr: stderr, Err: err}
 	}
 	key := strings.TrimSpace(stdout)
 	if key == "" {
-		return "", fmt.Errorf("SOPS_AGE_KEY_CMD returned empty output")
+		return "", fmt.Errorf("%s returned empty output", envName)
 	}
 	return key, nil
 }

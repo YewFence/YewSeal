@@ -10,12 +10,11 @@ List the Age identities YewSeal would decrypt with: which source won the
 resolution chain, which present sources it shadowed, and every identity in
 the winning source with its derived public key and registry alias.
 
-Identity resolution is first-win, never merged: --key-file (env
-YEWSEAL_KEY_FILE), then YEWSEAL_AGE_IDENTITIES, SOPS_AGE_KEY,
-SOPS_AGE_KEY_FILE, SOPS_AGE_KEY_CMD, then .age/keys.txt in the current
-directory. Only the first source that yields an identity applies, and
-everything below it is not even read; shadowed lists the sources that were
-present but skipped, as file:<path> or env:<NAME>.
+Identity resolution is first-win, never merged: only the first source
+that yields an identity applies, and everything below it is not even
+read — the exact order is the --key-file fallback chain shown among the
+flags below. shadowed lists the sources that were present but skipped,
+as file:<path> or env:<NAME>.
 
 The command requires a .yewseal.toml like every other command beyond
 version, help, and completion: each derived public key is looked up in
@@ -72,7 +71,7 @@ yews identities [flags]
 ## Options inherited from parent commands
 
 ```
-  -k, --key-file string   Path to the Age private key file (fallback: YEWSEAL_AGE_IDENTITIES, SOPS_AGE_KEY, SOPS_AGE_KEY_FILE, SOPS_AGE_KEY_CMD, then .age/keys.txt) (env YEWSEAL_KEY_FILE)
+  -k, --key-file string   Path to the Age private key file (fallback: YEWSEAL_AGE_IDENTITIES, SOPS_AGE_KEY, SOPS_AGE_KEY_FILE, YEWSEAL_AGE_KEY_CMD, SOPS_AGE_KEY_CMD, then .age/keys.txt in the current directory) (env YEWSEAL_KEY_FILE)
 ```
 
 ## SEE ALSO

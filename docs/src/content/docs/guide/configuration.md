@@ -137,8 +137,9 @@ At decryption time, the Age private key resolves in this order (highest first):
 2. A comma-separated, whitespace-separated, or multi-line bundle in `YEWSEAL_AGE_IDENTITIES`
 3. The compatible alias `SOPS_AGE_KEY`
 4. `SOPS_AGE_KEY_FILE`
-5. `SOPS_AGE_KEY_CMD`
-6. The default path `.age/keys.txt` under the current working directory
+5. `YEWSEAL_AGE_KEY_CMD`
+6. `SOPS_AGE_KEY_CMD`
+7. The default path `.age/keys.txt` under the current working directory
 
 Sources never merge across levels: the first one that yields an identity wins outright, and everything below it is not even read — with `--key-file` set, the environment variables and `.age/keys.txt` are ignored entirely. Only identities within the winning source combine into one bundle.
 
@@ -186,6 +187,7 @@ Non-flag integration variables remain owned by their respective identity or edit
 | `YEWSEAL_AGE_IDENTITIES` | Preferred inline Age identity bundle |
 | `SOPS_AGE_KEY` | SOPS-compatible alias for `YEWSEAL_AGE_IDENTITIES` |
 | `SOPS_AGE_KEY_FILE` | Path to an Age private key file |
+| `YEWSEAL_AGE_KEY_CMD` | Preferred command whose output provides an Age identity bundle |
 | `SOPS_AGE_KEY_CMD` | Command whose output provides an Age identity bundle |
 | `EDITOR` | Editor used by `edit` when `VISUAL` is unset |
 | `VISUAL` | Editor preferred by `edit` |

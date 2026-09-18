@@ -13,7 +13,7 @@ import (
 
 func clearIdentityEnv(t *testing.T) {
 	t.Helper()
-	for _, name := range []string{"YEWSEAL_AGE_IDENTITIES", "SOPS_AGE_KEY", "SOPS_AGE_KEY_FILE", "SOPS_AGE_KEY_CMD"} {
+	for _, name := range []string{"YEWSEAL_AGE_IDENTITIES", "SOPS_AGE_KEY", "SOPS_AGE_KEY_FILE", "YEWSEAL_AGE_KEY_CMD", "SOPS_AGE_KEY_CMD"} {
 		t.Setenv(name, "")
 	}
 }
@@ -72,7 +72,21 @@ func TestResolveIdentitySourcesSopsKeyFileMissingFallsThrough(t *testing.T) {
 	require.Empty(t, sources.Shadowed)
 }
 
-func TestResolveIdentitySourcesKeyCommandLayer(t *testing.T) {
+func TestResolveIdentitySourcesYewsealKeyCommandLayer(t *testing.T) {
+	clearIdentityEnv(t)
+	t.Chdir(t.TempDir())
+
+	identity, err := age.GenerateX25519Identity()
+	require.NoError(t, err)
+	t.Setenv("YEWSEAL_AGE_KEY_CMD", "printf %s "+identity.String())
+
+	sources, err := ResolveIdentitySources("")
+	require.NoError(t, err)
+	require.Equal(t, "env:YEWSEAL_AGE_KEY_CMD", sources.Source)
+	require.Equal(t, identity.Recipient().String(), sources.Identities[0].PublicKey)
+}
+
+func TestResolveIdentitySourcesSopsKeyCommandLayer(t *testing.T) {
 	clearIdentityEnv(t)
 	t.Chdir(t.TempDir())
 
@@ -83,6 +97,22 @@ func TestResolveIdentitySourcesKeyCommandLayer(t *testing.T) {
 	sources, err := ResolveIdentitySources("")
 	require.NoError(t, err)
 	require.Equal(t, "env:SOPS_AGE_KEY_CMD", sources.Source)
+	require.Equal(t, identity.Recipient().String(), sources.Identities[0].PublicKey)
+}
+
+func TestResolveIdentitySourcesYewsealKeyCommandShadowsSops(t *testing.T) {
+	clearIdentityEnv(t)
+	t.Chdir(t.TempDir())
+
+	identity, err := age.GenerateX25519Identity()
+	require.NoError(t, err)
+	t.Setenv("YEWSEAL_AGE_KEY_CMD", "printf %s "+identity.String())
+	t.Setenv("SOPS_AGE_KEY_CMD", "printf not-an-identity")
+
+	sources, err := ResolveIdentitySources("")
+	require.NoError(t, err)
+	require.Equal(t, "env:YEWSEAL_AGE_KEY_CMD", sources.Source)
+	require.Equal(t, []string{"env:SOPS_AGE_KEY_CMD"}, sources.Shadowed)
 	require.Equal(t, identity.Recipient().String(), sources.Identities[0].PublicKey)
 }
 

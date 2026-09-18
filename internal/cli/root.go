@@ -28,10 +28,6 @@ among the registered files.
 CLI option precedence: flags > command environment variables > defaults.
 Project mappings and authorization come only from .yewseal.toml.
 
-Identity resolution order: --key-file (env YEWSEAL_KEY_FILE), then
-YEWSEAL_AGE_IDENTITIES, SOPS_AGE_KEY, SOPS_AGE_KEY_FILE, SOPS_AGE_KEY_CMD,
-then .age/keys.txt in the current working directory.
-
 Exit codes: 0 on success, 1 on business failure (file processing or
 output delivery), 2 on calling errors (arguments, config, selection, or
 identity source). See each command's --help for specifics.
@@ -41,7 +37,7 @@ Documentation: ` + docsBaseURL + `/`,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
-	rootCmd.PersistentFlags().StringP("key-file", "k", "", "Path to the Age private key file (fallback: YEWSEAL_AGE_IDENTITIES, SOPS_AGE_KEY, SOPS_AGE_KEY_FILE, SOPS_AGE_KEY_CMD, then .age/keys.txt)")
+	rootCmd.PersistentFlags().StringP("key-file", "k", "", "Path to the Age private key file (fallback: YEWSEAL_AGE_IDENTITIES, SOPS_AGE_KEY, SOPS_AGE_KEY_FILE, YEWSEAL_AGE_KEY_CMD, SOPS_AGE_KEY_CMD, then .age/keys.txt in the current directory)")
 	annotateFlagEnvironment(rootCmd.PersistentFlags().Lookup("key-file"), "YEWSEAL_KEY_FILE")
 	rootCmd.DisableAutoGenTag = true
 	rootCmd.SetFlagErrorFunc(func(_ *cobra.Command, err error) error { return errx.Usage(err) })
