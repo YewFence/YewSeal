@@ -14,7 +14,7 @@
 2. **严格授权解析**：file > group > defaults 的完整替换优先级已实现；canonical recipient 集合稳定排序；多个 Group 的 effective 集合冲突会失败，显式 FilePair 可对同路径冲突作最终裁决。
 3. **全量 encrypt/plan preflight**：所有选中 pair 会在 metadata 或密文写入前完成未知 alias、raw recipient、空集合、非法公钥及 Group 冲突检查；plan 对 encrypted target 同样采用严格授权语义。
 4. **旧入口删除**：`[key].public_key` 会返回迁移错误；`GetPublicKey`、`--public-key`、`SOPS_AGE_RECIPIENTS` fallback，以及 app/task/seal 中的单 public-key API 和私钥推导加密 recipient 逻辑均已删除。
-5. **Identity bundle**：显式 key file、既有 SOPS source 和默认 key file 按优先级解析一次，去重后作为完整 bundle 供整个解密批次复用。
+5. **Identity bundle**：显式 key file、`YEWSEAL_AGE_IDENTITIES`、既有 SOPS source 和默认 key file 按优先级解析一次，去重后作为完整 bundle 供整个解密批次复用。
 6. **Decrypt/Edit**：decrypt 遇到已失效 alias 时向 stderr 输出非致命 warning，并继续依据密文 metadata 解密；edit 提供单个文件的解密、编辑、加密快捷流程。
 7. **Init 与 SOPS 配置**：init 写入 owner registry、defaults、显式 FilePair 及其 alias；`--force` 重建 key/policy/files，并在跳过 SOPS 配置时删除旧托管文件；key、主配置和 `.sops.yaml` 使用临时文件替换。
 8. **可审查输出**：plan 的表格和 JSON 均展示 alias、canonical recipients、effective authorization source 和 registry 来源；`.sops.yaml` 按文件生成稳定、多 recipient、完全托管的规则。
@@ -544,21 +544,21 @@ AGE-SECRET-KEY-1...
 
 ### 环境变量输入
 
-YewSeal 直接兼容 SOPS 的 identity bundle 环境变量：
+YewSeal 提供权威的 identity bundle 环境变量：
 
 ```text
-SOPS_AGE_KEY
+YEWSEAL_AGE_IDENTITIES
 ```
 
-该变量接受以空白分隔或分行书写的多把私钥：
+该变量接受逗号、空白或真实换行分隔的多把私钥：
 
 ```bash
-SOPS_AGE_KEY='AGE-SECRET-KEY-1... AGE-SECRET-KEY-1...' yews decrypt
+YEWSEAL_AGE_IDENTITIES='AGE-SECRET-KEY-1...,AGE-SECRET-KEY-1...' yews decrypt
 ```
 
 解析规则：
 
-1. 使用 SOPS 的空白与多行 bundle 约定；
+1. 使用逗号、空白或真实换行切分；
 2. 每项验证为可用 Age identity；
 3. 重复 identity 按规范化文本去重；
 4. 内部转换为统一 IdentityBundle；
@@ -566,22 +566,23 @@ SOPS_AGE_KEY='AGE-SECRET-KEY-1... AGE-SECRET-KEY-1...' yews decrypt
 
 ### SOPS 环境变量兼容
 
-YewSeal 不改变 SOPS identity source 的原有语义：
+`SOPS_AGE_KEY` 是 `YEWSEAL_AGE_IDENTITIES` 的低优先级兼容别名，并进入同一个 bundle parser：
 
-- `SOPS_AGE_KEY` 按空白或多行 bundle 语义处理；
+- `SOPS_AGE_KEY` 同样接受逗号、空白或真实换行；
 - `SOPS_AGE_KEY_FILE` 和 `SOPS_AGE_KEY_CMD` 保持现有兼容语义；
-- 不把 `SOPS_AGE_KEY` 重新解释为逗号列表。
+- 已有只使用空白或多行 bundle 的 SOPS 环境无需修改。
 
 ### Identity source 优先级
 建议优先级为：
 
 ```text
 显式 --key-file
+  > YEWSEAL_AGE_IDENTITIES
   > 既有 SOPS source 的原有优先级
   > 默认 .age/keys.txt
 ```
 
-具体来说，除显式 `--key-file` 外，继续保持当前 SOPS source 的顺序：
+具体来说，除显式 `--key-file` 和 `YEWSEAL_AGE_IDENTITIES` 外，继续保持当前 SOPS source 的顺序：
 
 ```text
 SOPS_AGE_KEY
@@ -590,7 +591,7 @@ SOPS_AGE_KEY
   > 默认 .age/keys.txt
 ```
 
-这里的列表表达 source 层级，而不是要求 YewSeal 重新解释 SOPS 变量的内容。`SOPS_AGE_KEY` 继续按 SOPS 的 bundle 语义处理。
+这里的列表表达 source 层级。`SOPS_AGE_KEY` 作为兼容别名使用与 `YEWSEAL_AGE_IDENTITIES` 相同的 bundle parser。
 如果用户显式传入 `--key-file`：
 
 - 文件不存在、不可读或无法解析时直接失败；
@@ -904,7 +905,7 @@ AGE-SECRET-KEY-1...
 
 1. recipient registry 中只能出现公开 Age recipient，绝不能出现私钥。
 2. identity bundle 不得进入普通输出、verbose 输出、JSON、错误链或测试快照。
-3. `SOPS_AGE_KEY` 适合 CI 的临时注入，但安全性低于挂载的私钥文件；容器和长期运行环境优先使用 `--key-file`。
+3. `YEWSEAL_AGE_IDENTITIES` 适合 CI 的临时注入，但安全性低于挂载的私钥文件；容器和长期运行环境优先使用 `--key-file`。
 4. 加密时不能从 identity bundle 推导 recipient。
 5. 未知 alias、重复 alias、非法公钥和空授权集合必须在写密文前失败。
 6. alias 解析错误可以显示 alias 和配置路径，但不能显示任何 identity 内容。
@@ -963,9 +964,10 @@ AGE-SECRET-KEY-1...
 6. 重复 identity 文本去重。
 7. 去重后保持首次出现顺序。
 8. 显式 `--key-file` 失败时不回退。
-9. `SOPS_AGE_KEY` 保持空白与多行语义。
-10. SOPS 旧 source 保持既有兼容语义。
-11. 错误和日志不包含私钥内容。
+9. `YEWSEAL_AGE_IDENTITIES` 与 `SOPS_AGE_KEY` 接受相同的 bundle 分隔符。
+10. 权威变量覆盖兼容别名，且解析失败时不回退。
+11. SOPS 旧 source 保持既有兼容语义。
+12. 错误和日志不包含私钥内容。
 
 ### 加密和解密测试
 
@@ -1024,9 +1026,10 @@ AGE-SECRET-KEY-1...
 ### 第三阶段：Identity bundle
 
 1. 把 key file 读取统一为完整 IdentityBundle。
-2. 保持已有 SOPS 环境变量兼容并支持完整 bundle。
-3. 明确显式 source 失败策略。
-4. 更新 decrypt 和 edit 的多 identity 行为。
+2. 增加 `YEWSEAL_AGE_IDENTITIES`，并将 `SOPS_AGE_KEY` 作为兼容别名。
+3. 统一逗号、空白和真实换行 bundle 解析。
+4. 明确显式 source 失败策略。
+5. 更新 decrypt 和 edit 的多 identity 行为。
 
 ### 第四阶段：Init、Edit 和迁移测试
 
@@ -1047,7 +1050,7 @@ AGE-SECRET-KEY-1...
 6. Group 可以提供默认集合，FilePair 可以显式收窄或替换它。
 7. 加密结果中的 SOPS metadata 使用每个文件 alias 解析后的真实 Age 公钥集合。
 8. 一个消费者可以提供包含多把私钥的 IdentityBundle，并解密其有权访问的多个文件。
-9. 环境变量传入多把私钥时，`SOPS_AGE_KEY` 使用空白或真实换行分隔，不依赖转义后的 `\\n`。
+9. 环境变量传入多把私钥时，`YEWSEAL_AGE_IDENTITIES` 和 `SOPS_AGE_KEY` 接受逗号、空白或真实换行分隔，不依赖转义后的 `\\n`。
 10. 项目配置和所有正常输出中都不存在私钥。
 11. 未知 alias、重复定义、非法公钥或空授权集合不会被静默当成其他 recipient 处理。
 12. encrypt 在任何密文写入前完成完整授权预检。

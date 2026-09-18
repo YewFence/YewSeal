@@ -46,7 +46,7 @@ When the private key is injected through an environment variable (CI, for exampl
 
 ```bash
 docker run --rm \
-  -e SOPS_AGE_KEY="$SOPS_AGE_KEY" \
+  -e YEWSEAL_AGE_IDENTITIES="$YEWSEAL_AGE_IDENTITIES" \
   --user "$(id -u):$(id -g)" \
   -v "$PWD:/work" \
   ghcr.io/yewfence/yew-seal:latest decrypt

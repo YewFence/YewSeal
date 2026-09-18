@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"unicode"
 
 	"filippo.io/age"
 	"github.com/YewFence/YewSeal/internal/errx"
@@ -56,6 +57,9 @@ func GetIdentityBundle(keyFile string) (IdentityBundle, error) {
 		return readIdentityBundle(keyFile)
 	}
 
+	if value := os.Getenv("YEWSEAL_AGE_IDENTITIES"); value != "" {
+		return parseIdentityFile(value)
+	}
 	if value := os.Getenv("SOPS_AGE_KEY"); value != "" {
 		return parseIdentityFile(value)
 	}
@@ -77,7 +81,7 @@ func GetIdentityBundle(keyFile string) (IdentityBundle, error) {
 	}
 	bundle, err := readIdentityBundle(".age/keys.txt")
 	if errors.Is(err, os.ErrNotExist) {
-		return IdentityBundle{}, &errx.AgeKeyNotFoundError{Options: []string{"--key-file", "SOPS_AGE_KEY", "SOPS_AGE_KEY_FILE", "SOPS_AGE_KEY_CMD", "or .age/keys.txt"}}
+		return IdentityBundle{}, &errx.AgeKeyNotFoundError{Options: []string{"--key-file", "YEWSEAL_AGE_IDENTITIES", "SOPS_AGE_KEY", "SOPS_AGE_KEY_FILE", "SOPS_AGE_KEY_CMD", "or .age/keys.txt"}}
 	}
 	return bundle, err
 }
@@ -94,10 +98,16 @@ func parseIdentityFile(content string) (IdentityBundle, error) {
 	identities := make([]string, 0)
 	for _, line := range strings.Split(content, "\n") {
 		line = strings.TrimSpace(line)
-		if line == "" || strings.HasPrefix(line, "#") || !strings.HasPrefix(line, "AGE-SECRET-KEY-") {
+		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
-		identities = append(identities, line)
+		for _, field := range strings.FieldsFunc(line, func(r rune) bool {
+			return r == ',' || unicode.IsSpace(r)
+		}) {
+			if strings.HasPrefix(field, "AGE-SECRET-KEY-") {
+				identities = append(identities, field)
+			}
+		}
 	}
 	return NewIdentityBundle(identities)
 }

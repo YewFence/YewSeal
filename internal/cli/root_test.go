@@ -23,3 +23,10 @@ func TestRootDoesNotExposeSync(t *testing.T) {
 	require.NoError(t, cmd.Execute())
 	require.NotContains(t, out.String(), "sync")
 }
+
+func TestKeyFileHelpNamesInlineAndExternalIdentitySources(t *testing.T) {
+	usage := NewRootCommand("test").PersistentFlags().Lookup("key-file").Usage
+	for _, source := range []string{"YEWSEAL_KEY_FILE", "YEWSEAL_AGE_IDENTITIES", "SOPS_AGE_KEY", "SOPS_AGE_KEY_FILE", "SOPS_AGE_KEY_CMD", ".age/keys.txt"} {
+		require.Contains(t, usage, source)
+	}
+}

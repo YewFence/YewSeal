@@ -134,10 +134,11 @@ YewSeal generates exact-match rules per encrypted file.
 At decryption time, the Age private key resolves in this order (highest first):
 
 1. The explicit global flag `--key-file` / `-k`, or `YEWSEAL_KEY_FILE`
-2. A whitespace-separated or multi-line bundle in `SOPS_AGE_KEY`
-3. `SOPS_AGE_KEY_FILE`
-4. `SOPS_AGE_KEY_CMD`
-5. The default path `.age/keys.txt` under the current working directory
+2. A comma-separated, whitespace-separated, or multi-line bundle in `YEWSEAL_AGE_IDENTITIES`
+3. The compatible alias `SOPS_AGE_KEY`
+4. `SOPS_AGE_KEY_FILE`
+5. `SOPS_AGE_KEY_CMD`
+6. The default path `.age/keys.txt` under the current working directory
 
 ```bash
 yews --key-file ~/.age/my-key.txt decrypt config.enc.toml
@@ -154,11 +155,13 @@ Encryption authorization uses only the canonical Age recipients resolved from `[
 
 ### Identity bundles
 
-One key file may contain multiple Age private keys; YewSeal ignores comments, blank lines, and irrelevant lines, and deduplicates by first occurrence. CI can also pass multiple private keys through the SOPS-compatible variable:
+One key file may contain multiple Age private keys; YewSeal ignores comments, blank lines, and irrelevant lines, and deduplicates by first occurrence. CI can also pass multiple private keys through YewSeal's environment variable:
 
 ```bash
-SOPS_AGE_KEY='AGE-SECRET-KEY-1... AGE-SECRET-KEY-1...' yews decrypt config.enc.toml
+YEWSEAL_AGE_IDENTITIES='AGE-SECRET-KEY-1...,AGE-SECRET-KEY-1...' yews decrypt config.enc.toml
 ```
+
+`SOPS_AGE_KEY` is a lower-priority alias with the same bundle syntax, so existing SOPS-oriented environments work unchanged.
 
 ## External private key sources
 
@@ -176,7 +179,8 @@ Non-flag integration variables remain owned by their respective identity or edit
 
 | Variable | Purpose |
 | --- | --- |
-| `SOPS_AGE_KEY` | Full multi-line Age identity bundle |
+| `YEWSEAL_AGE_IDENTITIES` | Preferred inline Age identity bundle |
+| `SOPS_AGE_KEY` | SOPS-compatible alias for `YEWSEAL_AGE_IDENTITIES` |
 | `SOPS_AGE_KEY_FILE` | Path to an Age private key file |
 | `SOPS_AGE_KEY_CMD` | Command whose output provides an Age identity bundle |
 | `EDITOR` | Editor used by `edit` when `VISUAL` is unset |
