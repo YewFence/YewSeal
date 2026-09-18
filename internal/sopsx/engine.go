@@ -64,7 +64,7 @@ func storeForFormat(format string) (sops.Store, error) {
 	case "yaml":
 		return &yaml.Store{}, nil
 	case "json":
-		return &json.Store{}, nil
+		return json.NewStore(&sopsconfig.JSONStoreConfig{Indent: -1}), nil
 	case "env":
 		return &dotenv.Store{}, nil
 	case "ini":

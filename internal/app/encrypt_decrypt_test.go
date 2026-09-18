@@ -43,6 +43,21 @@ func TestEncryptDecryptSingleFileOutputUsesConfiguredFormat(t *testing.T) {
 	assert.Equal(t, "TOKEN=secret\n", string(content))
 }
 
+func TestDecryptFilesFormatsJSONWithIndentation(t *testing.T) {
+	env := newAppCryptoTestEnv(t)
+	plain := []byte(`{"database":{"host":"localhost","credentials":{"username":"admin","password":"secret"}}}`)
+	require.NoError(t, os.WriteFile("config.json", plain, 0600))
+	cfg := configWithOwnerRecipient(&config.Config{Encryption: config.EncryptionConfig{Files: []config.FilePair{{PlaintextPath: "config.json", EncryptedPath: "config.enc.json", Format: "json"}}}}, env.publicKey)
+
+	require.NoError(t, EncryptFiles(cfg, EncryptRequest{Targets: []string{"config.json"}, Parallel: 1}))
+	require.NoError(t, os.Remove("config.json"))
+	require.NoError(t, DecryptFiles(cfg, DecryptRequest{KeyFile: env.keyFile, Targets: []string{"config.enc.json"}, Parallel: 1}))
+
+	content, err := os.ReadFile("config.json")
+	require.NoError(t, err)
+	require.Equal(t, "{\n\t\"database\": {\n\t\t\"host\": \"localhost\",\n\t\t\"credentials\": {\n\t\t\t\"username\": \"admin\",\n\t\t\t\"password\": \"secret\"\n\t\t}\n\t}\n}\n", string(content))
+}
+
 func TestEncryptFilesUsesPerFileRecipientAliases(t *testing.T) {
 	env := newAppCryptoTestEnv(t)
 	second, err := age.GenerateX25519Identity()
