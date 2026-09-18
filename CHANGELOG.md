@@ -1,3 +1,17 @@
+## [0.12.2] - 2026-09-18
+
+### 🐛 Bug Fixes
+
+- *(sopsx)* Restore JSON indentation (#42)
+
+### 📚 Documentation
+
+- *(agents)* Record CLI help as the single source of command contract
+
+### ⚙️ Miscellaneous Tasks
+
+- *(gomod-deps)* Update go modules (#36)
+- *(mise-deps)* Update mise tools (#37)
 ## [0.12.1] - 2026-09-17
 
 ### ⚙️ Miscellaneous Tasks
