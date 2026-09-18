@@ -47,22 +47,7 @@ func GetAgeKey(keyFile string) (string, error) {
 
 	// Priority 4: SOPS_AGE_KEY_CMD environment variable (command to output key)
 	if keyCmd := os.Getenv("SOPS_AGE_KEY_CMD"); keyCmd != "" {
-		shell := "sh"
-		args := []string{"-c", keyCmd}
-		if runtime.GOOS == "windows" {
-			shell = "cmd"
-			args = []string{"/c", keyCmd}
-		}
-
-		stdout, stderr, err := execx.ExecCommand(shell, args...)
-		if err != nil {
-			return "", &errx.ExternalCommandError{Op: "failed to execute SOPS_AGE_KEY_CMD", Cmd: shell, Args: args, Stderr: stderr, Err: err}
-		}
-		key := strings.TrimSpace(stdout)
-		if key == "" {
-			return "", fmt.Errorf("SOPS_AGE_KEY_CMD returned empty output")
-		}
-		return key, nil
+		return runKeyCommand()
 	}
 
 	// Priority 5: Default key file
@@ -72,6 +57,26 @@ func GetAgeKey(keyFile string) (string, error) {
 	}
 
 	return "", &errx.AgeKeyNotFoundError{Options: []string{"--key-file", "SOPS_AGE_KEY", "SOPS_AGE_KEY_FILE", "SOPS_AGE_KEY_CMD", "or .age/keys.txt"}}
+}
+
+func runKeyCommand() (string, error) {
+	keyCmd := os.Getenv("SOPS_AGE_KEY_CMD")
+	shell := "sh"
+	args := []string{"-c", keyCmd}
+	if runtime.GOOS == "windows" {
+		shell = "cmd"
+		args = []string{"/c", keyCmd}
+	}
+
+	stdout, stderr, err := execx.ExecCommand(shell, args...)
+	if err != nil {
+		return "", &errx.ExternalCommandError{Op: "failed to execute SOPS_AGE_KEY_CMD", Cmd: shell, Args: args, Stderr: stderr, Err: err}
+	}
+	key := strings.TrimSpace(stdout)
+	if key == "" {
+		return "", fmt.Errorf("SOPS_AGE_KEY_CMD returned empty output")
+	}
+	return key, nil
 }
 
 func isKeyFileNotExist(err error) bool {

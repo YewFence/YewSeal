@@ -142,6 +142,8 @@ At decryption time, the Age private key resolves in this order (highest first):
 
 Sources never merge across levels: the first one that yields an identity wins outright, and everything below it is not even read — with `--key-file` set, the environment variables and `.age/keys.txt` are ignored entirely. Only identities within the winning source combine into one bundle.
 
+`yews identities` prints exactly this resolution: the winning source, the present sources it shadowed, and every identity with its derived public key and registry alias. It warns when a public key is not registered, and with `--reveal` also includes the secret keys — mind terminal scrollback and CI logs when you use it.
+
 ```bash
 yews --key-file ~/.age/my-key.txt decrypt config.enc.toml
 ```

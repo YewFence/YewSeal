@@ -48,6 +48,12 @@ type viewOptions struct {
 	JSON    bool   `mapstructure:"json"`
 }
 
+type identitiesOptions struct {
+	KeyFile string `mapstructure:"key-file"`
+	JSON    bool   `mapstructure:"json"`
+	Reveal  bool   `mapstructure:"reveal"`
+}
+
 type diffOptions struct {
 	KeyFile string `mapstructure:"key-file"`
 	Color   string `mapstructure:"color"`

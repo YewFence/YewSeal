@@ -1,7 +1,6 @@
 package agekey
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -67,37 +66,13 @@ func GetIdentityBundle(keyFile string) (IdentityBundle, error) {
 }
 
 func getIdentityBundle(keyFile string) (IdentityBundle, error) {
-	if keyFile != "" {
-		return readIdentityBundle(keyFile)
-	}
-
-	if value := os.Getenv("YEWSEAL_AGE_IDENTITIES"); value != "" {
-		return parseIdentityFile(value)
-	}
-	if value := os.Getenv("SOPS_AGE_KEY"); value != "" {
-		return parseIdentityFile(value)
-	}
-	if path := os.Getenv("SOPS_AGE_KEY_FILE"); path != "" {
-		content, err := os.ReadFile(path)
-		if err == nil {
-			return parseIdentityFile(string(content))
+	for _, layer := range identityLayers(keyFile) {
+		if !layer.present() {
+			continue
 		}
-		if !os.IsNotExist(err) {
-			return IdentityBundle{}, &keyFileReadError{path: path, err: err}
-		}
+		return layer.load()
 	}
-	if os.Getenv("SOPS_AGE_KEY_CMD") != "" {
-		value, err := GetAgeKey("")
-		if err != nil {
-			return IdentityBundle{}, err
-		}
-		return parseIdentityFile(value)
-	}
-	bundle, err := readIdentityBundle(".age/keys.txt")
-	if errors.Is(err, os.ErrNotExist) {
-		return IdentityBundle{}, &errx.AgeKeyNotFoundError{Options: []string{"--key-file", "YEWSEAL_AGE_IDENTITIES", "SOPS_AGE_KEY", "SOPS_AGE_KEY_FILE", "SOPS_AGE_KEY_CMD", "or .age/keys.txt"}}
-	}
-	return bundle, err
+	return IdentityBundle{}, &errx.AgeKeyNotFoundError{Options: identitySourceOptions}
 }
 
 func readIdentityBundle(path string) (IdentityBundle, error) {

@@ -49,6 +49,7 @@ Documentation: ` + docsBaseURL + `/`,
 	rootCmd.AddCommand(
 		initCommand(),
 		encryptCommand(load),
+		identitiesCommand(load),
 		decryptCommand(load),
 		planCommand(load),
 		editCommand(load),

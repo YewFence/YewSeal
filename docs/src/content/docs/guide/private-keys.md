@@ -70,45 +70,34 @@ gh secret set AGE_KEY < .age/keys.txt
 
 The scripts above synchronize the whole bundle as one value, which couples every identity on the machine. The alternative is one secret per identity, named `YEWS_{alias}` after the registry alias: each environment pulls exactly the identities it needs, and each holder pushes only their own key — an overwrite can never clobber identities someone else pushed.
 
-The push script maps identities to aliases with no manual input: `yews init` writes a `# public key: age1...` comment line above every identity it generates, and that public key is exactly what `[recipients.registry]` in `.yewseal.toml` records. Keep those comment lines when merging bundles by hand. A bare secret key with no comment can be mapped manually — pipe it through `age-keygen -y` (the standard age companion tool) to derive the public key first; YewSeal has no such command because age-keygen already exists.
+The push script consumes `yews identities --json --reveal`: YewSeal resolves the first-win identity chain itself, derives each identity's public key, and looks up the registry alias, so the script never parses key files or `.yewseal.toml`. The `# public key:` comment lines that `yews init` writes stay useful for humans reading `.age/keys.txt` — and the pull script recreates them — but nothing requires them anymore.
 
-Each secret value stays a single bare `AGE-SECRET-KEY-1...` line. Comments never leave the local file, and Infisical's per-secret comment field is not used either: the CLI cannot set it, so anything stored there has to be maintained in the WebUI and no script can rely on it. Both scripts read `.yewseal.toml` through python3 (3.11+) and its standard `tomllib` — hand-rolled greps over TOML break on quoting styles and table layouts.
+Each secret value stays a single bare `AGE-SECRET-KEY-1...` line. Comments never leave the local file, and Infisical's per-secret comment field is not used either: the CLI cannot set it, so anything stored there has to be maintained in the WebUI and no script can rely on it. The pull script reads `.yewseal.toml` through python3 (3.11+) and its standard `tomllib` — hand-rolled greps over TOML break on quoting styles and table layouts; the push script needs only plain python3 to read the identities JSON.
 
 ```sh
 #!/bin/sh
 set -eu
 umask 077
 
-keyfile=$PWD/.age/keys.txt
 config=$PWD/.yewseal.toml
-test -s "$keyfile" || { echo "no $keyfile here" >&2; exit 1; }
 test -s "$config" || { echo "no $config here" >&2; exit 1; }
 
 tmp=$(mktemp)
-table=$(mktemp)
-trap 'rm -f "$tmp" "$table"' EXIT
+report=$(mktemp)
+pairs=$(mktemp)
+trap 'rm -f "$tmp" "$report" "$pairs"' EXIT
 trap 'exit 1' HUP INT TERM
 
-python3 - "$keyfile" "$config" > "$table" <<'PY'
-import sys, tomllib
+yews identities --json --reveal > "$report"
 
-keyfile, config = sys.argv[1], sys.argv[2]
-with open(config, "rb") as f:
-    registry = tomllib.load(f)["recipients"]["registry"]
-by_public_key = {public: alias for alias, public in registry.items()}
+python3 - "$report" > "$pairs" <<'PY'
+import json, sys
 
-public_key = None
-for line in open(keyfile):
-    line = line.strip()
-    if line.startswith("# public key: "):
-        public_key = line[len("# public key: "):]
-    elif line.startswith("AGE-SECRET-KEY-"):
-        alias = by_public_key.get(public_key) if public_key else None
-        if alias:
-            print(alias, line)
-        else:
-            print("skipped an identity with no registry alias (missing comment or unregistered public key)", file=sys.stderr)
-        public_key = None
+with open(sys.argv[1]) as f:
+    report = json.load(f)
+for identity in report["identities"]:
+    if identity.get("alias"):
+        print(identity["alias"], identity["secret"])
 PY
 
 while read -r alias secret; do
@@ -119,10 +108,10 @@ while read -r alias secret; do
     --path '/yewseal' \
     --silent
   echo "pushed YEWS_$alias"
-done < "$table"
+done < "$pairs"
 ```
 
-An identity whose public key has no registry alias is skipped with a warning, so a borrowed or unregistered key is never uploaded under a wrong name. The `@file` form keeps the key out of argv, shell history, and terminal output, as in the scripts above.
+The report flows through mode-`0600` temporary files, so secret keys never touch argv, shell history, or terminal output. An identity whose public key has no registry alias is warned on stderr by `yews identities` and skipped, so a borrowed or unregistered key is never uploaded under a wrong name. The script pushes whichever identities YewSeal would actually decrypt with — to push a different layer, point `--key-file` or `YEWSEAL_AGE_IDENTITIES` at it first.
 
 The pull direction takes a comma-separated alias list and rebuilds `.age/keys.txt` — the path YewSeal reads by default, so no environment variable is needed afterwards. It uses the same registry in reverse: for each alias it looks up the public key in `.yewseal.toml` and fails immediately on an unregistered alias, then rewrites the `# public key:` comment line above the fetched secret key. The rebuilt file is exactly what the push script expects, so pull → push round-trips:
 

@@ -1,0 +1,80 @@
+---
+title: yews identities
+---
+
+List the Age identities YewSeal would decrypt with, their winning source, and registry aliases
+
+## Synopsis
+
+List the Age identities YewSeal would decrypt with: which source won the
+resolution chain, which present sources it shadowed, and every identity in
+the winning source with its derived public key and registry alias.
+
+Identity resolution is first-win, never merged: --key-file (env
+YEWSEAL_KEY_FILE), then YEWSEAL_AGE_IDENTITIES, SOPS_AGE_KEY,
+SOPS_AGE_KEY_FILE, SOPS_AGE_KEY_CMD, then .age/keys.txt in the current
+directory. Only the first source that yields an identity applies, and
+everything below it is not even read; shadowed lists the sources that were
+present but skipped, as file:<path> or env:<NAME>.
+
+The command requires a .yewseal.toml like every other command beyond
+version, help, and completion: each derived public key is looked up in
+[recipients.registry], and an unregistered public key warns on stderr
+and carries a warning field in --json output.
+
+By default no secret key material is printed. --reveal includes it:
+--json adds a secret field per identity, plain output adds a Secret
+column. The values then flow to stdout — mind terminal scrollback and CI
+logs (GitHub Actions only redacts exact repository-secret matches); pipe
+into a file or a consuming process instead of logging.
+
+Output: plain mode prints a Source/Shadowed header plus an Alias/Public
+key table (plus Secret with --reveal) on stdout; --json prints the report
+on stdout; warnings go to stderr either way.
+
+Exit codes: 0 on success; 2 when no identity source yields an identity,
+the winning source is unreadable or invalid, or .yewseal.toml is missing
+or invalid.
+
+See also: "yews plan" to preview file mappings and authorization on the
+other side of the pipeline.
+
+Documentation: https://yewfence.github.io/YewSeal/guide/configuration#reading-private-keys
+
+```
+yews identities [flags]
+```
+
+## Examples
+
+```
+  # Which identities does this machine decrypt with, and from where
+  yews identities
+
+  # Audit which configured sources a --key-file shadows
+  yews identities --key-file .age/keys.txt
+
+  # Machine-readable report including secret keys (CI: pipe, do not log)
+  yews identities --json --reveal > bundle.json
+
+  # Inspect a specific candidate key file before adopting it
+  yews identities --key-file /path/to/new-key.txt
+```
+
+## Options
+
+```
+  -h, --help     help for identities
+      --json     Print the identity report as JSON on stdout (warnings stay on stderr) (env YEWSEAL_IDENTITIES_JSON)
+      --reveal   Include each identity's secret key (JSON adds a secret field; plain output adds a Secret column) (env YEWSEAL_IDENTITIES_REVEAL)
+```
+
+## Options inherited from parent commands
+
+```
+  -k, --key-file string   Path to the Age private key file (fallback: YEWSEAL_AGE_IDENTITIES, SOPS_AGE_KEY, SOPS_AGE_KEY_FILE, SOPS_AGE_KEY_CMD, then .age/keys.txt) (env YEWSEAL_KEY_FILE)
+```
+
+## SEE ALSO
+
+* [yews](/references/yews/)	 - YewSeal - Encrypt/decrypt configuration files using SOPS and Age (supports TOML, YAML, JSON, ENV, INI, and binary files)

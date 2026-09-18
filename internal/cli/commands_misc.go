@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/YewFence/YewSeal/internal/agekey"
 	yewsapp "github.com/YewFence/YewSeal/internal/app"
 	"github.com/YewFence/YewSeal/internal/config"
+	"github.com/YewFence/YewSeal/internal/errx"
 	"github.com/YewFence/YewSeal/internal/presentation"
 	"github.com/YewFence/YewSeal/internal/project"
 
@@ -111,6 +113,96 @@ Private key handling: ` + docsPrivateKeys,
 	resolver = newOptionResolver(cmd, &opts)
 	cmd.Args = resolver.before(cmd.Args)
 	return cmd
+}
+
+func identitiesCommand(load configLoader) *cobra.Command {
+	opts := identitiesOptions{}
+	var resolver *optionResolver
+
+	cmd := &cobra.Command{
+		Use:   "identities",
+		Short: "List the Age identities YewSeal would decrypt with, their winning source, and registry aliases",
+		Long: `List the Age identities YewSeal would decrypt with: which source won the
+resolution chain, which present sources it shadowed, and every identity in
+the winning source with its derived public key and registry alias.
+
+Identity resolution is first-win, never merged: --key-file (env
+YEWSEAL_KEY_FILE), then YEWSEAL_AGE_IDENTITIES, SOPS_AGE_KEY,
+SOPS_AGE_KEY_FILE, SOPS_AGE_KEY_CMD, then .age/keys.txt in the current
+directory. Only the first source that yields an identity applies, and
+everything below it is not even read; shadowed lists the sources that were
+present but skipped, as file:<path> or env:<NAME>.
+
+The command requires a .yewseal.toml like every other command beyond
+version, help, and completion: each derived public key is looked up in
+[recipients.registry], and an unregistered public key warns on stderr
+and carries a warning field in --json output.
+
+By default no secret key material is printed. --reveal includes it:
+--json adds a secret field per identity, plain output adds a Secret
+column. The values then flow to stdout — mind terminal scrollback and CI
+logs (GitHub Actions only redacts exact repository-secret matches); pipe
+into a file or a consuming process instead of logging.
+
+Output: plain mode prints a Source/Shadowed header plus an Alias/Public
+key table (plus Secret with --reveal) on stdout; --json prints the report
+on stdout; warnings go to stderr either way.
+
+Exit codes: 0 on success; 2 when no identity source yields an identity,
+the winning source is unreadable or invalid, or .yewseal.toml is missing
+or invalid.
+
+See also: "yews plan" to preview file mappings and authorization on the
+other side of the pipeline.
+
+Documentation: ` + docsReadingPrivateKeys,
+		Example: `  # Which identities does this machine decrypt with, and from where
+  yews identities
+
+  # Audit which configured sources a --key-file shadows
+  yews identities --key-file .age/keys.txt
+
+  # Machine-readable report including secret keys (CI: pipe, do not log)
+  yews identities --json --reveal > bundle.json
+
+  # Inspect a specific candidate key file before adopting it
+  yews identities --key-file /path/to/new-key.txt`,
+		Args: cobra.NoArgs,
+		RunE: withConfig(load, func(cmd *cobra.Command, args []string, cfg *config.Config) error {
+			sources, err := agekey.ResolveIdentitySources(opts.KeyFile)
+			if err != nil {
+				return errx.Usage(err)
+			}
+			out := presentation.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false)
+			return out.Identities(buildIdentitiesReport(sources, cfg), presentation.IdentitiesPrintOptions{
+				JSON:   opts.JSON,
+				Reveal: opts.Reveal,
+			})
+		}),
+	}
+	cmd.Flags().BoolVar(&opts.JSON, "json", false, "Print the identity report as JSON on stdout (warnings stay on stderr)")
+	cmd.Flags().BoolVar(&opts.Reveal, "reveal", false, "Include each identity's secret key (JSON adds a secret field; plain output adds a Secret column)")
+	resolver = newOptionResolver(cmd, &opts)
+	cmd.Args = resolver.before(cmd.Args)
+	return cmd
+}
+
+func buildIdentitiesReport(sources agekey.IdentitySources, cfg *config.Config) presentation.IdentitiesReport {
+	report := presentation.IdentitiesReport{Source: sources.Source, Shadowed: sources.Shadowed, Warnings: sources.Warnings}
+	byPublicKey := make(map[string]string, len(cfg.Recipients.Registry))
+	for alias, publicKey := range cfg.Recipients.Registry {
+		byPublicKey[strings.TrimSpace(publicKey)] = alias
+	}
+	for _, identity := range sources.Identities {
+		entry := presentation.IdentityEntry{PublicKey: identity.PublicKey, Secret: identity.Secret}
+		if alias, ok := byPublicKey[identity.PublicKey]; ok {
+			entry.Alias = alias
+		} else {
+			entry.Warning = "public key not registered in [recipients.registry]"
+		}
+		report.Identities = append(report.Identities, entry)
+	}
+	return report
 }
 
 func editCommand(load configLoader) *cobra.Command {
