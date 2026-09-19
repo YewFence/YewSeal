@@ -38,8 +38,13 @@ jobs:
         run: yews decrypt ./deploy
 
       - name: Deploy
-        run: wrangler deploy --config deploy/wrangler.toml
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          command: deploy --config deploy/wrangler.toml
 ```
+
+The deploy step uses `cloudflare/wrangler-action` rather than a bare `wrangler deploy` because runner images do not ship Wrangler: the action installs it and takes its Cloudflare token from a `CLOUDFLARE_API_TOKEN` repository secret.
 
 ### mise
 
@@ -68,6 +73,8 @@ jobs:
       - name: Deploy
         run: wrangler deploy --config deploy/wrangler.toml
 ```
+
+A bare `wrangler deploy` is enough here because `mise-action` installs every tool the repository declares: add `wrangler = "4"` to `[tools]` next to `github:YewFence/YewSeal`, and the runner gets Wrangler from the same list with no separate install step. The token still has to come from the step: Wrangler reads `CLOUDFLARE_API_TOKEN` from the environment, where the action above takes it as its `apiToken` input.
 
 In both examples, store the private key value from `.age/keys.txt` as a repository secret (`AGE_KEY` above); `YEWSEAL_AGE_IDENTITIES` then passes it directly to YewSeal — `gh secret set AGE_KEY < .age/keys.txt` does it in one command. See [Configuration - reading private keys](/guide/configuration#reading-private-keys) for the resolution order.
 

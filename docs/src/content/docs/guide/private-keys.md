@@ -72,15 +72,12 @@ The scripts above synchronize the whole bundle as one value, which couples every
 
 The push script consumes `yews identities --json --reveal`: YewSeal resolves the first-win identity chain itself, derives each identity's public key, and looks up the registry alias, so the script never parses key files or `.yewseal.toml`. The `# public key:` comment lines that `yews init` writes stay useful for humans reading `.age/keys.txt` — and the pull script recreates them — but nothing requires them anymore.
 
-Each secret value stays a single bare `AGE-SECRET-KEY-1...` line. Comments never leave the local file, and Infisical's per-secret comment field is not used either: the CLI cannot set it, so anything stored there has to be maintained in the WebUI and no script can rely on it. The pull script reads `.yewseal.toml` through python3 (3.11+) and its standard `tomllib` — hand-rolled greps over TOML break on quoting styles and table layouts; the push script needs only plain python3 to read the identities JSON.
+Each secret value stays a single bare `AGE-SECRET-KEY-1...` line. Comments never leave the local file, and Infisical's per-secret comment field is not used either: the CLI cannot set it, so anything stored there has to be maintained in the WebUI and no script can rely on it. Both scripts need only plain python3, and only to read `yews` output: the push script consumes the identities report, and the pull script asks `yews identities` about each fetched key. Neither parses `.yewseal.toml`, so where the config lives is entirely YewSeal's business.
 
 ```sh
 #!/bin/sh
 set -eu
 umask 077
-
-config=$PWD/.yewseal.toml
-test -s "$config" || { echo "no $config here" >&2; exit 1; }
 
 tmp=$(mktemp)
 report=$(mktemp)
@@ -113,7 +110,7 @@ done < "$pairs"
 
 The report flows through mode-`0600` temporary files, so secret keys never touch argv, shell history, or terminal output. An identity whose public key has no registry alias is warned on stderr by `yews identities` and skipped, so a borrowed or unregistered key is never uploaded under a wrong name. The script pushes whichever identities YewSeal would actually decrypt with — to push a different layer, point `--key-file` or `YEWSEAL_AGE_IDENTITIES` at it first.
 
-The pull direction takes a comma-separated alias list and rebuilds `.age/keys.txt` — the path YewSeal reads by default, so no environment variable is needed afterwards. It uses the same registry in reverse: for each alias it looks up the public key in `.yewseal.toml` and fails immediately on an unregistered alias, then rewrites the `# public key:` comment line above the fetched secret key. The rebuilt file is exactly what the push script expects, so pull → push round-trips:
+The pull direction takes a comma-separated alias list and rebuilds `.age/keys.txt` — the path YewSeal reads by default, so no environment variable is needed afterwards. For each alias it fetches `YEWS_{alias}`, hands the value to `yews identities --key-file` and writes the public key that comes back as the `# public key:` comment, so the comment always describes the key right below it. The rebuilt file is exactly what the push script expects, so pull → push round-trips:
 
 ```sh
 #!/bin/sh
@@ -122,48 +119,32 @@ umask 077
 
 : "${ALIASES:?set ALIASES to a comma-separated alias list, e.g. ALIASES=owner,ci $0}"
 
-config=$PWD/.yewseal.toml
-test -s "$config" || { echo "no $config here" >&2; exit 1; }
-
 mkdir -p .age
 one=$(mktemp)
+report=$(mktemp)
 bundle=$(mktemp .age/keys.txt.XXXXXX)
-table=$(mktemp)
-trap 'rm -f "$one" "$bundle" "$table"' EXIT
+trap 'rm -f "$one" "$report" "$bundle"' EXIT
 trap 'exit 1' HUP INT TERM
 
-python3 - "$config" "$ALIASES" > "$table" <<'PY'
-import sys, tomllib
-
-config, aliases = sys.argv[1], sys.argv[2]
-with open(config, "rb") as f:
-    registry = tomllib.load(f)["recipients"]["registry"]
-for alias in aliases.replace(",", " ").split():
-    print(alias, registry.get(alias, ""))
-PY
-
-while read -r alias public_key; do
-  if [ -z "$public_key" ]; then
-    echo "alias $alias is not registered in $config" >&2
-    exit 1
-  fi
+for alias in $(printf '%s\n' "$ALIASES" | tr ',' ' '); do
   infisical secrets get "YEWS_$alias" --plain --silent \
     --projectId 'your-project-id' \
     --env 'dev' \
     --path '/yewseal' > "$one"
   test -s "$one" || { echo "YEWS_$alias came back empty or missing" >&2; exit 1; }
-  value=$(cat "$one")
-  case $value in
-    '# public key: '*) printf '%s\n' "$value" >> "$bundle" ;;
-    *) printf '# public key: %s\n%s\n' "$public_key" "$value" >> "$bundle" ;;
-  esac
-done < "$table"
+  yews identities --key-file "$one" --json > "$report"
+  public_key=$(python3 -c 'import json,sys; print(json.load(sys.stdin)["identities"][0]["public_key"])' < "$report")
+  printf '# public key: %s\n' "$public_key" >> "$bundle"
+  cat "$one" >> "$bundle"
+done
 
 test -s "$bundle"
 mv -f "$bundle" .age/keys.txt
 ```
 
-The bundle file only appears after every fetch succeeded and is non-empty, and it is mode `0600`. YewSeal splits identities on commas, spaces, and newlines alike, so multi-line secret values or a hand-joined bundle all parse.
+The bundle file only appears once every fetch succeeded, every fetched value parsed as an age identity, and the result is non-empty; it is mode `0600`. YewSeal splits identities on commas, spaces, and newlines alike, so multi-line secret values or a hand-joined bundle all parse.
+
+The `YEWS_{alias}` name is a convention the scripts trust, not a proof they check: the comment above each key is derived from that key, but nothing inside a secret's value ties it to the alias it was fetched under — and nothing in the rebuilt bundle records which alias that was — so a `YEWS_{alias}` filled in from the wrong source lands in `.age/keys.txt` as whatever identity it really holds. Keep the writing side honest, and audit the result instead: `yews identities` resolves every identity in the bundle back through `[recipients.registry]`, and warns about keys no alias claims.
 
 For a one-off shell or a CI runner, skip the file and join the per-identity values with commas straight into the environment variable — command substitution keeps the values out of shell history, and on GitHub Actions the repository secrets mirror the Infisical names upper-cased:
 
