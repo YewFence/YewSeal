@@ -68,11 +68,11 @@ gh secret set AGE_KEY < .age/keys.txt
 
 ## Per-identity secrets
 
-The scripts above synchronize the whole bundle as one value, which couples every identity on the machine. The alternative is one secret per identity, named `YEWS_{alias}` after the registry alias: each environment pulls exactly the identities it needs, and each holder pushes only their own key — an overwrite can never clobber identities someone else pushed.
+The scripts above synchronize the whole bundle as one value, which couples every identity on the machine. The alternative is one secret per identity, named `YEWS_{alias}` after the registry alias: each environment pulls exactly the identities it needs, and each holder pushes only their own key — an overwrite can never clobber identities someone else pushed. The two reference scripts below implement that scheme; replace the project ID, environment, path, and secret names with your own.
 
-The push script consumes `yews identities --json --reveal`: YewSeal resolves the first-win identity chain itself, derives each identity's public key, and looks up the registry alias, so the script never parses key files or `.yewseal.toml`. The `# public key:` comment lines that `yews init` writes stay useful for humans reading `.age/keys.txt` — and the pull script recreates them — but nothing requires them anymore.
+The push script consumes `yews identities --json --reveal` instead of parsing key files or `.yewseal.toml` itself; chain resolution and the registry lookup are covered in [Configuration - reading private keys](/guide/configuration#reading-private-keys). The `# public key:` comment lines that `yews init` writes stay useful for humans reading `.age/keys.txt` — and the pull script recreates them — but nothing requires them anymore.
 
-Each secret value stays a single bare `AGE-SECRET-KEY-1...` line. Comments never leave the local file, and Infisical's per-secret comment field is not used either: the CLI cannot set it, so anything stored there has to be maintained in the WebUI and no script can rely on it. Both scripts need only plain python3, and only to read `yews` output: the push script consumes the identities report, and the pull script asks `yews identities` about each fetched key. Neither parses `.yewseal.toml`, so where the config lives is entirely YewSeal's business.
+Each secret value stays a single bare `AGE-SECRET-KEY-1...` line. Comments never leave the local file, and Infisical's per-secret comment field is not used either: the CLI cannot set it, so anything stored there has to be maintained in the WebUI and no script can rely on it. Both scripts need only plain python3, and only to read `yews` output. Neither parses `.yewseal.toml`, so where the config lives is entirely YewSeal's business.
 
 ```sh
 #!/bin/sh
@@ -144,7 +144,7 @@ mv -f "$bundle" .age/keys.txt
 
 The bundle file only appears once every fetch succeeded, every fetched value parsed as an age identity, and the result is non-empty; it is mode `0600`. YewSeal splits identities on commas, spaces, and newlines alike, so multi-line secret values or a hand-joined bundle all parse.
 
-The `YEWS_{alias}` name is a convention the scripts trust, not a proof they check: the comment above each key is derived from that key, but nothing inside a secret's value ties it to the alias it was fetched under — and nothing in the rebuilt bundle records which alias that was — so a `YEWS_{alias}` filled in from the wrong source lands in `.age/keys.txt` as whatever identity it really holds. Keep the writing side honest, and audit the result instead: `yews identities` resolves every identity in the bundle back through `[recipients.registry]`, and warns about keys no alias claims.
+The `YEWS_{alias}` name is a naming convention the scripts trust rather than check: nothing verifies that the secret fetched under an alias really holds the identity registered for it. Audit the result with `yews identities`.
 
 For a one-off shell or a CI runner, skip the file and join the per-identity values with commas straight into the environment variable — command substitution keeps the values out of shell history, and on GitHub Actions the repository secrets mirror the Infisical names upper-cased:
 
