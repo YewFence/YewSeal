@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/YewFence/YewSeal/internal/agekey"
 	"github.com/YewFence/YewSeal/internal/config"
 	"github.com/YewFence/YewSeal/internal/diff"
 	"github.com/YewFence/YewSeal/internal/prompt"
@@ -142,6 +143,13 @@ func DiagnosticsFailed(err error) bool {
 func (o *Output) Warning(message string) {
 	message = strings.TrimPrefix(message, "warning: ")
 	o.diagnostic("WARNING " + message + "\n")
+}
+
+// IdentityBundle reports redacted diagnostics collected while parsing identities.
+func (o *Output) IdentityBundle(bundle agekey.IdentityBundle) {
+	for _, warning := range bundle.Warnings() {
+		o.Warning(warning)
+	}
 }
 
 func (o *Output) Selection(selection config.ResolvedSelection) {

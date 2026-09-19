@@ -311,7 +311,7 @@ func TestEncryptFilesWithoutIdentityWarnsAndFreshlyEncrypts(t *testing.T) {
 	original, err := os.ReadFile("secret.enc.yaml")
 	require.NoError(t, err)
 	require.NoError(t, os.Remove(env.keyFile))
-	for _, name := range []string{"SOPS_AGE_KEY", "SOPS_AGE_KEY_FILE", "SOPS_AGE_KEY_CMD"} {
+	for _, name := range []string{"YEWSEAL_AGE_IDENTITIES", "SOPS_AGE_KEY", "SOPS_AGE_KEY_FILE", "SOPS_AGE_KEY_CMD"} {
 		t.Setenv(name, "")
 	}
 
@@ -405,13 +405,18 @@ func TestDecryptFilesUsesEnvironmentBundleWithoutKeyFile(t *testing.T) {
 	env := newAppCryptoTestEnv(t)
 	bundle, err := agekey.GetIdentityBundle(env.keyFile)
 	require.NoError(t, err)
-	t.Setenv("SOPS_AGE_KEY", bundle.String())
+	malformed := "AGE-SECRET-KEY-1DELIBERATELY-CORRUPTED"
+	t.Setenv("YEWSEAL_AGE_IDENTITIES", bundle.String()+","+malformed)
 	require.NoError(t, os.Remove(env.keyFile))
 	require.NoError(t, os.WriteFile("secret.yaml", []byte("token: value\n"), 0644))
 	require.NoError(t, seal.Encrypt(seal.EncryptOptions{InputFile: "secret.yaml", OutputFile: "secret.enc.yaml", Recipients: []string{env.publicKey}, FormatOverride: "yaml"}))
 	require.NoError(t, os.Remove("secret.yaml"))
 	cfg := &config.Config{Encryption: config.EncryptionConfig{Files: []config.FilePair{{PlaintextPath: "secret.yaml", EncryptedPath: "secret.enc.yaml", Format: "yaml"}}}}
-	require.NoError(t, DecryptFiles(cfg, DecryptRequest{Targets: []string{"secret.enc.yaml"}, Parallel: 1}))
+	var diagnostics bytes.Buffer
+	require.NoError(t, DecryptFiles(cfg, DecryptRequest{Targets: []string{"secret.enc.yaml"}, Parallel: 1, Presentation: presentation.New(nil, &diagnostics, false)}))
+	require.Contains(t, diagnostics.String(), "WARNING ignored malformed Age identity bundle item at line 1, item 2 (AGE-SECRET-KEY-…PTED)")
+	require.NotContains(t, diagnostics.String(), bundle.String())
+	require.NotContains(t, diagnostics.String(), malformed)
 	content, err := os.ReadFile("secret.yaml")
 	require.NoError(t, err)
 	assert.Equal(t, "token: value\n", string(content))
@@ -419,7 +424,7 @@ func TestDecryptFilesUsesEnvironmentBundleWithoutKeyFile(t *testing.T) {
 
 func TestDecryptFilesUsesSecondIdentityFromDefaultFile(t *testing.T) {
 	env := newAppCryptoTestEnv(t)
-	for _, name := range []string{"SOPS_AGE_KEY", "SOPS_AGE_KEY_FILE", "SOPS_AGE_KEY_CMD"} {
+	for _, name := range []string{"YEWSEAL_AGE_IDENTITIES", "SOPS_AGE_KEY", "SOPS_AGE_KEY_FILE", "SOPS_AGE_KEY_CMD"} {
 		t.Setenv(name, "")
 	}
 	keyContent, err := os.ReadFile(env.keyFile)

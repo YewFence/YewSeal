@@ -15,6 +15,7 @@ func prepareRead(out *presentation.Output, cfg *config.Config, opts config.Selec
 	if err != nil {
 		return selection, bundle, err
 	}
+	out.IdentityBundle(bundle)
 	out.SetDirectory(config.CurrentDir(cfg))
 	out.Selection(selection)
 	return selection, bundle, nil

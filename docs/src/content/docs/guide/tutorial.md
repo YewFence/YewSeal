@@ -163,7 +163,7 @@ Only the ciphertext came along — exactly as intended. Ask YewSeal to restore t
 
 ```bash
 $ yews decrypt
-Error: no Age key found. Options: --key-file, SOPS_AGE_KEY, SOPS_AGE_KEY_FILE, SOPS_AGE_KEY_CMD, or .age/keys.txt
+Error: no Age key found. Options: --key-file, YEWSEAL_AGE_IDENTITIES, SOPS_AGE_KEY, SOPS_AGE_KEY_FILE, SOPS_AGE_KEY_CMD, or .age/keys.txt
 ```
 
 Right — this machine holds no identity yet. Provide one of yours (the [resolution order](/guide/configuration#reading-private-keys) tries the flag, then the environment variables, then `.age/keys.txt`). Copying the owner key file in via your usual secret channel:

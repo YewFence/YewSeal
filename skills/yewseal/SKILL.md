@@ -14,7 +14,7 @@ This skill covers the infrastructure side only: configuration, recipients, encry
 - **Mapping (file pair)** — an `[[encryption.files]]` entry pairing the plaintext side (`config.toml`) with the encrypted side (`config.enc.toml`). YewSeal only ever touches registered pairs; `yews init` scaffolds them.
 - **Selection** — command arguments are selectors over registered mappings and only ever narrow. No argument means the current directory scope, never the whole repository.
 - **Registry, alias, recipient** — `[recipients.registry]` maps reviewable aliases (`owner`, `teammate`) to public Age keys. Files are encrypted to aliases (file pair > group > `recipients.defaults`); there is no `--public-key` flag, so authorization stays reviewable in code review.
-- **Identity** — the private Age key that decrypts: `--key-file` (env `YEWSEAL_KEY_FILE`), then `SOPS_AGE_KEY*`, then `.age/keys.txt` in the working directory. Identities never come from the project config.
+- **Identity** — the private Age key that decrypts: `--key-file` (env `YEWSEAL_KEY_FILE`), then `YEWSEAL_AGE_IDENTITIES`, the compatible `SOPS_AGE_KEY*` sources, and finally `.age/keys.txt` in the working directory. Identities never come from the project config.
 - **Protocol file** — encrypted files follow the `.enc.*` naming (`.enc.toml`, …, `.enc.bin`), which keeps group discovery from double-encrypting.
 - **Skip, lenient, strict** — "no matching identity" is a skip, not an error (lenient default), so people holding different keys share one repository; `--strict` turns skips into failures for deployment gates.
 - **Provenance** — `yews plan` reports where each resolved mapping, format, and authorization came from, exposing config drift before anything is written.

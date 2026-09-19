@@ -174,3 +174,39 @@ func TestCLIProcessingOutcomes(t *testing.T) {
 		})
 	}
 }
+
+func TestCLIDecryptAliasUsesInlineIdentityEnvironment(t *testing.T) {
+	binary := filepath.Join(t.TempDir(), "yews.exe")
+	output, err := exec.Command("go", "build", "-o", binary, ".").CombinedOutput()
+	require.NoError(t, err, "%s", output)
+	clearCommandEnvironment(t)
+	for _, envName := range []string{"YEWSEAL_AGE_IDENTITIES", "SOPS_AGE_KEY"} {
+		t.Run(envName, func(t *testing.T) {
+			dir := t.TempDir()
+			require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
+			owner, err := age.GenerateX25519Identity()
+			require.NoError(t, err)
+			plain := []byte("token: value\n")
+			ciphertext, err := sopsx.Encrypt(plain, "yaml", []string{owner.Recipient().String()})
+			require.NoError(t, err)
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "secret.enc.yaml"), ciphertext, 0o600))
+			defaults := []string{"owner"}
+			cfg := config.Config{
+				Encryption: config.EncryptionConfig{Files: []config.FilePair{{PlaintextPath: "secret.yaml", EncryptedPath: "secret.enc.yaml", Format: "yaml"}}},
+				Recipients: config.RecipientConfig{Defaults: &defaults, Registry: map[string]string{"owner": owner.Recipient().String()}},
+			}
+			data, err := toml.Marshal(cfg)
+			require.NoError(t, err)
+			require.NoError(t, os.WriteFile(filepath.Join(dir, ".yewseal.toml"), data, 0o600))
+
+			cmd := exec.Command(binary, "d")
+			cmd.Dir = dir
+			cmd.Env = append(os.Environ(), envName+"="+owner.String())
+			output, err := cmd.CombinedOutput()
+			require.NoError(t, err, "%s", output)
+			decrypted, err := os.ReadFile(filepath.Join(dir, "secret.yaml"))
+			require.NoError(t, err)
+			require.Equal(t, plain, decrypted)
+		})
+	}
+}

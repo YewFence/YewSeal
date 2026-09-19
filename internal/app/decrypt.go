@@ -27,6 +27,7 @@ func DecryptFiles(cfg *config.Config, req DecryptRequest) (err error) {
 	if err != nil {
 		return err
 	}
+	out.IdentityBundle(preflight.IdentityBundle)
 	out.Selection(preflight.Selection)
 
 	if req.UpdateProjectMetadata {

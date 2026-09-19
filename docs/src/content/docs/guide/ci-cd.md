@@ -24,14 +24,14 @@ jobs:
 
       - name: Decrypt configuration
         env:
-          SOPS_AGE_KEY: ${{ secrets.AGE_KEY }}
+          YEWSEAL_AGE_IDENTITIES: ${{ secrets.AGE_KEY }}
         run: yews decrypt --strict
 
       - name: Deploy
         run: wrangler deploy
 ```
 
-Store the private key value from `.age/keys.txt` as a repository secret (`AGE_KEY` above); the `SOPS_AGE_KEY` environment variable is then used directly — `gh secret set AGE_KEY < .age/keys.txt` does it in one command. See [Configuration - reading private keys](/guide/configuration#reading-private-keys) for the resolution order.
+Store the private key value from `.age/keys.txt` as a repository secret (`AGE_KEY` above); `YEWSEAL_AGE_IDENTITIES` then passes it directly to YewSeal — `gh secret set AGE_KEY < .age/keys.txt` does it in one command. See [Configuration - reading private keys](/guide/configuration#reading-private-keys) for the resolution order.
 
 ## With Infisical
 

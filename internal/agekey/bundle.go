@@ -5,14 +5,16 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"unicode"
 
 	"filippo.io/age"
 	"github.com/YewFence/YewSeal/internal/errx"
 )
 
-// IdentityBundle contains the normalized identities available to a consumer.
+// IdentityBundle contains normalized identities and redacted parse diagnostics.
 type IdentityBundle struct {
 	identities []string
+	warnings   []string
 }
 
 // NewIdentityBundle validates and deduplicates Age identities.
@@ -49,6 +51,11 @@ func (b IdentityBundle) Identities() []string {
 	return append([]string(nil), b.identities...)
 }
 
+// Warnings returns redacted diagnostics produced while parsing the bundle.
+func (b IdentityBundle) Warnings() []string {
+	return append([]string(nil), b.warnings...)
+}
+
 // GetIdentityBundle resolves an explicit key file first, then environment sources,
 // then .age/keys.txt relative to the current working directory.
 func GetIdentityBundle(keyFile string) (IdentityBundle, error) {
@@ -56,6 +63,9 @@ func GetIdentityBundle(keyFile string) (IdentityBundle, error) {
 		return readIdentityBundle(keyFile)
 	}
 
+	if value := os.Getenv("YEWSEAL_AGE_IDENTITIES"); value != "" {
+		return parseIdentityFile(value)
+	}
 	if value := os.Getenv("SOPS_AGE_KEY"); value != "" {
 		return parseIdentityFile(value)
 	}
@@ -77,7 +87,7 @@ func GetIdentityBundle(keyFile string) (IdentityBundle, error) {
 	}
 	bundle, err := readIdentityBundle(".age/keys.txt")
 	if errors.Is(err, os.ErrNotExist) {
-		return IdentityBundle{}, &errx.AgeKeyNotFoundError{Options: []string{"--key-file", "SOPS_AGE_KEY", "SOPS_AGE_KEY_FILE", "SOPS_AGE_KEY_CMD", "or .age/keys.txt"}}
+		return IdentityBundle{}, &errx.AgeKeyNotFoundError{Options: []string{"--key-file", "YEWSEAL_AGE_IDENTITIES", "SOPS_AGE_KEY", "SOPS_AGE_KEY_FILE", "SOPS_AGE_KEY_CMD", "or .age/keys.txt"}}
 	}
 	return bundle, err
 }
@@ -92,14 +102,42 @@ func readIdentityBundle(path string) (IdentityBundle, error) {
 
 func parseIdentityFile(content string) (IdentityBundle, error) {
 	identities := make([]string, 0)
-	for _, line := range strings.Split(content, "\n") {
+	warnings := make([]string, 0)
+	for lineIndex, line := range strings.Split(content, "\n") {
 		line = strings.TrimSpace(line)
-		if line == "" || strings.HasPrefix(line, "#") || !strings.HasPrefix(line, "AGE-SECRET-KEY-") {
+		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
-		identities = append(identities, line)
+		fields := strings.FieldsFunc(line, func(r rune) bool {
+			return r == ',' || unicode.IsSpace(r)
+		})
+		for fieldIndex, field := range fields {
+			if _, err := age.ParseX25519Identity(field); err != nil {
+				warnings = append(warnings, fmt.Sprintf("ignored malformed Age identity bundle item at line %d, item %d (%s)", lineIndex+1, fieldIndex+1, redactIdentityItem(field)))
+				continue
+			}
+			identities = append(identities, field)
+		}
 	}
-	return NewIdentityBundle(identities)
+	bundle, err := NewIdentityBundle(identities)
+	if err != nil {
+		return IdentityBundle{}, err
+	}
+	bundle.warnings = warnings
+	return bundle, nil
+}
+
+func redactIdentityItem(value string) string {
+	const ageIdentityPrefix = "AGE-SECRET-KEY-"
+	const minHiddenRunes = 8
+	runes := []rune(value)
+	if strings.HasPrefix(value, ageIdentityPrefix) && len(runes) >= len(ageIdentityPrefix)+4+minHiddenRunes {
+		return ageIdentityPrefix + "…" + string(runes[len(runes)-4:])
+	}
+	if len(runes) >= 2+2+3 {
+		return string(runes[:2]) + "…" + string(runes[len(runes)-2:])
+	}
+	return fmt.Sprintf("[REDACTED: %d chars]", len(runes))
 }
 
 type keyFileReadError struct {
