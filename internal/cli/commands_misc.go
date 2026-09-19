@@ -147,9 +147,10 @@ Output: plain mode prints a Source/Shadowed header plus an Alias/Public
 key table (plus Secret with --reveal) on stdout; --json prints the report
 on stdout; warnings go to stderr either way.
 
-Exit codes: 0 on success; 2 when no identity source yields an identity,
-the winning source is unreadable or invalid, or .yewseal.toml is missing
-or invalid.
+Exit codes: 0 on success; 1 when the report or a warning cannot be
+delivered (closed or full stdout/stderr); 2 when no identity source
+yields an identity, the winning source is unreadable or invalid, or
+.yewseal.toml is missing or invalid.
 
 See also: "yews plan" to preview file mappings and authorization on the
 other side of the pipeline.
@@ -173,10 +174,10 @@ Documentation: ` + docsReadingPrivateKeys,
 				return errx.Usage(err)
 			}
 			out := presentation.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false)
-			return out.Identities(buildIdentitiesReport(sources, cfg), presentation.IdentitiesPrintOptions{
+			return out.Finish(out.Identities(buildIdentitiesReport(sources, cfg), presentation.IdentitiesPrintOptions{
 				JSON:   opts.JSON,
 				Reveal: opts.Reveal,
-			})
+			}))
 		}),
 	}
 	cmd.Flags().BoolVar(&opts.JSON, "json", false, "Print the identity report as JSON on stdout (warnings stay on stderr)")

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -13,7 +14,27 @@ import (
 
 	"github.com/YewFence/YewSeal/internal/config"
 	"github.com/YewFence/YewSeal/internal/errx"
+	"github.com/YewFence/YewSeal/internal/presentation"
 )
+
+type failingWriter struct{ err error }
+
+func (w failingWriter) Write([]byte) (int, error) { return 0, w.err }
+
+func prepareIdentitiesProject(t *testing.T, registered bool) {
+	t.Helper()
+	identity, err := age.GenerateX25519Identity()
+	require.NoError(t, err)
+	publicKey := identity.Recipient().String()
+	if !registered {
+		other, err := age.GenerateX25519Identity()
+		require.NoError(t, err)
+		publicKey = other.Recipient().String()
+	}
+	require.NoError(t, os.WriteFile(".yewseal.toml", []byte("[recipients.registry]\nowner = '"+publicKey+"'\n"), 0600))
+	require.NoError(t, os.MkdirAll(".age", 0700))
+	require.NoError(t, os.WriteFile(".age/keys.txt", []byte(identity.String()+"\n"), 0600))
+}
 
 func runIdentities(t *testing.T, args ...string) (stdout, stderr string, err error) {
 	t.Helper()
@@ -175,4 +196,36 @@ func TestIdentitiesNoSourceFailsWithUsageError(t *testing.T) {
 	require.Error(t, err)
 	var usage *errx.UsageError
 	require.True(t, errors.As(err, &usage))
+}
+
+func TestIdentitiesFailsWhenAWarningCannotBeDelivered(t *testing.T) {
+	clearCLIEnvironment(t)
+	t.Chdir(t.TempDir())
+	prepareIdentitiesProject(t, false)
+
+	cmd := newRootCommand("test", config.LoadConfig)
+	cmd.SetOut(io.Discard)
+	cmd.SetErr(failingWriter{err: errors.New("closed pipe")})
+	cmd.SetArgs([]string{"identities", "--json"})
+
+	executed, err := cmd.ExecuteC()
+	require.True(t, presentation.DiagnosticsFailed(err), "unexpected error: %v", err)
+	require.Equal(t, 1, ExitCode(executed, err))
+}
+
+func TestIdentitiesFailsWhenTheReportCannotBeDelivered(t *testing.T) {
+	clearCLIEnvironment(t)
+	t.Chdir(t.TempDir())
+	prepareIdentitiesProject(t, true)
+
+	cmd := newRootCommand("test", config.LoadConfig)
+	cmd.SetOut(failingWriter{err: errors.New("no space left")})
+	cmd.SetErr(io.Discard)
+	cmd.SetArgs([]string{"identities"})
+
+	executed, err := cmd.ExecuteC()
+	var outputErr *presentation.OutputError
+	require.ErrorAs(t, err, &outputErr)
+	require.Equal(t, "content", outputErr.Channel)
+	require.Equal(t, 1, ExitCode(executed, err))
 }

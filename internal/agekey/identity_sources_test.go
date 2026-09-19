@@ -78,7 +78,7 @@ func TestResolveIdentitySourcesYewsealKeyCommandLayer(t *testing.T) {
 
 	identity, err := age.GenerateX25519Identity()
 	require.NoError(t, err)
-	t.Setenv("YEWSEAL_AGE_KEY_CMD", "printf %s "+identity.String())
+	t.Setenv("YEWSEAL_AGE_KEY_CMD", "echo "+identity.String())
 
 	sources, err := ResolveIdentitySources("")
 	require.NoError(t, err)
@@ -92,7 +92,7 @@ func TestResolveIdentitySourcesSopsKeyCommandLayer(t *testing.T) {
 
 	identity, err := age.GenerateX25519Identity()
 	require.NoError(t, err)
-	t.Setenv("SOPS_AGE_KEY_CMD", "printf %s "+identity.String())
+	t.Setenv("SOPS_AGE_KEY_CMD", "echo "+identity.String())
 
 	sources, err := ResolveIdentitySources("")
 	require.NoError(t, err)
@@ -106,8 +106,8 @@ func TestResolveIdentitySourcesYewsealKeyCommandShadowsSops(t *testing.T) {
 
 	identity, err := age.GenerateX25519Identity()
 	require.NoError(t, err)
-	t.Setenv("YEWSEAL_AGE_KEY_CMD", "printf %s "+identity.String())
-	t.Setenv("SOPS_AGE_KEY_CMD", "printf not-an-identity")
+	t.Setenv("YEWSEAL_AGE_KEY_CMD", "echo "+identity.String())
+	t.Setenv("SOPS_AGE_KEY_CMD", "echo not-an-identity")
 
 	sources, err := ResolveIdentitySources("")
 	require.NoError(t, err)
