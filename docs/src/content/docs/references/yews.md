@@ -31,6 +31,7 @@ Documentation: https://yewfence.github.io/YewSeal/
 
 ## SEE ALSO
 
+* [yews clean](/references/yews_clean/)	 - Safely remove registered local plaintext files
 * [yews completion](/references/yews_completion/)	 - Generate the autocompletion script for the specified shell
 * [yews decrypt](/references/yews_decrypt/)	 - Decrypt encrypted file to its configured plaintext path
 * [yews diff](/references/yews_diff/)	 - Compare plaintext file with decrypted encrypted file

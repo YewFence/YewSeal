@@ -1,0 +1,92 @@
+---
+title: yews clean
+---
+
+Safely remove registered local plaintext files
+
+## Synopsis
+
+Remove registered local plaintext only after proving that its ciphertext
+can be decrypted with the current Age identities. clean never encrypts files,
+changes recipients, repairs project metadata, removes directories, or displays
+plaintext or diff content.
+
+Target selection uses the plaintext side for current-directory scope,
+directories, and patterns. Exact registered plaintext or ciphertext paths both
+select a mapping; multiple selectors take the union and every selector must
+match. Dynamic groups discover the union of plaintext and ciphertext sides, so
+a plaintext with missing ciphertext fails safely and a previously cleaned
+ciphertext-only mapping is reported as already absent.
+
+Matching decrypted bytes are removed automatically. Different bytes prompt
+once per file with No as the safe default. --skip-different keeps every
+difference without reading stdin; --force deletes differences without reading
+stdin. These flags are mutually exclusive. Neither policy bypasses missing or
+damaged ciphertext, identity mismatch, non-regular plaintext, I/O errors, or
+the final pre-removal check.
+
+Plaintext paths may contain symlinks. clean follows the complete chain, removes
+only the final regular-file target, and leaves links in place. Broken links are
+already absent. Immediately before removal it resolves the chain and reads the
+target again; a changed target, type, or byte snapshot is retained as a
+failure. Completed removals are not rolled back when another item later fails.
+
+Output: stdout is always empty. Prompts, warnings, REMOVED/RETAINED/FAILED
+results, and the final summary go to stderr; --verbose also prints selection
+details and ALREADY ABSENT results. clean does not update .gitignore or
+.sops.yaml.
+
+Exit codes: 0 when the selected policy completes, including explicitly retained
+differences; 1 when any item, prompt, or output channel fails (earlier
+removals remain); 2 for calling errors: invalid arguments, config, selection,
+or an unusable identity source.
+
+See also: "yews diff" to inspect a difference before deciding and "yews
+encrypt" to save local changes before cleaning.
+
+Documentation: https://yewfence.github.io/YewSeal/guide/plaintext-cleanup
+
+```
+yews clean [command options] [path-or-pattern]... [flags]
+```
+
+## Examples
+
+```
+  # Clean mappings in the current directory scope
+  yews clean
+
+  # Clean one mapping selected by its plaintext path
+  yews clean config.toml
+
+  # Select registered plaintext paths with a pattern
+  yews clean './configs/*.toml'
+
+  # Keep all differences without prompting
+  yews clean --skip-different
+
+  # Irreversibly remove differences after successful decryption
+  yews clean --force
+
+  # Inspect one difference before cleaning it
+  yews diff -- config.toml
+```
+
+## Options
+
+```
+  -f, --force            Delete plaintext that differs from successfully decrypted ciphertext (env YEWSEAL_CLEAN_FORCE)
+  -h, --help             help for clean
+      --skip-different   Keep plaintext that differs from successfully decrypted ciphertext without prompting (env YEWSEAL_CLEAN_SKIP_DIFFERENT)
+  -v, --verbose          Enable verbose output (selection info and already-absent results on stderr) (env YEWSEAL_CLEAN_VERBOSE)
+```
+
+## Options inherited from parent commands
+
+```
+  -k, --key-file string   Path to the Age private key file (fallback: YEWSEAL_AGE_IDENTITIES, SOPS_AGE_KEY, SOPS_AGE_KEY_FILE, YEWSEAL_AGE_KEY_CMD, SOPS_AGE_KEY_CMD, then .age/keys.txt in the current directory) (env YEWSEAL_KEY_FILE)
+```
+
+## SEE ALSO
+
+* [yews](/references/yews/)	 - YewSeal - Encrypt/decrypt configuration files using SOPS and Age (supports TOML, YAML, JSON, ENV, INI, and binary files)

@@ -289,13 +289,16 @@ func checkWriteConflicts(command string, filePairs []ResolvedFilePair) error {
 	seen := make(map[string]ResolvedFilePair, len(filePairs))
 	for _, filePair := range filePairs {
 		target := filePair.EncryptedPath
-		if command == task.ModeDecrypt {
+		if command == task.ModeDecrypt || command == task.ModeClean {
 			target = filePair.PlaintextPath
 		}
 		target = cleanAbsPath(target)
 		if existing, ok := seen[target]; ok {
 			if command == task.ModeDecrypt {
 				return fmt.Errorf("multiple file pairs write to %s: decrypted from %s and %s", target, existing.EncryptedPath, filePair.EncryptedPath)
+			}
+			if command == task.ModeClean {
+				return fmt.Errorf("multiple file pairs clean the same plaintext %s", target)
 			}
 			return fmt.Errorf("multiple file pairs write to %s: encrypted from %s and %s", target, existing.PlaintextPath, filePair.PlaintextPath)
 		}

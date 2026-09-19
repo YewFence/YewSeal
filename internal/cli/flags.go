@@ -22,6 +22,13 @@ type decryptOptions struct {
 	JSON     bool   `mapstructure:"json"`
 }
 
+type cleanOptions struct {
+	KeyFile       string `mapstructure:"key-file"`
+	Force         bool   `mapstructure:"force"`
+	SkipDifferent bool   `mapstructure:"skip-different"`
+	Verbose       bool   `mapstructure:"verbose"`
+}
+
 type planOptions struct {
 	Verbose bool `mapstructure:"verbose"`
 	JSON    bool `mapstructure:"json"`
@@ -77,6 +84,12 @@ func addDecryptFlags(flags *pflag.FlagSet, opts *decryptOptions) {
 	flags.BoolVar(&opts.Strict, "strict", false, "Require every selected file to be decrypted")
 	flags.BoolVarP(&opts.Verbose, "verbose", "v", false, "Enable verbose output (selection info and per-file results on stderr)")
 	flags.BoolVar(&opts.JSON, "json", false, "Print the batch report as JSON on stdout (diagnostics stay on stderr)")
+}
+
+func addCleanFlags(flags *pflag.FlagSet, opts *cleanOptions) {
+	flags.BoolVarP(&opts.Force, "force", "f", false, "Delete plaintext that differs from successfully decrypted ciphertext")
+	flags.BoolVar(&opts.SkipDifferent, "skip-different", false, "Keep plaintext that differs from successfully decrypted ciphertext without prompting")
+	flags.BoolVarP(&opts.Verbose, "verbose", "v", false, "Enable verbose output (selection info and already-absent results on stderr)")
 }
 
 func addPlanFlags(flags *pflag.FlagSet, opts *planOptions) {
