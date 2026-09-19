@@ -1,3 +1,22 @@
+## [0.13.0] - 2026-09-19
+
+### 🚀 Features
+
+- *(agekey)* Add YewSeal identity environment (#44)
+- *(cli)* Control SOPS config synchronization (#45)
+- *(cli)* Add --json reports and three-tier exit codes (#46)
+- *(cli)* [**breaking**] Treat fully skipped lenient decrypt as success (#47)
+- *(cli)* Identities command and identity-chain ergonomics (#52)
+
+### 🚜 Refactor
+
+- *(cli)* Resolve command options with Viper (#43)
+
+### ⚙️ Miscellaneous Tasks
+
+- *(gomod-deps)* Update go modules (#53)
+- *(npm-deps)* Update dependency @astrojs/starlight to ^0.42.1 (#49)
+- *(mise-deps)* Update mise tools (#50)
 ## [0.12.2] - 2026-09-18
 
 ### 🐛 Bug Fixes
