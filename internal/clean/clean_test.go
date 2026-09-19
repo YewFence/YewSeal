@@ -298,6 +298,26 @@ func TestProcessModifiedPlaintextFailsRecheck(t *testing.T) {
 	assert.Equal(t, "token: saved\n", string(content))
 }
 
+func TestProcessChangedCiphertextFailsRecheck(t *testing.T) {
+	f := newCleanFixture(t)
+	f.writeEncrypted(t, "config.enc.yaml", []byte("token: original\n"))
+	plainPath := f.writePlain(t, "config.yaml", []byte("token: changed\n"))
+
+	outcome, err := Process(plainPath, Options{
+		EncryptedPath:  f.path("config.enc.yaml"),
+		Format:         "yaml",
+		IdentityBundle: f.bundle,
+		ConfirmDifferent: func() (bool, error) {
+			f.writeEncrypted(t, "config.enc.yaml", []byte("token: replaced\n"))
+			return true, nil
+		},
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "ciphertext changed before removal")
+	assert.Empty(t, outcome)
+	assert.FileExists(t, plainPath)
+}
+
 func TestProcessRemoveFailureRetainsFile(t *testing.T) {
 	if os.Geteuid() == 0 {
 		t.Skip("root ignores directory permissions")

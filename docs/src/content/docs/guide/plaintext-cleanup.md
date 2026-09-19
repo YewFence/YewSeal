@@ -2,7 +2,7 @@
 title: Cleaning local plaintext
 ---
 
-`clean` removes registered local plaintext files that the ciphertext can already give back. It is the closing step of a working session: after `decrypt`, `view`, or `edit`, you delete the plaintext by hand — or you forget, and the secrets stay on disk. `clean` turns that step into one governed command that refuses to delete anything it cannot prove is recoverable.
+`clean` removes registered local plaintext files that the ciphertext can already give back. It is the closing step of a working session after `decrypt`: you delete the plaintext by hand — or you forget, and the secrets stay on disk. `clean` turns that step into one governed command that refuses to delete anything it cannot prove is recoverable.
 
 ```bash
 # clean everything in the current directory scope
@@ -32,7 +32,9 @@ A plaintext is only removed after the same batch proves it can be recovered:
 3. At least one Age identity in the bundle decrypts the ciphertext's data key, and SOPS integrity checks pass.
 4. By default, the plaintext bytes equal the decrypted bytes exactly — no normalization, so whitespace, comments, and layout differences all count as differences.
 
-Immediately before the actual removal, `clean` resolves the symlink chain again and re-reads the target. If the link was retargeted, the target type changed, or the content no longer matches the snapshot the decision was based on, the file is kept and the item fails. This closes the window where an editor autosaves while a prompt is waiting. The check is deliberately conservative: what it detects always fails, it never retries, and it never deletes the previously resolved target.
+Immediately before the actual removal, `clean` resolves the symlink chain again and re-reads the target. If the link was retargeted, the target type changed, or the content no longer matches the snapshot the decision was based on, the file is kept and the item fails. This catches ordinary editor autosaves while a prompt is waiting. The check is deliberately conservative: what it detects always fails, it never retries, and it never deletes the previously resolved target. It does not lock out an external writer racing the final re-read and removal.
+
+After an interactive Yes for differing content, `clean` also decrypts the ciphertext again. If it no longer decrypts to the same bytes that the prompt decision was based on, the plaintext is kept and the item fails.
 
 `--force` and an interactive Yes skip only the byte-equality requirement. Missing or corrupted ciphertext, identity mismatch, non-regular targets, and I/O errors fail in every mode, so a batch can never report success while unproven plaintext lingers.
 

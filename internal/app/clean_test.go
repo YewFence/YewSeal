@@ -119,6 +119,21 @@ func TestCleanFilesPromptEOFFailsAndRetains(t *testing.T) {
 	assert.Contains(t, stderr.String(), "FAILED wip.yaml")
 }
 
+func TestCleanFilesNilInputFailsPromptAndRetains(t *testing.T) {
+	cfg := prepareCleanFixture(t)
+
+	var stdout, stderr bytes.Buffer
+	err := CleanFiles(cfg, CleanRequest{
+		Presentation: presentation.New(&stdout, &stderr, false),
+		KeyFile:      ".age/keys.txt",
+		Targets:      []string{"wip.yaml"},
+	})
+	require.Error(t, err)
+	assert.ErrorIs(t, err, io.EOF)
+	assert.FileExists(t, "wip.yaml")
+	assert.Contains(t, stderr.String(), "FAILED wip.yaml")
+}
+
 func TestCleanFilesSkipDifferentNeverReadsStdin(t *testing.T) {
 	cfg := prepareCleanFixture(t)
 

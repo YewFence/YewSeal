@@ -178,7 +178,9 @@ func TestCLIProcessingOutcomes(t *testing.T) {
 			data, err := toml.Marshal(cfg)
 			require.NoError(t, err)
 			require.NoError(t, os.WriteFile(filepath.Join(dir, ".yewseal.toml"), data, 0600))
-			cmd := exec.Command(binary, append([]string{tc.command}, tc.flags...)...)
+			ctx, cancel := context.WithTimeout(t.Context(), subprocessTimeout)
+			defer cancel()
+			cmd := exec.CommandContext(ctx, binary, append([]string{tc.command}, tc.flags...)...)
 			cmd.Dir = dir
 			if tc.stdin != "" {
 				cmd.Stdin = strings.NewReader(tc.stdin)

@@ -2,6 +2,7 @@ package app
 
 import (
 	"io"
+	"strings"
 
 	"github.com/YewFence/YewSeal/internal/agekey"
 	cleaner "github.com/YewFence/YewSeal/internal/clean"
@@ -68,7 +69,11 @@ func CleanFiles(cfg *config.Config, req CleanRequest) (err error) {
 		out.IdentityBundle(identityBundle)
 	}
 
-	prompts := out.Prompts(req.Input)
+	input := req.Input
+	if input == nil {
+		input = strings.NewReader("")
+	}
+	prompts := out.Prompts(input)
 	summary := cleaner.Summary{Results: make([]cleaner.Result, 0, len(stages))}
 	for _, stage := range stages {
 		result := cleaner.Result{PlaintextPath: stage.pair.PlaintextPath}

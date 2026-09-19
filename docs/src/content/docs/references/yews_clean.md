@@ -21,9 +21,10 @@ ciphertext-only mapping is reported as already absent.
 Matching decrypted bytes are removed automatically. Different bytes prompt
 once per file with No as the safe default. --skip-different keeps every
 difference without reading stdin; --force deletes differences without reading
-stdin. These flags are mutually exclusive. Neither policy bypasses missing or
-damaged ciphertext, identity mismatch, non-regular plaintext, I/O errors, or
-the final pre-removal check.
+stdin. After an interactive Yes, clean decrypts the ciphertext again and fails
+if its content changed while the prompt was waiting. These flags are mutually
+exclusive. Neither policy bypasses missing or damaged ciphertext, identity
+mismatch, non-regular plaintext, I/O errors, or the final pre-removal check.
 
 Plaintext paths may contain symlinks. clean follows the complete chain, removes
 only the final regular-file target, and leaves links in place. Broken links are

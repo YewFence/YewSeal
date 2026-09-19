@@ -71,6 +71,7 @@ func Process(logicalPath string, opts Options) (Outcome, error) {
 		return "", err
 	}
 
+	confirmedDifference := false
 	if !bytes.Equal(snapshot, decrypted) && !opts.Force {
 		if opts.SkipDifferent {
 			return Retained, nil
@@ -81,6 +82,22 @@ func Process(logicalPath string, opts Options) (Outcome, error) {
 		}
 		if !confirmed {
 			return Retained, nil
+		}
+		confirmedDifference = true
+	}
+
+	if confirmedDifference {
+		currentDecrypted, err := seal.DecryptToBytes(seal.DecryptBytesOptions{
+			InputFile:      opts.EncryptedPath,
+			OutputFile:     logicalPath,
+			IdentityBundle: opts.IdentityBundle,
+			FormatOverride: opts.Format,
+		})
+		if err != nil {
+			return "", fmt.Errorf("ciphertext changed before removal: %w", err)
+		}
+		if !bytes.Equal(currentDecrypted, decrypted) {
+			return "", fmt.Errorf("ciphertext changed before removal: decrypted content changed")
 		}
 	}
 
