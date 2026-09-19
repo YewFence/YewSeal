@@ -28,12 +28,12 @@ When only --input is given, the encrypted file name is inferred
 (config.toml becomes config.enc.toml; other formats use the matching
 .enc.* suffix).
 
---force rebuilds keys, recipient registry, defaults, file entries, and
-the managed .sops.yaml; old aliases and mappings are not preserved, and
-existing ciphertext may become undecryptable for the new owner
-identity. With --sync-sops-config=false, a force rebuild removes the old
-managed .sops.yaml instead. A failure to create .sops.yaml makes
-initialization fail.
+--force rebuilds keys, recipient registry, defaults, file entries, and,
+when synchronization is enabled, the managed .sops.yaml; old aliases and
+mappings are not preserved, and existing ciphertext may become undecryptable
+for the new owner identity. With --sync-sops-config=false, initialization
+leaves any existing .sops.yaml untouched. A failure to create .sops.yaml
+makes initialization fail.
 
 Output: stdout stays empty; prompts, warnings, errors, and the
 completion summary (mapping count and key file locations) go to stderr,

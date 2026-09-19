@@ -85,12 +85,6 @@ func InitProject(opts InitOptions, out *presentation.Output, prompts *tools.Sess
 		if err := SyncResolvedSopsYaml(resolved); err != nil {
 			return fmt.Errorf("failed to update .sops.yaml: %w\nFix the synchronization error, or use --sync-sops-config=false when direct SOPS interoperability is not required", err)
 		}
-	} else {
-		if opts.Force {
-			if err := os.Remove(sopsYamlPath); err != nil && !os.IsNotExist(err) {
-				return fmt.Errorf("failed to remove managed .sops.yaml: %w", err)
-			}
-		}
 	}
 
 	for i := range filePairs {
