@@ -16,10 +16,6 @@ among the registered files.
 CLI option precedence: flags > command environment variables > defaults.
 Project mappings and authorization come only from .yewseal.toml.
 
-Identity resolution order: --key-file (env YEWSEAL_KEY_FILE), then
-YEWSEAL_AGE_IDENTITIES, SOPS_AGE_KEY, SOPS_AGE_KEY_FILE, SOPS_AGE_KEY_CMD,
-then .age/keys.txt in the current working directory.
-
 Exit codes: 0 on success, 1 on business failure (file processing or
 output delivery), 2 on calling errors (arguments, config, selection, or
 identity source). See each command's --help for specifics.
@@ -30,7 +26,7 @@ Documentation: https://yewfence.github.io/YewSeal/
 
 ```
   -h, --help              help for yews
-  -k, --key-file string   Path to the Age private key file (fallback: YEWSEAL_AGE_IDENTITIES, SOPS_AGE_KEY, SOPS_AGE_KEY_FILE, SOPS_AGE_KEY_CMD, then .age/keys.txt) (env YEWSEAL_KEY_FILE)
+  -k, --key-file string   Path to the Age private key file (fallback: YEWSEAL_AGE_IDENTITIES, SOPS_AGE_KEY, SOPS_AGE_KEY_FILE, YEWSEAL_AGE_KEY_CMD, SOPS_AGE_KEY_CMD, then .age/keys.txt in the current directory) (env YEWSEAL_KEY_FILE)
 ```
 
 ## SEE ALSO
@@ -40,6 +36,7 @@ Documentation: https://yewfence.github.io/YewSeal/
 * [yews diff](/references/yews_diff/)	 - Compare plaintext file with decrypted encrypted file
 * [yews edit](/references/yews_edit/)	 - Edit encrypted configuration file using SOPS
 * [yews encrypt](/references/yews_encrypt/)	 - Encrypt configuration file (supports .toml, .yaml, .yml, .json, .env, .ini, and binary output)
+* [yews identities](/references/yews_identities/)	 - List the Age identities YewSeal would decrypt with, their winning source, and registry aliases
 * [yews init](/references/yews_init/)	 - Initialize project with Age keys and YewSeal config entries
 * [yews plan](/references/yews_plan/)	 - Check configured file mappings, formats, and recipient authorization without writing files
 * [yews view](/references/yews_view/)	 - Print decrypted plaintext to standard output without writing files

@@ -97,6 +97,10 @@ func LoadConfig() (*Config, error) {
 		return nil, fmt.Errorf("no YewSeal configuration found for %s (expected .yewseal.toml, .config/.yewseal.toml, or .yewseal/.yewseal.toml)", cwd)
 	}
 
+	return loadConfigFiles(cwd, configFiles)
+}
+
+func loadConfigFiles(cwd string, configFiles []LoadedFile) (*Config, error) {
 	config := &Config{
 		CurrentDir: cwd,
 		UserConfig: true,

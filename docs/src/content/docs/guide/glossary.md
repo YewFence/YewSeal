@@ -18,7 +18,7 @@ An `[[encryption.groups]]` entry that discovers many files at once by gitignore-
 
 ## Identity
 
-A private Age key (or a bundle of several in one file) that can decrypt files. Identities come from `--key-file`, environment variables, or `.age/keys.txt` — never from the project config. See [Configuration - reading private keys](/guide/configuration#reading-private-keys).
+A private Age key (or a bundle of several in one file) that can decrypt files. Identities come from `--key-file`, environment variables, or `.age/keys.txt` — never from the project config. The first source that yields an identity wins; sources are never merged. `yews identities` lists the resolved identities with their winning source and registry aliases. See [Configuration - reading private keys](/guide/configuration#reading-private-keys).
 
 ## Lenient and strict
 

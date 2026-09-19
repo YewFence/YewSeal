@@ -66,6 +66,97 @@ For a CI runner that consumes the key through an environment variable, the GitHu
 gh secret set AGE_KEY < .age/keys.txt
 ```
 
+## Per-identity secrets
+
+The scripts above synchronize the whole bundle as one value, which couples every identity on the machine. The alternative is one secret per identity, named `YEWS_{alias}` after the registry alias: each environment pulls exactly the identities it needs, and each holder pushes only their own key — an overwrite can never clobber identities someone else pushed. The two reference scripts below implement that scheme; replace the project ID, environment, path, and secret names with your own.
+
+The push script consumes `yews identities --json --reveal` instead of parsing key files or `.yewseal.toml` itself; chain resolution and the registry lookup are covered in [Configuration - reading private keys](/guide/configuration#reading-private-keys). The `# public key:` comment lines that `yews init` writes stay useful for humans reading `.age/keys.txt` — and the pull script recreates them — but nothing requires them anymore.
+
+Each secret value stays a single bare `AGE-SECRET-KEY-1...` line. Comments never leave the local file, and Infisical's per-secret comment field is not used either: the CLI cannot set it, so anything stored there has to be maintained in the WebUI and no script can rely on it. Both scripts need only plain python3, and only to read `yews` output. Neither parses `.yewseal.toml`, so where the config lives is entirely YewSeal's business.
+
+```sh
+#!/bin/sh
+set -eu
+umask 077
+
+tmp=$(mktemp)
+report=$(mktemp)
+pairs=$(mktemp)
+trap 'rm -f "$tmp" "$report" "$pairs"' EXIT
+trap 'exit 1' HUP INT TERM
+
+yews identities --json --reveal > "$report"
+
+python3 - "$report" > "$pairs" <<'PY'
+import json, sys
+
+with open(sys.argv[1]) as f:
+    report = json.load(f)
+for identity in report["identities"]:
+    if identity.get("alias"):
+        print(identity["alias"], identity["secret"])
+PY
+
+while read -r alias secret; do
+  printf '%s\n' "$secret" > "$tmp"
+  infisical secrets set "YEWS_$alias=@$tmp" \
+    --projectId 'your-project-id' \
+    --env 'dev' \
+    --path '/yewseal' \
+    --silent
+  echo "pushed YEWS_$alias"
+done < "$pairs"
+```
+
+The report flows through mode-`0600` temporary files, so secret keys never touch argv, shell history, or terminal output. An identity whose public key has no registry alias is warned on stderr by `yews identities` and skipped, so a borrowed or unregistered key is never uploaded under a wrong name. The script pushes whichever identities YewSeal would actually decrypt with — to push a different layer, point `--key-file` or `YEWSEAL_AGE_IDENTITIES` at it first.
+
+The pull direction takes a comma-separated alias list and rebuilds `.age/keys.txt` — the path YewSeal reads by default, so no environment variable is needed afterwards. For each alias it fetches `YEWS_{alias}`, hands the value to `yews identities --key-file` and writes the public key that comes back as the `# public key:` comment, so the comment always describes the key right below it. The rebuilt file is exactly what the push script expects, so pull → push round-trips:
+
+```sh
+#!/bin/sh
+set -eu
+umask 077
+
+: "${ALIASES:?set ALIASES to a comma-separated alias list, e.g. ALIASES=owner,ci $0}"
+
+mkdir -p .age
+one=$(mktemp)
+report=$(mktemp)
+bundle=$(mktemp .age/keys.txt.XXXXXX)
+trap 'rm -f "$one" "$report" "$bundle"' EXIT
+trap 'exit 1' HUP INT TERM
+
+for alias in $(printf '%s\n' "$ALIASES" | tr ',' ' '); do
+  infisical secrets get "YEWS_$alias" --plain --silent \
+    --projectId 'your-project-id' \
+    --env 'dev' \
+    --path '/yewseal' > "$one"
+  test -s "$one" || { echo "YEWS_$alias came back empty or missing" >&2; exit 1; }
+  yews identities --key-file "$one" --json > "$report"
+  public_key=$(python3 -c 'import json,sys; print(json.load(sys.stdin)["identities"][0]["public_key"])' < "$report")
+  printf '# public key: %s\n' "$public_key" >> "$bundle"
+  cat "$one" >> "$bundle"
+done
+
+test -s "$bundle"
+mv -f "$bundle" .age/keys.txt
+```
+
+The bundle file only appears once every fetch succeeded, every fetched value parsed as an age identity, and the result is non-empty; it is mode `0600`. YewSeal splits identities on commas, spaces, and newlines alike, so multi-line secret values or a hand-joined bundle all parse.
+
+The `YEWS_{alias}` name is a naming convention the scripts trust rather than check: nothing verifies that the secret fetched under an alias really holds the identity registered for it. Audit the result with `yews identities`.
+
+For a one-off shell or a CI runner, skip the file and join the per-identity values with commas straight into the environment variable — command substitution keeps the values out of shell history, and on GitHub Actions the repository secrets mirror the Infisical names upper-cased:
+
+```bash
+export YEWSEAL_AGE_IDENTITIES="$(infisical secrets get YEWS_owner --plain --silent --projectId your-project-id --env dev --path /yewseal),$(infisical secrets get YEWS_deploy --plain --silent --projectId your-project-id --env dev --path /yewseal)"
+```
+
+```yaml
+env:
+  YEWSEAL_AGE_IDENTITIES: ${{ secrets.YEWS_OWNER }},${{ secrets.YEWS_DEPLOY }}
+```
+
 ## Other sources
 
 Password managers, cloud secret managers, CI secrets, and local files all follow the same division of responsibility: the external tool provides the identity, YewSeal uses it to decrypt.

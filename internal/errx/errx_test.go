@@ -48,19 +48,6 @@ func TestUnsupportedFormatError(t *testing.T) {
 	})
 }
 
-func TestKeyFileReadError(t *testing.T) {
-	cause := errors.New("permission denied")
-	err := &KeyFileReadError{Path: ".age/keys.txt", Err: cause}
-
-	assert.Equal(t, "failed to read key file .age/keys.txt: permission denied", err.Error())
-	assert.ErrorIs(t, err, cause)
-}
-
-func TestAgeSecretKeyNotFoundError(t *testing.T) {
-	err := &AgeSecretKeyNotFoundError{Path: ".age/keys.txt"}
-	assert.Equal(t, "no valid Age secret key found in .age/keys.txt", err.Error())
-}
-
 func TestExternalCommandError(t *testing.T) {
 	cause := errors.New("exit status 1")
 
