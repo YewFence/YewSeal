@@ -13,7 +13,8 @@ import (
 )
 
 func initCommand() *cobra.Command {
-	opts := initOptions{}
+	opts := initOptions{SyncSOPSConfig: true}
+	var resolver *optionResolver
 
 	cmd := &cobra.Command{
 		Use:   "init",
@@ -25,7 +26,8 @@ with its first config entry, optionally sync .sops.yaml, and update
 Run without flags for interactive mode: YewSeal asks whether to rebuild
 an existing configuration, whether to create .sops.yaml, and records
 one or more plaintext/encrypted mappings. Passing --input or --output
-switches to non-interactive mode for scripts.
+switches to non-interactive mode for scripts. An explicit
+--sync-sops-config value skips its interactive question.
 
 Generated files:
   .yewseal.toml  main YewSeal config (recipient registry, defaults,
@@ -33,16 +35,18 @@ Generated files:
   .age/keys.txt  Age private key; must not be committed to version
                  control
   .sops.yaml     SOPS config for direct sops usage; skipped with
-                 --skip-sops-config
+                 --sync-sops-config=false
 
 When only --input is given, the encrypted file name is inferred
 (config.toml becomes config.enc.toml; other formats use the matching
 .enc.* suffix).
 
---force rebuilds keys, recipient registry, defaults, file entries, and
-the managed .sops.yaml; old aliases and mappings are not preserved, and
-existing ciphertext may become undecryptable for the new owner
-identity.
+--force rebuilds keys, recipient registry, defaults, file entries, and,
+when synchronization is enabled, the managed .sops.yaml; old aliases and
+mappings are not preserved, and existing ciphertext may become undecryptable
+for the new owner identity. With --sync-sops-config=false, initialization
+leaves any existing .sops.yaml untouched. A failure to create .sops.yaml
+makes initialization fail.
 
 Output: stdout stays empty; prompts, warnings, errors, and the
 completion summary (mapping count and key file locations) go to stderr,
@@ -75,8 +79,16 @@ Private key handling: ` + docsPrivateKeys,
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			out := presentation.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false)
-			return project.InitProject(opts.Force, opts.Input, opts.Output, opts.Format, opts.CreateExample, opts.SkipSOPSConfig,
-				out, out.Prompts(cmd.InOrStdin()))
+			return project.InitProject(project.InitOptions{
+				Force:             opts.Force,
+				InputFile:         opts.Input,
+				OutputFile:        opts.Output,
+				FormatOverride:    opts.Format,
+				CreateExample:     opts.CreateExample,
+				CreateExampleSet:  resolver.IsSet("create-example"),
+				SyncSOPSConfig:    opts.SyncSOPSConfig,
+				SyncSOPSConfigSet: resolver.IsSet("sync-sops-config"),
+			}, out, out.Prompts(cmd.InOrStdin()))
 		},
 	}
 	cmd.Flags().BoolVarP(&opts.Force, "force", "f", false, "Rebuild keys and configuration; existing ciphertext may become undecryptable")
@@ -84,8 +96,8 @@ Private key handling: ` + docsPrivateKeys,
 	cmd.Flags().StringVarP(&opts.Output, "output", "o", "", "Encrypted file for the first config entry (non-interactive mode)")
 	cmd.Flags().StringVar(&opts.Format, "format", "", "Format override for the first config entry (toml/yaml/json/env/ini/binary)")
 	cmd.Flags().BoolVar(&opts.CreateExample, "create-example", false, "Create an example plaintext file (interactive: for recorded entries; non-interactive: for the first entry)")
-	cmd.Flags().BoolVar(&opts.SkipSOPSConfig, "skip-sops-config", false, "Skip creating or updating .sops.yaml (non-interactive mode)")
-	resolver := newOptionResolver(cmd, &opts)
+	cmd.Flags().BoolVar(&opts.SyncSOPSConfig, "sync-sops-config", opts.SyncSOPSConfig, "Create or update .sops.yaml; explicit true or false skips the interactive prompt")
+	resolver = newOptionResolver(cmd, &opts)
 	cmd.Args = resolver.before(cmd.Args)
 	return cmd
 }

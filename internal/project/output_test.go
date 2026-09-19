@@ -30,7 +30,7 @@ func TestInitDiagnosticFailureStillCompletesForcedRebuild(t *testing.T) {
 	w := &brokenDiagnostics{}
 	var body bytes.Buffer
 	out := presentation.New(&body, w, false)
-	err := InitProject(true, "config.yaml", "", "", false, false, out, out.Prompts(unreadableInput{}))
+	err := InitProject(InitOptions{Force: true, InputFile: "config.yaml", SyncSOPSConfig: true}, out, out.Prompts(unreadableInput{}))
 	require.ErrorIs(t, err, io.ErrClosedPipe)
 	require.True(t, presentation.DiagnosticsFailed(err))
 	require.Equal(t, 1, w.calls)
@@ -44,7 +44,7 @@ func TestInitPromptFailureStopsBeforeWrites(t *testing.T) {
 	t.Chdir(t.TempDir())
 	w := &brokenDiagnostics{}
 	out := presentation.New(nil, w, false)
-	err := InitProject(false, "", "", "", false, false, out, out.Prompts(unreadableInput{}))
+	err := InitProject(InitOptions{SyncSOPSConfig: true}, out, out.Prompts(unreadableInput{}))
 	require.ErrorIs(t, err, io.ErrClosedPipe)
 	require.True(t, presentation.DiagnosticsFailed(err))
 	out.Error(err)
@@ -59,7 +59,7 @@ func TestInitEOFStopsBeforeWrites(t *testing.T) {
 	t.Chdir(t.TempDir())
 	var diagnostics bytes.Buffer
 	out := presentation.New(io.Discard, &diagnostics, false)
-	err := InitProject(false, "", "", "", false, false, out, out.Prompts(strings.NewReader("")))
+	err := InitProject(InitOptions{SyncSOPSConfig: true}, out, out.Prompts(strings.NewReader("")))
 	require.ErrorIs(t, err, io.EOF)
 	for _, file := range []string{".age", ".yewseal.toml", ".gitignore", ".sops.yaml"} {
 		_, statErr := os.Stat(file)
@@ -71,7 +71,7 @@ func TestInitStreamsAndCompletion(t *testing.T) {
 	t.Chdir(t.TempDir())
 	var body, diagnostics bytes.Buffer
 	out := presentation.New(&body, &diagnostics, false)
-	err := InitProject(false, "", "", "", false, false, out, out.Prompts(strings.NewReader("config.yaml\n\nn\nn\nn\n")))
+	err := InitProject(InitOptions{SyncSOPSConfig: true}, out, out.Prompts(strings.NewReader("config.yaml\n\nn\nn\nn\n")))
 	require.NoError(t, err)
 	require.Empty(t, body.String())
 	require.Contains(t, diagnostics.String(), "Enter plaintext config file name")
@@ -79,7 +79,47 @@ func TestInitStreamsAndCompletion(t *testing.T) {
 	require.NotContains(t, diagnostics.String(), "Next steps")
 }
 
+func TestInitExplicitFalseSkipsInteractiveOptionalPrompts(t *testing.T) {
+	t.Chdir(t.TempDir())
+	var diagnostics bytes.Buffer
+	out := presentation.New(io.Discard, &diagnostics, false)
+	err := InitProject(InitOptions{
+		CreateExampleSet:  true,
+		SyncSOPSConfigSet: true,
+	}, out, out.Prompts(strings.NewReader("config.yaml\n\nn\n")))
+	require.NoError(t, err)
+	require.NoFileExists(t, "config.example.yaml")
+	require.NoFileExists(t, ".sops.yaml")
+	require.NotContains(t, diagnostics.String(), "Create example file")
+	require.NotContains(t, diagnostics.String(), "Create .sops.yaml")
+}
+
+func TestInitFailsWhenSopsSyncFails(t *testing.T) {
+	t.Chdir(t.TempDir())
+	require.NoError(t, os.Mkdir(".sops.yaml", 0o700))
+	var diagnostics bytes.Buffer
+	out := presentation.New(io.Discard, &diagnostics, false)
+	err := InitProject(InitOptions{
+		InputFile:         "config.yaml",
+		SyncSOPSConfig:    true,
+		SyncSOPSConfigSet: true,
+	}, out, out.Prompts(unreadableInput{}))
+	require.ErrorContains(t, err, "failed to update .sops.yaml")
+	require.ErrorContains(t, err, "--sync-sops-config=false")
+	require.NoFileExists(t, ".yewseal.toml")
+	require.NotContains(t, diagnostics.String(), "Initialized ")
+}
+
 func testInitProject(force bool, input, output, format string, example, skip bool) error {
 	i := testInitializer()
-	return InitProject(force, input, output, format, example, skip, i.output, i.prompts)
+	return InitProject(InitOptions{
+		Force:             force,
+		InputFile:         input,
+		OutputFile:        output,
+		FormatOverride:    format,
+		CreateExample:     example,
+		CreateExampleSet:  true,
+		SyncSOPSConfig:    !skip,
+		SyncSOPSConfigSet: true,
+	}, i.output, i.prompts)
 }

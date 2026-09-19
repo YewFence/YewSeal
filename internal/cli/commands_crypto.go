@@ -10,7 +10,8 @@ import (
 
 func encryptCommand(load configLoader) *cobra.Command {
 	opts := encryptOptions{
-		Parallel: 1,
+		Parallel:       1,
+		SyncSOPSConfig: true,
 	}
 	var resolver *optionResolver
 
@@ -57,10 +58,17 @@ skipped without creating an output directory.
 .enc.* path; --output applies to single file targets only, never to
 config-wide or directory-driven batches.
 
-Exit codes: 0 on success, 1 when any file fails or the selection is
-empty. Output: ciphertext goes to files and stdout stays empty; warnings,
-per-file failure reasons, and the summary go to stderr (--verbose adds
-selection info and per-file success).
+After processing, --sync-sops-config (enabled by default) rewrites
+.sops.yaml from the complete resolved project policy, not only the selected
+targets. Encryption always finishes before synchronization is attempted.
+A synchronization failure leaves completed ciphertext work in place but
+makes the command fail.
+
+Exit codes: 0 on success, 1 when any file fails, the selection is empty,
+or .sops.yaml synchronization fails. Exit 1 does not imply that no
+ciphertext was written. Output: ciphertext goes to files and stdout stays
+empty; warnings, per-file failure reasons, and the summary go to stderr
+(--verbose adds selection info and per-file success).
 
 To encrypt an unregistered file ad hoc without a project config, use
 the SOPS CLI directly.
@@ -98,6 +106,7 @@ Documentation: ` + docsTargetSelect,
 				Parallel:              opts.Parallel,
 				Force:                 opts.Force,
 				UpdateProjectMetadata: true,
+				SyncSOPSConfig:        opts.SyncSOPSConfig,
 			})
 		}),
 	}

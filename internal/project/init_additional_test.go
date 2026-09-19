@@ -212,7 +212,7 @@ func TestInitProject_NonInteractiveCreatesSopsConfig(t *testing.T) {
 	assert.True(t, os.IsNotExist(err))
 }
 
-func TestInitProjectForceRebuildsPolicyAndRemovesSkippedSopsConfig(t *testing.T) {
+func TestInitProjectForceRebuildsPolicyAndPreservesSopsConfigWhenSyncDisabled(t *testing.T) {
 	tempDir := t.TempDir()
 	withProjectWorkingDir(t, tempDir)
 	require.NoError(t, os.MkdirAll(".age", 0o700))
@@ -231,6 +231,7 @@ func TestInitProjectForceRebuildsPolicyAndRemovesSkippedSopsConfig(t *testing.T)
 	assert.NotContains(t, string(configData), "backup")
 	assert.Contains(t, string(configData), "owner")
 	assert.Contains(t, string(configData), `recipients = ['owner']`)
-	_, err = os.Stat(".sops.yaml")
-	require.ErrorIs(t, err, os.ErrNotExist)
+	sopsConfig, err := os.ReadFile(".sops.yaml")
+	require.NoError(t, err)
+	assert.Equal(t, "stale: true\n", string(sopsConfig))
 }

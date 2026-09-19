@@ -18,6 +18,7 @@ This skill covers the infrastructure side only: configuration, recipients, encry
 - **Protocol file** — encrypted files follow the `.enc.*` naming (`.enc.toml`, …, `.enc.bin`), which keeps group discovery from double-encrypting.
 - **Skip, lenient, strict** — "no matching identity" is a skip, not an error (lenient default), so people holding different keys share one repository; `--strict` turns skips into failures for deployment gates.
 - **Provenance** — `yews plan` reports where each resolved mapping, format, and authorization came from, exposing config drift before anything is written.
+- **SOPS config synchronization** — `encrypt` defaults to generating `.sops.yaml`; it always uses the complete resolved project policy even when its targets select one mapping. It finishes ciphertext work before synchronization, but a synchronization failure still makes the command fail. Use `--sync-sops-config=false` to leave it untouched.
 
 ## Help First
 

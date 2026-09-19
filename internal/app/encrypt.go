@@ -1,6 +1,9 @@
 package app
 
 import (
+	"errors"
+	"fmt"
+
 	"github.com/YewFence/YewSeal/internal/config"
 	"github.com/YewFence/YewSeal/internal/presentation"
 	"github.com/YewFence/YewSeal/internal/project"
@@ -16,6 +19,7 @@ type EncryptRequest struct {
 	Parallel              int
 	Force                 bool
 	UpdateProjectMetadata bool
+	SyncSOPSConfig        bool
 }
 
 func EncryptFiles(cfg *config.Config, req EncryptRequest) (err error) {
@@ -36,10 +40,6 @@ func EncryptFiles(cfg *config.Config, req EncryptRequest) (err error) {
 		if err := project.UpdateGitignore(metadataDisplayPairs); err != nil {
 			return err
 		}
-		metadataResolvedDisplay := config.DisplayResolvedFilePairs(preflight.MetadataPairs, config.CurrentDir(cfg))
-		if err := project.SyncResolvedSopsYaml(metadataResolvedDisplay); err != nil {
-			return err
-		}
 	}
 
 	out.Selection(preflight.Selection)
@@ -50,7 +50,14 @@ func EncryptFiles(cfg *config.Config, req EncryptRequest) (err error) {
 		OnComplete:     out.FileCompleted,
 		Force:          req.Force,
 	}
-	summary, err := task.Encrypt(opts)
+	summary, encryptErr := task.Encrypt(opts)
 	out.BatchSummary(summary, "encrypted")
-	return err
+	var syncErr error
+	if req.UpdateProjectMetadata && req.SyncSOPSConfig {
+		resolvedDisplay := config.DisplayResolvedFilePairs(preflight.Selection.AllConfigPairs, config.CurrentDir(cfg))
+		if err := project.SyncResolvedSopsYaml(resolvedDisplay); err != nil {
+			syncErr = fmt.Errorf("failed to update .sops.yaml after encryption: %w\nCiphertext processing completed. Fix the synchronization error, or use --sync-sops-config=false when direct SOPS interoperability is not required", err)
+		}
+	}
+	return errors.Join(encryptErr, syncErr)
 }

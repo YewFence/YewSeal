@@ -21,18 +21,30 @@ type initSelections struct {
 	ExampleFiles []string
 }
 
+// InitOptions controls project initialization and optional generated files.
+type InitOptions struct {
+	Force             bool
+	InputFile         string
+	OutputFile        string
+	FormatOverride    string
+	CreateExample     bool
+	CreateExampleSet  bool
+	SyncSOPSConfig    bool
+	SyncSOPSConfigSet bool
+}
+
 type initializer struct {
 	output  *presentation.Output
 	prompts *tools.Session
 }
 
 // InitProject initializes the project with Age keys and SOPS configuration.
-func InitProject(force bool, inputFile, outputFile, formatOverride string, createExampleFlag, skipSopsConfigFlag bool, out *presentation.Output, prompts *tools.Session) (err error) {
+func InitProject(opts InitOptions, out *presentation.Output, prompts *tools.Session) (err error) {
 	i := initializer{output: presentation.OrDiscard(out), prompts: prompts}
 	defer func() { err = i.output.Finish(i.prompts.Check(err)) }()
-	interactive := inputFile == "" && outputFile == ""
+	interactive := opts.InputFile == "" && opts.OutputFile == ""
 
-	shouldContinue, err := i.confirmInitOverwrite(force, interactive)
+	shouldContinue, err := i.confirmInitOverwrite(opts.Force, interactive)
 	if err != nil {
 		return err
 	}
@@ -41,26 +53,26 @@ func InitProject(force bool, inputFile, outputFile, formatOverride string, creat
 		return nil
 	}
 
-	selections, err := i.collectInitSelections(inputFile, outputFile, formatOverride, createExampleFlag)
+	selections, err := i.collectInitSelections(opts.InputFile, opts.OutputFile, opts.FormatOverride, opts.CreateExample, opts.CreateExampleSet)
 	if err != nil {
 		return err
 	}
 	filePairs := selections.FilePairs
 
 	shouldCreateSopsConfig := i.prompts.PromptYesNoConditional(
-		!interactive || skipSopsConfigFlag,
-		!skipSopsConfigFlag,
+		!interactive || opts.SyncSOPSConfigSet,
+		opts.SyncSOPSConfig,
 		"Create .sops.yaml? (optional, but convenient for direct sops commands)",
 	)
 	if err := i.prompts.Err(); err != nil {
 		return err
 	}
 
-	if force {
+	if opts.Force {
 		i.output.Warning("Force rebuild: the new owner identity may not decrypt existing ciphertext")
 	}
 
-	publicKey, err := setupAgeKey(force, i.output)
+	publicKey, err := setupAgeKey(opts.Force, i.output)
 	if err != nil {
 		return err
 	}
@@ -71,13 +83,7 @@ func InitProject(force bool, inputFile, outputFile, formatOverride string, creat
 	}
 	if shouldCreateSopsConfig {
 		if err := SyncResolvedSopsYaml(resolved); err != nil {
-			return fmt.Errorf("failed to update .sops.yaml: %w", err)
-		}
-	} else {
-		if force {
-			if err := os.Remove(sopsYamlPath); err != nil && !os.IsNotExist(err) {
-				return fmt.Errorf("failed to remove managed .sops.yaml: %w", err)
-			}
+			return fmt.Errorf("failed to update .sops.yaml: %w\nFix the synchronization error, or use --sync-sops-config=false when direct SOPS interoperability is not required", err)
 		}
 	}
 
@@ -142,7 +148,7 @@ func (i *initializer) collectInitFilePairs(inputFile, outputFile, formatOverride
 	return filePairs, i.prompts.Err()
 }
 
-func (i *initializer) collectInitSelections(inputFile, outputFile, formatOverride string, createExampleFlag bool) (initSelections, error) {
+func (i *initializer) collectInitSelections(inputFile, outputFile, formatOverride string, createExampleFlag, createExampleSet bool) (initSelections, error) {
 	if inputFile != "" || outputFile != "" {
 		filePairs, err := i.collectInitFilePairs(inputFile, outputFile, formatOverride)
 		if err != nil {
@@ -156,7 +162,7 @@ func (i *initializer) collectInitSelections(inputFile, outputFile, formatOverrid
 	}
 
 	selections := initSelections{}
-	filePair, shouldCreateExample, err := i.promptInteractiveInitFilePair(true, createExampleFlag)
+	filePair, shouldCreateExample, err := i.promptInteractiveInitFilePair(true, createExampleFlag, createExampleSet)
 	if err != nil {
 		return initSelections{}, err
 	}
@@ -166,7 +172,7 @@ func (i *initializer) collectInitSelections(inputFile, outputFile, formatOverrid
 	}
 
 	for i.prompts.PromptYesNo("Add another file to encrypt?", false) {
-		filePair, shouldCreateExample, err = i.promptInteractiveInitFilePair(false, createExampleFlag)
+		filePair, shouldCreateExample, err = i.promptInteractiveInitFilePair(false, createExampleFlag, createExampleSet)
 		if err != nil {
 			return initSelections{}, err
 		}
@@ -207,13 +213,13 @@ func (i *initializer) promptInitFilePair(first bool) (config.FilePair, error) {
 	}, nil
 }
 
-func (i *initializer) promptInteractiveInitFilePair(first bool, createExampleFlag bool) (config.FilePair, bool, error) {
+func (i *initializer) promptInteractiveInitFilePair(first bool, createExampleFlag, createExampleSet bool) (config.FilePair, bool, error) {
 	filePair, err := i.promptInitFilePair(first)
 	if err != nil {
 		return config.FilePair{}, false, err
 	}
-	if createExampleFlag {
-		return filePair, true, nil
+	if createExampleSet {
+		return filePair, createExampleFlag, nil
 	}
 
 	shouldCreateExample := i.prompts.PromptYesNo(
