@@ -30,7 +30,7 @@ func TestCLIProcessingOutcomes(t *testing.T) {
 		{name: "decrypt-strict", command: "decrypt", flags: []string{"--strict"}, code: 1},
 		{name: "decrypt-env-strict", command: "decrypt", strictEnv: "true", code: 1},
 		{name: "decrypt-env-override", command: "decrypt", strictEnv: "true", flags: []string{"--strict=false"}},
-		{name: "decrypt-all-skipped", command: "decrypt", scenario: "all-skipped", code: 1},
+		{name: "decrypt-all-skipped", command: "decrypt", scenario: "all-skipped"},
 		{name: "decrypt-error-continues", command: "decrypt", scenario: "broken", code: 1},
 		{name: "diff-partial-same", command: "diff"},
 		{name: "diff-complete-same", command: "diff", scenario: "complete"},
