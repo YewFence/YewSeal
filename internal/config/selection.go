@@ -360,7 +360,7 @@ func scopedConfigGroupPairs(cfg *Config, mode string) ([]FilePair, error) {
 			if _, explicit := findConfiguredPair(cfg.Encryption.Files, cleanAbsPath(taskPair.PlaintextPath)); explicit {
 				continue
 			}
-			if mode == task.ModeDiff || mode == task.ModePlan {
+			if mode == task.ModeDiff || mode == task.ModePlan || mode == task.ModeClean {
 				if _, explicit := findConfiguredPair(cfg.Encryption.Files, cleanAbsPath(taskPair.EncryptedPath)); explicit {
 					continue
 				}
@@ -458,11 +458,14 @@ func dedupeFilePairs(filePairs []FilePair, mode string) ([]FilePair, error) {
 				if existing.Source == PairSourceScan && filePair.Source != PairSourceScan {
 					continue
 				}
-				if (mode == task.ModeDiff || mode == task.ModePlan) && existing.Source == PairSourceScan && filePair.Source == PairSourceScan &&
+				if (mode == task.ModeDiff || mode == task.ModePlan || mode == task.ModeClean) && existing.Source == PairSourceScan && filePair.Source == PairSourceScan &&
 					(cleanAbsPath(existing.PlaintextPath) != nextPlaintext || cleanAbsPath(existing.EncryptedPath) != nextEncrypted || existing.Format != filePair.Format) {
 					operation := "comparison"
-					if mode == task.ModePlan {
+					switch mode {
+					case task.ModePlan:
 						operation = "plan"
+					case task.ModeClean:
+						operation = "clean"
 					}
 					return nil, fmt.Errorf("conflicting group file pairs for %s: %s -> %s and %s -> %s", operation, existing.PlaintextPath, existing.EncryptedPath, filePair.PlaintextPath, filePair.EncryptedPath)
 				}

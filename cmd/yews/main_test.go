@@ -52,6 +52,7 @@ func TestCLIConfigurationLoading(t *testing.T) {
 	infoCommands := [][]string{
 		{}, {"--version"}, {"--help"}, {"help", "decrypt"},
 		{"init", "--help"}, {"encrypt", "--help"}, {"decrypt", "--help"},
+		{"clean", "--help"},
 		{"plan", "--help"}, {"edit", "--help"}, {"view", "--help"}, {"diff", "--help"},
 		{"init", "--help", "--format", "invalid"},
 		{"completion", "bash"}, {"completion", "zsh"}, {"completion", "fish"}, {"completion", "powershell"},

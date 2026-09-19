@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/YewFence/YewSeal/internal/agekey"
+	cleaner "github.com/YewFence/YewSeal/internal/clean"
 	"github.com/YewFence/YewSeal/internal/config"
 	"github.com/YewFence/YewSeal/internal/diff"
 	"github.com/YewFence/YewSeal/internal/prompt"
@@ -203,6 +204,43 @@ func (o *Output) BatchSummary(summary *task.Summary, action string) {
 		return
 	}
 	o.diagnostic(fmt.Sprintf("Summary (%s): %d succeeded, %d skipped, %d failed (%d selected)\n", action, summary.SuccessCount, summary.SkippedCount, summary.FailedCount, summary.TotalFiles))
+}
+
+func (o *Output) ConfirmCleanDifference(prompts *prompt.Session, path string) (bool, error) {
+	displayPath := o.path(path)
+	message := fmt.Sprintf("Plaintext differs from encrypted content: %s\nHint: run yews diff -- %s to view the diff.\n", displayPath, shellQuote(displayPath))
+	if _, err := o.writeDiagnostic([]byte(message)); err != nil {
+		return false, err
+	}
+	confirmed := prompts.PromptYesNo("Delete the local plaintext anyway?", false)
+	if err := prompts.Err(); err != nil {
+		return false, err
+	}
+	return confirmed, nil
+}
+
+func shellQuote(value string) string {
+	return "'" + strings.ReplaceAll(value, "'", "'\\''") + "'"
+}
+
+func (o *Output) CleanCompleted(result cleaner.Result) {
+	path := o.path(result.PlaintextPath)
+	switch result.Status {
+	case cleaner.StatusRemoved:
+		o.diagnostic("REMOVED " + path + "\n")
+	case cleaner.StatusAlreadyAbsent:
+		if o.verbose {
+			o.diagnostic("ALREADY ABSENT " + path + "\n")
+		}
+	case cleaner.StatusRetained:
+		o.diagnostic("RETAINED " + path + ": plaintext differs from encrypted content\n")
+	case cleaner.StatusFailed:
+		o.diagnostic(fmt.Sprintf("FAILED %s: %v\n", path, result.Error))
+	}
+}
+
+func (o *Output) CleanSummary(summary cleaner.Summary) {
+	o.diagnostic(fmt.Sprintf("Summary (cleaned): %d removed, %d already absent, %d retained, %d failed (%d selected)\n", summary.RemovedCount, summary.AlreadyAbsentCount, summary.RetainedCount, summary.FailedCount, len(summary.Results)))
 }
 
 func (o *Output) ComparisonCompleted(result diff.Outcome) {

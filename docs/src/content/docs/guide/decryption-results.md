@@ -85,3 +85,5 @@ A skip never creates, deletes, or updates the corresponding plaintext, nor creat
 `decrypt` still updates `.gitignore` for the current project or target scope before processing files, including plaintext paths that may end up skipped, to prevent stale plaintext from being committed. If that update fails, writing plaintext never starts. Consequently, `.gitignore` may already have changed even when files end up skipped or the run fails later. `diff` writes neither plaintext nor project metadata.
 
 Files processed successfully are never rolled back because of later failures or strict incompleteness. In CI/CD, use `yews decrypt --strict` and deploy only after it exits successfully.
+
+To remove plaintext at the end of a session instead of writing it, see [Cleaning local plaintext](/guide/plaintext-cleanup) — `clean` reuses the same historical-recipient and identity rules, but unlike `decrypt` it treats an unmatched identity as a failure rather than a skip, because an undeletable plaintext is exactly what it must report.
