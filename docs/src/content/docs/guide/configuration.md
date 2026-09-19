@@ -155,7 +155,7 @@ Encryption authorization uses only the canonical Age recipients resolved from `[
 
 ### Identity bundles
 
-One key file may contain multiple Age private keys; YewSeal ignores comments, blank lines, and irrelevant lines, and deduplicates by first occurrence. CI can also pass multiple private keys through YewSeal's environment variable:
+One key file may contain multiple Age private keys; YewSeal ignores comments and blank lines, deduplicates valid identities by first occurrence, and reports malformed items on stderr using their line and item positions plus a redacted preview. A bundle continues when at least one valid identity remains and fails when none do. CI can also pass multiple private keys through YewSeal's environment variable:
 
 ```bash
 YEWSEAL_AGE_IDENTITIES='AGE-SECRET-KEY-1...,AGE-SECRET-KEY-1...' yews decrypt config.enc.toml

@@ -60,7 +60,7 @@ func InitProject(force bool, inputFile, outputFile, formatOverride string, creat
 		i.output.Warning("Force rebuild: the new owner identity may not decrypt existing ciphertext")
 	}
 
-	publicKey, err := setupAgeKey(force)
+	publicKey, err := setupAgeKey(force, i.output)
 	if err != nil {
 		return err
 	}
@@ -326,7 +326,7 @@ func normalizeInitFormat(format string) (string, bool) {
 }
 
 // setupAgeKey generates or retrieves the Age key pair
-func setupAgeKey(force bool) (string, error) {
+func setupAgeKey(force bool, out *presentation.Output) (string, error) {
 	keyFilePath := ".age/keys.txt"
 	keyExists := false
 
@@ -341,6 +341,7 @@ func setupAgeKey(force bool) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("failed to parse existing key file: %w", err)
 		}
+		presentation.OrDiscard(out).IdentityBundle(bundle)
 		identity, err := age.ParseX25519Identity(bundle.Identities()[0])
 		if err != nil {
 			return "", fmt.Errorf("failed to parse existing owner identity: %w", err)

@@ -11,9 +11,10 @@ import (
 	"github.com/YewFence/YewSeal/internal/errx"
 )
 
-// IdentityBundle contains the normalized identities available to a consumer.
+// IdentityBundle contains normalized identities and redacted parse diagnostics.
 type IdentityBundle struct {
 	identities []string
+	warnings   []string
 }
 
 // NewIdentityBundle validates and deduplicates Age identities.
@@ -48,6 +49,11 @@ func (b IdentityBundle) String() string {
 // Identities returns a copy of the bundle identities for internal consumers.
 func (b IdentityBundle) Identities() []string {
 	return append([]string(nil), b.identities...)
+}
+
+// Warnings returns redacted diagnostics produced while parsing the bundle.
+func (b IdentityBundle) Warnings() []string {
+	return append([]string(nil), b.warnings...)
 }
 
 // GetIdentityBundle resolves an explicit key file first, then environment sources,
@@ -96,20 +102,42 @@ func readIdentityBundle(path string) (IdentityBundle, error) {
 
 func parseIdentityFile(content string) (IdentityBundle, error) {
 	identities := make([]string, 0)
-	for _, line := range strings.Split(content, "\n") {
+	warnings := make([]string, 0)
+	for lineIndex, line := range strings.Split(content, "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
-		for _, field := range strings.FieldsFunc(line, func(r rune) bool {
+		fields := strings.FieldsFunc(line, func(r rune) bool {
 			return r == ',' || unicode.IsSpace(r)
-		}) {
-			if strings.HasPrefix(field, "AGE-SECRET-KEY-") {
-				identities = append(identities, field)
+		})
+		for fieldIndex, field := range fields {
+			if _, err := age.ParseX25519Identity(field); err != nil {
+				warnings = append(warnings, fmt.Sprintf("ignored malformed Age identity bundle item at line %d, item %d (%s)", lineIndex+1, fieldIndex+1, redactIdentityItem(field)))
+				continue
 			}
+			identities = append(identities, field)
 		}
 	}
-	return NewIdentityBundle(identities)
+	bundle, err := NewIdentityBundle(identities)
+	if err != nil {
+		return IdentityBundle{}, err
+	}
+	bundle.warnings = warnings
+	return bundle, nil
+}
+
+func redactIdentityItem(value string) string {
+	const ageIdentityPrefix = "AGE-SECRET-KEY-"
+	const minHiddenRunes = 8
+	runes := []rune(value)
+	if strings.HasPrefix(value, ageIdentityPrefix) && len(runes) >= len(ageIdentityPrefix)+4+minHiddenRunes {
+		return ageIdentityPrefix + "…" + string(runes[len(runes)-4:])
+	}
+	if len(runes) >= 2+2+3 {
+		return string(runes[:2]) + "…" + string(runes[len(runes)-2:])
+	}
+	return fmt.Sprintf("[REDACTED: %d chars]", len(runes))
 }
 
 type keyFileReadError struct {

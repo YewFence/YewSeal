@@ -20,7 +20,7 @@ func TestSetupAgeKey_NewKey(t *testing.T) {
 
 	keyFile := ".age/keys.txt"
 
-	publicKey, err := setupAgeKey(false)
+	publicKey, err := setupAgeKey(false, nil)
 	require.NoError(t, err)
 	assert.NotEmpty(t, publicKey)
 	assert.True(t, len(publicKey) > 50, "Public key should be a valid age public key")
@@ -35,11 +35,11 @@ func TestSetupAgeKey_ExistingKey(t *testing.T) {
 	withProjectWorkingDir(t, tempDir)
 
 	// First, generate a key
-	publicKey1, err := setupAgeKey(false)
+	publicKey1, err := setupAgeKey(false, nil)
 	require.NoError(t, err)
 
 	// Call again without force - should return same key
-	publicKey2, err := setupAgeKey(false)
+	publicKey2, err := setupAgeKey(false, nil)
 	require.NoError(t, err)
 
 	assert.Equal(t, publicKey1, publicKey2)
@@ -50,11 +50,11 @@ func TestSetupAgeKey_ForceRegenerate(t *testing.T) {
 	withProjectWorkingDir(t, tempDir)
 
 	// First, generate a key
-	publicKey1, err := setupAgeKey(false)
+	publicKey1, err := setupAgeKey(false, nil)
 	require.NoError(t, err)
 
 	// Call with force - should generate new key
-	publicKey2, err := setupAgeKey(true)
+	publicKey2, err := setupAgeKey(true, nil)
 	require.NoError(t, err)
 
 	assert.NotEqual(t, publicKey1, publicKey2)
@@ -70,7 +70,7 @@ func TestSetupAgeKey_InvalidExistingKey(t *testing.T) {
 	require.NoError(t, err)
 
 	// Should fail to extract public key from invalid content
-	_, err = setupAgeKey(false)
+	_, err = setupAgeKey(false, nil)
 	assert.Error(t, err)
 }
 

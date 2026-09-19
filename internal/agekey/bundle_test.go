@@ -2,6 +2,7 @@ package agekey
 
 import (
 	"os"
+	"strings"
 	"testing"
 
 	"filippo.io/age"
@@ -33,6 +34,26 @@ func TestGetIdentityBundleFromKeyFileCollectsValidIdentities(t *testing.T) {
 	bundle, err := GetIdentityBundle(path)
 	require.NoError(t, err)
 	require.Equal(t, []string{first.String(), second.String()}, bundle.Identities())
+	require.Equal(t, []string{
+		"ignored malformed Age identity bundle item at line 3, item 1 ([REDACTED: 3 chars])",
+		"ignored malformed Age identity bundle item at line 3, item 2 ([REDACTED: 2 chars])",
+		"ignored malformed Age identity bundle item at line 3, item 3 (id…ty)",
+	}, bundle.Warnings())
+	require.NotContains(t, strings.Join(bundle.Warnings(), "\n"), "not an identity")
+}
+
+func TestGetIdentityBundleWarnsAndKeepsValidItems(t *testing.T) {
+	identity, err := age.GenerateX25519Identity()
+	require.NoError(t, err)
+	malformed := "INVALID"
+	t.Setenv("YEWSEAL_AGE_IDENTITIES", identity.String()+","+malformed)
+
+	bundle, err := GetIdentityBundle("")
+	require.NoError(t, err)
+	require.Equal(t, []string{identity.String()}, bundle.Identities())
+	require.Equal(t, []string{"ignored malformed Age identity bundle item at line 1, item 2 (IN…ID)"}, bundle.Warnings())
+	require.NotContains(t, bundle.Warnings()[0], identity.String())
+	require.NotContains(t, bundle.Warnings()[0], malformed)
 }
 
 func TestGetIdentityBundleEnvironmentAliasesAcceptBundleSeparators(t *testing.T) {
@@ -73,7 +94,8 @@ func TestGetIdentityBundleInvalidYewSealEnvironmentDoesNotFallBack(t *testing.T)
 	t.Setenv("YEWSEAL_AGE_IDENTITIES", "AGE-SECRET-KEY-1INVALID")
 	t.Setenv("SOPS_AGE_KEY", alias.String())
 	_, err = GetIdentityBundle("")
-	require.ErrorContains(t, err, "invalid Age identity")
+	require.ErrorContains(t, err, "no valid Age identity found")
+	require.NotContains(t, err.Error(), alias.String())
 }
 
 func TestGetIdentityBundleExplicitFileDoesNotFallBack(t *testing.T) {

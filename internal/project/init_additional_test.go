@@ -151,7 +151,7 @@ func TestSetupAgeKeyUsesIdentityWithoutPublicKeyComment(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, os.MkdirAll(".age", 0o700))
 	require.NoError(t, os.WriteFile(".age/keys.txt", []byte(identity.String()+"\n"), 0o600))
-	publicKey, err := setupAgeKey(false)
+	publicKey, err := setupAgeKey(false, nil)
 	require.NoError(t, err)
 	assert.Equal(t, identity.Recipient().String(), publicKey)
 }
@@ -163,7 +163,7 @@ func TestSetupAgeKey_ForceRemovesPreviousKeyFile(t *testing.T) {
 	require.NoError(t, os.MkdirAll(".age", 0o700))
 	require.NoError(t, os.WriteFile(".age/keys.txt", []byte("stale"), 0o600))
 
-	publicKey, err := setupAgeKey(true)
+	publicKey, err := setupAgeKey(true, nil)
 	require.NoError(t, err)
 	assert.NotEmpty(t, publicKey)
 

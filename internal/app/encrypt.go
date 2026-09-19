@@ -29,6 +29,7 @@ func EncryptFiles(cfg *config.Config, req EncryptRequest) (err error) {
 	if preflight.MissingIdentity {
 		out.Warning("no Age identity found; existing ciphertext will be replaced instead of updated incrementally")
 	}
+	out.IdentityBundle(preflight.IdentityBundle)
 
 	if req.UpdateProjectMetadata {
 		metadataDisplayPairs := config.DisplayFilePairs(config.ResolvedFilePairsToFilePairs(preflight.MetadataPairs), config.CurrentDir(cfg))

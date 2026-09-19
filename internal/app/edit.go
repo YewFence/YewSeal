@@ -54,6 +54,7 @@ func EditEncryptedFile(req EditRequest) (err error) {
 	if err != nil {
 		return err
 	}
+	out.IdentityBundle(identityBundle)
 
 	plainData, err := seal.DecryptToBytes(seal.DecryptBytesOptions{
 		InputFile:      resolved.EncryptedPath,

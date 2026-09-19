@@ -562,7 +562,8 @@ YEWSEAL_AGE_IDENTITIES='AGE-SECRET-KEY-1...,AGE-SECRET-KEY-1...' yews decrypt
 2. 每项验证为可用 Age identity；
 3. 重复 identity 按规范化文本去重；
 4. 内部转换为统一 IdentityBundle；
-5. 不在任何输出中显示 identity 内容。
+5. bundle 中存在有效 identity 时，非法项以行号、项序号和脱敏预览的 stderr warning 报告后跳过；若没有任何有效 identity 则失败；
+6. 不在任何输出中显示 identity 内容。
 
 ### SOPS 环境变量兼容
 
