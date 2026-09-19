@@ -34,6 +34,11 @@ The editor must exit only after the file is saved and closed (for
 example "code --wait"), otherwise YewSeal re-encrypts before editing
 finishes.
 
+Exit codes: 0 on success (changed or unchanged); 1 when editing or
+re-encryption fails; 2 for calling errors (no target, an unregistered
+file, a missing or invalid .yewseal.toml, or an unusable identity
+source).
+
 Output: stdout stays empty; the update result (or "unchanged"),
 warnings, and errors go to stderr.
 

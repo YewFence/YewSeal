@@ -8,6 +8,7 @@ type encryptOptions struct {
 	Parallel       int    `mapstructure:"parallel"`
 	Force          bool   `mapstructure:"force"`
 	Verbose        bool   `mapstructure:"verbose"`
+	JSON           bool   `mapstructure:"json"`
 	SyncSOPSConfig bool   `mapstructure:"sync-sops-config"`
 }
 
@@ -18,6 +19,7 @@ type decryptOptions struct {
 	Force    bool   `mapstructure:"force"`
 	Strict   bool   `mapstructure:"strict"`
 	Verbose  bool   `mapstructure:"verbose"`
+	JSON     bool   `mapstructure:"json"`
 }
 
 type planOptions struct {
@@ -32,6 +34,7 @@ type initOptions struct {
 	Format         string `mapstructure:"format"`
 	CreateExample  bool   `mapstructure:"create-example"`
 	SyncSOPSConfig bool   `mapstructure:"sync-sops-config"`
+	JSON           bool   `mapstructure:"json"`
 }
 
 type editOptions struct {
@@ -42,12 +45,14 @@ type editOptions struct {
 type viewOptions struct {
 	KeyFile string `mapstructure:"key-file"`
 	Verbose bool   `mapstructure:"verbose"`
+	JSON    bool   `mapstructure:"json"`
 }
 
 type diffOptions struct {
 	KeyFile string `mapstructure:"key-file"`
 	Color   string `mapstructure:"color"`
 	Verbose bool   `mapstructure:"verbose"`
+	JSON    bool   `mapstructure:"json"`
 }
 
 func addEncryptFlags(flags *pflag.FlagSet, opts *encryptOptions) {
@@ -55,6 +60,7 @@ func addEncryptFlags(flags *pflag.FlagSet, opts *encryptOptions) {
 	flags.IntVarP(&opts.Parallel, "parallel", "P", opts.Parallel, "Number of parallel workers for batch mode (minimum 1)")
 	flags.BoolVarP(&opts.Force, "force", "f", false, "Freshly encrypt every existing plaintext and rotate its data key")
 	flags.BoolVarP(&opts.Verbose, "verbose", "v", false, "Enable verbose output")
+	flags.BoolVar(&opts.JSON, "json", false, "Print the batch report as JSON on stdout (diagnostics stay on stderr)")
 	flags.BoolVar(&opts.SyncSOPSConfig, "sync-sops-config", opts.SyncSOPSConfig, "Sync the complete project policy to .sops.yaml after encryption")
 }
 
@@ -64,6 +70,7 @@ func addDecryptFlags(flags *pflag.FlagSet, opts *decryptOptions) {
 	flags.BoolVarP(&opts.Force, "force", "f", false, "Force overwrite existing plaintext file when it differs from decrypted content")
 	flags.BoolVar(&opts.Strict, "strict", false, "Require every selected file to be decrypted")
 	flags.BoolVarP(&opts.Verbose, "verbose", "v", false, "Enable verbose output (selection info and per-file results on stderr)")
+	flags.BoolVar(&opts.JSON, "json", false, "Print the batch report as JSON on stdout (diagnostics stay on stderr)")
 }
 
 func addPlanFlags(flags *pflag.FlagSet, opts *planOptions) {

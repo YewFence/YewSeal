@@ -10,6 +10,8 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
+
+	"github.com/YewFence/YewSeal/internal/errx"
 )
 
 type optionBinding struct {
@@ -38,18 +40,18 @@ func (r *optionResolver) before(validate cobra.PositionalArgs) cobra.PositionalA
 			r.inheritedDone = true
 		}
 		if r.bindErr != nil {
-			return r.bindErr
+			return errx.Usage(r.bindErr)
 		}
 		if err := r.validateEnvironment(); err != nil {
-			return err
+			return errx.Usage(err)
 		}
 		if err := r.viper.Unmarshal(r.target); err != nil {
-			return fmt.Errorf("failed to resolve %s options: %w", cmd.Name(), err)
+			return errx.Usage(fmt.Errorf("failed to resolve %s options: %w", cmd.Name(), err))
 		}
 		if validate == nil {
 			return nil
 		}
-		return validate(cmd, args)
+		return errx.Usage(validate(cmd, args))
 	}
 }
 

@@ -31,6 +31,7 @@ type InitOptions struct {
 	CreateExampleSet  bool
 	SyncSOPSConfig    bool
 	SyncSOPSConfigSet bool
+	JSON              bool
 }
 
 type initializer struct {
@@ -50,6 +51,9 @@ func InitProject(opts InitOptions, out *presentation.Output, prompts *tools.Sess
 	}
 	if !shouldContinue {
 		i.output.InitKept()
+		if opts.JSON {
+			return i.output.InitReportJSON(presentation.InitReport{Kept: true})
+		}
 		return nil
 	}
 
@@ -99,11 +103,42 @@ func InitProject(opts InitOptions, out *presentation.Output, prompts *tools.Sess
 		return err
 	}
 
-	for _, exampleFile := range selections.ExampleFiles {
-		i.createExampleFile(exampleFile)
+	exampleFiles := make([]string, 0, len(selections.ExampleFiles))
+	for _, inputFile := range selections.ExampleFiles {
+		if exampleFile := i.createExampleFile(inputFile); exampleFile != "" {
+			exampleFiles = append(exampleFiles, exampleFile)
+		}
 	}
 	i.output.Initialized(len(filePairs), shouldCreateSopsConfig)
+	if opts.JSON {
+		if err := i.output.InitReportJSON(i.buildInitReport(filePairs, exampleFiles, shouldCreateSopsConfig)); err != nil {
+			return err
+		}
+	}
 	return nil
+}
+
+func (i *initializer) buildInitReport(filePairs []config.FilePair, exampleFiles []string, sopsConfigSynced bool) presentation.InitReport {
+	mappings := make([]presentation.InitMapping, 0, len(filePairs))
+	for _, filePair := range filePairs {
+		var recipients []string
+		if filePair.Recipients != nil {
+			recipients = *filePair.Recipients
+		}
+		mappings = append(mappings, presentation.InitMapping{
+			Plaintext:  filePair.PlaintextPath,
+			Encrypted:  filePair.EncryptedPath,
+			Format:     filePair.Format,
+			Recipients: recipients,
+		})
+	}
+	return presentation.InitReport{
+		ConfigFile:   ".yewseal.toml",
+		KeyFile:      privateKeyPath,
+		SOPSConfig:   sopsConfigSynced,
+		Mappings:     mappings,
+		ExampleFiles: exampleFiles,
+	}
 }
 
 func (i *initializer) confirmInitOverwrite(force, interactive bool) (bool, error) {
@@ -402,8 +437,8 @@ func setupAgeKey(force bool, out *presentation.Output) (string, error) {
 	return publicKey, nil
 }
 
-// createExampleFile creates an example file from the input file
-func (i *initializer) createExampleFile(inputFile string) {
+// createExampleFile creates an example file from the input file.
+func (i *initializer) createExampleFile(inputFile string) string {
 	if _, err := os.Stat(inputFile); err == nil {
 		exampleContent, err := os.ReadFile(inputFile)
 		if err == nil {
@@ -412,9 +447,11 @@ func (i *initializer) createExampleFile(inputFile string) {
 				i.output.Warning(fmt.Sprintf("Failed to create %s: %v", exampleFile, err))
 			} else {
 				i.output.Warning("Review " + exampleFile + " and remove sensitive values")
+				return exampleFile
 			}
 		}
 	} else {
 		i.output.Warning(fmt.Sprintf("Input file %s does not exist yet, skipping example creation", inputFile))
 	}
+	return ""
 }

@@ -21,7 +21,13 @@ bundle. It stays single-target: it fails without emitting empty
 plaintext and never touches .gitignore or .sops.yaml.
 
 Output: stdout carries only the plaintext; warnings, errors, and
---verbose detail go to stderr, so the plaintext stays pipeable.
+--verbose detail go to stderr, so the plaintext stays pipeable. --json
+wraps the plaintext in a JSON envelope (path, format, encoding,
+content); binary formats encode the content as base64.
+
+Exit codes: 0 on success; 1 when decryption or output delivery fails;
+2 for calling errors (wrong argument count, an unregistered target, a
+missing or invalid .yewseal.toml, or an unusable identity source).
 
 See also: "yews decrypt" to write plaintext files with overwrite
 protection, "yews edit" to edit the encrypted file directly.
@@ -43,12 +49,16 @@ yews view [command options] <target> [flags]
 
   # Save only the plaintext; detail stays on stderr
   yews view config.enc.toml --verbose > inspected.toml
+
+  # Wrap the plaintext in a JSON envelope for scripts
+  yews view config.enc.toml --json
 ```
 
 ## Options
 
 ```
   -h, --help      help for view
+      --json      Print the decrypted content as a JSON envelope on stdout (base64 for binary formats) (env YEWSEAL_VIEW_JSON)
   -v, --verbose   Enable verbose output (detail goes to stderr; stdout stays plaintext only) (env YEWSEAL_VIEW_VERBOSE)
 ```
 

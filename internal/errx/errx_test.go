@@ -5,7 +5,24 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+func TestUsageErrorKeepsCauseIdentityAndExitCode(t *testing.T) {
+	cause := errors.New("no config file found")
+	wrapped := Usage(cause)
+
+	require.Nil(t, Usage(nil))
+	require.EqualError(t, wrapped, "no config file found")
+	require.ErrorIs(t, wrapped, cause)
+
+	var usage *UsageError
+	require.ErrorAs(t, wrapped, &usage)
+	require.Equal(t, 2, usage.ExitCode())
+	var coder ExitCoder
+	require.ErrorAs(t, wrapped, &coder)
+	require.Equal(t, 2, coder.ExitCode())
+}
 
 func TestNotFoundError(t *testing.T) {
 	t.Run("defaults to file", func(t *testing.T) {

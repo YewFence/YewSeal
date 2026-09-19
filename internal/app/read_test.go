@@ -68,7 +68,7 @@ func TestDiffReadOutcomes(t *testing.T) {
 				}
 			}
 			var out, diagnostics bytes.Buffer
-			result, err := DiffPlaintextAgainstEncryptedTargets(&out, &diagnostics, cfg, nil, env.keyFile, true, "never")
+			result, err := DiffTargets(&out, &diagnostics, cfg, DiffRequest{KeyFile: env.keyFile, Verbose: true, ColorMode: "never"})
 			if tc.failed > 0 {
 				require.Error(t, err)
 			} else {
@@ -103,7 +103,7 @@ func TestReadCommandsPreserveHistoryAndOutputChannels(t *testing.T) {
 	cfg := &config.Config{Encryption: config.EncryptionConfig{Files: []config.FilePair{{PlaintextPath: ".dev.vars", EncryptedPath: "secrets", Format: "env", Recipients: &missing}}}}
 	for _, target := range []string{".dev.vars", "secrets"} {
 		var out, diagnostics bytes.Buffer
-		require.NoError(t, WriteViewedTarget(&out, &diagnostics, cfg, target, env.keyFile, true))
+		require.NoError(t, ViewTarget(&out, &diagnostics, cfg, ViewRequest{Target: target, KeyFile: env.keyFile, Verbose: true}))
 		require.Equal(t, plain, out.Bytes())
 		require.Contains(t, diagnostics.String(), "WARNING")
 		require.Contains(t, diagnostics.String(), "Selected 1")
@@ -111,7 +111,7 @@ func TestReadCommandsPreserveHistoryAndOutputChannels(t *testing.T) {
 	}
 	require.NoError(t, os.WriteFile(".dev.vars", []byte("TOKEN=local\n"), 0600))
 	var out, diagnostics bytes.Buffer
-	result, err := DiffPlaintextAgainstEncryptedTargets(&out, &diagnostics, cfg, []string{"secrets"}, env.keyFile, true, "never")
+	result, err := DiffTargets(&out, &diagnostics, cfg, DiffRequest{Targets: []string{"secrets"}, KeyFile: env.keyFile, Verbose: true, ColorMode: "never"})
 	require.NoError(t, err)
 	require.True(t, result.Different)
 	require.Contains(t, diagnostics.String(), "WARNING")
@@ -130,7 +130,7 @@ func TestDiffAlwaysLoadsIdentityBeforeMissingInputSkips(t *testing.T) {
 	t.Chdir(t.TempDir())
 	cfg := &config.Config{Encryption: config.EncryptionConfig{Files: []config.FilePair{{PlaintextPath: "missing.yaml", EncryptedPath: "missing.enc.yaml"}}}}
 	var out, diagnostics bytes.Buffer
-	_, err := DiffPlaintextAgainstEncryptedTargets(&out, &diagnostics, cfg, nil, filepath.Join(t.TempDir(), "missing-key"), false, "never")
+	_, err := DiffTargets(&out, &diagnostics, cfg, DiffRequest{KeyFile: filepath.Join(t.TempDir(), "missing-key"), ColorMode: "never"})
 	require.Error(t, err)
 	require.Empty(t, out.String())
 	require.Empty(t, diagnostics.String())
@@ -162,18 +162,18 @@ func TestReadCommandsPropagateOutputErrors(t *testing.T) {
 			t.Run(command+"/"+match, func(t *testing.T) {
 				var out bytes.Buffer
 				if command == "view" {
-					err = WriteViewedTarget(&out, rejectedOutput{match: match}, cfg, "config.yaml", env.keyFile, true)
+					err = ViewTarget(&out, rejectedOutput{match: match}, cfg, ViewRequest{Target: "config.yaml", KeyFile: env.keyFile, Verbose: true})
 				} else {
-					_, err = DiffPlaintextAgainstEncryptedTargets(&out, rejectedOutput{match: match}, cfg, nil, env.keyFile, true, "never")
+					_, err = DiffTargets(&out, rejectedOutput{match: match}, cfg, DiffRequest{KeyFile: env.keyFile, Verbose: true, ColorMode: "never"})
 				}
 				require.ErrorIs(t, err, errReadOutput)
 				require.NotEmpty(t, out.String(), "diagnostic failure must not stop content delivery")
 			})
 		}
 	}
-	require.ErrorIs(t, WriteViewedTarget(rejectedOutput{}, io.Discard, cfg, "config.yaml", env.keyFile, false), errReadOutput)
-	_, err = DiffPlaintextAgainstEncryptedTargets(rejectedOutput{}, io.Discard, cfg, nil, env.keyFile, false, "never")
+	require.ErrorIs(t, ViewTarget(rejectedOutput{}, io.Discard, cfg, ViewRequest{Target: "config.yaml", KeyFile: env.keyFile}), errReadOutput)
+	_, err = DiffTargets(rejectedOutput{}, io.Discard, cfg, DiffRequest{KeyFile: env.keyFile, ColorMode: "never"})
 	require.ErrorIs(t, err, errReadOutput)
-	_, err = DiffPlaintextAgainstEncryptedTargets(io.Discard, rejectedOutput{match: "Summary"}, cfg, nil, env.keyFile, false, "never")
+	_, err = DiffTargets(io.Discard, rejectedOutput{match: "Summary"}, cfg, DiffRequest{KeyFile: env.keyFile, ColorMode: "never"})
 	require.ErrorIs(t, err, errReadOutput)
 }

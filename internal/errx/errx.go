@@ -5,6 +5,30 @@ import (
 	"strings"
 )
 
+// ExitCoder 由携带进程退出码的错误实现，main 依据它决定 os.Exit 的值。
+type ExitCoder interface {
+	error
+	ExitCode() int
+}
+
+// UsageError 标记调用类错误：参数校验、配置加载、目标选择、身份源解析等
+// 在文件处理开始前即可确定的失败。退出码 2；未标记的业务错误退出码 1。
+type UsageError struct {
+	Err error
+}
+
+func (e *UsageError) Error() string { return e.Err.Error() }
+func (e *UsageError) Unwrap() error { return e.Err }
+func (e *UsageError) ExitCode() int { return 2 }
+
+// Usage 包装调用类错误；nil 原样返回以便在返回语句中直接使用。
+func Usage(err error) error {
+	if err == nil {
+		return nil
+	}
+	return &UsageError{Err: err}
+}
+
 // NotFoundError represents a missing file/resource.
 // Keep Error() messages stable because they are user-facing in the CLI.
 type NotFoundError struct {

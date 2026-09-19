@@ -16,19 +16,27 @@ type DiffResult struct {
 	Summary   diff.Summary
 }
 
-func DiffPlaintextAgainstEncryptedTargets(w, diagnostics io.Writer, cfg *config.Config, targets []string, keyFile string, verbose bool, colorMode string) (comparison DiffResult, err error) {
-	out := presentation.New(w, diagnostics, verbose)
+type DiffRequest struct {
+	Targets   []string
+	KeyFile   string
+	Verbose   bool
+	ColorMode string
+	JSON      bool
+}
+
+func DiffTargets(w, diagnostics io.Writer, cfg *config.Config, req DiffRequest) (comparison DiffResult, err error) {
+	out := presentation.New(w, diagnostics, req.Verbose)
 	defer func() { err = out.Finish(errors.Join(err, comparison.Summary.Check())) }()
 	selection, identityBundle, err := prepareRead(out, cfg, config.SelectionOptions{
 		Command:          task.ModeDiff,
-		Targets:          targets,
+		Targets:          req.Targets,
 		AllowEmptyTarget: true,
-	}, keyFile)
+	}, req.KeyFile)
 	if err != nil {
 		return DiffResult{}, err
 	}
 
-	colorEnabled, err := presentation.ResolveDiffColor(colorMode, w)
+	colorEnabled, err := presentation.ResolveDiffColor(req.ColorMode, w)
 	if err != nil {
 		return DiffResult{}, err
 	}
@@ -51,12 +59,19 @@ func DiffPlaintextAgainstEncryptedTargets(w, diagnostics io.Writer, cfg *config.
 		}
 		if result.Different {
 			comparison.Different = true
-			if err := out.Diff(result.Diff, colorEnabled); err != nil {
-				return comparison, fmt.Errorf("failed to write diff output: %w", err)
+			if !req.JSON {
+				if err := out.Diff(result.Diff, colorEnabled); err != nil {
+					return comparison, fmt.Errorf("failed to write diff output: %w", err)
+				}
 			}
 		}
 	}
 
+	if req.JSON {
+		if err := out.DiffReportJSON(comparison.Summary); err != nil {
+			return comparison, err
+		}
+	}
 	out.ComparisonSummary(comparison.Summary)
 	return comparison, nil
 }

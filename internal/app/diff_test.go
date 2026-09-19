@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestDiffPlaintextAgainstEncryptedTargets_WritesDiffForDifferentTarget(t *testing.T) {
+func TestDiffTargets_WritesDiffForDifferentTarget(t *testing.T) {
 	env := newDiffTestEnv(t)
 
 	require.NoError(t, os.WriteFile("config.yaml", []byte("database:\n  host: localhost\n"), 0644))
@@ -33,7 +33,7 @@ func TestDiffPlaintextAgainstEncryptedTargets_WritesDiffForDifferentTarget(t *te
 
 	var out bytes.Buffer
 	var diagnostics bytes.Buffer
-	result, err := DiffPlaintextAgainstEncryptedTargets(&out, &diagnostics, cfg, []string{"config.yaml"}, env.keyFile, false, "never")
+	result, err := DiffTargets(&out, &diagnostics, cfg, DiffRequest{Targets: []string{"config.yaml"}, KeyFile: env.keyFile, ColorMode: "never"})
 	require.NoError(t, err)
 
 	assert.True(t, result.Different)
@@ -43,7 +43,7 @@ func TestDiffPlaintextAgainstEncryptedTargets_WritesDiffForDifferentTarget(t *te
 	assert.Contains(t, out.String(), "+    host: localhost")
 }
 
-func TestDiffPlaintextAgainstEncryptedTargets_NoOutputForIdenticalTarget(t *testing.T) {
+func TestDiffTargets_NoOutputForIdenticalTarget(t *testing.T) {
 	env := newDiffTestEnv(t)
 
 	require.NoError(t, os.WriteFile("config.yaml", []byte("database:\n  host: localhost\n"), 0644))
@@ -72,7 +72,7 @@ func TestDiffPlaintextAgainstEncryptedTargets_NoOutputForIdenticalTarget(t *test
 
 	var out bytes.Buffer
 	var diagnostics bytes.Buffer
-	result, err := DiffPlaintextAgainstEncryptedTargets(&out, &diagnostics, cfg, nil, env.keyFile, false, "never")
+	result, err := DiffTargets(&out, &diagnostics, cfg, DiffRequest{KeyFile: env.keyFile, ColorMode: "never"})
 	require.NoError(t, err)
 
 	assert.False(t, result.Different)

@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/YewFence/YewSeal/internal/config"
+	"github.com/YewFence/YewSeal/internal/errx"
 	"github.com/spf13/cobra"
 )
 
@@ -14,7 +15,7 @@ func withConfig(load configLoader, run func(*cobra.Command, []string, *config.Co
 	return func(cmd *cobra.Command, args []string) error {
 		cfg, err := load()
 		if err != nil {
-			return fmt.Errorf("failed to load config: %w", err)
+			return errx.Usage(fmt.Errorf("failed to load config: %w", err))
 		}
 		return run(cmd, args, cfg)
 	}

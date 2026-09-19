@@ -59,6 +59,14 @@ func (b IdentityBundle) Warnings() []string {
 // GetIdentityBundle resolves an explicit key file first, then environment sources,
 // then .age/keys.txt relative to the current working directory.
 func GetIdentityBundle(keyFile string) (IdentityBundle, error) {
+	bundle, err := getIdentityBundle(keyFile)
+	if err != nil {
+		return bundle, errx.Usage(err)
+	}
+	return bundle, nil
+}
+
+func getIdentityBundle(keyFile string) (IdentityBundle, error) {
 	if keyFile != "" {
 		return readIdentityBundle(keyFile)
 	}

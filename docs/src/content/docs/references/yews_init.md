@@ -37,7 +37,13 @@ makes initialization fail.
 
 Output: stdout stays empty; prompts, warnings, errors, and the
 completion summary (mapping count and key file locations) go to stderr,
-answers are read from stdin.
+answers are read from stdin. --json additionally prints the
+initialization report (mappings, key file, .sops.yaml outcome) on
+stdout, which suits non-interactive scripting.
+
+Exit codes: 0 on success (including keeping an existing configuration
+after declining the overwrite prompt); 1 when writing project files
+fails; 2 for calling errors (invalid arguments or an invalid --format).
 
 See also: "yews encrypt" to encrypt the registered files, "yews decrypt"
 to decrypt them. Private key storage and distribution are managed
@@ -65,6 +71,9 @@ yews init [flags]
   # Rebuild keys and configuration from scratch (existing ciphertext
   # may become undecryptable)
   yews init --force
+
+  # Report the initialization result as JSON for scripts
+  yews init --input config.toml --json
 ```
 
 ## Options
@@ -75,6 +84,7 @@ yews init [flags]
       --format string      Format override for the first config entry (toml/yaml/json/env/ini/binary) (env YEWSEAL_INIT_FORMAT)
   -h, --help               help for init
   -i, --input string       Plaintext file for the first config entry (switches to non-interactive mode) (env YEWSEAL_INIT_INPUT)
+      --json               Print the initialization report as JSON on stdout (prompts and diagnostics stay on stderr) (env YEWSEAL_INIT_JSON)
   -o, --output string      Encrypted file for the first config entry (non-interactive mode) (env YEWSEAL_INIT_OUTPUT)
       --sync-sops-config   Create or update .sops.yaml; explicit true or false skips the interactive prompt (env YEWSEAL_INIT_SYNC_SOPS_CONFIG) (default true)
 ```

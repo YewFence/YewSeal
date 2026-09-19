@@ -43,8 +43,8 @@ func TestCLIProcessingOutcomes(t *testing.T) {
 		{name: "diff-missing-plaintext", command: "diff", scenario: "missing-plaintext"},
 		{name: "diff-plaintext-discovery", command: "diff", scenario: "group-plaintext"},
 		{name: "diff-verbose", command: "diff", flags: []string{"--verbose"}},
-		{name: "decrypt-bad-env", command: "decrypt", strictEnv: "bad", code: 1},
-		{name: "diff-bad-flag", command: "diff", flags: []string{"--unknown-option"}, code: 1},
+		{name: "decrypt-bad-env", command: "decrypt", strictEnv: "bad", code: 2},
+		{name: "diff-bad-flag", command: "diff", flags: []string{"--unknown-option"}, code: 2},
 		{name: "view-does-not-skip", command: "view", flags: []string{"other.enc.yaml"}, strictEnv: "bad", code: 1},
 		{name: "view-verbose-clean-stdout", command: "view", flags: []string{"good.enc.yaml", "--verbose"}},
 		{name: "edit-does-not-skip", command: "edit", flags: []string{"--file", "other.enc.yaml"}, strictEnv: "bad", code: 1},
@@ -171,6 +171,39 @@ func TestCLIProcessingOutcomes(t *testing.T) {
 					require.Equal(t, plain, written)
 				}
 			}
+		})
+	}
+}
+
+func TestCLIExitCodes(t *testing.T) {
+	binary := filepath.Join(t.TempDir(), "yews.exe")
+	output, err := exec.Command("go", "build", "-o", binary, ".").CombinedOutput()
+	require.NoError(t, err, "%s", output)
+	clearCommandEnvironment(t)
+	dir := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0755))
+
+	for _, tc := range []struct {
+		name string
+		args []string
+		code int
+	}{
+		{name: "unknown-command", args: []string{"bogus"}, code: 2},
+		{name: "unknown-flag", args: []string{"encrypt", "--nope"}, code: 2},
+		{name: "missing-config", args: []string{"encrypt"}, code: 2},
+		{name: "wrong-arg-count", args: []string{"view"}, code: 2},
+		{name: "unregistered-target", args: []string{"view", "nowhere.enc.yaml"}, code: 2},
+		{name: "invalid-pattern", args: []string{"encrypt", "["}, code: 2},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cmd := exec.Command(binary, tc.args...)
+			cmd.Dir = dir
+			var stdout, stderr bytes.Buffer
+			cmd.Stdout, cmd.Stderr = &stdout, &stderr
+			var exit *exec.ExitError
+			require.ErrorAs(t, cmd.Run(), &exit, "%s\n%s", &stdout, &stderr)
+			require.Equal(t, tc.code, exit.ExitCode(), "%s\n%s", &stdout, &stderr)
+			require.Empty(t, stdout.String(), "calling errors must not write to stdout")
 		})
 	}
 }

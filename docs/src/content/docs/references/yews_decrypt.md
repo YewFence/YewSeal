@@ -34,9 +34,12 @@ from the decryption result is not overwritten unless --force is set.
 
 Exit codes: by default, files whose keys do not match the current
 identity are skipped; partial success with no real error exits 0, while
-an all-skipped batch or any real error exits 1. With --strict, any skip
-also exits 1, but remaining files are still processed and successful
-results are kept. --strict=false overrides YEWSEAL_DECRYPT_STRICT.
+an all-skipped batch, any real error, or an output delivery failure
+exits 1. With --strict, any skip also exits 1, but remaining files are
+still processed and successful results are kept; --strict=false
+overrides YEWSEAL_DECRYPT_STRICT. Calling errors (invalid arguments, a
+missing or invalid .yewseal.toml, selection failure, or an unusable
+identity source) exit 2.
 
 TOML ciphertext is decrypted natively by the embedded TOML store without
 format conversion; the output is normalized TOML (single-quoted literal
@@ -45,7 +48,10 @@ layout from the handwritten original).
 
 Output: plaintext goes to files and stdout stays empty; warnings,
 per-file skip and failure reasons, and the summary go to stderr
-(--verbose adds selection info and per-file success).
+(--verbose adds selection info and per-file success). --json replaces
+stdout with the batch report (summary and per-file outcomes); stderr
+diagnostics stay unchanged, and when the run never starts (a calling
+error, exit 2) stdout stays empty.
 
 To decrypt an unregistered file ad hoc without a project config, use
 the SOPS CLI directly (a fork build with the native TOML store is needed
@@ -83,6 +89,9 @@ yews decrypt [command options] [path-or-pattern]... [flags]
 
   # Fail on any skipped file (or set YEWSEAL_DECRYPT_STRICT=true)
   yews decrypt --strict
+
+  # Print the batch report for scripts (diagnostics stay on stderr)
+  yews decrypt --json > report.json
 ```
 
 ## Options
@@ -90,6 +99,7 @@ yews decrypt [command options] [path-or-pattern]... [flags]
 ```
   -f, --force           Force overwrite existing plaintext file when it differs from decrypted content (env YEWSEAL_DECRYPT_FORCE)
   -h, --help            help for decrypt
+      --json            Print the batch report as JSON on stdout (diagnostics stay on stderr) (env YEWSEAL_DECRYPT_JSON)
   -o, --output string   Output plaintext file for a single file target (env YEWSEAL_DECRYPT_OUTPUT)
   -P, --parallel int    Number of parallel workers for batch mode (minimum 1) (env YEWSEAL_DECRYPT_PARALLEL) (default 1)
       --strict          Require every selected file to be decrypted (env YEWSEAL_DECRYPT_STRICT)

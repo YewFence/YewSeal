@@ -36,13 +36,18 @@ warns and continues, and decryption follows the historical ciphertext
 metadata rather than the current-config authorization.
 
 Exit codes: 0 whenever no real error occurs, whether or not anything
-was actually compared (0 means neither "equal" nor "compared"). There
-is no strict mode and no "differs means failure" switch, so diff is
-not a CI gate; obtained diffs are never rolled back.
+was actually compared (0 means neither "equal" nor "compared"); 1 when
+any comparison fails or output delivery fails. There is no strict mode
+and no "differs means failure" switch, so diff is not a CI gate;
+obtained diffs are never rolled back. Calling errors (invalid patterns,
+a missing or invalid .yewseal.toml, selection failure, or an unusable
+identity source) exit 2.
 
 Output: stdout carries only the diff body (empty when nothing differs);
 warnings, per-file skip and failure reasons, and the summary go to
 stderr (--verbose adds selection info and per-file completion notes).
+--json replaces the streamed diff body with the comparison report
+(per-file status with embedded diff bodies).
 
 See also: "yews encrypt" to re-encrypt changed plaintext, "yews view"
 to inspect ciphertext content.
@@ -65,6 +70,9 @@ yews diff [path-or-pattern]... [flags]
 
   # Disable color in scripts; diagnostics stay on stderr
   yews diff --color never > changes.diff
+
+  # Print the comparison report for scripts
+  yews diff --json > report.json
 ```
 
 ## Options
@@ -72,6 +80,7 @@ yews diff [path-or-pattern]... [flags]
 ```
       --color string   Colorize diff output (auto/always/never) (env YEWSEAL_DIFF_COLOR) (default "auto")
   -h, --help           help for diff
+      --json           Print the comparison report as JSON on stdout (per-file status with embedded diff bodies) (env YEWSEAL_DIFF_JSON)
   -v, --verbose        Enable verbose output (selection info and per-file completion notes on stderr) (env YEWSEAL_DIFF_VERBOSE)
 ```
 
