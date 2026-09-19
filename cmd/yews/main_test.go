@@ -40,12 +40,7 @@ func TestClearCommandEnvironmentUsesNamespaces(t *testing.T) {
 }
 
 func TestCLIConfigurationLoading(t *testing.T) {
-	binary := filepath.Join(t.TempDir(), "yews.exe")
-	ctx, cancel := context.WithTimeout(t.Context(), subprocessTimeout)
-	defer cancel()
-	build := exec.CommandContext(ctx, "go", "build", "-o", binary, ".")
-	output, err := build.CombinedOutput()
-	require.NoError(t, err, "%s", output)
+	binary := buildYews(t)
 	clearCommandEnvironment(t)
 	t.Setenv("SOPS_AGE_KEY_CMD", "exit 29")
 

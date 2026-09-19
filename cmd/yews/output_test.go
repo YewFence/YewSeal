@@ -15,9 +15,7 @@ import (
 func TestCLIInitOutput(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	binary := filepath.Join(t.TempDir(), "yews.exe")
-	output, err := exec.CommandContext(ctx, "go", "build", "-o", binary, ".").CombinedOutput()
-	require.NoError(t, err, "%s", output)
+	binary := buildYews(t)
 	clearCommandEnvironment(t)
 	t.Run("init-clean-stdout", func(t *testing.T) {
 		cmd := exec.CommandContext(ctx, binary, "init", "--input", "config.yaml")
