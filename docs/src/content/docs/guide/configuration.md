@@ -125,7 +125,7 @@ creation_rules:
     age: age1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
-YewSeal generates exact-match rules for the complete resolved project policy. Encrypt targets only select ciphertext work: synchronizing after a single target or an `--output` override still rewrites `.sops.yaml` from every configured mapping and the registered group scan results. Synchronization failure is a warning and does not replace the encryption result.
+YewSeal generates exact-match rules for the complete resolved project policy. Encrypt targets only select ciphertext work: synchronizing after a single target or an `--output` override still rewrites `.sops.yaml` from every configured mapping and the registered group scan results. Encryption finishes before synchronization is attempted. A synchronization failure does not roll back completed ciphertext work, but it makes the command exit with status 1. During initialization, a synchronization failure also makes `init` fail.
 
 ## Age key management
 

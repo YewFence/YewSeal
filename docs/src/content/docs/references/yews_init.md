@@ -32,8 +32,8 @@ When only --input is given, the encrypted file name is inferred
 the managed .sops.yaml; old aliases and mappings are not preserved, and
 existing ciphertext may become undecryptable for the new owner
 identity. With --sync-sops-config=false, a force rebuild removes the old
-managed .sops.yaml instead. A failure to create .sops.yaml is warned and
-the remaining initialization continues.
+managed .sops.yaml instead. A failure to create .sops.yaml makes
+initialization fail.
 
 Output: stdout stays empty; prompts, warnings, errors, and the
 completion summary (mapping count and key file locations) go to stderr,

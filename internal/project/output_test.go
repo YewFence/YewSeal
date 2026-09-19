@@ -94,7 +94,7 @@ func TestInitExplicitFalseSkipsInteractiveOptionalPrompts(t *testing.T) {
 	require.NotContains(t, diagnostics.String(), "Create .sops.yaml")
 }
 
-func TestInitWarnsAndContinuesWhenSopsSyncFails(t *testing.T) {
+func TestInitFailsWhenSopsSyncFails(t *testing.T) {
 	t.Chdir(t.TempDir())
 	require.NoError(t, os.Mkdir(".sops.yaml", 0o700))
 	var diagnostics bytes.Buffer
@@ -104,14 +104,10 @@ func TestInitWarnsAndContinuesWhenSopsSyncFails(t *testing.T) {
 		SyncSOPSConfig:    true,
 		SyncSOPSConfigSet: true,
 	}, out, out.Prompts(unreadableInput{}))
-	require.NoError(t, err)
-	require.FileExists(t, ".yewseal.toml")
-	require.Contains(t, diagnostics.String(), "WARNING failed to update .sops.yaml")
-	for _, line := range strings.Split(diagnostics.String(), "\n") {
-		if strings.HasPrefix(line, "Initialized ") {
-			require.NotContains(t, line, ".sops.yaml")
-		}
-	}
+	require.ErrorContains(t, err, "failed to update .sops.yaml")
+	require.ErrorContains(t, err, "--sync-sops-config=false")
+	require.NoFileExists(t, ".yewseal.toml")
+	require.NotContains(t, diagnostics.String(), "Initialized ")
 }
 
 func testInitProject(force bool, input, output, format string, example, skip bool) error {

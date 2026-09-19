@@ -1,6 +1,9 @@
 package app
 
 import (
+	"errors"
+	"fmt"
+
 	"github.com/YewFence/YewSeal/internal/config"
 	"github.com/YewFence/YewSeal/internal/presentation"
 	"github.com/YewFence/YewSeal/internal/project"
@@ -48,12 +51,13 @@ func EncryptFiles(cfg *config.Config, req EncryptRequest) (err error) {
 		Force:          req.Force,
 	}
 	summary, encryptErr := task.Encrypt(opts)
+	out.BatchSummary(summary, "encrypted")
+	var syncErr error
 	if req.UpdateProjectMetadata && req.SyncSOPSConfig {
 		resolvedDisplay := config.DisplayResolvedFilePairs(preflight.Selection.AllConfigPairs, config.CurrentDir(cfg))
-		if syncErr := project.SyncResolvedSopsYaml(resolvedDisplay); syncErr != nil {
-			out.Warning("failed to update .sops.yaml: " + syncErr.Error())
+		if err := project.SyncResolvedSopsYaml(resolvedDisplay); err != nil {
+			syncErr = fmt.Errorf("failed to update .sops.yaml after encryption: %w\nCiphertext processing completed. Fix the synchronization error, or use --sync-sops-config=false when direct SOPS interoperability is not required", err)
 		}
 	}
-	out.BatchSummary(summary, "encrypted")
-	return encryptErr
+	return errors.Join(encryptErr, syncErr)
 }

@@ -81,12 +81,9 @@ func InitProject(opts InitOptions, out *presentation.Output, prompts *tools.Sess
 	for _, filePair := range filePairs {
 		resolved = append(resolved, config.ResolvedFilePair{PlaintextPath: filePair.PlaintextPath, EncryptedPath: filePair.EncryptedPath, Format: filePair.Format, Recipients: []string{publicKey}})
 	}
-	sopsConfigSynced := false
 	if shouldCreateSopsConfig {
 		if err := SyncResolvedSopsYaml(resolved); err != nil {
-			i.output.Warning(fmt.Sprintf("failed to update .sops.yaml: %v", err))
-		} else {
-			sopsConfigSynced = true
+			return fmt.Errorf("failed to update .sops.yaml: %w\nFix the synchronization error, or use --sync-sops-config=false when direct SOPS interoperability is not required", err)
 		}
 	} else {
 		if opts.Force {
@@ -111,7 +108,7 @@ func InitProject(opts InitOptions, out *presentation.Output, prompts *tools.Sess
 	for _, exampleFile := range selections.ExampleFiles {
 		i.createExampleFile(exampleFile)
 	}
-	i.output.Initialized(len(filePairs), sopsConfigSynced)
+	i.output.Initialized(len(filePairs), shouldCreateSopsConfig)
 	return nil
 }
 

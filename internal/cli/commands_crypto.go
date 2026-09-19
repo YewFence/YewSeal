@@ -60,13 +60,15 @@ config-wide or directory-driven batches.
 
 After processing, --sync-sops-config (enabled by default) rewrites
 .sops.yaml from the complete resolved project policy, not only the selected
-targets. A synchronization failure is reported as a warning and does not
-change the encryption exit code.
+targets. Encryption always finishes before synchronization is attempted.
+A synchronization failure leaves completed ciphertext work in place but
+makes the command fail.
 
-Exit codes: 0 on success, 1 when any file fails or the selection is
-empty. Output: ciphertext goes to files and stdout stays empty; warnings,
-per-file failure reasons, and the summary go to stderr (--verbose adds
-selection info and per-file success).
+Exit codes: 0 on success, 1 when any file fails, the selection is empty,
+or .sops.yaml synchronization fails. Exit 1 does not imply that no
+ciphertext was written. Output: ciphertext goes to files and stdout stays
+empty; warnings, per-file failure reasons, and the summary go to stderr
+(--verbose adds selection info and per-file success).
 
 To encrypt an unregistered file ad hoc without a project config, use
 the SOPS CLI directly.
