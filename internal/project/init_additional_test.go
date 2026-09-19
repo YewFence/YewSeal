@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"filippo.io/age"
+	"github.com/YewFence/YewSeal/internal/presentation"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -223,10 +224,11 @@ func TestInitProjectJSONReportsMappingsAndKept(t *testing.T) {
 
 	var stdout bytes.Buffer
 	type initReport struct {
-		Kept     bool   `json:"kept"`
-		KeyFile  string `json:"key_file"`
-		SOPS     bool   `json:"sops_config"`
-		Mappings []struct {
+		Kept         bool     `json:"kept"`
+		KeyFile      string   `json:"key_file"`
+		SOPS         bool     `json:"sops_config"`
+		ExampleFiles []string `json:"example_files"`
+		Mappings     []struct {
 			Plaintext  string   `json:"plaintext"`
 			Encrypted  string   `json:"encrypted"`
 			Recipients []string `json:"recipients"`
@@ -241,9 +243,10 @@ func TestInitProjectJSONReportsMappingsAndKept(t *testing.T) {
 		return report
 	}
 
-	fresh := runInit(InitOptions{InputFile: "config.toml", SyncSOPSConfig: false, SyncSOPSConfigSet: true, JSON: true}, unreadableInput{})
+	fresh := runInit(InitOptions{InputFile: "config.toml", CreateExample: true, CreateExampleSet: true, SyncSOPSConfig: false, SyncSOPSConfigSet: true, JSON: true}, unreadableInput{})
 	require.False(t, fresh.Kept)
 	require.Equal(t, ".age/keys.txt", fresh.KeyFile)
+	require.Equal(t, []string{"config.example.toml"}, fresh.ExampleFiles)
 	require.Len(t, fresh.Mappings, 1)
 	require.Equal(t, "config.enc.toml", fresh.Mappings[0].Encrypted)
 	require.Equal(t, []string{"owner"}, fresh.Mappings[0].Recipients)

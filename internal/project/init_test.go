@@ -319,10 +319,10 @@ secret = "should-be-removed"
 	require.NoError(t, err)
 
 	// Create example file
-	testInitializer().createExampleFile(inputFile)
+	exampleFile := testInitializer().createExampleFile(inputFile)
+	assert.Equal(t, "config.example.toml", exampleFile)
 
 	// Verify example file was created
-	exampleFile := "config.example.toml"
 	content, err := os.ReadFile(exampleFile)
 	require.NoError(t, err)
 
@@ -334,11 +334,23 @@ func TestCreateExampleFile_InputNotExist(t *testing.T) {
 	withProjectWorkingDir(t, tempDir)
 
 	// Call with non-existent file (should not panic, just print warning)
-	testInitializer().createExampleFile("nonexistent.toml")
+	exampleFile := testInitializer().createExampleFile("nonexistent.toml")
+	assert.Empty(t, exampleFile)
 
 	// Verify no example file was created
 	_, err := os.Stat("nonexistent.example.toml")
 	assert.True(t, os.IsNotExist(err))
+}
+
+func TestCreateExampleFile_WriteFailure(t *testing.T) {
+	tempDir := t.TempDir()
+	withProjectWorkingDir(t, tempDir)
+	require.NoError(t, os.WriteFile("config.toml", []byte("content"), 0644))
+	require.NoError(t, os.Mkdir("config.example.toml", 0755))
+
+	exampleFile := testInitializer().createExampleFile("config.toml")
+
+	assert.Empty(t, exampleFile)
 }
 
 func TestCreateExampleFile_WithPath(t *testing.T) {
