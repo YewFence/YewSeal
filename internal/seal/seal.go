@@ -223,7 +223,7 @@ func DecryptToBytes(opts DecryptBytesOptions) ([]byte, error) {
 	}
 
 	if len(opts.IdentityBundle.Identities()) == 0 {
-		return nil, fmt.Errorf("identity bundle is required")
+		return nil, sopsx.ErrNoMatchingIdentity
 	}
 	privateKey := opts.IdentityBundle.String()
 

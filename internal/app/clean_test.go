@@ -251,6 +251,29 @@ func TestCleanFilesAllAbsentRequiresNoIdentity(t *testing.T) {
 	assert.Contains(t, stderr.String(), "0 removed, 1 already absent, 0 retained, 0 failed (1 selected)")
 }
 
+func TestCleanFilesWithoutIdentityFailsAndKeepsPlaintext(t *testing.T) {
+	env := newAppCryptoTestEnv(t)
+	plain := []byte("token: value\n")
+	cipher, err := sopsx.Encrypt(plain, "yaml", []string{env.publicKey})
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile("secret.yaml", plain, 0600))
+	require.NoError(t, os.WriteFile("secret.enc.yaml", cipher, 0600))
+	require.NoError(t, os.Remove(env.keyFile))
+	for _, name := range []string{"YEWSEAL_AGE_IDENTITIES", "SOPS_AGE_KEY", "SOPS_AGE_KEY_FILE", "YEWSEAL_AGE_KEY_CMD", "SOPS_AGE_KEY_CMD"} {
+		t.Setenv(name, "")
+	}
+	cfg := configWithOwnerRecipient(&config.Config{Encryption: config.EncryptionConfig{Files: []config.FilePair{
+		{PlaintextPath: "secret.yaml", EncryptedPath: "secret.enc.yaml", Format: "yaml"},
+	}}}, env.publicKey)
+
+	var stderr bytes.Buffer
+	err = CleanFiles(cfg, CleanRequest{Presentation: presentation.New(nil, &stderr, false)})
+	require.Error(t, err)
+	assert.FileExists(t, "secret.yaml")
+	assert.Contains(t, stderr.String(), "FAILED secret.yaml: no matching age identity")
+	assert.Contains(t, stderr.String(), "0 removed, 0 already absent, 0 retained, 1 failed (1 selected)")
+}
+
 func TestCleanFilesVerbosePrintsAlreadyAbsent(t *testing.T) {
 	cfg := prepareCleanFixture(t)
 	require.NoError(t, os.Remove("wip.yaml"))

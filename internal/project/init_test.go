@@ -71,7 +71,7 @@ func TestSetupAgeKey_InvalidExistingKey(t *testing.T) {
 
 	// Should fail to extract public key from invalid content
 	_, err = setupAgeKey(false, nil)
-	assert.Error(t, err)
+	assert.EqualError(t, err, "existing key file contains no usable Age identity")
 }
 
 // ============================================================================

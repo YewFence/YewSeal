@@ -25,11 +25,14 @@ an error, which differs from selecting files that are all skipped.
 
 A mapping is skipped with the reason reported on stderr when either
 side is missing (no new/deleted patch is emitted and it does not count
-as equal) or when no identity matches. Detected ciphertext corruption,
-permission errors, and other read/write failures are real errors, but a
-single file's error does not stop the comparison of other files. Once a
-selection succeeds, the identity source is resolved exactly once: an
-invalid --key-file fails even when every mapping ends up skipped.
+as equal), or when available identities do not match. When no usable
+identity is available, each mapping with both inputs present fails instead
+of claiming an identity mismatch. Detected ciphertext corruption,
+permission errors, and other read/write failures are also real errors,
+but a single file's error does not stop the comparison of other files.
+Once a selection succeeds, the identity source is resolved exactly once:
+an unreadable --key-file or a failed key command aborts even when every
+mapping would otherwise be skipped.
 
 The format and mapping come from the config; a stale recipient alias
 warns and continues, and decryption follows the historical ciphertext
@@ -40,8 +43,8 @@ was actually compared (0 means neither "equal" nor "compared"); 1 when
 any comparison fails or output delivery fails. There is no strict mode
 and no "differs means failure" switch, so diff is not a CI gate;
 obtained diffs are never rolled back. Calling errors (invalid patterns,
-a missing or invalid .yewseal.toml, selection failure, or an unusable
-identity source) exit 2.
+a missing or invalid .yewseal.toml, selection failure, an unreadable
+explicit key file, or a failed key command) exit 2.
 
 Output: stdout carries only the diff body (empty when nothing differs);
 warnings, per-file skip and failure reasons, and the summary go to

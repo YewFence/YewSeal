@@ -10,11 +10,13 @@ List the Age identities YewSeal would decrypt with: which source won the
 resolution chain, which present sources it shadowed, and every identity in
 the winning source with its derived public key and registry alias.
 
-Identity resolution is first-win, never merged: only the first source
-that yields an identity applies, and everything below it is not even
-read — the exact order is the --key-file fallback chain shown among the
-flags below. shadowed lists the sources that were present but skipped,
-as file:<path> or env:<NAME>.
+Identity resolution is first-present, never merged: the first configured
+source applies even when it contains no valid identity, and everything
+below it is not read — the exact order is the --key-file fallback chain
+shown among the flags below. shadowed lists the sources that were present
+but skipped, as file:<path> or env:<NAME>. Malformed items are warned and
+ignored; a source with no valid items produces an empty report while
+retaining its source label. With no source at all, source is empty.
 
 The command requires a .yewseal.toml like every other command beyond
 version, help, and completion: each derived public key is looked up in
@@ -29,12 +31,14 @@ into a file or a consuming process instead of logging.
 
 Output: plain mode prints a Source/Shadowed header plus an Alias/Public
 key table (plus Secret with --reveal) on stdout; --json prints the report
-on stdout; warnings go to stderr either way.
+on stdout; warnings go to stderr either way. An empty JSON report contains
+"source": "" when no source is configured and always has "identities": [].
 
 Exit codes: 0 on success; 1 when the report or a warning cannot be
-delivered (closed or full stdout/stderr); 2 when no identity source
-yields an identity, the winning source is unreadable or invalid, or
-.yewseal.toml is missing or invalid.
+delivered (closed or full stdout/stderr); 2 when an explicit key file is
+unreadable, a key command fails, or .yewseal.toml is missing or invalid.
+No source, an empty source, and a source containing only malformed items
+all produce an empty report with exit 0.
 
 See also: "yews plan" to preview file mappings and authorization on the
 other side of the pipeline.

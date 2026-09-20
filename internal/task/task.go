@@ -6,6 +6,7 @@ import (
 
 	"github.com/YewFence/YewSeal/internal/agekey"
 	"github.com/YewFence/YewSeal/internal/seal"
+	"github.com/YewFence/YewSeal/internal/sopsx"
 )
 
 type FilePair struct {
@@ -72,6 +73,9 @@ func Decrypt(opts Options) (*Summary, error) {
 	}
 
 	processor := func(pair FilePair) (Outcome, string, error) {
+		if len(opts.IdentityBundle.Identities()) == 0 {
+			return OutcomeNoIdentity, "", sopsx.ErrNoMatchingIdentity
+		}
 		err := seal.Decrypt(seal.DecryptOptions{
 			InputFile:      pair.EncryptedPath,
 			OutputFile:     pair.PlaintextPath,

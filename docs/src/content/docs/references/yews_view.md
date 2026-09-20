@@ -26,8 +26,9 @@ wraps the plaintext in a JSON envelope (path, format, encoding,
 content); binary formats encode the content as base64.
 
 Exit codes: 0 on success; 1 when decryption or output delivery fails;
-2 for calling errors (wrong argument count, an unregistered target, a
-missing or invalid .yewseal.toml, or an unusable identity source).
+this includes having no usable identity. 2 is reserved for calling errors
+(wrong argument count, an unregistered target, a missing or invalid
+.yewseal.toml, an unreadable explicit key file, or a failed key command).
 
 See also: "yews decrypt" to write plaintext files with overwrite
 protection, "yews edit" to edit the encrypted file directly.

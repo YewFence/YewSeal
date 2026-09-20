@@ -40,7 +40,9 @@ details and ALREADY ABSENT results. clean does not update .gitignore or
 Exit codes: 0 when the selected policy completes, including explicitly retained
 differences; 1 when any item, prompt, or output channel fails (earlier
 removals remain); 2 for calling errors: invalid arguments, config, selection,
-or an unusable identity source.
+an unreadable explicit key file, or a failed key command. An empty identity
+set instead makes each plaintext that needs verification fail safely with exit
+1; no file is removed.
 
 See also: "yews diff" to inspect a difference before deciding and "yews
 encrypt" to save local changes before cleaning.

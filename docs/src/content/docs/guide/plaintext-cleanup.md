@@ -71,7 +71,8 @@ Each selected mapping ends as one of:
 | --- | --- |
 | All removed or already absent, retained differences allowed | 0 |
 | Any real failure, undecided prompt, or output channel fault | 1 |
-| Calling errors: arguments, config, selection, identity source | 2 |
+| No usable identity for plaintext that needs verification | 1 |
+| Calling errors: arguments, config, selection, unreadable explicit key file, failed key command | 2 |
 
 Success therefore means "the chosen policy ran to completion", not "zero plaintext remains". The summary line is the authoritative record of what is left on disk; if you require zero residue, combine a strategy flag with the summary (or check it from `--verbose` output).
 

@@ -116,13 +116,56 @@ func TestResolveIdentitySourcesYewsealKeyCommandShadowsSops(t *testing.T) {
 	require.Equal(t, identity.Recipient().String(), sources.Identities[0].PublicKey)
 }
 
-func TestResolveIdentitySourcesNoSourceFails(t *testing.T) {
+func TestResolveIdentitySourcesNoSourceReturnsEmpty(t *testing.T) {
 	clearIdentityEnv(t)
 	t.Chdir(t.TempDir())
 
-	_, err := ResolveIdentitySources("")
-	var notFound *errx.AgeKeyNotFoundError
-	require.ErrorAs(t, err, &notFound)
+	sources, err := ResolveIdentitySources("")
+	require.NoError(t, err)
+	require.Empty(t, sources.Source)
+	require.Empty(t, sources.Identities)
+	require.Empty(t, sources.Warnings)
+}
+
+func TestResolveIdentitySourcesEmptyWinningSourceKeepsLabelAndWarnings(t *testing.T) {
+	clearIdentityEnv(t)
+	t.Chdir(t.TempDir())
+
+	identity, err := age.GenerateX25519Identity()
+	require.NoError(t, err)
+	t.Setenv("YEWSEAL_AGE_IDENTITIES", "invalid")
+	t.Setenv("SOPS_AGE_KEY", identity.String())
+
+	sources, err := ResolveIdentitySources("")
+	require.NoError(t, err)
+	require.Equal(t, "env:YEWSEAL_AGE_IDENTITIES", sources.Source)
+	require.Equal(t, []string{"env:SOPS_AGE_KEY"}, sources.Shadowed)
+	require.Empty(t, sources.Identities)
+	require.Len(t, sources.Warnings, 1)
+}
+
+func TestResolveIdentitySourcesEmptyKeyCommandOutput(t *testing.T) {
+	clearIdentityEnv(t)
+	t.Chdir(t.TempDir())
+	t.Setenv("YEWSEAL_AGE_KEY_CMD", "printf ''")
+
+	sources, err := ResolveIdentitySources("")
+	require.NoError(t, err)
+	require.Equal(t, "env:YEWSEAL_AGE_KEY_CMD", sources.Source)
+	require.Empty(t, sources.Identities)
+}
+
+func TestGetIdentityBundleFailedKeyCommandIsUsageError(t *testing.T) {
+	clearIdentityEnv(t)
+	t.Chdir(t.TempDir())
+	t.Setenv("YEWSEAL_AGE_KEY_CMD", "exit 7")
+
+	_, err := GetIdentityBundle("")
+	require.Error(t, err)
+	require.ErrorContains(t, err, "failed to execute YEWSEAL_AGE_KEY_CMD")
+	var usage *errx.UsageError
+	require.ErrorAs(t, err, &usage)
+	require.Equal(t, 2, usage.ExitCode())
 }
 
 func TestResolveIdentitySourcesDeduplicatesWithinSource(t *testing.T) {

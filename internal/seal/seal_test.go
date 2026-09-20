@@ -12,6 +12,7 @@ import (
 	"filippo.io/age"
 	"github.com/YewFence/YewSeal/internal/agekey"
 	"github.com/YewFence/YewSeal/internal/errx"
+	"github.com/YewFence/YewSeal/internal/sopsx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -103,6 +104,24 @@ func TestEncryptDecryptYAMLRoundTrip(t *testing.T) {
 	info, err := os.Stat("config.yaml")
 	require.NoError(t, err)
 	assert.Equal(t, os.FileMode(0600), info.Mode().Perm())
+}
+
+func TestDecryptToBytesEmptyIdentityBundleIsNoMatchingIdentity(t *testing.T) {
+	env := setupTestEnv(t)
+	require.NoError(t, os.WriteFile("config.yaml", []byte("secret: value\n"), 0644))
+	require.NoError(t, Encrypt(EncryptOptions{
+		InputFile:      "config.yaml",
+		OutputFile:     "config.enc.yaml",
+		Recipients:     []string{env.publicKey},
+		FormatOverride: "yaml",
+	}))
+
+	_, err := DecryptToBytes(DecryptBytesOptions{
+		InputFile:      "config.enc.yaml",
+		OutputFile:     "config.yaml",
+		FormatOverride: "yaml",
+	})
+	require.ErrorIs(t, err, sopsx.ErrNoMatchingIdentity)
 }
 
 func TestDecryptToBytesDoesNotWriteOutput(t *testing.T) {

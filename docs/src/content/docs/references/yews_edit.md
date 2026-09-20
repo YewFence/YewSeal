@@ -35,9 +35,9 @@ example "code --wait"), otherwise YewSeal re-encrypts before editing
 finishes.
 
 Exit codes: 0 on success (changed or unchanged); 1 when editing or
-re-encryption fails; 2 for calling errors (no target, an unregistered
-file, a missing or invalid .yewseal.toml, or an unusable identity
-source).
+re-encryption fails, including when no usable identity is available; 2
+for calling errors (no target, an unregistered file, a missing or invalid
+.yewseal.toml, an unreadable explicit key file, or a failed key command).
 
 Output: stdout stays empty; the update result (or "unchanged"),
 warnings, and errors go to stderr.

@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -261,6 +262,125 @@ func TestCLIExitCodes(t *testing.T) {
 			require.Empty(t, stdout.String(), "calling errors must not write to stdout")
 		})
 	}
+}
+
+func TestCLINoIdentityOutcomes(t *testing.T) {
+	binary := buildYews(t)
+	clearCommandEnvironment(t)
+
+	run := func(t *testing.T, args ...string) (string, string, int) {
+		t.Helper()
+		dir := prepareNoIdentityProject(t)
+		ctx, cancel := context.WithTimeout(t.Context(), subprocessTimeout)
+		defer cancel()
+		cmd := exec.CommandContext(ctx, binary, args...)
+		cmd.Dir = dir
+		var stdout, stderr bytes.Buffer
+		cmd.Stdout, cmd.Stderr = &stdout, &stderr
+		err := cmd.Run()
+		if err == nil {
+			return stdout.String(), stderr.String(), 0
+		}
+		var exit *exec.ExitError
+		require.ErrorAs(t, err, &exit, "%s\n%s", &stdout, &stderr)
+		return stdout.String(), stderr.String(), exit.ExitCode()
+	}
+
+	t.Run("identities-empty-report", func(t *testing.T) {
+		stdout, stderr, code := run(t, "identities", "--json")
+		require.Zero(t, code, stderr)
+		var report struct {
+			Source     string `json:"source"`
+			Identities []any  `json:"identities"`
+		}
+		require.NoError(t, json.Unmarshal([]byte(stdout), &report))
+		require.Empty(t, report.Source)
+		require.NotNil(t, report.Identities)
+		require.Empty(t, report.Identities)
+	})
+
+	t.Run("decrypt-lenient", func(t *testing.T) {
+		stdout, stderr, code := run(t, "decrypt", "--json")
+		require.Zero(t, code, stderr)
+		require.Contains(t, stderr, "no age identity is available")
+		var report struct {
+			Files []struct {
+				Outcome string `json:"outcome"`
+			} `json:"files"`
+		}
+		require.NoError(t, json.Unmarshal([]byte(stdout), &report))
+		require.Equal(t, "no-identity", report.Files[0].Outcome)
+	})
+
+	for _, tc := range []struct {
+		name string
+		args []string
+		want string
+	}{
+		{name: "decrypt-strict", args: []string{"decrypt", "--strict"}, want: "no age identity is available"},
+		{name: "view", args: []string{"view", "secret.enc.yaml"}, want: "no matching age identity"},
+		{name: "diff", args: []string{"diff"}, want: "no matching age identity"},
+		{name: "edit", args: []string{"edit", "--file", "secret.enc.yaml"}, want: "no matching age identity"},
+		{name: "clean", args: []string{"clean"}, want: "no matching age identity"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, stderr, code := run(t, tc.args...)
+			require.Equal(t, 1, code, stderr)
+			require.Contains(t, stderr, tc.want)
+		})
+	}
+}
+
+func TestCLIBrokenExplicitIdentitySourceRemainsCallingError(t *testing.T) {
+	binary := buildYews(t)
+	clearCommandEnvironment(t)
+	for _, tc := range []struct {
+		name string
+		args []string
+	}{
+		{name: "encrypt", args: []string{"encrypt"}},
+		{name: "identities", args: []string{"identities"}},
+		{name: "decrypt", args: []string{"decrypt"}},
+		{name: "view", args: []string{"view", "secret.enc.yaml"}},
+		{name: "diff", args: []string{"diff"}},
+		{name: "edit", args: []string{"edit", "--file", "secret.enc.yaml"}},
+		{name: "clean", args: []string{"clean"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := prepareNoIdentityProject(t)
+			args := append(tc.args, "--key-file", filepath.Join(dir, "missing-keys.txt"))
+			cmd := exec.Command(binary, args...)
+			cmd.Dir = dir
+			var stdout, stderr bytes.Buffer
+			cmd.Stdout, cmd.Stderr = &stdout, &stderr
+			var exit *exec.ExitError
+			require.ErrorAs(t, cmd.Run(), &exit, "%s\n%s", &stdout, &stderr)
+			require.Equal(t, 2, exit.ExitCode(), "%s\n%s", &stdout, &stderr)
+			require.Contains(t, stderr.String(), "failed to read Age key file")
+		})
+	}
+}
+
+func prepareNoIdentityProject(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0755))
+	identity, err := age.GenerateX25519Identity()
+	require.NoError(t, err)
+	plain := []byte("token: value\n")
+	ciphertext, err := sopsx.Encrypt(plain, "yaml", []string{identity.Recipient().String()})
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "secret.yaml"), plain, 0600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "secret.enc.yaml"), ciphertext, 0600))
+	defaults := []string{"owner"}
+	cfg := config.Config{
+		Encryption: config.EncryptionConfig{Files: []config.FilePair{{PlaintextPath: "secret.yaml", EncryptedPath: "secret.enc.yaml", Format: "yaml"}}},
+		Recipients: config.RecipientConfig{Defaults: &defaults, Registry: map[string]string{"owner": identity.Recipient().String()}},
+	}
+	data, err := toml.Marshal(cfg)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, ".yewseal.toml"), data, 0600))
+	return dir
 }
 
 func TestCLIDecryptAliasUsesInlineIdentityEnvironment(t *testing.T) {

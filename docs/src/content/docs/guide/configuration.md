@@ -143,9 +143,9 @@ At decryption time, the Age private key resolves in this order (highest first):
 6. `SOPS_AGE_KEY_CMD`
 7. The default path `.age/keys.txt` under the current working directory
 
-Sources never merge across levels: the first one that yields an identity wins outright, and everything below it is not even read — with `--key-file` set, the environment variables and `.age/keys.txt` are ignored entirely. Only identities within the winning source combine into one bundle.
+Sources never merge across levels: the first present source wins outright, even when it contains no valid identity, and everything below it is not read — with `--key-file` set, the environment variables and `.age/keys.txt` are ignored entirely. Only identities within the winning source combine into one bundle. An unset source does not participate; a missing `SOPS_AGE_KEY_FILE` also falls through to the next source.
 
-`yews identities` prints exactly this resolution: the winning source, the present sources it shadowed, and every identity with its derived public key and registry alias. It warns when a public key is not registered, and with `--reveal` also includes the secret keys — mind terminal scrollback and CI logs when you use it.
+`yews identities` prints exactly this resolution: the winning source, the present sources it shadowed, and every identity with its derived public key and registry alias. With no source it returns an empty source and identity list; a present but empty source keeps its source label. It warns when a public key is not registered, and with `--reveal` also includes the secret keys — mind terminal scrollback and CI logs when you use it.
 
 ```bash
 yews --key-file ~/.age/my-key.txt decrypt config.enc.toml
@@ -162,7 +162,7 @@ Encryption authorization uses only the canonical Age recipients resolved from `[
 
 ### Identity bundles
 
-One key file may contain multiple Age private keys; YewSeal ignores comments and blank lines, deduplicates valid identities by first occurrence, and reports malformed items on stderr using their line and item positions plus a redacted preview. A bundle continues when at least one valid identity remains and fails when none do. CI can also pass multiple private keys through YewSeal's environment variable:
+One key file may contain multiple Age private keys; YewSeal ignores comments and blank lines, deduplicates valid identities by first occurrence, and reports malformed items on stderr using their line and item positions plus a redacted preview. A source that parses to no valid identities is a valid empty bundle, including an empty successful key-command response. An unreadable explicit key file or a key command that exits unsuccessfully remains a calling error. CI can also pass multiple private keys through YewSeal's environment variable:
 
 ```bash
 YEWSEAL_AGE_IDENTITIES='AGE-SECRET-KEY-1...,AGE-SECRET-KEY-1...' yews decrypt config.enc.toml

@@ -36,6 +36,9 @@ func PlaintextAgainstEncrypted(opts Options) (DiffResult, error) {
 	if err != nil || missing != "" {
 		return DiffResult{Skipped: missing}, err
 	}
+	if len(opts.IdentityBundle.Identities()) == 0 {
+		return DiffResult{}, sopsx.ErrNoMatchingIdentity
+	}
 	decryptedData, err := seal.DecryptToBytes(seal.DecryptBytesOptions{
 		InputFile:      opts.EncryptedFile,
 		OutputFile:     opts.PlaintextFile,

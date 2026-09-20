@@ -56,7 +56,7 @@ a fully skipped batch); 1 when any file fails, .sops.yaml synchronization
 fails, or output delivery fails. Exit 1 does not imply that no ciphertext
 was written; 2 for calling errors: invalid arguments, a missing or invalid
 .yewseal.toml, selection or authorization failure, or an unusable
-identity source.
+identity source (an unreadable explicit file or a failed key command).
 
 Output: ciphertext goes to files and stdout stays empty; warnings,
 per-file failure reasons, and the summary go to stderr (--verbose adds

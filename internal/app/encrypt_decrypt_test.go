@@ -456,7 +456,7 @@ func TestEncryptFilesProtectsBrokenCiphertextUnlessForced(t *testing.T) {
 	assert.Equal(t, "token: value\n", string(decrypted))
 }
 
-func TestEncryptFilesRejectsInvalidIdentityBeforeMetadataWrites(t *testing.T) {
+func TestEncryptFilesWithInvalidIdentitySourceWarnsAndFreshlyEncrypts(t *testing.T) {
 	env := newAppCryptoTestEnv(t)
 	require.NoError(t, os.WriteFile("secret.yaml", []byte("token: value\n"), 0644))
 	cfg := configWithOwnerRecipient(&config.Config{Encryption: config.EncryptionConfig{Files: []config.FilePair{{PlaintextPath: "secret.yaml", EncryptedPath: "secret.enc.yaml", Format: "yaml"}}}}, env.publicKey)
@@ -465,13 +465,14 @@ func TestEncryptFilesRejectsInvalidIdentityBeforeMetadataWrites(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile("invalid-keys.txt", []byte("invalid\n"), 0600))
 
-	err = EncryptFiles(cfg, EncryptRequest{KeyFile: "invalid-keys.txt", Parallel: 1, UpdateProjectMetadata: true})
-	require.Error(t, err)
+	var diagnostics bytes.Buffer
+	err = EncryptFiles(cfg, EncryptRequest{KeyFile: "invalid-keys.txt", Parallel: 1, Presentation: presentation.New(nil, &diagnostics, false)})
+	require.NoError(t, err)
 	current, readErr := os.ReadFile("secret.enc.yaml")
 	require.NoError(t, readErr)
-	assert.Equal(t, original, current)
-	require.NoFileExists(t, ".gitignore")
-	require.NoFileExists(t, ".sops.yaml")
+	assert.NotEqual(t, original, current)
+	assert.Contains(t, diagnostics.String(), "ignored malformed Age identity bundle item")
+	assert.Contains(t, diagnostics.String(), "no Age identity found")
 }
 
 func TestDecryptFilesWarnsForStaleAliasAndUsesEncryptedMetadata(t *testing.T) {

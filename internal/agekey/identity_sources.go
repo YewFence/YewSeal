@@ -2,7 +2,6 @@ package agekey
 
 import (
 	"errors"
-	"fmt"
 	"io/fs"
 	"os"
 	"runtime"
@@ -35,8 +34,6 @@ type identityLayer struct {
 	load    func() (IdentityBundle, error)
 }
 
-var identitySourceOptions = []string{"--key-file", "YEWSEAL_AGE_IDENTITIES", "SOPS_AGE_KEY", "SOPS_AGE_KEY_FILE", "YEWSEAL_AGE_KEY_CMD", "SOPS_AGE_KEY_CMD", "or .age/keys.txt"}
-
 // ResolveIdentitySources 按 GetIdentityBundle 的同一优先级链解析身份，
 // 并额外报告生效来源与被短路的候选来源。来源标识为扁平字符串：文件
 // 来源是 "file:<path>"，值或命令来源是 "env:<NAME>"。
@@ -61,7 +58,7 @@ func ResolveIdentitySources(keyFile string) (IdentitySources, error) {
 			Warnings:   bundle.Warnings(),
 		}, nil
 	}
-	return IdentitySources{}, &errx.AgeKeyNotFoundError{Options: identitySourceOptions}
+	return IdentitySources{}, nil
 }
 
 func identityLayers(keyFile string) []identityLayer {
@@ -157,9 +154,6 @@ func runKeyCommand(envName string) (string, error) {
 		return "", &errx.ExternalCommandError{Op: "failed to execute " + envName, Cmd: shell, Args: args, Stderr: stderr, Err: err}
 	}
 	key := strings.TrimSpace(stdout)
-	if key == "" {
-		return "", fmt.Errorf("%s returned empty output", envName)
-	}
 	return key, nil
 }
 

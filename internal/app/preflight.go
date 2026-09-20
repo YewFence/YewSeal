@@ -1,12 +1,10 @@
 package app
 
 import (
-	"errors"
 	"os"
 
 	"github.com/YewFence/YewSeal/internal/agekey"
 	"github.com/YewFence/YewSeal/internal/config"
-	"github.com/YewFence/YewSeal/internal/errx"
 	"github.com/YewFence/YewSeal/internal/task"
 )
 
@@ -37,14 +35,10 @@ func PreflightEncrypt(cfg *config.Config, req EncryptRequest) (PreflightResult, 
 	}
 	identityBundle, err := agekey.GetIdentityBundle(req.KeyFile)
 	if err != nil {
-		var missing *errx.AgeKeyNotFoundError
-		if errors.As(err, &missing) {
-			result.MissingIdentity = true
-			return result, nil
-		}
 		return PreflightResult{}, err
 	}
 	result.IdentityBundle = identityBundle
+	result.MissingIdentity = len(identityBundle.Identities()) == 0
 	return result, nil
 }
 

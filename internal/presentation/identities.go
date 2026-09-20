@@ -94,7 +94,7 @@ type identityEntryJSON struct {
 }
 
 func printIdentitiesJSON(w io.Writer, report IdentitiesReport, opts IdentitiesPrintOptions) error {
-	payload := identitiesJSON{Command: "identities", Source: report.Source, Shadowed: report.Shadowed}
+	payload := identitiesJSON{Command: "identities", Source: report.Source, Shadowed: report.Shadowed, Identities: make([]identityEntryJSON, 0, len(report.Identities))}
 	for _, entry := range report.Identities {
 		item := identityEntryJSON{PublicKey: entry.PublicKey, Alias: entry.Alias, Warning: entry.Warning}
 		if opts.Reveal {

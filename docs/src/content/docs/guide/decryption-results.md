@@ -2,15 +2,15 @@
 title: Decryption results and strict mode
 ---
 
-Multiple developers and environments may hold different Age identities. `decrypt` and `diff` [skip](/guide/glossary#skip) files with no matching identity by default, but they never treat corrupted ciphertext, read/write failures, or overwrite conflicts as ordinary skips. `view` and `edit` have no lenient mode and still fail when the target cannot be decrypted; the failure rules for encryption are unchanged.
+Multiple developers and environments may hold different Age identities. `decrypt` [skips](/guide/glossary#skip) files both when no usable identity is available (`no-identity`) and when the available identities do not match (`no-matching-identity`). `diff` skips only the latter; with an empty identity bundle, a mapping whose two inputs exist fails because no comparison was attempted. Neither command treats corrupted ciphertext, read/write failures, or overwrite conflicts as ordinary skips. `view` and `edit` have no lenient mode and fail when the target cannot be decrypted; the failure rules for encryption are unchanged.
 
 ## Result classification
 
 - Success: the decryption or comparison completed. Plaintext that is already identical, or a comparison with no differences, still counts as success; writing a file or producing a diff is not required.
-- Skipped: no matching decryption identity; diff also skips mappings that are missing the plaintext or the ciphertext input. A skip is not a successful comparison and proves neither that contents are equal nor that the ciphertext is intact.
-- Failure: detected ciphertext or data key anomalies, integrity check failures, read/write failures, and unauthorized plaintext overwrites. For decrypt, missing input remains a failure; diff classifies only a nonexistent file as a missing-input skip, not real faults such as permission errors.
+- Skipped: decrypt has distinct `no-identity` and `no-matching-identity` outcomes; diff skips an identity mismatch only when at least one usable identity was supplied, and also skips mappings missing the plaintext or ciphertext input. A skip is not a successful comparison and proves neither that contents are equal nor that the ciphertext is intact.
+- Failure: detected ciphertext or data key anomalies, integrity check failures, read/write failures, and unauthorized plaintext overwrites. For decrypt, missing input remains a failure. For diff, no usable identity is a failure for each mapping with both inputs present; only a nonexistent input is a missing-input skip, not real faults such as permission errors.
 
-After a single-file failure, the remaining selected files are still processed and summarized at the end. Pre-run errors — arguments, config, identity resolution, or an impossible scan — abort the run; output channel failures also fail the command.
+After a single-file failure, the remaining selected files are still processed and summarized at the end. An empty resolved identity bundle is not a pre-run error. Actual pre-run errors — arguments, config, an unreadable explicit key file, a failed key command, or an impossible scan — abort the run; output channel failures also fail the command.
 
 ## Strict mode
 
@@ -36,13 +36,14 @@ The variable is read only during business argument validation of `decrypt`; it n
 | --- | --- | --- | --- |
 | All succeeded, no differences | 0 | 0 | 0 |
 | All compared, differences found | n/a | n/a | 0 |
-| Partial success, rest skipped for missing identity | 0 | 1 | 0 |
-| All skipped for missing identity | 0 | 1 | 0 |
+| Partial success, rest skipped for identity mismatch | 0 | 1 | 0 |
+| All skipped for identity mismatch | 0 | 1 | 0 |
+| No usable identity, inputs present | 0 | 1 | 1 |
 | All unprocessed for missing input | 1 | 1 | 0 |
 | Partial success, rest missing input | 1 | 1 | 0 |
 | Any real error | 1 | 1 | 1 |
 
-The table assumes selected mappings and successful pre-run validation. `diff` is a development preview command: finding and showing differences is not a failure, and its exit code must not be used to decide whether files are identical. Argument, config, identity source, and output channel errors return `1`. When a batch produces both differences and a real error, the diffs already obtained are still printed and the exit code is `1`. In lenient mode identity skips never affect the exit code, even when every selected file is skipped; `--strict` turns any skip into exit `1`.
+The table assumes selected mappings and successful pre-run validation. `diff` is a development preview command: finding and showing differences is not a failure, and its exit code must not be used to decide whether files are identical. Argument, config, selection, unreadable explicit key file, and failed key-command errors return `2`; processing and output-channel errors return `1`. When a batch produces both differences and a real error, the diffs already obtained are still printed and the exit code is `1`. In lenient decrypt, identity skips never affect the exit code, even when every selected file is skipped; `--strict` turns any skip into exit `1`.
 
 ## Probing and gating in scripts
 
@@ -70,7 +71,7 @@ Groups discover mappings from the plaintext side using the config root and rules
 
 Selecting no mapping at all is a selection error, which differs from selecting files that all end up skipped. Once a selection succeeds, the identity bundle is resolved exactly once: an invalid explicit private key source fails even if every mapping ultimately misses its inputs.
 
-Each mapping is input-checked first: when either the plaintext or the ciphertext side is missing, the mapping is skipped without decryption and without new/deleted patches. Only when both sides exist are decryption and comparison attempted. Missing inputs and identity mismatches are counted and reported separately. Detected ciphertext corruption and other per-file errors always fail.
+Each mapping is input-checked first: when either the plaintext or the ciphertext side is missing, the mapping is skipped without decryption and without new/deleted patches. Only when both sides exist are decryption and comparison attempted. Missing inputs and identity mismatches are counted and reported separately. An empty identity bundle and detected ciphertext corruption are per-file failures and always fail the command.
 
 diff keeps the historical-decrypt exception for stale aliases: after a warning, it still compares using the ciphertext metadata and the identity bundle, without requiring the current config recipients to match the ciphertext. Base config validation is unchanged.
 
