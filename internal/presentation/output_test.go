@@ -78,19 +78,21 @@ func TestConcurrentResultsAndSummaryAreNotDuplicated(t *testing.T) {
 		}
 		wg.Wait()
 		out.FileCompleted(task.Result{SourceFile: "unavailable.enc.yaml", Status: task.Skipped})
+		out.FileCompleted(task.Result{SourceFile: "missing-key.enc.yaml", Status: task.Skipped, Outcome: task.OutcomeNoIdentity})
 		out.FileCompleted(task.Result{SourceFile: "broken.enc.yaml", Status: task.Failed, Error: errors.New("invalid")})
-		out.BatchSummary(&task.Summary{TotalFiles: 34, SuccessCount: 32, SkippedCount: 1, FailedCount: 1}, "decrypted")
+		out.BatchSummary(&task.Summary{TotalFiles: 35, SuccessCount: 32, SkippedCount: 2, FailedCount: 1}, "decrypted")
 		require.NoError(t, out.Finish(nil))
 		require.Empty(t, body.String())
-		require.Equal(t, 1, strings.Count(diagnostics.String(), "SKIPPED"))
+		require.Equal(t, 2, strings.Count(diagnostics.String(), "SKIPPED"))
+		require.Contains(t, diagnostics.String(), "no age identity is available")
 		require.Equal(t, 1, strings.Count(diagnostics.String(), "FAILED"))
 		if verbose {
-			require.Equal(t, 35, strings.Count(diagnostics.String(), "\n"))
+			require.Equal(t, 36, strings.Count(diagnostics.String(), "\n"))
 			for i := range 32 {
 				require.Contains(t, diagnostics.String(), fmt.Sprintf("SUCCEEDED %d.enc.yaml -> %d.yaml\n", i, i))
 			}
 		} else {
-			require.Equal(t, 3, strings.Count(diagnostics.String(), "\n"))
+			require.Equal(t, 4, strings.Count(diagnostics.String(), "\n"))
 		}
 	}
 }

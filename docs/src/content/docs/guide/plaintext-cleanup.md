@@ -36,7 +36,7 @@ Immediately before the actual removal, `clean` resolves the symlink chain again 
 
 After an interactive Yes for differing content, `clean` also decrypts the ciphertext again. If it no longer decrypts to the same bytes that the prompt decision was based on, the plaintext is kept and the item fails.
 
-`--force` and an interactive Yes skip only the byte-equality requirement. Missing or corrupted ciphertext, identity mismatch, non-regular targets, and I/O errors fail in every mode, so a batch can never report success while unproven plaintext lingers.
+`--force` and an interactive Yes skip only the byte-equality requirement. Every existing plaintext must be decrypted before removal and therefore requires a usable identity. Missing or corrupted ciphertext, no usable or matching identity, non-regular targets, and I/O errors mark the item `FAILED` and retain it in every mode, so a batch can never report success while unproven plaintext lingers.
 
 ## Differences and the three strategies
 
@@ -71,7 +71,8 @@ Each selected mapping ends as one of:
 | --- | --- |
 | All removed or already absent, retained differences allowed | 0 |
 | Any real failure, undecided prompt, or output channel fault | 1 |
-| Calling errors: arguments, config, selection, identity source | 2 |
+| No usable identity for plaintext that needs verification | 1 |
+| Calling errors: arguments, config, selection, unreadable explicit key file, failed key command | 2 |
 
 Success therefore means "the chosen policy ran to completion", not "zero plaintext remains". The summary line is the authoritative record of what is left on disk; if you require zero residue, combine a strategy flag with the summary (or check it from `--verbose` output).
 

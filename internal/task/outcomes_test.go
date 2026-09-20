@@ -47,7 +47,7 @@ func TestDecryptOutcomesAndSideEffects(t *testing.T) {
 					pairs = append([]FilePair{{PlaintextPath: "blocked/value.yaml", EncryptedPath: "owned.enc.yaml", Format: "yaml"}}, pairs...)
 				}
 				summary, err := Decrypt(Options{FilePairs: pairs, IdentityBundle: bundle, Parallel: workers, Strict: scenario == "strict", Force: true})
-		  	if scenario == "partial" || scenario == "all-skipped" {
+				if scenario == "partial" || scenario == "all-skipped" {
 					require.NoError(t, err)
 				} else {
 					require.Error(t, err)
@@ -58,6 +58,11 @@ func TestDecryptOutcomesAndSideEffects(t *testing.T) {
 					require.Equal(t, 1, summary.FailedCount)
 				} else {
 					require.Zero(t, summary.FailedCount)
+				}
+				for _, result := range summary.Results {
+					if result.Status == Skipped {
+						require.Equal(t, OutcomeNoMatchingIdentity, result.Outcome)
+					}
 				}
 				require.NoDirExists(t, "unavailable")
 				require.NoDirExists(t, "broken-output")
@@ -75,6 +80,31 @@ func TestDecryptOutcomesAndSideEffects(t *testing.T) {
 			})
 		}
 	}
+}
+
+func TestDecryptEmptyBundleUsesNoIdentityOutcome(t *testing.T) {
+	t.Chdir(t.TempDir())
+	identity, err := age.GenerateX25519Identity()
+	require.NoError(t, err)
+	ciphertext, err := sopsx.Encrypt([]byte("token: value\n"), "yaml", []string{identity.Recipient().String()})
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile("secret.enc.yaml", ciphertext, 0600))
+
+	summary, err := Decrypt(Options{FilePairs: []FilePair{{PlaintextPath: "secret.yaml", EncryptedPath: "secret.enc.yaml", Format: "yaml"}}})
+	require.NoError(t, err)
+	require.Equal(t, Skipped, summary.Results[0].Status)
+	require.Equal(t, OutcomeNoIdentity, summary.Results[0].Outcome)
+	require.NoFileExists(t, "secret.yaml")
+}
+
+func TestDecryptEmptyBundleStillFailsForMissingCiphertext(t *testing.T) {
+	t.Chdir(t.TempDir())
+
+	summary, err := Decrypt(Options{FilePairs: []FilePair{{PlaintextPath: "secret.yaml", EncryptedPath: "missing.enc.yaml", Format: "yaml"}}})
+	require.Error(t, err)
+	require.Equal(t, Failed, summary.Results[0].Status)
+	require.Equal(t, OutcomeProcessed, summary.Results[0].Outcome)
+	require.ErrorContains(t, summary.Results[0].Error, "input file missing.enc.yaml does not exist")
 }
 
 func TestDiffGroupDiscoversPlaintextOnly(t *testing.T) {

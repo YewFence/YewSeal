@@ -383,7 +383,11 @@ func setupAgeKey(force bool, out *presentation.Output) (string, error) {
 			return "", fmt.Errorf("failed to parse existing key file: %w", err)
 		}
 		presentation.OrDiscard(out).IdentityBundle(bundle)
-		identity, err := age.ParseX25519Identity(bundle.Identities()[0])
+		identities := bundle.Identities()
+		if len(identities) == 0 {
+			return "", fmt.Errorf("existing key file contains no usable Age identity")
+		}
+		identity, err := age.ParseX25519Identity(identities[0])
 		if err != nil {
 			return "", fmt.Errorf("failed to parse existing owner identity: %w", err)
 		}

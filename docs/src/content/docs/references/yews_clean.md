@@ -23,8 +23,11 @@ once per file with No as the safe default. --skip-different keeps every
 difference without reading stdin; --force deletes differences without reading
 stdin. After an interactive Yes, clean decrypts the ciphertext again and fails
 if its content changed while the prompt was waiting. These flags are mutually
-exclusive. Neither policy bypasses missing or damaged ciphertext, identity
-mismatch, non-regular plaintext, I/O errors, or the final pre-removal check.
+exclusive. Every existing plaintext must be decrypted before removal and
+therefore requires a usable identity. Missing or damaged ciphertext, no usable
+or matching identity, non-regular plaintext, I/O errors, and a failed final
+recheck mark the item FAILED and retain it; neither policy bypasses these
+checks.
 
 Plaintext paths may contain symlinks. clean follows the complete chain, removes
 only the final regular-file target, and leaves links in place. Broken links are
@@ -40,7 +43,9 @@ details and ALREADY ABSENT results. clean does not update .gitignore or
 Exit codes: 0 when the selected policy completes, including explicitly retained
 differences; 1 when any item, prompt, or output channel fails (earlier
 removals remain); 2 for calling errors: invalid arguments, config, selection,
-or an unusable identity source.
+an unreadable explicit key file, or a failed key command. An empty identity
+set instead makes each plaintext that needs verification fail safely with exit
+1; no file is removed.
 
 See also: "yews diff" to inspect a difference before deciding and "yews
 encrypt" to save local changes before cleaning.

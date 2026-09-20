@@ -51,11 +51,7 @@ func CleanFiles(cfg *config.Config, req CleanRequest) (err error) {
 		case !exists:
 			stage.result = &cleaner.Result{PlaintextPath: pair.PlaintextPath, Status: cleaner.StatusAlreadyAbsent}
 		default:
-			if cipherErr := cleaner.CheckCiphertext(pair.EncryptedPath); cipherErr != nil {
-				stage.result = &cleaner.Result{PlaintextPath: pair.PlaintextPath, Status: cleaner.StatusFailed, Error: cipherErr}
-			} else {
-				needsIdentity = true
-			}
+			needsIdentity = true
 		}
 		stages = append(stages, stage)
 	}

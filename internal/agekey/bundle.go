@@ -34,9 +34,6 @@ func NewIdentityBundle(identities []string) (IdentityBundle, error) {
 		seen[identity] = struct{}{}
 		bundle.identities = append(bundle.identities, identity)
 	}
-	if len(bundle.identities) == 0 {
-		return IdentityBundle{}, fmt.Errorf("no valid Age identity found")
-	}
 	return bundle, nil
 }
 
@@ -72,7 +69,7 @@ func getIdentityBundle(keyFile string) (IdentityBundle, error) {
 		}
 		return layer.load()
 	}
-	return IdentityBundle{}, &errx.AgeKeyNotFoundError{Options: identitySourceOptions}
+	return IdentityBundle{}, nil
 }
 
 func readIdentityBundle(path string) (IdentityBundle, error) {

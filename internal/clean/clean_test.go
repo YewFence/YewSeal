@@ -214,16 +214,6 @@ func TestProcessFailsWhenCiphertextMissingCorruptOrKeyMismatch(t *testing.T) {
 	assert.FileExists(t, plainPath)
 }
 
-func TestCheckCiphertextReportsMissingFile(t *testing.T) {
-	f := newCleanFixture(t)
-	err := CheckCiphertext(f.path("absent.enc.yaml"))
-	require.Error(t, err)
-	assert.Equal(t, "encrypted file is missing", err.Error())
-
-	f.writeEncrypted(t, "config.enc.yaml", []byte("token: value\n"))
-	assert.NoError(t, CheckCiphertext(f.path("config.enc.yaml")))
-}
-
 func TestProcessRemovesSymlinkTargetAndKeepsLinks(t *testing.T) {
 	f := newCleanFixture(t)
 	plain := f.writeEncrypted(t, "config.enc.yaml", []byte("token: value\n"))

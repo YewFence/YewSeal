@@ -69,15 +69,3 @@ func TestExternalCommandError(t *testing.T) {
 		assert.Equal(t, "run command: exit status 1", err.Error())
 	})
 }
-
-func TestAgeKeyNotFoundError(t *testing.T) {
-	t.Run("without options", func(t *testing.T) {
-		err := &AgeKeyNotFoundError{}
-		assert.Equal(t, "no Age key found", err.Error())
-	})
-
-	t.Run("with options", func(t *testing.T) {
-		err := &AgeKeyNotFoundError{Options: []string{"SOPS_AGE_KEY", ".age/keys.txt"}}
-		assert.Equal(t, "no Age key found. Options: SOPS_AGE_KEY, .age/keys.txt", err.Error())
-	})
-}

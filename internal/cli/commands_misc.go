@@ -126,11 +126,13 @@ func identitiesCommand(load configLoader) *cobra.Command {
 resolution chain, which present sources it shadowed, and every identity in
 the winning source with its derived public key and registry alias.
 
-Identity resolution is first-win, never merged: only the first source
-that yields an identity applies, and everything below it is not even
-read — the exact order is the --key-file fallback chain shown among the
-flags below. shadowed lists the sources that were present but skipped,
-as file:<path> or env:<NAME>.
+Identity resolution is first-present, never merged: the first configured
+source applies even when it contains no valid identity, and everything
+below it is not read — the exact order is the --key-file fallback chain
+shown among the flags below. shadowed lists the sources that were present
+but skipped, as file:<path> or env:<NAME>. Malformed items are warned and
+ignored; a source with no valid items produces an empty report while
+retaining its source label. With no source at all, source is empty.
 
 The command requires a .yewseal.toml like every other command beyond
 version, help, and completion: each derived public key is looked up in
@@ -145,12 +147,14 @@ into a file or a consuming process instead of logging.
 
 Output: plain mode prints a Source/Shadowed header plus an Alias/Public
 key table (plus Secret with --reveal) on stdout; --json prints the report
-on stdout; warnings go to stderr either way.
+on stdout; warnings go to stderr either way. An empty JSON report contains
+"source": "" when no source is configured and always has "identities": [].
 
 Exit codes: 0 on success; 1 when the report or a warning cannot be
-delivered (closed or full stdout/stderr); 2 when no identity source
-yields an identity, the winning source is unreadable or invalid, or
-.yewseal.toml is missing or invalid.
+delivered (closed or full stdout/stderr); 2 when an explicit key file is
+unreadable, a key command fails, or .yewseal.toml is missing or invalid.
+No source, an empty source, and a source containing only malformed items
+all produce an empty report with exit 0.
 
 See also: "yews plan" to preview file mappings and authorization on the
 other side of the pipeline.
@@ -240,9 +244,9 @@ example "code --wait"), otherwise YewSeal re-encrypts before editing
 finishes.
 
 Exit codes: 0 on success (changed or unchanged); 1 when editing or
-re-encryption fails; 2 for calling errors (no target, an unregistered
-file, a missing or invalid .yewseal.toml, or an unusable identity
-source).
+re-encryption fails, including when no usable identity is available; 2
+for calling errors (no target, an unregistered file, a missing or invalid
+.yewseal.toml, an unreadable explicit key file, or a failed key command).
 
 Output: stdout stays empty; the update result (or "unchanged"),
 warnings, and errors go to stderr.
@@ -310,8 +314,9 @@ wraps the plaintext in a JSON envelope (path, format, encoding,
 content); binary formats encode the content as base64.
 
 Exit codes: 0 on success; 1 when decryption or output delivery fails;
-2 for calling errors (wrong argument count, an unregistered target, a
-missing or invalid .yewseal.toml, or an unusable identity source).
+this includes having no usable identity. 2 is reserved for calling errors
+(wrong argument count, an unregistered target, a missing or invalid
+.yewseal.toml, an unreadable explicit key file, or a failed key command).
 
 See also: "yews decrypt" to write plaintext files with overwrite
 protection, "yews edit" to edit the encrypted file directly.
@@ -378,11 +383,14 @@ an error, which differs from selecting files that are all skipped.
 
 A mapping is skipped with the reason reported on stderr when either
 side is missing (no new/deleted patch is emitted and it does not count
-as equal) or when no identity matches. Detected ciphertext corruption,
-permission errors, and other read/write failures are real errors, but a
-single file's error does not stop the comparison of other files. Once a
-selection succeeds, the identity source is resolved exactly once: an
-invalid --key-file fails even when every mapping ends up skipped.
+as equal), or when available identities do not match. When no usable
+identity is available, each mapping with both inputs present fails instead
+of claiming an identity mismatch. Detected ciphertext corruption,
+permission errors, and other read/write failures are also real errors,
+but a single file's error does not stop the comparison of other files.
+Once a selection succeeds, the identity source is resolved exactly once:
+an unreadable --key-file or a failed key command aborts even when every
+mapping would otherwise be skipped.
 
 The format and mapping come from the config; a stale recipient alias
 warns and continues, and decryption follows the historical ciphertext
@@ -393,8 +401,8 @@ was actually compared (0 means neither "equal" nor "compared"); 1 when
 any comparison fails or output delivery fails. There is no strict mode
 and no "differs means failure" switch, so diff is not a CI gate;
 obtained diffs are never rolled back. Calling errors (invalid patterns,
-a missing or invalid .yewseal.toml, selection failure, or an unusable
-identity source) exit 2.
+a missing or invalid .yewseal.toml, selection failure, an unreadable
+explicit key file, or a failed key command) exit 2.
 
 Output: stdout carries only the diff body (empty when nothing differs);
 warnings, per-file skip and failure reasons, and the summary go to

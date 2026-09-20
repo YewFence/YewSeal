@@ -42,6 +42,9 @@ func PlaintextAgainstEncrypted(opts Options) (DiffResult, error) {
 		IdentityBundle: opts.IdentityBundle,
 		FormatOverride: opts.FormatOverride,
 	})
+	if errors.Is(err, seal.ErrNoIdentity) {
+		return DiffResult{}, err
+	}
 	if errors.Is(err, sopsx.ErrNoMatchingIdentity) {
 		return DiffResult{Skipped: NoMatchingIdentity}, nil
 	}

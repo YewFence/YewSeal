@@ -128,9 +128,9 @@ func Update(opts UpdateOptions) (UpdateResult, error)
 
 **决策**：所有“明文和密文都存在、未指定 `--force`”的候选都可能从增量更新中获益，因此 app 在任何项目 metadata 或密文写入前至多解析一次 identity bundle，并把结果交给整个批次。
 
-最终找不到任何 identity 来源属于允许的边界：批次 warning 一次，相关文件执行全新加密。成功加载 bundle 但某个旧密文没有匹配 identity 时逐文件 warning，并对该文件执行全新加密。
+没有任何 identity 来源、来源为空或来源只含无效项都解析为合法的空 bundle：批次 warning 一次，相关文件执行全新加密。无效项仍以脱敏形式 warning。成功加载非空 bundle 但某个旧密文没有匹配 identity 时逐文件 warning，并对该文件执行全新加密。
 
-显式 identity 文件不可读、identity 内容无效、环境来源解析失败或 `SOPS_AGE_KEY_CMD` 执行失败仍是配置错误，整批在任何写入前失败。缺失的 `SOPS_AGE_KEY_FILE` 保持现有 resolver 的后续来源回退语义；只有最终 `AgeKeyNotFoundError` 被视为允许降级。
+显式 identity 文件不可读或 key command 执行失败仍是配置错误，整批在任何写入前失败。成功但无输出的 key command 解析为空 bundle。缺失的 `SOPS_AGE_KEY_FILE` 保持现有 resolver 的后续来源回退语义；首个存在的来源即使解析为空也会胜出并阻断后续来源。
 
 ## 错误与批量语义
 

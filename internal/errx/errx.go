@@ -96,15 +96,3 @@ func (e *ExternalCommandError) Error() string {
 	}
 	return fmt.Sprintf("%s: %v", op, e.Err)
 }
-
-// AgeKeyNotFoundError indicates no Age private key could be located.
-type AgeKeyNotFoundError struct {
-	Options []string
-}
-
-func (e *AgeKeyNotFoundError) Error() string {
-	if len(e.Options) == 0 {
-		return "no Age key found"
-	}
-	return fmt.Sprintf("no Age key found. Options: %s", strings.Join(e.Options, ", "))
-}

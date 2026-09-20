@@ -88,14 +88,15 @@ func TestGetIdentityBundleYewSealEnvironmentPrecedesSOPSAlias(t *testing.T) {
 	require.Equal(t, []string{primary.String()}, bundle.Identities())
 }
 
-func TestGetIdentityBundleInvalidYewSealEnvironmentDoesNotFallBack(t *testing.T) {
+func TestGetIdentityBundleInvalidYewSealEnvironmentReturnsEmptyWithoutFallingBack(t *testing.T) {
 	alias, err := age.GenerateX25519Identity()
 	require.NoError(t, err)
 	t.Setenv("YEWSEAL_AGE_IDENTITIES", "AGE-SECRET-KEY-1INVALID")
 	t.Setenv("SOPS_AGE_KEY", alias.String())
-	_, err = GetIdentityBundle("")
-	require.ErrorContains(t, err, "no valid Age identity found")
-	require.NotContains(t, err.Error(), alias.String())
+	bundle, err := GetIdentityBundle("")
+	require.NoError(t, err)
+	require.Empty(t, bundle.Identities())
+	require.Len(t, bundle.Warnings(), 1)
 }
 
 func TestGetIdentityBundleExplicitFileDoesNotFallBack(t *testing.T) {
@@ -140,13 +141,23 @@ func TestGetIdentityBundleEnvironmentPrecedesDefaultFile(t *testing.T) {
 	require.Equal(t, []string{environmentIdentity.String()}, bundle.Identities())
 }
 
-func TestGetIdentityBundleMissingDefaultFile(t *testing.T) {
+func TestGetIdentityBundleMissingDefaultFileReturnsEmpty(t *testing.T) {
 	t.Chdir(t.TempDir())
 	for _, name := range []string{"YEWSEAL_AGE_IDENTITIES", "SOPS_AGE_KEY", "SOPS_AGE_KEY_FILE", "SOPS_AGE_KEY_CMD"} {
 		t.Setenv(name, "")
 	}
-	_, err := GetIdentityBundle("")
-	require.ErrorContains(t, err, "no Age key found")
+	bundle, err := GetIdentityBundle("")
+	require.NoError(t, err)
+	require.Empty(t, bundle.Identities())
+}
+
+func TestGetIdentityBundleEmptyExplicitFileReturnsEmpty(t *testing.T) {
+	path := t.TempDir() + "/keys.txt"
+	require.NoError(t, os.WriteFile(path, []byte("# no identities\n"), 0600))
+
+	bundle, err := GetIdentityBundle(path)
+	require.NoError(t, err)
+	require.Empty(t, bundle.Identities())
 }
 
 func TestGetIdentityBundleExplicitFilePrecedesEnvironment(t *testing.T) {

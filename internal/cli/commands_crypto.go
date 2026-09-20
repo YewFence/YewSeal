@@ -71,7 +71,7 @@ a fully skipped batch); 1 when any file fails, .sops.yaml synchronization
 fails, or output delivery fails. Exit 1 does not imply that no ciphertext
 was written; 2 for calling errors: invalid arguments, a missing or invalid
 .yewseal.toml, selection or authorization failure, or an unusable
-identity source.
+identity source (an unreadable explicit file or a failed key command).
 
 Output: ciphertext goes to files and stdout stays empty; warnings,
 per-file failure reasons, and the summary go to stderr (--verbose adds
@@ -166,16 +166,17 @@ exists, decrypt warns on stderr and continues with the identity bundle.
 Overwrite protection: an existing plaintext file whose content differs
 from the decryption result is not overwritten unless --force is set.
 
-Exit codes: by default, files whose keys do not match the current
-identity are skipped and never fail the run; even a fully skipped batch
-exits 0, so lenient callers can treat "no matching identity" as a
+Exit codes: by default, files are skipped when no Age identity is
+available (outcome "no-identity") or when the available identities do
+not match ("no-matching-identity"); even a fully skipped batch exits 0,
+so lenient callers can treat unavailable decryption access as a
 degradable condition. Real errors (a missing or corrupted ciphertext,
 read or write failures, overwrite conflicts) and output delivery
 failures exit 1. With --strict, any skip also exits 1, but remaining
 files are still processed and successful results are kept;
 --strict=false overrides YEWSEAL_DECRYPT_STRICT. Calling errors
 (invalid arguments, a missing or invalid .yewseal.toml, selection
-failure, or an unusable identity source) exit 2.
+failure, an unreadable explicit key file, or a failed key command) exit 2.
 
 TOML ciphertext is decrypted natively by the embedded TOML store without
 format conversion; the output is normalized TOML (single-quoted literal
@@ -269,8 +270,11 @@ once per file with No as the safe default. --skip-different keeps every
 difference without reading stdin; --force deletes differences without reading
 stdin. After an interactive Yes, clean decrypts the ciphertext again and fails
 if its content changed while the prompt was waiting. These flags are mutually
-exclusive. Neither policy bypasses missing or damaged ciphertext, identity
-mismatch, non-regular plaintext, I/O errors, or the final pre-removal check.
+exclusive. Every existing plaintext must be decrypted before removal and
+therefore requires a usable identity. Missing or damaged ciphertext, no usable
+or matching identity, non-regular plaintext, I/O errors, and a failed final
+recheck mark the item FAILED and retain it; neither policy bypasses these
+checks.
 
 Plaintext paths may contain symlinks. clean follows the complete chain, removes
 only the final regular-file target, and leaves links in place. Broken links are
@@ -286,7 +290,9 @@ details and ALREADY ABSENT results. clean does not update .gitignore or
 Exit codes: 0 when the selected policy completes, including explicitly retained
 differences; 1 when any item, prompt, or output channel fails (earlier
 removals remain); 2 for calling errors: invalid arguments, config, selection,
-or an unusable identity source.
+an unreadable explicit key file, or a failed key command. An empty identity
+set instead makes each plaintext that needs verification fail safely with exit
+1; no file is removed.
 
 See also: "yews diff" to inspect a difference before deciding and "yews
 encrypt" to save local changes before cleaning.

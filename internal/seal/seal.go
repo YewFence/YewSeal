@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -213,8 +214,25 @@ func Decrypt(opts DecryptOptions) error {
 }
 
 func DecryptToBytes(opts DecryptBytesOptions) ([]byte, error) {
-	if _, err := os.Stat(opts.InputFile); os.IsNotExist(err) {
+	input, err := os.Open(opts.InputFile)
+	if os.IsNotExist(err) {
 		return nil, &errx.NotFoundError{What: "input file", Path: opts.InputFile}
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to open input file: %w", err)
+	}
+	defer func() { _ = input.Close() }()
+
+	info, err := input.Stat()
+	if err != nil {
+		return nil, fmt.Errorf("failed to inspect input file: %w", err)
+	}
+	if !info.Mode().IsRegular() {
+		return nil, fmt.Errorf("input file %s is not a regular file", opts.InputFile)
+	}
+	encData, err := io.ReadAll(input)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read input file: %w", err)
 	}
 
 	format, err := resolveFormat(opts.OutputFile, opts.FormatOverride)
@@ -223,14 +241,9 @@ func DecryptToBytes(opts DecryptBytesOptions) ([]byte, error) {
 	}
 
 	if len(opts.IdentityBundle.Identities()) == 0 {
-		return nil, fmt.Errorf("identity bundle is required")
+		return nil, ErrNoIdentity
 	}
 	privateKey := opts.IdentityBundle.String()
-
-	encData, err := os.ReadFile(opts.InputFile)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read input file: %w", err)
-	}
 
 	plainData, err := sopsx.Decrypt(encData, format, privateKey)
 	if err != nil {

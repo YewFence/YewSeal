@@ -12,6 +12,7 @@ import (
 	"github.com/YewFence/YewSeal/internal/config"
 	"github.com/YewFence/YewSeal/internal/diff"
 	"github.com/YewFence/YewSeal/internal/prompt"
+	"github.com/YewFence/YewSeal/internal/seal"
 	"github.com/YewFence/YewSeal/internal/sopsx"
 	"github.com/YewFence/YewSeal/internal/task"
 )
@@ -175,8 +176,11 @@ func (o *Output) FileCompleted(result task.Result) {
 	switch result.Status {
 	case task.Skipped:
 		reason := sopsx.ErrNoMatchingIdentity.Error()
-		if result.Outcome == task.OutcomeMissingPlaintext {
+		switch result.Outcome {
+		case task.OutcomeMissingPlaintext:
 			reason = "plaintext file is missing; not encrypted"
+		case task.OutcomeNoIdentity:
+			reason = seal.ErrNoIdentity.Error()
 		}
 		o.diagnostic(fmt.Sprintf("SKIPPED %s: %s\n", o.path(result.SourceFile), reason))
 	case task.Failed:

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/YewFence/YewSeal/internal/seal"
 	"github.com/YewFence/YewSeal/internal/sopsx"
 )
 
@@ -15,11 +16,12 @@ const (
 	Skipped   Status = "skipped"
 	Failed    Status = "failed"
 
-	OutcomeProcessed        Outcome = "processed"
-	OutcomeEncrypted        Outcome = "encrypted"
-	OutcomeUnchanged        Outcome = "unchanged"
-	OutcomeMissingPlaintext Outcome = "missing-plaintext"
-	OutcomeNoIdentity       Outcome = "no-matching-identity"
+	OutcomeProcessed          Outcome = "processed"
+	OutcomeEncrypted          Outcome = "encrypted"
+	OutcomeUnchanged          Outcome = "unchanged"
+	OutcomeMissingPlaintext   Outcome = "missing-plaintext"
+	OutcomeNoIdentity         Outcome = "no-identity"
+	OutcomeNoMatchingIdentity Outcome = "no-matching-identity"
 )
 
 type Result struct {
@@ -48,9 +50,12 @@ func newResult(source, target string, err error) Result {
 
 func newOutcomeResult(source, target string, outcome Outcome, warning string, err error) Result {
 	result := Result{SourceFile: source, TargetFile: target, Status: Succeeded, Outcome: outcome, Warning: warning, Error: err}
-	if errors.Is(err, sopsx.ErrNoMatchingIdentity) {
+	if errors.Is(err, seal.ErrNoIdentity) {
 		result.Status = Skipped
 		result.Outcome = OutcomeNoIdentity
+	} else if errors.Is(err, sopsx.ErrNoMatchingIdentity) {
+		result.Status = Skipped
+		result.Outcome = OutcomeNoMatchingIdentity
 	} else if err != nil {
 		result.Status = Failed
 	} else if outcome == OutcomeMissingPlaintext {

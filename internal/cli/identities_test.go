@@ -13,7 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/YewFence/YewSeal/internal/config"
-	"github.com/YewFence/YewSeal/internal/errx"
 	"github.com/YewFence/YewSeal/internal/presentation"
 )
 
@@ -188,14 +187,31 @@ func TestIdentitiesHumanTableAndRevealColumn(t *testing.T) {
 	require.Contains(t, revealed, identity.String())
 }
 
-func TestIdentitiesNoSourceFailsWithUsageError(t *testing.T) {
+func TestIdentitiesNoSourcePrintsEmptyReport(t *testing.T) {
 	clearCLIEnvironment(t)
 	t.Chdir(t.TempDir())
+	require.NoError(t, os.WriteFile(".yewseal.toml", nil, 0600))
 
-	_, _, err := runIdentities(t)
-	require.Error(t, err)
-	var usage *errx.UsageError
-	require.True(t, errors.As(err, &usage))
+	stdout, stderr, err := runIdentities(t, "--json")
+	require.NoError(t, err)
+	require.Empty(t, stderr)
+	source, _, identities := identitiesReportJSON(t, stdout)
+	require.Empty(t, source)
+	require.Empty(t, identities)
+}
+
+func TestIdentitiesMalformedSourcePrintsEmptyReportWithWarning(t *testing.T) {
+	clearCLIEnvironment(t)
+	t.Chdir(t.TempDir())
+	require.NoError(t, os.WriteFile(".yewseal.toml", nil, 0600))
+	t.Setenv("YEWSEAL_AGE_IDENTITIES", "invalid")
+
+	stdout, stderr, err := runIdentities(t, "--json")
+	require.NoError(t, err)
+	source, _, identities := identitiesReportJSON(t, stdout)
+	require.Equal(t, "env:YEWSEAL_AGE_IDENTITIES", source)
+	require.Empty(t, identities)
+	require.Contains(t, stderr, "WARNING ignored malformed Age identity bundle item")
 }
 
 func TestIdentitiesFailsWhenAWarningCannotBeDelivered(t *testing.T) {
