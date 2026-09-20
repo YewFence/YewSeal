@@ -267,14 +267,14 @@ ciphertext-only mapping is reported as already absent.
 
 Matching decrypted bytes are removed automatically. Different bytes prompt
 once per file with No as the safe default. --skip-different keeps every
-difference without reading stdin; --force deletes differences without reading
-stdin. After an interactive Yes, clean decrypts the ciphertext again and fails
-if its content changed while the prompt was waiting. These flags are mutually
-exclusive. Every existing plaintext must be decrypted before removal and
-therefore requires a usable identity. Missing or damaged ciphertext, no usable
-or matching identity, non-regular plaintext, I/O errors, and a failed final
-recheck mark the item FAILED and retain it; neither policy bypasses these
-checks.
+difference without reading stdin; --remove-different removes differences
+without reading stdin. Both --remove-different and an interactive Yes decrypt
+the ciphertext again before removal and fail if it changed after the initial
+comparison. These flags are mutually exclusive. Every existing plaintext must
+be decrypted before removal and therefore requires a usable identity. Missing
+or damaged ciphertext, no usable or matching identity, non-regular plaintext,
+I/O errors, and a failed final recheck mark the item FAILED and retain it;
+neither policy bypasses these checks.
 
 Plaintext paths may contain symlinks. clean follows the complete chain, removes
 only the final regular-file target, and leaves links in place. Broken links are
@@ -311,13 +311,13 @@ Documentation: ` + docsPlaintextCleanup,
   yews clean --skip-different
 
   # Irreversibly remove differences after successful decryption
-  yews clean --force
+  yews clean --remove-different
 
   # Inspect one difference before cleaning it
   yews diff -- config.toml`,
 		Args: func(_ *cobra.Command, args []string) error {
-			if opts.Force && opts.SkipDifferent {
-				return fmt.Errorf("--force and --skip-different cannot both be true")
+			if opts.RemoveDifferent && opts.SkipDifferent {
+				return fmt.Errorf("--remove-different and --skip-different cannot both be true")
 			}
 			for _, arg := range args {
 				if err := validateTargetArg(arg); err != nil {
@@ -328,12 +328,12 @@ Documentation: ` + docsPlaintextCleanup,
 		},
 		RunE: withConfig(load, func(cmd *cobra.Command, args []string, cfg *config.Config) error {
 			return yewsapp.CleanFiles(cfg, yewsapp.CleanRequest{
-				Presentation:  presentation.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), opts.Verbose),
-				Input:         cmd.InOrStdin(),
-				KeyFile:       opts.KeyFile,
-				Targets:       args,
-				Force:         opts.Force,
-				SkipDifferent: opts.SkipDifferent,
+				Presentation:    presentation.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), opts.Verbose),
+				Input:           cmd.InOrStdin(),
+				KeyFile:         opts.KeyFile,
+				Targets:         args,
+				RemoveDifferent: opts.RemoveDifferent,
+				SkipDifferent:   opts.SkipDifferent,
 			})
 		}),
 	}

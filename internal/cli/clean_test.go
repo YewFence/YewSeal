@@ -15,10 +15,10 @@ func TestCleanStrategyFlagsAreMutuallyExclusive(t *testing.T) {
 		env  map[string]string
 		args []string
 	}{
-		{name: "both flags", args: []string{"--force", "--skip-different"}},
-		{name: "flag force with env skip", env: map[string]string{"YEWSEAL_CLEAN_SKIP_DIFFERENT": "true"}, args: []string{"--force"}},
-		{name: "env force with flag skip", env: map[string]string{"YEWSEAL_CLEAN_FORCE": "true"}, args: []string{"--skip-different"}},
-		{name: "both env", env: map[string]string{"YEWSEAL_CLEAN_FORCE": "true", "YEWSEAL_CLEAN_SKIP_DIFFERENT": "true"}},
+		{name: "both flags", args: []string{"--remove-different", "--skip-different"}},
+		{name: "flag remove with env skip", env: map[string]string{"YEWSEAL_CLEAN_SKIP_DIFFERENT": "true"}, args: []string{"--remove-different"}},
+		{name: "env remove with flag skip", env: map[string]string{"YEWSEAL_CLEAN_REMOVE_DIFFERENT": "true"}, args: []string{"--skip-different"}},
+		{name: "both env", env: map[string]string{"YEWSEAL_CLEAN_REMOVE_DIFFERENT": "true", "YEWSEAL_CLEAN_SKIP_DIFFERENT": "true"}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -30,22 +30,31 @@ func TestCleanStrategyFlagsAreMutuallyExclusive(t *testing.T) {
 			})
 			cmd.SetArgs(append([]string{"clean"}, tc.args...))
 			err := cmd.Execute()
-			require.ErrorContains(t, err, "--force and --skip-different cannot both be true")
+			require.ErrorContains(t, err, "--remove-different and --skip-different cannot both be true")
 		})
 	}
 }
 
 func TestCleanExplicitFalseOverridesTrueEnvironment(t *testing.T) {
-	t.Setenv("YEWSEAL_CLEAN_FORCE", "true")
+	t.Setenv("YEWSEAL_CLEAN_REMOVE_DIFFERENT", "true")
 	t.Setenv("YEWSEAL_CLEAN_SKIP_DIFFERENT", "true")
 
 	cmd := newRootCommand("test", func() (*config.Config, error) {
 		return nil, errors.New("config reached")
 	})
-	cmd.SetArgs([]string{"clean", "--force=false", "--skip-different=false"})
+	cmd.SetArgs([]string{"clean", "--remove-different=false", "--skip-different=false"})
 	err := cmd.Execute()
 	require.ErrorContains(t, err, "failed to load config: config reached")
 	require.NotContains(t, err.Error(), "cannot both be true")
+}
+
+func TestCleanRejectsRemovedForceFlag(t *testing.T) {
+	cmd := newRootCommand("test", func() (*config.Config, error) {
+		t.Fatal("removed flag must fail before config loading")
+		return nil, nil
+	})
+	cmd.SetArgs([]string{"clean", "--force"})
+	require.ErrorContains(t, cmd.Execute(), "unknown flag: --force")
 }
 
 func TestCleanHelpAndAliasDoNotLoadConfig(t *testing.T) {
@@ -60,7 +69,9 @@ func TestCleanHelpAndAliasDoNotLoadConfig(t *testing.T) {
 			cmd.SetErr(&out)
 			cmd.SetArgs(args)
 			require.NoError(t, cmd.Execute())
+			require.Contains(t, out.String(), "--remove-different")
 			require.Contains(t, out.String(), "--skip-different")
+			require.NotContains(t, out.String(), "--force")
 		})
 	}
 }

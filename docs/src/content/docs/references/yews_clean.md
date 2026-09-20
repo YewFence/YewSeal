@@ -20,14 +20,14 @@ ciphertext-only mapping is reported as already absent.
 
 Matching decrypted bytes are removed automatically. Different bytes prompt
 once per file with No as the safe default. --skip-different keeps every
-difference without reading stdin; --force deletes differences without reading
-stdin. After an interactive Yes, clean decrypts the ciphertext again and fails
-if its content changed while the prompt was waiting. These flags are mutually
-exclusive. Every existing plaintext must be decrypted before removal and
-therefore requires a usable identity. Missing or damaged ciphertext, no usable
-or matching identity, non-regular plaintext, I/O errors, and a failed final
-recheck mark the item FAILED and retain it; neither policy bypasses these
-checks.
+difference without reading stdin; --remove-different removes differences
+without reading stdin. Both --remove-different and an interactive Yes decrypt
+the ciphertext again before removal and fail if it changed after the initial
+comparison. These flags are mutually exclusive. Every existing plaintext must
+be decrypted before removal and therefore requires a usable identity. Missing
+or damaged ciphertext, no usable or matching identity, non-regular plaintext,
+I/O errors, and a failed final recheck mark the item FAILED and retain it;
+neither policy bypasses these checks.
 
 Plaintext paths may contain symlinks. clean follows the complete chain, removes
 only the final regular-file target, and leaves links in place. Broken links are
@@ -72,7 +72,7 @@ yews clean [command options] [path-or-pattern]... [flags]
   yews clean --skip-different
 
   # Irreversibly remove differences after successful decryption
-  yews clean --force
+  yews clean --remove-different
 
   # Inspect one difference before cleaning it
   yews diff -- config.toml
@@ -81,10 +81,10 @@ yews clean [command options] [path-or-pattern]... [flags]
 ## Options
 
 ```
-  -f, --force            Delete plaintext that differs from successfully decrypted ciphertext (env YEWSEAL_CLEAN_FORCE)
-  -h, --help             help for clean
-      --skip-different   Keep plaintext that differs from successfully decrypted ciphertext without prompting (env YEWSEAL_CLEAN_SKIP_DIFFERENT)
-  -v, --verbose          Enable verbose output (selection info and already-absent results on stderr) (env YEWSEAL_CLEAN_VERBOSE)
+  -h, --help               help for clean
+      --remove-different   Remove plaintext that differs from successfully decrypted ciphertext without prompting (env YEWSEAL_CLEAN_REMOVE_DIFFERENT)
+      --skip-different     Keep plaintext that differs from successfully decrypted ciphertext without prompting (env YEWSEAL_CLEAN_SKIP_DIFFERENT)
+  -v, --verbose            Enable verbose output (selection info and already-absent results on stderr) (env YEWSEAL_CLEAN_VERBOSE)
 ```
 
 ## Options inherited from parent commands

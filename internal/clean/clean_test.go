@@ -151,18 +151,18 @@ func TestProcessRetainsWithoutPromptUnderSkipDifferent(t *testing.T) {
 	assert.Equal(t, Retained, outcome)
 }
 
-func TestProcessForceRemovesDifferenceWithoutPrompt(t *testing.T) {
+func TestProcessRemoveDifferentRemovesWithoutPrompt(t *testing.T) {
 	f := newCleanFixture(t)
 	f.writeEncrypted(t, "config.enc.yaml", []byte("token: value\n"))
 	plainPath := f.writePlain(t, "config.yaml", []byte("token: changed\n"))
 
 	outcome, err := Process(plainPath, Options{
-		EncryptedPath:  f.path("config.enc.yaml"),
-		Format:         "yaml",
-		IdentityBundle: f.bundle,
-		Force:          true,
+		EncryptedPath:   f.path("config.enc.yaml"),
+		Format:          "yaml",
+		IdentityBundle:  f.bundle,
+		RemoveDifferent: true,
 		ConfirmDifferent: func() (bool, error) {
-			t.Fatal("force must not prompt")
+			t.Fatal("remove-different must not prompt")
 			return false, nil
 		},
 	})

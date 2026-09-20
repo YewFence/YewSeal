@@ -18,7 +18,7 @@ $ yews clean config.toml
 $ yews clean --skip-different
 
 # irreversibly remove differences that decrypt fine
-$ yews clean --force
+$ yews clean --remove-different
 ```
 
 `clean` never encrypts, never updates recipients or data keys, and never touches `.gitignore` or `.sops.yaml`. Use `encrypt` to save local changes first; use `diff` to inspect a difference before deciding.
@@ -34,9 +34,9 @@ A plaintext is only removed after the same batch proves it can be recovered:
 
 Immediately before the actual removal, `clean` resolves the symlink chain again and re-reads the target. If the link was retargeted, the target type changed, or the content no longer matches the snapshot the decision was based on, the file is kept and the item fails. This catches ordinary editor autosaves while a prompt is waiting. The check is deliberately conservative: what it detects always fails, it never retries, and it never deletes the previously resolved target. It does not lock out an external writer racing the final re-read and removal.
 
-After an interactive Yes for differing content, `clean` also decrypts the ciphertext again. If it no longer decrypts to the same bytes that the prompt decision was based on, the plaintext is kept and the item fails.
+Before removing differing content, whether after an interactive Yes or with `--remove-different`, `clean` decrypts the ciphertext again. If it no longer decrypts to the same bytes as the initial check, the plaintext is kept and the item fails.
 
-`--force` and an interactive Yes skip only the byte-equality requirement. Every existing plaintext must be decrypted before removal and therefore requires a usable identity. Missing or corrupted ciphertext, no usable or matching identity, non-regular targets, and I/O errors mark the item `FAILED` and retain it in every mode, so a batch can never report success while unproven plaintext lingers.
+`--remove-different` and an interactive Yes allow removal when the byte-equality check finds a difference. Every existing plaintext must still be decrypted before removal and therefore requires a usable identity. Missing or corrupted ciphertext, no usable or matching identity, non-regular targets, and I/O errors mark the item `FAILED` and retain it in every mode, so a batch can never report success while unproven plaintext lingers.
 
 ## Differences and the three strategies
 
@@ -44,7 +44,7 @@ After an interactive Yes for differing content, `clean` also decrypts the cipher
 | --- | --- | --- | --- |
 | default | removed automatically | prompted per file | only when a difference exists |
 | `--skip-different` | removed automatically | kept automatically | never |
-| `--force` | removed automatically | removed automatically | never |
+| `--remove-different` | removed automatically | removed automatically | never |
 
 The default prompt looks like this; empty input and anything other than `y`/`yes` means No:
 
@@ -54,7 +54,7 @@ Hint: run yews diff -- 'wip.toml' to view the diff.
 Delete the local plaintext anyway? [y/N]:
 ```
 
-`clean` itself never prints plaintext or diff bodies. A layout-only difference (semantically equal TOML, different bytes) still prompts — stores normalize on decryption, so run the suggested `diff` and decide. For scripts and CI, pick a strategy explicitly: `--skip-different` keeps your workspace changes, `--force` is the irreversible end-of-session sweep. The two flags are mutually exclusive, flag/env combinations included, and the conflict is rejected before the config loads.
+`clean` itself never prints plaintext or diff bodies. A layout-only difference (semantically equal TOML, different bytes) still prompts — stores normalize on decryption, so run the suggested `diff` and decide. For scripts and CI, pick a strategy explicitly: `--skip-different` keeps your workspace changes, `--remove-different` removes them. The two flags are mutually exclusive, flag/env combinations included, and the conflict is rejected before the config loads.
 
 A prompt that ends in EOF or a broken channel is not a No: the file is kept, the item fails, and the command exits non-zero. Removals that already happened are never rolled back.
 

@@ -248,7 +248,7 @@ Summary (cleaned): 0 removed, 0 already absent, 1 retained, 0 failed (1 selected
 $ yews clean --skip-different
 ```
 
-If you saved your edits with `encrypt` first, `clean` removes the plaintext without asking. See [Cleaning local plaintext](/guide/plaintext-cleanup) for the verification rules, exit codes, and the irreversible `--force`.
+If you saved your edits with `encrypt` first, `clean` removes the plaintext without asking. See [Cleaning local plaintext](/guide/plaintext-cleanup) for the verification rules, exit codes, and the irreversible `--remove-different`.
 
 ## Where to go next
 

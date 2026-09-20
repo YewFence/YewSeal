@@ -22,7 +22,7 @@ type Options struct {
 	EncryptedPath    string
 	Format           string
 	IdentityBundle   agekey.IdentityBundle
-	Force            bool
+	RemoveDifferent  bool
 	SkipDifferent    bool
 	ConfirmDifferent func() (bool, error)
 }
@@ -59,22 +59,24 @@ func Process(logicalPath string, opts Options) (Outcome, error) {
 		return "", err
 	}
 
-	confirmedDifference := false
-	if !bytes.Equal(snapshot, decrypted) && !opts.Force {
+	verifyCiphertext := false
+	if !bytes.Equal(snapshot, decrypted) {
 		if opts.SkipDifferent {
 			return Retained, nil
 		}
-		confirmed, err := opts.ConfirmDifferent()
-		if err != nil {
-			return "", err
+		if !opts.RemoveDifferent {
+			confirmed, err := opts.ConfirmDifferent()
+			if err != nil {
+				return "", err
+			}
+			if !confirmed {
+				return Retained, nil
+			}
 		}
-		if !confirmed {
-			return Retained, nil
-		}
-		confirmedDifference = true
+		verifyCiphertext = true
 	}
 
-	if confirmedDifference {
+	if verifyCiphertext {
 		currentDecrypted, err := seal.DecryptToBytes(seal.DecryptBytesOptions{
 			InputFile:      opts.EncryptedPath,
 			OutputFile:     logicalPath,

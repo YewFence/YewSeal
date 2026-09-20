@@ -151,24 +151,24 @@ func TestCleanFilesSkipDifferentNeverReadsStdin(t *testing.T) {
 	assert.FileExists(t, "wip.yaml")
 }
 
-func TestCleanFilesForceRemovesDifferencesWithoutStdin(t *testing.T) {
+func TestCleanFilesRemoveDifferentDoesNotReadStdin(t *testing.T) {
 	cfg := prepareCleanFixture(t)
 
 	var stdout, stderr bytes.Buffer
 	input := &trackedReader{reader: strings.NewReader("")}
 	err := CleanFiles(cfg, CleanRequest{
-		Presentation: presentation.New(&stdout, &stderr, false),
-		Input:        input,
-		KeyFile:      ".age/keys.txt",
-		Force:        true,
+		Presentation:    presentation.New(&stdout, &stderr, false),
+		Input:           input,
+		KeyFile:         ".age/keys.txt",
+		RemoveDifferent: true,
 	})
 	require.NoError(t, err)
-	assert.False(t, input.read, "force must not read stdin")
+	assert.False(t, input.read, "remove-different must not read stdin")
 	assert.NoFileExists(t, "same.yaml")
 	assert.NoFileExists(t, "wip.yaml")
 }
 
-func TestCleanFilesForceDoesNotBypassRecoverability(t *testing.T) {
+func TestCleanFilesRemoveDifferentDoesNotBypassRecoverability(t *testing.T) {
 	env := newAppCryptoTestEnv(t)
 	require.NoError(t, os.WriteFile("gone.yaml", []byte("token: value\n"), 0600))
 	require.NoError(t, os.WriteFile("broken.yaml", []byte("token: value\n"), 0600))
@@ -180,9 +180,9 @@ func TestCleanFilesForceDoesNotBypassRecoverability(t *testing.T) {
 
 	var stdout, stderr bytes.Buffer
 	err := CleanFiles(cfg, CleanRequest{
-		Presentation: presentation.New(&stdout, &stderr, false),
-		KeyFile:      ".age/keys.txt",
-		Force:        true,
+		Presentation:    presentation.New(&stdout, &stderr, false),
+		KeyFile:         ".age/keys.txt",
+		RemoveDifferent: true,
 	})
 	require.Error(t, err)
 	assert.FileExists(t, "gone.yaml")
