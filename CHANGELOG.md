@@ -1,3 +1,12 @@
+## [0.14.1] - 2026-09-20
+
+### 🚜 Refactor
+
+- *(agekey)* Treat missing identities as empty results (#59)
+
+### ⚙️ Miscellaneous Tasks
+
+- *(gomod-deps)* Update go modules (#58)
 ## [0.14.0] - 2026-09-20
 
 ### 🚀 Features
