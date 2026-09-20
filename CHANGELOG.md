@@ -1,3 +1,12 @@
+## [0.14.0] - 2026-09-20
+
+### 🚀 Features
+
+- *(cli)* Implemented clean command (#54)
+
+### ⚙️ Miscellaneous Tasks
+
+- *(npm-deps)* Update dependency astro to ^7.3.3 (#55)
 ## [0.13.0] - 2026-09-19
 
 ### 🚀 Features
