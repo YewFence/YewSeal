@@ -65,10 +65,11 @@ Multiple arguments take the union of their selections. Patterns only include —
 | `decrypt` | registered mappings with the encrypted side in scope | encrypted side | registered encrypted paths |
 | `plan` | mappings with either side in scope | either side | either side |
 | `diff` | mappings by plaintext path in scope | plaintext side | registered plaintext paths |
+| `clean` | mappings by plaintext path in scope | plaintext side | registered plaintext paths |
 
 Two structural rules complete the picture:
 
-- Groups discover files under their own [discovery root](/guide/glossary#discovery-root), by their own rules. `encrypt` discovers from the plaintext side and derives the `.enc.*` protocol paths; `decrypt` reads the ciphertext-side results; `plan` unions both sides, so a new plaintext-only file and a deployment-only ciphertext both show up — and when both exist, the real plaintext path is kept (`config.yml` next to `config.enc.yaml`); `diff` discovers from the plaintext side, so a group entry with only a ciphertext never becomes a candidate.
+- Groups discover files under their own [discovery root](/guide/glossary#discovery-root), by their own rules. `encrypt` discovers from the plaintext side and derives the `.enc.*` protocol paths; `decrypt` reads the ciphertext-side results; `plan` unions both sides, so a new plaintext-only file and a deployment-only ciphertext both show up — and when both exist, the real plaintext path is kept (`config.yml` next to `config.enc.yaml`); `clean` unions both sides the same way but filters by the logical plaintext path, so a mapping whose plaintext was already removed is still discovered through its ciphertext and reported as [already absent](/guide/plaintext-cleanup); `diff` discovers from the plaintext side, so a group entry with only a ciphertext never becomes a candidate.
 - Explicit `[[encryption.files]]` pairs stay selectable even when their files do not exist on disk — notably for `plan` and `diff`. When several groups resolve different recipient sets for the same path, an explicit pair must arbitrate, or the run reports a conflict.
 
 ## Empty selections and errors

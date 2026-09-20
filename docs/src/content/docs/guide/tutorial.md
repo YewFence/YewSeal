@@ -233,9 +233,27 @@ After either path, commit the new ciphertext — the plaintext is, as always, ig
 $ git add config.enc.toml && git commit -m "Rotate api_key"
 ```
 
+When you are done with the plaintext, remove it with a proven-recoverable cleanup instead of hunting files by hand:
+
+```bash
+# matching plaintext is removed; differences prompt with No as the safe default
+$ yews clean
+Plaintext differs from encrypted content: config.toml
+Hint: run yews diff -- 'config.toml' to view the diff.
+Delete the local plaintext anyway? [y/N]: n
+RETAINED config.toml: plaintext differs from encrypted content
+Summary (cleaned): 0 removed, 0 already absent, 1 retained, 0 failed (1 selected)
+
+# done for the day: keep every unsaved difference, no prompts at all
+$ yews clean --skip-different
+```
+
+If you saved your edits with `encrypt` first, `clean` removes the plaintext without asking. See [Cleaning local plaintext](/guide/plaintext-cleanup) for the verification rules, exit codes, and the irreversible `--force`.
+
 ## Where to go next
 
 - [Working with a team](/guide/working-with-a-team) — register a teammate's key, per-file authorization, skips, and strict mode
 - [Configuration](/guide/configuration) — every field of `.yewseal.toml`, group scanning, environment variables
 - [CI/CD integration](/guide/ci-cd) — the same `decrypt --strict` flow as a deployment gate
 - [Target selection](/guide/target-selection) — what CLI arguments select and what they never do
+- [Cleaning local plaintext](/guide/plaintext-cleanup) — remove decrypted files once the ciphertext proves them recoverable

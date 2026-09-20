@@ -61,6 +61,8 @@ Pair paths resolve at load time: a relative `plaintext` or `encrypted` path is i
 An absolute path is taken literally and may point anywhere on disk. That works but is discouraged: it binds the config to a single machine, and clones, CI checkouts, or a moved project directory break it — keep everything outside the project on a symlink and register the relative link instead. `~` is never expanded, and on Windows an absolute path must include a drive letter.
 :::
 
+Symlinked plaintext paths are followed transparently: `encrypt` and `decrypt` write through the complete link chain to the final regular file, and `clean` deletes that final target while leaving every link in place, so a later `decrypt` writes back to the same location. A broken chain counts as [already absent](/guide/plaintext-cleanup) for `clean` and keeps the link; unresolvable chains and non-regular targets fail rather than being treated as absent.
+
 Files and encryption authorization are declared centrally in the project config. For one-off single-file tasks that do not need project-level management, use SOPS directly; see [Interop with SOPS](/guide/sops).
 
 ### Recipient authorization

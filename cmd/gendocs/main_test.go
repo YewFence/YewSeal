@@ -37,6 +37,7 @@ func TestGenerateWritesOnePagePerCommand(t *testing.T) {
 		"yews_init",
 		"yews_encrypt",
 		"yews_decrypt",
+		"yews_clean",
 		"yews_plan",
 		"yews_edit",
 		"yews_view",
