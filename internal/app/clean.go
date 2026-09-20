@@ -16,6 +16,7 @@ type CleanRequest struct {
 	Input           io.Reader
 	KeyFile         string
 	Targets         []string
+	Force           bool
 	RemoveDifferent bool
 	SkipDifferent   bool
 }
@@ -50,7 +51,7 @@ func CleanFiles(cfg *config.Config, req CleanRequest) (err error) {
 			stage.result = &cleaner.Result{PlaintextPath: pair.PlaintextPath, Status: cleaner.StatusFailed, Error: inspectErr}
 		case !exists:
 			stage.result = &cleaner.Result{PlaintextPath: pair.PlaintextPath, Status: cleaner.StatusAlreadyAbsent}
-		default:
+		case !req.Force:
 			needsIdentity = true
 		}
 		stages = append(stages, stage)
@@ -82,6 +83,7 @@ func CleanFiles(cfg *config.Config, req CleanRequest) (err error) {
 				EncryptedPath:   pair.EncryptedPath,
 				Format:          pair.Format,
 				IdentityBundle:  identityBundle,
+				Force:           req.Force,
 				RemoveDifferent: req.RemoveDifferent,
 				SkipDifferent:   req.SkipDifferent,
 				ConfirmDifferent: func() (bool, error) {

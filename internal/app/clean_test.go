@@ -193,6 +193,27 @@ func TestCleanFilesRemoveDifferentDoesNotBypassRecoverability(t *testing.T) {
 	assert.Contains(t, stderr.String(), "0 removed, 0 already absent, 0 retained, 2 failed (2 selected)")
 }
 
+func TestCleanFilesForceIgnoresRecoveryInputs(t *testing.T) {
+	env := newAppCryptoTestEnv(t)
+	require.NoError(t, os.WriteFile("secret.yaml", []byte("unsaved: local\n"), 0600))
+	cfg := configWithOwnerRecipient(&config.Config{Encryption: config.EncryptionConfig{Files: []config.FilePair{
+		{PlaintextPath: "secret.yaml", EncryptedPath: "missing.enc.yaml", Format: "yaml"},
+	}}}, env.publicKey)
+	input := &trackedReader{reader: strings.NewReader("")}
+
+	var stderr bytes.Buffer
+	err := CleanFiles(cfg, CleanRequest{
+		Presentation: presentation.New(nil, &stderr, false),
+		Input:        input,
+		KeyFile:      "missing-keys.txt",
+		Force:        true,
+	})
+	require.NoError(t, err)
+	assert.False(t, input.read, "force must not read stdin")
+	assert.NoFileExists(t, "secret.yaml")
+	assert.Contains(t, stderr.String(), "REMOVED secret.yaml")
+}
+
 func TestCleanFilesMixedBatchContinuesAndSummarizes(t *testing.T) {
 	cfg := prepareCleanFixture(t)
 	require.NoError(t, os.Remove("wip.enc.yaml"))

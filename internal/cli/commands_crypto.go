@@ -253,10 +253,10 @@ func cleanCommand(load configLoader) *cobra.Command {
 		Use:     "clean [command options] [path-or-pattern]...",
 		Aliases: []string{"c"},
 		Short:   "Safely remove registered local plaintext files",
-		Long: `Remove registered local plaintext only after proving that its ciphertext
-can be decrypted with the current Age identities. clean never encrypts files,
-changes recipients, repairs project metadata, removes directories, or displays
-plaintext or diff content.
+		Long: `Remove registered local plaintext, by default only after proving that its
+ciphertext can be decrypted with the current Age identities. clean never
+encrypts files, changes recipients, repairs project metadata, removes
+directories, or displays plaintext or diff content.
 
 Target selection uses the plaintext side for current-directory scope,
 directories, and patterns. Exact registered plaintext or ciphertext paths both
@@ -276,11 +276,22 @@ or damaged ciphertext, no usable or matching identity, non-regular plaintext,
 I/O errors, and a failed final recheck mark the item FAILED and retain it;
 neither policy bypasses these checks.
 
+--force is a separate, dangerous mode: it removes every selected plaintext
+that currently exists without reading ciphertext, resolving identities,
+comparing content, or prompting. It still follows the configured plaintext
+path through symlinks, deletes only the same final regular file it inspected,
+continues after per-file failures, and never removes directories. --force is
+CLI-only, has no short form or environment variable, and is mutually exclusive
+with --remove-different and --skip-different. Removed plaintext may not be
+recoverable.
+
 Plaintext paths may contain symlinks. clean follows the complete chain, removes
 only the final regular-file target, and leaves links in place. Broken links are
-already absent. Immediately before removal it resolves the chain and reads the
-target again; a changed target, type, or byte snapshot is retained as a
-failure. Completed removals are not rolled back when another item later fails.
+already absent. Immediately before normal removal it resolves the chain and
+reads the target again; a changed target, type, or byte snapshot is retained as
+a failure. --force instead confirms that the chain still reaches the same
+regular file without reading its content. Completed removals are not rolled
+back when another item later fails.
 
 Output: stdout is always empty. Prompts, warnings, REMOVED/RETAINED/FAILED
 results, and the final summary go to stderr; --verbose also prints selection
@@ -292,7 +303,8 @@ differences; 1 when any item, prompt, or output channel fails (earlier
 removals remain); 2 for calling errors: invalid arguments, config, selection,
 an unreadable explicit key file, or a failed key command. An empty identity
 set instead makes each plaintext that needs verification fail safely with exit
-1; no file is removed.
+1; no file is removed. Identity-source errors do not apply to --force because
+that mode does not resolve identities.
 
 See also: "yews diff" to inspect a difference before deciding and "yews
 encrypt" to save local changes before cleaning.
@@ -313,11 +325,20 @@ Documentation: ` + docsPlaintextCleanup,
   # Irreversibly remove differences after successful decryption
   yews clean --remove-different
 
+  # DANGEROUS: remove every selected plaintext without recovery checks
+  yews clean --force
+
   # Inspect one difference before cleaning it
   yews diff -- config.toml`,
 		Args: func(_ *cobra.Command, args []string) error {
-			if opts.RemoveDifferent && opts.SkipDifferent {
-				return fmt.Errorf("--remove-different and --skip-different cannot both be true")
+			enabledStrategies := 0
+			for _, enabled := range []bool{opts.Force, opts.RemoveDifferent, opts.SkipDifferent} {
+				if enabled {
+					enabledStrategies++
+				}
+			}
+			if enabledStrategies > 1 {
+				return fmt.Errorf("--force, --remove-different, and --skip-different are mutually exclusive")
 			}
 			for _, arg := range args {
 				if err := validateTargetArg(arg); err != nil {
@@ -332,6 +353,7 @@ Documentation: ` + docsPlaintextCleanup,
 				Input:           cmd.InOrStdin(),
 				KeyFile:         opts.KeyFile,
 				Targets:         args,
+				Force:           opts.Force,
 				RemoveDifferent: opts.RemoveDifferent,
 				SkipDifferent:   opts.SkipDifferent,
 			})

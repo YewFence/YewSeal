@@ -27,6 +27,8 @@ type optionResolver struct {
 	inheritedDone bool
 }
 
+const cliOnlyFlagAnnotation = "yewseal.cli-only"
+
 func newOptionResolver(cmd *cobra.Command, target any) *optionResolver {
 	resolver := &optionResolver{viper: viper.New(), target: target}
 	resolver.bindFlags(cmd.LocalNonPersistentFlags(), commandEnvPrefix(cmd.Name()))
@@ -61,11 +63,14 @@ func (r *optionResolver) IsSet(name string) bool {
 
 func (r *optionResolver) bindFlags(flags *pflag.FlagSet, envPrefix string) {
 	flags.VisitAll(func(flag *pflag.Flag) {
-		envName := envName(envPrefix, flag.Name)
 		if err := r.viper.BindPFlag(flag.Name, flag); err != nil {
 			r.bindErr = errors.Join(r.bindErr, err)
 			return
 		}
+		if isCLIOnlyFlag(flag) {
+			return
+		}
+		envName := envName(envPrefix, flag.Name)
 		if err := r.viper.BindEnv(flag.Name, envName); err != nil {
 			r.bindErr = errors.Join(r.bindErr, err)
 			return
@@ -73,6 +78,17 @@ func (r *optionResolver) bindFlags(flags *pflag.FlagSet, envPrefix string) {
 		annotateFlagEnvironment(flag, envName)
 		r.bindings = append(r.bindings, optionBinding{flag: flag, env: envName})
 	})
+}
+
+func markCLIOnlyFlag(flag *pflag.Flag) {
+	if flag.Annotations == nil {
+		flag.Annotations = make(map[string][]string)
+	}
+	flag.Annotations[cliOnlyFlagAnnotation] = []string{"true"}
+}
+
+func isCLIOnlyFlag(flag *pflag.Flag) bool {
+	return len(flag.Annotations[cliOnlyFlagAnnotation]) > 0
 }
 
 func (r *optionResolver) validateEnvironment() error {

@@ -111,6 +111,8 @@ func TestCLIProcessingOutcomes(t *testing.T) {
 			wantIn: []string{"REMOVED good.yaml"}, wantOut: []string{"Delete the local plaintext anyway?"}, gone: []string{"good.yaml"}},
 		{name: "clean-remove-different-keeps-unrecoverable", command: "clean", scenario: "broken", flags: []string{"--remove-different"}, code: 1,
 			wantIn: []string{"REMOVED good.yaml", "FAILED broken.yaml"}, gone: []string{"good.yaml"}, kept: []string{"broken.yaml"}},
+		{name: "clean-force-removes-without-recovery", command: "clean", scenario: "broken", flags: []string{"--force"},
+			wantIn: []string{"REMOVED good.yaml", "REMOVED broken.yaml", "2 removed, 1 already absent, 0 retained, 0 failed (3 selected)"}, gone: []string{"good.yaml", "broken.yaml"}},
 		{name: "clean-error-continues", command: "clean", scenario: "broken", code: 1,
 			wantIn: []string{"REMOVED good.yaml", "FAILED broken.yaml"}, gone: []string{"good.yaml"}, kept: []string{"broken.yaml"}},
 		{name: "clean-missing-plaintext", command: "clean", scenario: "missing-plaintext", flags: []string{"--verbose"},

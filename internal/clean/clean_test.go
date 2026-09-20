@@ -171,6 +171,38 @@ func TestProcessRemoveDifferentRemovesWithoutPrompt(t *testing.T) {
 	assert.NoFileExists(t, plainPath)
 }
 
+func TestProcessForceRemovesWithoutRecoveryInputs(t *testing.T) {
+	f := newCleanFixture(t)
+	plainPath := f.writePlain(t, "config.yaml", []byte("unsaved: local\n"))
+
+	outcome, err := Process(plainPath, Options{
+		EncryptedPath: f.path("missing.enc.yaml"),
+		Force:         true,
+		ConfirmDifferent: func() (bool, error) {
+			t.Fatal("force must not prompt")
+			return false, nil
+		},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, Removed, outcome)
+	assert.NoFileExists(t, plainPath)
+}
+
+func TestProcessForceRemovesSymlinkTargetAndKeepsLink(t *testing.T) {
+	f := newCleanFixture(t)
+	target := f.writePlain(t, "target.yaml", []byte("unsaved: local\n"))
+	logical := f.path("config.yaml")
+	require.NoError(t, os.Symlink(target, logical))
+
+	outcome, err := Process(logical, Options{Force: true})
+	require.NoError(t, err)
+	assert.Equal(t, Removed, outcome)
+	assert.NoFileExists(t, target)
+	info, err := os.Lstat(logical)
+	require.NoError(t, err)
+	assert.Equal(t, os.ModeSymlink, info.Mode()&os.ModeSymlink)
+}
+
 func TestProcessPromptFailureIsUndecidedFailure(t *testing.T) {
 	f := newCleanFixture(t)
 	f.writeEncrypted(t, "config.enc.yaml", []byte("token: value\n"))
@@ -306,6 +338,32 @@ func TestProcessChangedCiphertextFailsRecheck(t *testing.T) {
 	assert.Contains(t, err.Error(), "ciphertext changed before removal")
 	assert.Empty(t, outcome)
 	assert.FileExists(t, plainPath)
+}
+
+func TestRemoveUnverifiedRejectsReplacedTarget(t *testing.T) {
+	f := newCleanFixture(t)
+	plainPath := f.writePlain(t, "config.yaml", []byte("first\n"))
+	initial, exists, err := resolveTarget(plainPath)
+	require.NoError(t, err)
+	require.True(t, exists)
+	require.NoError(t, os.Remove(plainPath))
+	require.NoError(t, os.WriteFile(plainPath, []byte("replacement\n"), 0600))
+
+	err = removeUnverified(plainPath, initial)
+	require.ErrorContains(t, err, "file target changed")
+	assert.FileExists(t, plainPath)
+}
+
+func TestRemoveUnverifiedAllowsContentChangeOnSameFile(t *testing.T) {
+	f := newCleanFixture(t)
+	plainPath := f.writePlain(t, "config.yaml", []byte("first\n"))
+	initial, exists, err := resolveTarget(plainPath)
+	require.NoError(t, err)
+	require.True(t, exists)
+	require.NoError(t, os.WriteFile(plainPath, []byte("changed in place\n"), 0600))
+
+	require.NoError(t, removeUnverified(plainPath, initial))
+	assert.NoFileExists(t, plainPath)
 }
 
 func TestProcessRemoveFailureRetainsFile(t *testing.T) {
