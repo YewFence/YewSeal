@@ -12,7 +12,6 @@ import (
 	"filippo.io/age"
 	"github.com/YewFence/YewSeal/internal/agekey"
 	"github.com/YewFence/YewSeal/internal/errx"
-	"github.com/YewFence/YewSeal/internal/sopsx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -106,7 +105,7 @@ func TestEncryptDecryptYAMLRoundTrip(t *testing.T) {
 	assert.Equal(t, os.FileMode(0600), info.Mode().Perm())
 }
 
-func TestDecryptToBytesEmptyIdentityBundleIsNoMatchingIdentity(t *testing.T) {
+func TestDecryptToBytesEmptyIdentityBundleIsNoIdentity(t *testing.T) {
 	env := setupTestEnv(t)
 	require.NoError(t, os.WriteFile("config.yaml", []byte("secret: value\n"), 0644))
 	require.NoError(t, Encrypt(EncryptOptions{
@@ -121,7 +120,31 @@ func TestDecryptToBytesEmptyIdentityBundleIsNoMatchingIdentity(t *testing.T) {
 		OutputFile:     "config.yaml",
 		FormatOverride: "yaml",
 	})
-	require.ErrorIs(t, err, sopsx.ErrNoMatchingIdentity)
+	require.ErrorIs(t, err, ErrNoIdentity)
+}
+
+func TestDecryptToBytesValidatesInputBeforeIdentity(t *testing.T) {
+	t.Chdir(t.TempDir())
+	require.NoError(t, os.Mkdir("cipher.enc.yaml", 0700))
+
+	_, err := DecryptToBytes(DecryptBytesOptions{
+		InputFile:  "cipher.enc.yaml",
+		OutputFile: "plain.yaml",
+	})
+	require.ErrorContains(t, err, "input file cipher.enc.yaml is not a regular file")
+	require.NotErrorIs(t, err, ErrNoIdentity)
+}
+
+func TestDecryptToBytesValidatesFormatBeforeIdentity(t *testing.T) {
+	t.Chdir(t.TempDir())
+	require.NoError(t, os.WriteFile("ciphertext", []byte("unverified"), 0600))
+
+	_, err := DecryptToBytes(DecryptBytesOptions{
+		InputFile:  "ciphertext",
+		OutputFile: "plaintext.unknown",
+	})
+	require.ErrorContains(t, err, "could not detect format for plaintext.unknown")
+	require.NotErrorIs(t, err, ErrNoIdentity)
 }
 
 func TestDecryptToBytesDoesNotWriteOutput(t *testing.T) {

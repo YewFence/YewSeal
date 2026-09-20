@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/YewFence/YewSeal/internal/seal"
 	"github.com/YewFence/YewSeal/internal/sopsx"
 )
 
@@ -49,11 +50,12 @@ func newResult(source, target string, err error) Result {
 
 func newOutcomeResult(source, target string, outcome Outcome, warning string, err error) Result {
 	result := Result{SourceFile: source, TargetFile: target, Status: Succeeded, Outcome: outcome, Warning: warning, Error: err}
-	if errors.Is(err, sopsx.ErrNoMatchingIdentity) {
+	if errors.Is(err, seal.ErrNoIdentity) {
 		result.Status = Skipped
-		if result.Outcome != OutcomeNoIdentity {
-			result.Outcome = OutcomeNoMatchingIdentity
-		}
+		result.Outcome = OutcomeNoIdentity
+	} else if errors.Is(err, sopsx.ErrNoMatchingIdentity) {
+		result.Status = Skipped
+		result.Outcome = OutcomeNoMatchingIdentity
 	} else if err != nil {
 		result.Status = Failed
 	} else if outcome == OutcomeMissingPlaintext {

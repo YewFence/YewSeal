@@ -36,7 +36,7 @@ Immediately before the actual removal, `clean` resolves the symlink chain again 
 
 After an interactive Yes for differing content, `clean` also decrypts the ciphertext again. If it no longer decrypts to the same bytes that the prompt decision was based on, the plaintext is kept and the item fails.
 
-`--force` and an interactive Yes skip only the byte-equality requirement. Missing or corrupted ciphertext, identity mismatch, non-regular targets, and I/O errors fail in every mode, so a batch can never report success while unproven plaintext lingers.
+`--force` and an interactive Yes skip only the byte-equality requirement. Every existing plaintext must be decrypted before removal and therefore requires a usable identity. Missing or corrupted ciphertext, no usable or matching identity, non-regular targets, and I/O errors mark the item `FAILED` and retain it in every mode, so a batch can never report success while unproven plaintext lingers.
 
 ## Differences and the three strategies
 

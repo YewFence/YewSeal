@@ -23,8 +23,11 @@ once per file with No as the safe default. --skip-different keeps every
 difference without reading stdin; --force deletes differences without reading
 stdin. After an interactive Yes, clean decrypts the ciphertext again and fails
 if its content changed while the prompt was waiting. These flags are mutually
-exclusive. Neither policy bypasses missing or damaged ciphertext, identity
-mismatch, non-regular plaintext, I/O errors, or the final pre-removal check.
+exclusive. Every existing plaintext must be decrypted before removal and
+therefore requires a usable identity. Missing or damaged ciphertext, no usable
+or matching identity, non-regular plaintext, I/O errors, and a failed final
+recheck mark the item FAILED and retain it; neither policy bypasses these
+checks.
 
 Plaintext paths may contain symlinks. clean follows the complete chain, removes
 only the final regular-file target, and leaves links in place. Broken links are

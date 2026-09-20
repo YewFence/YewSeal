@@ -318,10 +318,10 @@ func TestCLINoIdentityOutcomes(t *testing.T) {
 		want string
 	}{
 		{name: "decrypt-strict", args: []string{"decrypt", "--strict"}, want: "no age identity is available"},
-		{name: "view", args: []string{"view", "secret.enc.yaml"}, want: "no matching age identity"},
-		{name: "diff", args: []string{"diff"}, want: "no matching age identity"},
-		{name: "edit", args: []string{"edit", "--file", "secret.enc.yaml"}, want: "no matching age identity"},
-		{name: "clean", args: []string{"clean"}, want: "no matching age identity"},
+		{name: "view", args: []string{"view", "secret.enc.yaml"}, want: "no age identity is available"},
+		{name: "diff", args: []string{"diff"}, want: "no age identity is available"},
+		{name: "edit", args: []string{"edit", "--file", "secret.enc.yaml"}, want: "no age identity is available"},
+		{name: "clean", args: []string{"clean"}, want: "no age identity is available"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			_, stderr, code := run(t, tc.args...)

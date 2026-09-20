@@ -187,7 +187,8 @@ func TestCleanFilesForceDoesNotBypassRecoverability(t *testing.T) {
 	require.Error(t, err)
 	assert.FileExists(t, "gone.yaml")
 	assert.FileExists(t, "broken.yaml")
-	assert.Contains(t, stderr.String(), "FAILED gone.yaml: encrypted file is missing")
+	assert.Contains(t, stderr.String(), "FAILED gone.yaml: input file ")
+	assert.Contains(t, stderr.String(), "gone.enc.yaml does not exist")
 	assert.Contains(t, stderr.String(), "FAILED broken.yaml")
 	assert.Contains(t, stderr.String(), "0 removed, 0 already absent, 0 retained, 2 failed (2 selected)")
 }
@@ -251,6 +252,18 @@ func TestCleanFilesAllAbsentRequiresNoIdentity(t *testing.T) {
 	assert.Contains(t, stderr.String(), "0 removed, 1 already absent, 0 retained, 0 failed (1 selected)")
 }
 
+func TestCleanFilesExistingPlaintextLoadsIdentityBeforeCiphertext(t *testing.T) {
+	env := newAppCryptoTestEnv(t)
+	require.NoError(t, os.WriteFile("secret.yaml", []byte("token: value\n"), 0600))
+	cfg := configWithOwnerRecipient(&config.Config{Encryption: config.EncryptionConfig{Files: []config.FilePair{
+		{PlaintextPath: "secret.yaml", EncryptedPath: "missing.enc.yaml", Format: "yaml"},
+	}}}, env.publicKey)
+
+	err := CleanFiles(cfg, CleanRequest{KeyFile: "missing-keys.txt"})
+	require.ErrorContains(t, err, "failed to read Age key file missing-keys.txt")
+	assert.FileExists(t, "secret.yaml")
+}
+
 func TestCleanFilesWithoutIdentityFailsAndKeepsPlaintext(t *testing.T) {
 	env := newAppCryptoTestEnv(t)
 	plain := []byte("token: value\n")
@@ -270,7 +283,7 @@ func TestCleanFilesWithoutIdentityFailsAndKeepsPlaintext(t *testing.T) {
 	err = CleanFiles(cfg, CleanRequest{Presentation: presentation.New(nil, &stderr, false)})
 	require.Error(t, err)
 	assert.FileExists(t, "secret.yaml")
-	assert.Contains(t, stderr.String(), "FAILED secret.yaml: no matching age identity")
+	assert.Contains(t, stderr.String(), "FAILED secret.yaml: no age identity is available")
 	assert.Contains(t, stderr.String(), "0 removed, 0 already absent, 0 retained, 1 failed (1 selected)")
 }
 

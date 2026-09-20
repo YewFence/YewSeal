@@ -34,18 +34,6 @@ func Inspect(logicalPath string) (bool, error) {
 	return exists, err
 }
 
-// CheckCiphertext 判断密文是否存在且可访问，在加载 identity 前使用。
-func CheckCiphertext(path string) error {
-	_, err := os.Stat(path)
-	if os.IsNotExist(err) {
-		return fmt.Errorf("encrypted file is missing")
-	}
-	if err != nil {
-		return fmt.Errorf("failed to inspect encrypted file: %w", err)
-	}
-	return nil
-}
-
 // Process 运行单文件状态机：读取 snapshot、解密、字节比较、
 // 按 difference 策略决策，然后复核并删除最终普通文件目标。
 func Process(logicalPath string, opts Options) (Outcome, error) {

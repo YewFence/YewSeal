@@ -59,6 +59,11 @@ func TestDecryptOutcomesAndSideEffects(t *testing.T) {
 				} else {
 					require.Zero(t, summary.FailedCount)
 				}
+				for _, result := range summary.Results {
+					if result.Status == Skipped {
+						require.Equal(t, OutcomeNoMatchingIdentity, result.Outcome)
+					}
+				}
 				require.NoDirExists(t, "unavailable")
 				require.NoDirExists(t, "broken-output")
 				content, readErr := os.ReadFile("stale.yaml")
@@ -90,6 +95,16 @@ func TestDecryptEmptyBundleUsesNoIdentityOutcome(t *testing.T) {
 	require.Equal(t, Skipped, summary.Results[0].Status)
 	require.Equal(t, OutcomeNoIdentity, summary.Results[0].Outcome)
 	require.NoFileExists(t, "secret.yaml")
+}
+
+func TestDecryptEmptyBundleStillFailsForMissingCiphertext(t *testing.T) {
+	t.Chdir(t.TempDir())
+
+	summary, err := Decrypt(Options{FilePairs: []FilePair{{PlaintextPath: "secret.yaml", EncryptedPath: "missing.enc.yaml", Format: "yaml"}}})
+	require.Error(t, err)
+	require.Equal(t, Failed, summary.Results[0].Status)
+	require.Equal(t, OutcomeProcessed, summary.Results[0].Outcome)
+	require.ErrorContains(t, summary.Results[0].Error, "input file missing.enc.yaml does not exist")
 }
 
 func TestDiffGroupDiscoversPlaintextOnly(t *testing.T) {

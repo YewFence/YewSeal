@@ -112,6 +112,20 @@ func TestEditEncryptedFileRequiresConfiguredTarget(t *testing.T) {
 	require.EqualError(t, err, "edit requires exactly one configured target")
 }
 
+func TestEditEncryptedFileLoadsIdentityBeforeCiphertext(t *testing.T) {
+	env := newAppCryptoTestEnv(t)
+	cfg := configWithOwnerRecipient(&config.Config{Encryption: config.EncryptionConfig{Files: []config.FilePair{
+		{PlaintextPath: "secret.yaml", EncryptedPath: "missing.enc.yaml", Format: "yaml"},
+	}}}, env.publicKey)
+
+	err := EditEncryptedFile(EditRequest{
+		Config:  cfg,
+		File:    "missing.enc.yaml",
+		KeyFile: "missing-keys.txt",
+	})
+	require.ErrorContains(t, err, "failed to read Age key file missing-keys.txt")
+}
+
 func TestSplitEditorCommandPreservesQuotedExecutable(t *testing.T) {
 	parts, err := splitEditorCommand(`"/Applications/Sublime Text.app/Contents/SharedSupport/bin/subl" -w`)
 	require.NoError(t, err)
