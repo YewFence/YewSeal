@@ -32,19 +32,21 @@ Business commands require a project config: without `.yewseal.toml` they fail in
 
 **Setup belongs to the user.** `yews init` generates the owner's private Age key, so it is a user-facing step. When a repository has no `.yewseal.toml`, tell the user to run `yews init` themselves (interactive by default; `--input`/`--output` for scripts) and continue once the config exists.
 
-**Config edits are normal work for you.** `.yewseal.toml` holds no private keys — read it freely, and on the user's request adjust registry aliases and `recipients` (the public-key side). New recipients join by public key only: obtain each `age1...` key through the channel the user provides, and never handle private keys — generating and distributing them is the key owner's business. Finish each edit by validating the file against the config schema (`schema/yewseal.schema.json`) and previewing with plan:
+**Config edits are normal work for you.** `.yewseal.toml` holds no private keys — read it freely, and on the user's request adjust registry aliases and `recipients` (the public-key side). New recipients join by public key only: obtain each `age1...` key through the channel the user provides, or generate the pair when the user asks you to. Finish each edit by validating the file against the config schema (`schema/yewseal.schema.json`) and previewing with plan:
 
 ```bash
 yews plan                  # preview selection and authorization; writes nothing
 yews encrypt               # encrypt in place; commit ciphertext + config
 ```
 
+**Recipient keypair generation is on-request work.** Run the bundled helper `sh scripts/recipient-keygen.sh <alias>` (relative to this skill). It sends the bare private key to the clipboard, prints the public-key path, and deletes the key file — private key bytes never enter your context. The clipboard is the only copy, so tell the user immediately to save it into their password manager; register the alias from the printed `.pub` file once they confirm.
+
 **Plaintext stays out of scope.** `decrypt`, `view`, and `diff` expose secret content — run them only on the user's explicit authorization. Plaintext files already sitting on disk are equally off limits: general-purpose reads and searches over them leak secrets into your context, so operate through yews subcommands, whose output stays summarized, and read `.yewseal.toml`, never the plaintext. To know which paths to avoid, list them by name with the bundled helper `scripts/plaintext-files.py` (relative to this skill; run it from the repository root or the config directory): it parses `yews plan --json` and prints one registered plaintext path per line — names are safe to see, contents never are.
 
 ## Boundaries
 
 - Commit ciphertext, `.yewseal.toml`, and the managed `.sops.yaml`; keep plaintext and `.age/keys.txt` uncommitted (the generated `.gitignore` already excludes them).
-- Treat private key material as opaque: never print, output, view, or upload a private key — refer to keys by path or registry alias. Backup and distribution are the user's responsibility.
+- Treat private key material as opaque: never print, output, view, or upload a private key — refer to keys by path or registry alias. `scripts/recipient-keygen.sh` is the one sanctioned way to create a private key file. Backup and distribution are the user's responsibility.
 - Treat plaintext content as opaque with the same rigor: no printing, excerpting, or relaying it into chat, logs, or commit messages — plaintext access happens only on the user's explicit authorization.
 
 ## Repository Docs

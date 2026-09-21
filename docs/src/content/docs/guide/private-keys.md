@@ -8,6 +8,31 @@ Personal private key paths are passed via `--key-file` or environment variables 
 
 Different developers, workstations, and production environments may use different keys. `[recipients.registry]` and the per-file authorization sets register public recipients only; environments are not required to share one private key. Give each environment only the identities it actually needs; never commit private keys to version control or print them into CI logs.
 
+## Generating a recipient key
+
+Fine-grained authorization — one key per alias, repository, or environment — starts with generating keypairs: `age-keygen` creates each pair, the public key goes into `[recipients.registry]`, and the private key travels to wherever its owner keeps it (the sections below cover storage and distribution). For teammates who generate their own keys, see [working with a team](/guide/working-with-a-team).
+
+The reference script keeps the private key off the terminal: it pipes the bare `AGE-SECRET-KEY-1...` line straight into the clipboard — no `# public key:` comment — so the copy you handle is the one you paste into your password manager. The private key file exists only for the split second between `age-keygen` and the clipboard redirect, and a `trap` deletes it even when a step fails.
+
+```sh
+#!/bin/sh
+set -eu
+umask 077
+
+alias=deploy   # the registry alias the public key will be registered under
+
+keydir=$(mktemp -d "/tmp/yews-$alias.key.XXXXXX")
+key="$keydir/identity"
+trap 'rm -f "$key"; rmdir "$keydir"' EXIT
+age-keygen -o "$key"
+grep '^AGE-SECRET-KEY-' "$key" | wl-copy   # bare key line to clipboard; paste it into the password manager now
+age-keygen -y "$key" > "/tmp/yews-$alias.pub"
+
+echo "public key: /tmp/yews-$alias.pub"
+```
+
+`wl-copy` is Wayland-only; swap in your platform's clipboard CLI (`pbcopy` on macOS, `xclip -selection clipboard` on X11) — the platform matrix is the helper script's business. Printing the private key to stdout instead works over plain SSH but leaves it in terminal scrollback — prefer the clipboard. If the clipboard is overwritten before you save the key, just rerun the script: a fresh pair costs one command, and an unsaved private key has no recovery path by design. The repository ships the same flow as a helper script (`skills/yewseal/scripts/recipient-keygen.sh`) for agent-assisted setups.
+
 ## Infisical reference script
 
 When private keys are hosted in Infisical, you can independently use the [Infisical CLI](https://infisical.com/docs/cli/commands/secrets) to export a secret's full value. Install the CLI and complete a login or machine identity first; authentication, access control, and secret contents are all managed by Infisical.
