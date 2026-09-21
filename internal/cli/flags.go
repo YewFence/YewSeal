@@ -23,10 +23,11 @@ type decryptOptions struct {
 }
 
 type cleanOptions struct {
-	KeyFile       string `mapstructure:"key-file"`
-	Force         bool   `mapstructure:"force"`
-	SkipDifferent bool   `mapstructure:"skip-different"`
-	Verbose       bool   `mapstructure:"verbose"`
+	KeyFile         string `mapstructure:"key-file"`
+	Force           bool   `mapstructure:"force"`
+	RemoveDifferent bool   `mapstructure:"remove-different"`
+	SkipDifferent   bool   `mapstructure:"skip-different"`
+	Verbose         bool   `mapstructure:"verbose"`
 }
 
 type planOptions struct {
@@ -87,7 +88,9 @@ func addDecryptFlags(flags *pflag.FlagSet, opts *decryptOptions) {
 }
 
 func addCleanFlags(flags *pflag.FlagSet, opts *cleanOptions) {
-	flags.BoolVarP(&opts.Force, "force", "f", false, "Delete plaintext that differs from successfully decrypted ciphertext")
+	flags.BoolVar(&opts.Force, "force", false, "DANGEROUS: remove all selected plaintext without recoverability checks (CLI only)")
+	markCLIOnlyFlag(flags.Lookup("force"))
+	flags.BoolVar(&opts.RemoveDifferent, "remove-different", false, "Remove plaintext that differs from successfully decrypted ciphertext without prompting")
 	flags.BoolVar(&opts.SkipDifferent, "skip-different", false, "Keep plaintext that differs from successfully decrypted ciphertext without prompting")
 	flags.BoolVarP(&opts.Verbose, "verbose", "v", false, "Enable verbose output (selection info and already-absent results on stderr)")
 }

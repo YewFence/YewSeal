@@ -107,10 +107,12 @@ func TestCLIProcessingOutcomes(t *testing.T) {
 			wantIn: []string{"FAILED good.yaml"}, kept: []string{"good.yaml"}},
 		{name: "clean-skip-different-keeps", command: "clean", scenario: "complete", different: true, flags: []string{"--skip-different"},
 			wantIn: []string{"RETAINED good.yaml"}, wantOut: []string{"Delete the local plaintext anyway?"}, kept: []string{"good.yaml"}},
-		{name: "clean-force-removes-difference", command: "clean", scenario: "complete", different: true, flags: []string{"--force"},
+		{name: "clean-remove-different", command: "clean", scenario: "complete", different: true, flags: []string{"--remove-different"},
 			wantIn: []string{"REMOVED good.yaml"}, wantOut: []string{"Delete the local plaintext anyway?"}, gone: []string{"good.yaml"}},
-		{name: "clean-force-keeps-unrecoverable", command: "clean", scenario: "broken", flags: []string{"--force"}, code: 1,
+		{name: "clean-remove-different-keeps-unrecoverable", command: "clean", scenario: "broken", flags: []string{"--remove-different"}, code: 1,
 			wantIn: []string{"REMOVED good.yaml", "FAILED broken.yaml"}, gone: []string{"good.yaml"}, kept: []string{"broken.yaml"}},
+		{name: "clean-force-removes-without-recovery", command: "clean", scenario: "broken", flags: []string{"--force"},
+			wantIn: []string{"REMOVED good.yaml", "REMOVED broken.yaml", "2 removed, 1 already absent, 0 retained, 0 failed (3 selected)"}, gone: []string{"good.yaml", "broken.yaml"}},
 		{name: "clean-error-continues", command: "clean", scenario: "broken", code: 1,
 			wantIn: []string{"REMOVED good.yaml", "FAILED broken.yaml"}, gone: []string{"good.yaml"}, kept: []string{"broken.yaml"}},
 		{name: "clean-missing-plaintext", command: "clean", scenario: "missing-plaintext", flags: []string{"--verbose"},
@@ -249,7 +251,7 @@ func TestCLIExitCodes(t *testing.T) {
 		{name: "wrong-arg-count", args: []string{"view"}, code: 2},
 		{name: "unregistered-target", args: []string{"view", "nowhere.enc.yaml"}, code: 2},
 		{name: "invalid-pattern", args: []string{"encrypt", "["}, code: 2},
-		{name: "clean-strategy-conflict", args: []string{"clean", "--force", "--skip-different"}, code: 2},
+		{name: "clean-strategy-conflict", args: []string{"clean", "--remove-different", "--skip-different"}, code: 2},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			cmd := exec.Command(binary, tc.args...)

@@ -12,12 +12,13 @@ import (
 )
 
 type CleanRequest struct {
-	Presentation  *presentation.Output
-	Input         io.Reader
-	KeyFile       string
-	Targets       []string
-	Force         bool
-	SkipDifferent bool
+	Presentation    *presentation.Output
+	Input           io.Reader
+	KeyFile         string
+	Targets         []string
+	Force           bool
+	RemoveDifferent bool
+	SkipDifferent   bool
 }
 
 // cleanStage 记录轻量预检的结果，保持处理顺序与 selection 顺序一致。
@@ -50,7 +51,7 @@ func CleanFiles(cfg *config.Config, req CleanRequest) (err error) {
 			stage.result = &cleaner.Result{PlaintextPath: pair.PlaintextPath, Status: cleaner.StatusFailed, Error: inspectErr}
 		case !exists:
 			stage.result = &cleaner.Result{PlaintextPath: pair.PlaintextPath, Status: cleaner.StatusAlreadyAbsent}
-		default:
+		case !req.Force:
 			needsIdentity = true
 		}
 		stages = append(stages, stage)
@@ -79,11 +80,12 @@ func CleanFiles(cfg *config.Config, req CleanRequest) (err error) {
 		default:
 			pair := stage.pair
 			outcome, processErr := cleaner.Process(pair.PlaintextPath, cleaner.Options{
-				EncryptedPath:  pair.EncryptedPath,
-				Format:         pair.Format,
-				IdentityBundle: identityBundle,
-				Force:          req.Force,
-				SkipDifferent:  req.SkipDifferent,
+				EncryptedPath:   pair.EncryptedPath,
+				Format:          pair.Format,
+				IdentityBundle:  identityBundle,
+				Force:           req.Force,
+				RemoveDifferent: req.RemoveDifferent,
+				SkipDifferent:   req.SkipDifferent,
 				ConfirmDifferent: func() (bool, error) {
 					return out.ConfirmCleanDifference(prompts, pair.PlaintextPath)
 				},

@@ -2,7 +2,7 @@
 title: Cleaning local plaintext
 ---
 
-`clean` removes registered local plaintext files that the ciphertext can already give back. It is the closing step of a working session after `decrypt`: you delete the plaintext by hand — or you forget, and the secrets stay on disk. `clean` turns that step into one governed command that refuses to delete anything it cannot prove is recoverable.
+`clean` removes registered local plaintext files that the ciphertext can already give back. It is the closing step of a working session after `decrypt`: you delete the plaintext by hand — or you forget, and the secrets stay on disk. By default, `clean` refuses to delete anything it cannot prove is recoverable; the explicit `--force` mode is the dangerous exception.
 
 ```bash
 # clean everything in the current directory scope
@@ -18,6 +18,9 @@ $ yews clean config.toml
 $ yews clean --skip-different
 
 # irreversibly remove differences that decrypt fine
+$ yews clean --remove-different
+
+# DANGEROUS: remove selected plaintext without recovery checks
 $ yews clean --force
 ```
 
@@ -25,26 +28,27 @@ $ yews clean --force
 
 ## What "safe to delete" means
 
-A plaintext is only removed after the same batch proves it can be recovered:
+Outside `--force`, a plaintext is only removed after the same batch proves it can be recovered:
 
 1. The logical plaintext path resolves through its complete symlink chain to a regular file.
 2. The corresponding ciphertext exists and is readable.
 3. At least one Age identity in the bundle decrypts the ciphertext's data key, and SOPS integrity checks pass.
 4. By default, the plaintext bytes equal the decrypted bytes exactly — no normalization, so whitespace, comments, and layout differences all count as differences.
 
-Immediately before the actual removal, `clean` resolves the symlink chain again and re-reads the target. If the link was retargeted, the target type changed, or the content no longer matches the snapshot the decision was based on, the file is kept and the item fails. This catches ordinary editor autosaves while a prompt is waiting. The check is deliberately conservative: what it detects always fails, it never retries, and it never deletes the previously resolved target. It does not lock out an external writer racing the final re-read and removal.
+Immediately before a normal removal, `clean` resolves the symlink chain again and re-reads the target. If the link was retargeted, the target type changed, or the content no longer matches the snapshot the decision was based on, the file is kept and the item fails. This catches ordinary editor autosaves while a prompt is waiting. `--force` does not read or compare content, but it still confirms that the chain reaches the same regular file it inspected. These checks never retry and do not lock out an external writer racing the final check and removal.
 
-After an interactive Yes for differing content, `clean` also decrypts the ciphertext again. If it no longer decrypts to the same bytes that the prompt decision was based on, the plaintext is kept and the item fails.
+Before removing differing content, whether after an interactive Yes or with `--remove-different`, `clean` decrypts the ciphertext again. If it no longer decrypts to the same bytes as the initial check, the plaintext is kept and the item fails.
 
-`--force` and an interactive Yes skip only the byte-equality requirement. Every existing plaintext must be decrypted before removal and therefore requires a usable identity. Missing or corrupted ciphertext, no usable or matching identity, non-regular targets, and I/O errors mark the item `FAILED` and retain it in every mode, so a batch can never report success while unproven plaintext lingers.
+`--remove-different` and an interactive Yes allow removal when the byte-equality check finds a difference. Every existing plaintext must still be decrypted before removal and therefore requires a usable identity. Missing or corrupted ciphertext, no usable or matching identity, non-regular targets, and I/O errors mark the item `FAILED` and retain it in every non-force mode, so a batch can never report success while unproven plaintext lingers.
 
-## Differences and the three strategies
+## Cleanup strategies
 
-| Mode | Matching content | Different content | Reads stdin |
-| --- | --- | --- | --- |
-| default | removed automatically | prompted per file | only when a difference exists |
-| `--skip-different` | removed automatically | kept automatically | never |
-| `--force` | removed automatically | removed automatically | never |
+| Mode | Matching content | Different content | Recovery proof | Reads stdin |
+| --- | --- | --- | --- | --- |
+| default | removed automatically | prompted per file | required | only when a difference exists |
+| `--skip-different` | removed automatically | kept automatically | required | never |
+| `--remove-different` | removed automatically | removed automatically | required | never |
+| `--force` | removed automatically | removed automatically | skipped | never |
 
 The default prompt looks like this; empty input and anything other than `y`/`yes` means No:
 
@@ -54,7 +58,9 @@ Hint: run yews diff -- 'wip.toml' to view the diff.
 Delete the local plaintext anyway? [y/N]:
 ```
 
-`clean` itself never prints plaintext or diff bodies. A layout-only difference (semantically equal TOML, different bytes) still prompts — stores normalize on decryption, so run the suggested `diff` and decide. For scripts and CI, pick a strategy explicitly: `--skip-different` keeps your workspace changes, `--force` is the irreversible end-of-session sweep. The two flags are mutually exclusive, flag/env combinations included, and the conflict is rejected before the config loads.
+`clean` itself never prints plaintext or diff bodies. A layout-only difference (semantically equal TOML, different bytes) still prompts — stores normalize on decryption, so run the suggested `diff` and decide. For scripts and CI, pick a difference policy explicitly: `--skip-different` keeps your workspace changes, `--remove-different` removes them. These policies are mutually exclusive, flag/env combinations included, and conflicts are rejected before the config loads.
+
+`--force` removes every existing plaintext in the normal clean selection without reading ciphertext, resolving identities, comparing content, or prompting. It still follows symlinks to the configured plaintext target, deletes only a regular file, and confirms immediately before deletion that the target has not been replaced; per-file failures are reported and the batch continues. This mode may destroy the only copy of local changes. It is available only as the fully spelled command-line flag: there is no short form and `YEWSEAL_CLEAN_FORCE` is deliberately ignored. `--force`, `--skip-different`, and `--remove-different` are mutually exclusive.
 
 A prompt that ends in EOF or a broken channel is not a No: the file is kept, the item fails, and the command exits non-zero. Removals that already happened are never rolled back.
 

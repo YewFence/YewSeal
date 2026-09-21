@@ -79,7 +79,7 @@ func TestOptionResolverIgnoresEmptyAndUnknownEnvironment(t *testing.T) {
 	require.NoError(t, cmd.Execute())
 }
 
-func TestEveryYewSealFlagDocumentsItsEnvironmentVariable(t *testing.T) {
+func TestEveryEnvironmentEnabledFlagDocumentsItsVariable(t *testing.T) {
 	root := newRootCommand("test", nil)
 	root.PersistentFlags().VisitAll(func(flag *pflag.Flag) {
 		require.Contains(t, flag.Usage, "env YEWSEAL_"+envToken(flag.Name))
@@ -90,9 +90,30 @@ func TestEveryYewSealFlagDocumentsItsEnvironmentVariable(t *testing.T) {
 		}
 		prefix := commandEnvPrefix(cmd.Name())
 		cmd.LocalNonPersistentFlags().VisitAll(func(flag *pflag.Flag) {
+			if isCLIOnlyFlag(flag) {
+				require.NotContains(t, flag.Usage, "env ", cmd.Name()+" --"+flag.Name)
+				return
+			}
 			require.Contains(t, flag.Usage, "env "+envName(prefix, flag.Name), cmd.Name()+" --"+flag.Name)
 		})
 	}
+}
+
+func TestCLIOnlyFlagIgnoresEnvironment(t *testing.T) {
+	t.Setenv("YEWSEAL_CLEAN_FORCE", "true")
+	opts := struct {
+		Force bool `mapstructure:"force"`
+	}{}
+	cmd := &cobra.Command{Use: "clean"}
+	cmd.Flags().BoolVar(&opts.Force, "force", false, "Force")
+	markCLIOnlyFlag(cmd.Flags().Lookup("force"))
+	resolver := newOptionResolver(cmd, &opts)
+	cmd.Args = resolver.before(cobra.NoArgs)
+	cmd.RunE = func(*cobra.Command, []string) error {
+		require.False(t, opts.Force)
+		return nil
+	}
+	require.NoError(t, cmd.Execute())
 }
 
 func TestInvalidCommandEnvironmentPrecedesConfigLoading(t *testing.T) {

@@ -151,16 +151,33 @@ func TestProcessRetainsWithoutPromptUnderSkipDifferent(t *testing.T) {
 	assert.Equal(t, Retained, outcome)
 }
 
-func TestProcessForceRemovesDifferenceWithoutPrompt(t *testing.T) {
+func TestProcessRemoveDifferentRemovesWithoutPrompt(t *testing.T) {
 	f := newCleanFixture(t)
 	f.writeEncrypted(t, "config.enc.yaml", []byte("token: value\n"))
 	plainPath := f.writePlain(t, "config.yaml", []byte("token: changed\n"))
 
 	outcome, err := Process(plainPath, Options{
-		EncryptedPath:  f.path("config.enc.yaml"),
-		Format:         "yaml",
-		IdentityBundle: f.bundle,
-		Force:          true,
+		EncryptedPath:   f.path("config.enc.yaml"),
+		Format:          "yaml",
+		IdentityBundle:  f.bundle,
+		RemoveDifferent: true,
+		ConfirmDifferent: func() (bool, error) {
+			t.Fatal("remove-different must not prompt")
+			return false, nil
+		},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, Removed, outcome)
+	assert.NoFileExists(t, plainPath)
+}
+
+func TestProcessForceRemovesWithoutRecoveryInputs(t *testing.T) {
+	f := newCleanFixture(t)
+	plainPath := f.writePlain(t, "config.yaml", []byte("unsaved: local\n"))
+
+	outcome, err := Process(plainPath, Options{
+		EncryptedPath: f.path("missing.enc.yaml"),
+		Force:         true,
 		ConfirmDifferent: func() (bool, error) {
 			t.Fatal("force must not prompt")
 			return false, nil
@@ -169,6 +186,21 @@ func TestProcessForceRemovesDifferenceWithoutPrompt(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, Removed, outcome)
 	assert.NoFileExists(t, plainPath)
+}
+
+func TestProcessForceRemovesSymlinkTargetAndKeepsLink(t *testing.T) {
+	f := newCleanFixture(t)
+	target := f.writePlain(t, "target.yaml", []byte("unsaved: local\n"))
+	logical := f.path("config.yaml")
+	require.NoError(t, os.Symlink(target, logical))
+
+	outcome, err := Process(logical, Options{Force: true})
+	require.NoError(t, err)
+	assert.Equal(t, Removed, outcome)
+	assert.NoFileExists(t, target)
+	info, err := os.Lstat(logical)
+	require.NoError(t, err)
+	assert.Equal(t, os.ModeSymlink, info.Mode()&os.ModeSymlink)
 }
 
 func TestProcessPromptFailureIsUndecidedFailure(t *testing.T) {
@@ -306,6 +338,34 @@ func TestProcessChangedCiphertextFailsRecheck(t *testing.T) {
 	assert.Contains(t, err.Error(), "ciphertext changed before removal")
 	assert.Empty(t, outcome)
 	assert.FileExists(t, plainPath)
+}
+
+func TestRemoveUnverifiedRejectsReplacedTarget(t *testing.T) {
+	f := newCleanFixture(t)
+	plainPath := f.writePlain(t, "config.yaml", []byte("first\n"))
+	initial, exists, err := resolveTarget(plainPath)
+	require.NoError(t, err)
+	require.True(t, exists)
+	// 替身文件在原文件被删前分配，保证 inode 必然不同；
+	// unlink+recreate 在 ext4 上会复用刚释放的 inode 号，os.SameFile 探测不到替换。
+	require.NoError(t, os.WriteFile(f.path("replacement"), []byte("replacement\n"), 0600))
+	require.NoError(t, os.Rename(f.path("replacement"), plainPath))
+
+	err = removeUnverified(plainPath, initial)
+	require.ErrorContains(t, err, "file target changed")
+	assert.FileExists(t, plainPath)
+}
+
+func TestRemoveUnverifiedAllowsContentChangeOnSameFile(t *testing.T) {
+	f := newCleanFixture(t)
+	plainPath := f.writePlain(t, "config.yaml", []byte("first\n"))
+	initial, exists, err := resolveTarget(plainPath)
+	require.NoError(t, err)
+	require.True(t, exists)
+	require.NoError(t, os.WriteFile(plainPath, []byte("changed in place\n"), 0600))
+
+	require.NoError(t, removeUnverified(plainPath, initial))
+	assert.NoFileExists(t, plainPath)
 }
 
 func TestProcessRemoveFailureRetainsFile(t *testing.T) {
