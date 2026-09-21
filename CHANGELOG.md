@@ -2,7 +2,7 @@
 
 ### 🚀 Features
 
-- Reimplment `clean --force`, migrate the original `--force` to `remove-different` (#61)
+- Reimplement `clean --force`, migrate the original `--force` to `remove-different` (#61)
 
 ### ⚙️ Miscellaneous Tasks
 
