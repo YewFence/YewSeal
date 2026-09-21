@@ -346,8 +346,10 @@ func TestRemoveUnverifiedRejectsReplacedTarget(t *testing.T) {
 	initial, exists, err := resolveTarget(plainPath)
 	require.NoError(t, err)
 	require.True(t, exists)
-	require.NoError(t, os.Remove(plainPath))
-	require.NoError(t, os.WriteFile(plainPath, []byte("replacement\n"), 0600))
+	// 替身文件在原文件被删前分配，保证 inode 必然不同；
+	// unlink+recreate 在 ext4 上会复用刚释放的 inode 号，os.SameFile 探测不到替换。
+	require.NoError(t, os.WriteFile(f.path("replacement"), []byte("replacement\n"), 0600))
+	require.NoError(t, os.Rename(f.path("replacement"), plainPath))
 
 	err = removeUnverified(plainPath, initial)
 	require.ErrorContains(t, err, "file target changed")
