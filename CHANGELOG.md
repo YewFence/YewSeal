@@ -1,3 +1,12 @@
+## [0.15.0] - 2026-09-21
+
+### 🚀 Features
+
+- Reimplment `clean --force`, migrate the original `--force` to `remove-different` (#61)
+
+### ⚙️ Miscellaneous Tasks
+
+- *(gomod-deps)* Update go modules (#62)
 ## [0.14.1] - 2026-09-20
 
 ### 🚜 Refactor
