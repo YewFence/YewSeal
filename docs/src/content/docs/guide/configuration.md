@@ -176,8 +176,6 @@ YewSeal provides no `sync`, `sync pull`, or `[sync]` configuration. Private keys
 
 ## Environment variables
 
-| Variable | Purpose |
-| --- | --- |
 YewSeal flags have environment variables unless their help explicitly marks them CLI-only. Global flags use `YEWSEAL_<FLAG>`; command flags use `YEWSEAL_<COMMAND>_<FLAG>`, with names uppercased and hyphens replaced by underscores. For example, `--key-file` uses `YEWSEAL_KEY_FILE`, `encrypt --parallel` uses `YEWSEAL_ENCRYPT_PARALLEL`, and `decrypt --strict` uses `YEWSEAL_DECRYPT_STRICT`. Each environment-enabled flag's `--help` entry shows its exact variable. The dangerous `clean --force` mode is CLI-only and deliberately ignores `YEWSEAL_CLEAN_FORCE`.
 
 Explicit flags override environment variables, which override flag defaults. Empty environment values are treated as unset; invalid non-empty booleans and integers fail before project configuration is loaded. Environment variables for other commands are ignored during the current invocation.

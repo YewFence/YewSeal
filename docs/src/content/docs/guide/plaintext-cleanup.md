@@ -39,7 +39,7 @@ Immediately before a normal removal, `clean` resolves the symlink chain again an
 
 Before removing differing content, whether after an interactive Yes or with `--remove-different`, `clean` decrypts the ciphertext again. If it no longer decrypts to the same bytes as the initial check, the plaintext is kept and the item fails.
 
-`--remove-different` and an interactive Yes allow removal when the byte-equality check finds a difference. Every existing plaintext must still be decrypted before removal and therefore requires a usable identity. Missing or corrupted ciphertext, no usable or matching identity, non-regular targets, and I/O errors mark the item `FAILED` and retain it in every mode, so a batch can never report success while unproven plaintext lingers.
+`--remove-different` and an interactive Yes allow removal when the byte-equality check finds a difference. Every existing plaintext must still be decrypted before removal and therefore requires a usable identity. Missing or corrupted ciphertext, no usable or matching identity, non-regular targets, and I/O errors mark the item `FAILED` and retain it in every non-force mode, so a batch can never report success while unproven plaintext lingers.
 
 ## Cleanup strategies
 
