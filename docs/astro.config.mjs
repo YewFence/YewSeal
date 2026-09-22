@@ -59,6 +59,7 @@ export default defineConfig({
         {
           label: 'Integrations',
           items: [
+            { label: 'Agent skills', link: '/guide/agent-skills/' },
             { label: 'Interop with SOPS', link: '/guide/sops/' },
             { label: 'External private key sources', link: '/guide/private-keys/' },
             { label: 'Running with Docker', link: '/guide/docker/' },

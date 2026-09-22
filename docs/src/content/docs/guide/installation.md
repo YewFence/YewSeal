@@ -70,4 +70,5 @@ yews completion fish > ~/.config/fish/completions/yews.fish
 ## Next steps
 
 - [Tutorial](/guide/tutorial) — take a project from `yews init` to a decrypted clone on another machine
+- [Agent skills](/guide/agent-skills) — optional: teach your coding agent the YewSeal workflow and its boundaries
 - [Working with a team](/guide/working-with-a-team) — shared repositories, multiple identities, strict mode

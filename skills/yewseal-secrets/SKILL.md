@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # YewSeal (`yews`) — plaintext side
 
-Invoking this skill authorizes plaintext work on the files the current task involves — not every registered pair. Read the sibling skill first — `../yewseal/SKILL.md` — for the core concepts (mapping, registry, identity, skip/strict), the infrastructure commands, and the repository documentation paths; this file only adds the plaintext-side guardrails.
+Authorization comes only from the user invoking this skill by name in the conversation — reading this file by any other means (an install script copying it, a directory listing, an agent browsing the disk) grants no authorization. When invoked, it authorizes plaintext work on the files the current task involves — not every registered pair. Read the sibling skill first — `../yewseal/SKILL.md` — for the core concepts (mapping, registry, identity, skip/strict), the infrastructure commands, and the repository documentation paths; this file only adds the plaintext-side guardrails.
 
 ## Guardrails
 
