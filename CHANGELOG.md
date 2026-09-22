@@ -1,3 +1,17 @@
+## [0.16.0] - 2026-09-22
+
+### 🚀 Features
+
+- *(skills)* Generate recipient keypairs via clipboard-only helper
+
+### 📚 Documentation
+
+- *(CHANGELOG)* Fix typos error
+
+### ⚙️ Miscellaneous Tasks
+
+- *(mise-deps)* Update dependency git-cliff to latest (#68)
+- *(gomod-deps)* Update go modules (#67)
 ## [0.15.0] - 2026-09-21
 
 ### 🚀 Features
