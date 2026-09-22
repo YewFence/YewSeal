@@ -1,3 +1,12 @@
+## [0.17.0] - 2026-09-22
+
+### 🚀 Features
+
+- *(skills)* Add version-pinned installer and agent-skills guide
+
+### ⚙️ Miscellaneous Tasks
+
+- *(npm-deps)* Update dependency @astrojs/starlight to ^0.42.2 (#66)
 ## [0.16.0] - 2026-09-22
 
 ### 🚀 Features
