@@ -18,6 +18,7 @@ const (
 	ModePlan    = "plan"
 	ModeView    = "view"
 	ModeClean   = "clean"
+	ModeVerify  = "verify"
 )
 
 // protocolFilePatterns is how decryption discovers ciphertext: YewSeal

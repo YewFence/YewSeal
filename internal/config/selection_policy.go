@@ -20,6 +20,9 @@ func policyForCommand(command string) selectionPolicy {
 		return selectionPolicy{discoveryMode: task.ModePlan, scopeMode: task.ModePlan}
 	case task.ModeClean:
 		return selectionPolicy{discoveryMode: task.ModeClean, scopeMode: task.ModeEncrypt, historicalRecipients: true, writes: true}
+	case task.ModeVerify:
+		// Verify is directionless like plan: matches either side, reads but never writes.
+		return selectionPolicy{discoveryMode: task.ModePlan, scopeMode: task.ModePlan}
 	case task.ModeDecrypt:
 		return selectionPolicy{discoveryMode: task.ModeDecrypt, scopeMode: task.ModeDecrypt, historicalRecipients: true, writes: true}
 	default:

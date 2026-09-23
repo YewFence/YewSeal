@@ -13,4 +13,5 @@ const (
 	docsReadingPrivateKeys = docsConfiguration + "#reading-private-keys"
 	docsPrivateKeys        = docsBaseURL + "/guide/private-keys"
 	docsSOPS               = docsBaseURL + "/guide/sops"
+	docsVerify  = docsBaseURL + "/guide/verify"
 )

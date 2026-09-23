@@ -40,4 +40,5 @@ Documentation: https://yewfence.github.io/YewSeal/
 * [yews identities](/references/yews_identities/)	 - List the Age identities YewSeal would decrypt with, their winning source, and registry aliases
 * [yews init](/references/yews_init/)	 - Initialize project with Age keys and YewSeal config entries
 * [yews plan](/references/yews_plan/)	 - Check configured file mappings, formats, and recipient authorization without writing files
+* [yews verify](/references/yews_verify/)	 - Check project health: ciphertext integrity, recipient drift, plaintext safety, and VCS exposure
 * [yews view](/references/yews_view/)	 - Print decrypted plaintext to standard output without writing files

@@ -96,3 +96,13 @@ func (e *ExternalCommandError) Error() string {
 	}
 	return fmt.Sprintf("%s: %v", op, e.Err)
 }
+
+// FindingsError is returned by verify when there is at least one error-severity
+// finding. It signals exit code 1 (findings found, not a calling error).
+type FindingsError struct{}
+
+func (e *FindingsError) Error() string { return "verify completed with error findings" }
+func (e *FindingsError) ExitCode() int { return 1 }
+
+// NewFindingsError constructs a FindingsError as an error value.
+func NewFindingsError() error { return &FindingsError{} }

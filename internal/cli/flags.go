@@ -99,3 +99,12 @@ func addPlanFlags(flags *pflag.FlagSet, opts *planOptions) {
 	flags.BoolVarP(&opts.Verbose, "verbose", "v", false, "Enable verbose output")
 	flags.BoolVar(&opts.JSON, "json", false, "Print configured file mappings as JSON")
 }
+
+type verifyOptions struct {
+	KeyFile        string `mapstructure:"key-file"`
+	Decrypt        bool   `mapstructure:"decrypt"`
+	NoDecrypt      bool   `mapstructure:"no-decrypt"`
+	SyncSOPSConfig bool   `mapstructure:"sync-sops-config"`
+	JSON           bool   `mapstructure:"json"`
+	Verbose        bool   `mapstructure:"verbose"`
+}
