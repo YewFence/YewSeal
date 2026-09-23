@@ -35,10 +35,11 @@ modifying any project file:
      A non-VCS directory makes this layer skip with a notice.
 
   5. .sops.yaml drift: compare the on-disk .sops.yaml against what the
-     current resolved policy would generate. A mismatch is an error; an
-     absent .sops.yaml is a skip. This layer is skipped when
-     YEWSEAL_SYNC_SOPS_CONFIG is true (sync is active, so drift is
-     expected to be repaired on the next encrypt).
+     complete resolved project policy would generate. A mismatch is an
+     error; an absent .sops.yaml is a skip. --sync-sops-config=false
+     (shared with init and encrypt through YEWSEAL_SYNC_SOPS_CONFIG)
+     declares that the project does not manage .sops.yaml and skips
+     this layer.
 
 Target selection is directionless, matching either side of each mapping,
 and follows the same rules as plan: no argument means the current
@@ -97,7 +98,7 @@ yews verify [command options] [path-or-pattern]... [flags]
   -h, --help               help for verify
       --json               Print the verify report as JSON on stdout (diagnostics stay on stderr) (env YEWSEAL_VERIFY_JSON)
       --no-decrypt         Skip the decrypt layer entirely, even if an identity is available (env YEWSEAL_VERIFY_NO_DECRYPT)
-      --sync-sops-config   Skip the .sops.yaml drift check (set when sync is already active) (env YEWSEAL_VERIFY_SYNC_SOPS_CONFIG)
+      --sync-sops-config   Treat .sops.yaml as managed and check it for drift; false skips the check (env YEWSEAL_SYNC_SOPS_CONFIG) (default true)
   -v, --verbose            Enable verbose output (env YEWSEAL_VERIFY_VERBOSE)
 ```
 

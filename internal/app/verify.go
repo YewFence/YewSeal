@@ -16,7 +16,7 @@ type VerifyRequest struct {
 	KeyFile        string
 	Decrypt        bool // --decrypt: require identity; mismatch = error
 	NoDecrypt      bool // --no-decrypt: skip decrypt layer entirely
-	SyncSOPSConfig bool // true when sync-sops-config is in effect
+	SyncSOPSConfig bool
 	JSON           bool
 	Verbose        bool
 }
@@ -49,9 +49,9 @@ func Verify(cfg *config.Config, req VerifyRequest) (VerifyResult, error) {
 	}
 
 	report, err := verify.Check(selection, config.CurrentDir(cfg), verify.Options{
-		KeyFile:        req.KeyFile,
-		DecryptMode:    mode,
-		SyncSOPSConfig: req.SyncSOPSConfig,
+		KeyFile:         req.KeyFile,
+		DecryptMode:     mode,
+		CheckSOPSConfig: req.SyncSOPSConfig,
 	})
 	if err != nil {
 		return VerifyResult{ExitCode: 2}, errx.Usage(err)

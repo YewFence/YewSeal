@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"fmt"
 	"os"
-	"sort"
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/YewFence/YewSeal/internal/config"
@@ -25,9 +25,9 @@ func checkSOPSDrift(report *Report, filePairs []config.ResolvedFilePair) {
 	}
 	if err != nil {
 		report.Add(Finding{
-			Code:    "sops_config_read_error",
+			Code:     "sops_config_read_error",
 			Severity: SeverityError,
-			Message: fmt.Sprintf("failed to read .sops.yaml: %v", err),
+			Message:  fmt.Sprintf("failed to read .sops.yaml: %v", err),
 		})
 		return
 	}
@@ -51,7 +51,7 @@ func checkSOPSDrift(report *Report, filePairs []config.ResolvedFilePair) {
 		Code:     "sops_config_drift",
 		Severity: SeverityError,
 		Message:  ".sops.yaml does not match the resolved project policy",
-		Hint:     "run 'yews encrypt --sync-sops-config' or 'yews encrypt' (sync is on by default) to regenerate it",
+		Hint:     "run 'yews encrypt' to regenerate it from the current policy",
 	})
 }
 

@@ -28,6 +28,11 @@ type optionResolver struct {
 }
 
 const cliOnlyFlagAnnotation = "yewseal.cli-only"
+const sharedEnvAnnotation = "yewseal.shared-env"
+
+// syncSOPSConfigEnv is shared by every command that owns --sync-sops-config,
+// because the flag describes one project-wide policy rather than a per-command choice.
+const syncSOPSConfigEnv = "YEWSEAL_SYNC_SOPS_CONFIG"
 
 func newOptionResolver(cmd *cobra.Command, target any) *optionResolver {
 	resolver := &optionResolver{viper: viper.New(), target: target}
@@ -70,13 +75,16 @@ func (r *optionResolver) bindFlags(flags *pflag.FlagSet, envPrefix string) {
 		if isCLIOnlyFlag(flag) {
 			return
 		}
-		envName := envName(envPrefix, flag.Name)
-		if err := r.viper.BindEnv(flag.Name, envName); err != nil {
+		env := envName(envPrefix, flag.Name)
+		if shared, ok := sharedEnvName(flag); ok {
+			env = shared
+		}
+		if err := r.viper.BindEnv(flag.Name, env); err != nil {
 			r.bindErr = errors.Join(r.bindErr, err)
 			return
 		}
-		annotateFlagEnvironment(flag, envName)
-		r.bindings = append(r.bindings, optionBinding{flag: flag, env: envName})
+		annotateFlagEnvironment(flag, env)
+		r.bindings = append(r.bindings, optionBinding{flag: flag, env: env})
 	})
 }
 
@@ -89,6 +97,22 @@ func markCLIOnlyFlag(flag *pflag.Flag) {
 
 func isCLIOnlyFlag(flag *pflag.Flag) bool {
 	return len(flag.Annotations[cliOnlyFlagAnnotation]) > 0
+}
+
+// markSharedEnv pins a flag's environment variable to a fixed top-level name,
+// overriding the per-command prefix that bindFlags would otherwise derive.
+func markSharedEnv(flag *pflag.Flag, env string) {
+	if flag.Annotations == nil {
+		flag.Annotations = make(map[string][]string)
+	}
+	flag.Annotations[sharedEnvAnnotation] = []string{env}
+}
+
+func sharedEnvName(flag *pflag.Flag) (string, bool) {
+	if vals := flag.Annotations[sharedEnvAnnotation]; len(vals) > 0 {
+		return vals[0], true
+	}
+	return "", false
 }
 
 func (r *optionResolver) validateEnvironment() error {

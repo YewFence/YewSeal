@@ -94,7 +94,11 @@ func TestEveryEnvironmentEnabledFlagDocumentsItsVariable(t *testing.T) {
 				require.NotContains(t, flag.Usage, "env ", cmd.Name()+" --"+flag.Name)
 				return
 			}
-			require.Contains(t, flag.Usage, "env "+envName(prefix, flag.Name), cmd.Name()+" --"+flag.Name)
+			expected := envName(prefix, flag.Name)
+			if shared, ok := sharedEnvName(flag); ok {
+				expected = shared
+			}
+			require.Contains(t, flag.Usage, "env "+expected, cmd.Name()+" --"+flag.Name)
 		})
 	}
 }
@@ -171,7 +175,7 @@ func TestInitSyncEnvironmentCanDisableSopsConfig(t *testing.T) {
 	clearCLIEnvironment(t)
 	t.Chdir(t.TempDir())
 	t.Setenv("YEWSEAL_INIT_INPUT", "config.yaml")
-	t.Setenv("YEWSEAL_INIT_SYNC_SOPS_CONFIG", "false")
+	t.Setenv("YEWSEAL_SYNC_SOPS_CONFIG", "false")
 	cmd := newRootCommand("test", func() (*config.Config, error) {
 		t.Fatal("init must not load project configuration")
 		return nil, nil
@@ -194,4 +198,15 @@ func TestInactiveCommandEnvironmentIsIgnored(t *testing.T) {
 
 func cmdFlagChanged(cmd *cobra.Command, name string) bool {
 	return cmd.Flags().Lookup(name).Changed
+}
+
+func TestSyncSOPSConfigUsesOneSharedEnvironmentVariable(t *testing.T) {
+	root := newRootCommand("test", nil)
+	for _, name := range []string{"init", "encrypt", "verify"} {
+		cmd, _, err := root.Find([]string{name})
+		require.NoError(t, err)
+		usage := cmd.Flags().Lookup("sync-sops-config").Usage
+		require.Contains(t, usage, "(env YEWSEAL_SYNC_SOPS_CONFIG)", name)
+		require.NotContains(t, usage, "YEWSEAL_"+strings.ToUpper(name)+"_SYNC_SOPS_CONFIG", name)
+	}
 }

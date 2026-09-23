@@ -109,6 +109,7 @@ Private key handling: ` + docsPrivateKeys,
 	cmd.Flags().StringVar(&opts.Format, "format", "", "Format override for the first config entry (toml/yaml/json/env/ini/binary)")
 	cmd.Flags().BoolVar(&opts.CreateExample, "create-example", false, "Create an example plaintext file (interactive: for recorded entries; non-interactive: for the first entry)")
 	cmd.Flags().BoolVar(&opts.SyncSOPSConfig, "sync-sops-config", opts.SyncSOPSConfig, "Create or update .sops.yaml; explicit true or false skips the interactive prompt")
+	markSharedEnv(cmd.Flags().Lookup("sync-sops-config"), syncSOPSConfigEnv)
 	cmd.Flags().BoolVar(&opts.JSON, "json", false, "Print the initialization report as JSON on stdout (prompts and diagnostics stay on stderr)")
 	resolver = newOptionResolver(cmd, &opts)
 	cmd.Args = resolver.before(cmd.Args)

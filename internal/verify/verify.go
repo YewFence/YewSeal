@@ -10,9 +10,9 @@ import (
 
 // Options controls the verify run.
 type Options struct {
-	KeyFile        string
-	DecryptMode    DecryptBehavior
-	SyncSOPSConfig bool // when true, skip .sops.yaml drift check
+	KeyFile         string
+	DecryptMode     DecryptBehavior
+	CheckSOPSConfig bool
 }
 
 // Check runs all four verification layers against the resolved selection.
@@ -74,8 +74,8 @@ func Check(selection config.ResolvedSelection, cwd string, opts Options) (*Repor
 	}
 
 	// Layer 5: .sops.yaml drift.
-	if opts.SyncSOPSConfig {
-		report.AddSkip(".sops.yaml sync is active; drift check skipped")
+	if !opts.CheckSOPSConfig {
+		report.AddSkip(".sops.yaml is not managed (--sync-sops-config=false); drift check skipped")
 	} else {
 		orig, _ := os.Getwd()
 		if cwd != "" && cwd != orig {

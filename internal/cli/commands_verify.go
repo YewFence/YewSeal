@@ -2,7 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"os"
 
 	yewsapp "github.com/YewFence/YewSeal/internal/app"
 	"github.com/YewFence/YewSeal/internal/config"
@@ -13,7 +12,7 @@ import (
 )
 
 func verifyCommand(load configLoader) *cobra.Command {
-	opts := verifyOptions{}
+	opts := verifyOptions{SyncSOPSConfig: true}
 	var resolver *optionResolver
 
 	cmd := &cobra.Command{
@@ -48,10 +47,11 @@ modifying any project file:
      A non-VCS directory makes this layer skip with a notice.
 
   5. .sops.yaml drift: compare the on-disk .sops.yaml against what the
-     current resolved policy would generate. A mismatch is an error; an
-     absent .sops.yaml is a skip. This layer is skipped when
-     YEWSEAL_SYNC_SOPS_CONFIG is true (sync is active, so drift is
-     expected to be repaired on the next encrypt).
+     complete resolved project policy would generate. A mismatch is an
+     error; an absent .sops.yaml is a skip. --sync-sops-config=false
+     (shared with init and encrypt through YEWSEAL_SYNC_SOPS_CONFIG)
+     declares that the project does not manage .sops.yaml and skips
+     this layer.
 
 Target selection is directionless, matching either side of each mapping,
 and follows the same rules as plan: no argument means the current
@@ -105,20 +105,13 @@ Documentation: ` + docsVerify,
 			return nil
 		},
 		RunE: withConfig(load, func(cmd *cobra.Command, args []string, cfg *config.Config) error {
-			syncSOPSConfig := opts.SyncSOPSConfig
-			if !resolver.IsSet("sync-sops-config") {
-				// Inherit from the YEWSEAL_SYNC_SOPS_CONFIG top-level env if not explicitly set.
-				if v := os.Getenv("YEWSEAL_SYNC_SOPS_CONFIG"); v == "true" || v == "1" {
-					syncSOPSConfig = true
-				}
-			}
 			out := presentation.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), opts.Verbose)
 			result, err := yewsapp.Verify(cfg, yewsapp.VerifyRequest{
 				Targets:        args,
 				KeyFile:        opts.KeyFile,
 				Decrypt:        opts.Decrypt,
 				NoDecrypt:      opts.NoDecrypt,
-				SyncSOPSConfig: syncSOPSConfig,
+				SyncSOPSConfig: opts.SyncSOPSConfig,
 				JSON:           opts.JSON,
 				Verbose:        opts.Verbose,
 			})
@@ -141,7 +134,8 @@ Documentation: ` + docsVerify,
 	}
 	cmd.Flags().BoolVar(&opts.Decrypt, "decrypt", false, "Require a private identity; mismatch or missing identity exits 2 (env YEWSEAL_VERIFY_DECRYPT)")
 	cmd.Flags().BoolVar(&opts.NoDecrypt, "no-decrypt", false, "Skip the decrypt layer entirely, even if an identity is available")
-	cmd.Flags().BoolVar(&opts.SyncSOPSConfig, "sync-sops-config", false, "Skip the .sops.yaml drift check (set when sync is already active)")
+	cmd.Flags().BoolVar(&opts.SyncSOPSConfig, "sync-sops-config", opts.SyncSOPSConfig, "Treat .sops.yaml as managed and check it for drift; false skips the check")
+	markSharedEnv(cmd.Flags().Lookup("sync-sops-config"), syncSOPSConfigEnv)
 	cmd.Flags().BoolVar(&opts.JSON, "json", false, "Print the verify report as JSON on stdout (diagnostics stay on stderr)")
 	cmd.Flags().BoolVarP(&opts.Verbose, "verbose", "v", false, "Enable verbose output")
 	resolver = newOptionResolver(cmd, &opts)
