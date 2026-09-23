@@ -107,5 +107,4 @@ type verifyOptions struct {
 	NoDecrypt      bool   `mapstructure:"no-decrypt"`
 	SyncSOPSConfig bool   `mapstructure:"sync-sops-config"`
 	JSON           bool   `mapstructure:"json"`
-	Verbose        bool   `mapstructure:"verbose"`
 }

@@ -13,89 +13,94 @@ import (
 
 func verifyCommand(load configLoader) *cobra.Command {
 	opts := verifyOptions{SyncSOPSConfig: true}
-	var resolver *optionResolver
 
 	cmd := &cobra.Command{
 		Use:   "verify [command options] [path-or-pattern]...",
-		Short: "Check project health: ciphertext integrity, recipient drift, plaintext safety, and VCS exposure",
-		Long: `Inspect a project's health across four independent layers without
-modifying any project file:
+		Short: "Check ciphertext, recipients, plaintext consistency, version-control exposure, and .sops.yaml drift",
+		Long: `Check the health of registered encrypted files without modifying any
+project file. verify never prints plaintext, private keys, or data keys.
 
-  1. Configuration layer: resolves selection and authorization using the
-     same strict path as encrypt and plan; bad config or unknown aliases
-     fail the command before any per-file check runs.
+Target selection is the same as plan: directionless, with either side of
+a mapping selecting it (no argument: mappings with either side within the
+current directory scope; a registered path selects one mapping; a
+directory filters registered mappings; patterns match either side; any
+argument matching nothing is an error). Explicit entries do not require
+their files to exist; a missing ciphertext is a finding.
 
-  2. Ciphertext static layer (no private key required): for each selected
-     file verify that the encrypted path exists as a regular file, that
-     SOPS can parse it, that SOPS metadata contains at least one Age
-     recipient, and that the recipient set matches the canonical public
-     keys resolved from the current config. Recipient alias renames that
-     keep the same public key do not produce a finding.
+Checks:
+  configuration   the same strict authorization as plan and encrypt; an
+                  invalid config, unknown alias, empty recipient set, or
+                  group conflict is a calling error, not a finding.
+  ciphertext      no private key needed: the encrypted file exists, is a
+                  regular file, parses as SOPS, and its Age recipients
+                  equal the configured public keys (order ignored; renaming
+                  an alias without changing its key is not drift).
+  decryption      runs when an Age identity is available: decrypts, checks
+                  the MAC, and byte-compares an existing local plaintext
+                  with the decrypted content. Without an identity it is
+                  skipped. --decrypt requires an identity and treats a
+                  file no identity can open as an error; --no-decrypt reads
+                  no identity source. A missing plaintext is skipped.
+  version control from the nearest git or jj repository (.jj wins when both
+                  exist): selected plaintext and file-backed Age keys that
+                  are already in history (git index; jj @-) are errors,
+                  files one commit away (git untracked and not ignored;
+                  jj @ only) are warnings. Ignoring a file after it was
+                  committed does not clear the error. Outside a repository
+                  this check is skipped; a failed git or jj query is an
+                  error. jj snapshots its working copy while listing @.
+  .sops.yaml      compared with what encrypt would generate from the
+                  complete resolved policy; a difference is an error, an
+                  absent file is skipped. --sync-sops-config=false (shared
+                  with init and encrypt) skips the comparison.
 
-  3. Decrypt layer (requires a private key): decrypt each ciphertext and
-     verify its MAC. When a local plaintext exists, compare its bytes
-     against the decrypted content. Without any available identity, this
-     layer is skipped and the skip is stated in the output. With
-     --no-decrypt, this layer is always skipped. With --decrypt, a missing
-     identity or an identity that cannot open a file is an error.
+Finding codes are stable: ciphertext_missing, ciphertext_not_regular,
+ciphertext_stat_error, ciphertext_read_error, ciphertext_parse_error,
+ciphertext_no_recipients, recipient_missing, recipient_extra,
+recipient_duplicate, decrypt_failed, mac_mismatch,
+decrypt_no_matching_identity (warning, error with --decrypt),
+plaintext_read_error, plaintext_drift, plaintext_tracked,
+plaintext_not_ignored (warning), key_tracked, key_not_ignored (warning),
+vcs_query_failed, sops_config_read_error, sops_config_generate_error,
+sops_config_drift. All are errors unless marked.
 
-  4. VCS layer: detect the repository type (.jj beats .git for colocated
-     repos) and classify each plaintext file and any file-backed Age key
-     against the dual-list contract — files already in history are errors,
-     files that are one commit away are warnings. Repos with both .jj and
-     .git are treated as jj repos because jj controls the working copy.
-     A non-VCS directory makes this layer skip with a notice.
+Output: stdout carries a summary line, one line per skipped check kind,
+then each finding with a hint. The summary counts individual checks
+(each file contributes one check per layer): pass and skipped count
+checks, warning and error count findings. --json prints only
+{"ok", "summary", "skipped", "findings"} on stdout, where "skipped" lists
+the skip reasons. Errors go to stderr.
 
-  5. .sops.yaml drift: compare the on-disk .sops.yaml against what the
-     complete resolved project policy would generate. A mismatch is an
-     error; an absent .sops.yaml is a skip. --sync-sops-config=false
-     (shared with init and encrypt through YEWSEAL_SYNC_SOPS_CONFIG)
-     declares that the project does not manage .sops.yaml and skips
-     this layer.
+Exit codes: 0 when no finding is an error (warnings and skips allowed);
+1 when at least one finding is an error ("fix the repository"); 2 when
+verify cannot run or report ("fix the environment"): invalid arguments
+(including --decrypt with --no-decrypt), a missing or invalid
+.yewseal.toml, selection or authorization failure, an unreadable explicit
+key file, a failed key command, --decrypt without any identity, or a
+report that cannot be written.
 
-Target selection is directionless, matching either side of each mapping,
-and follows the same rules as plan: no argument means the current
-directory scope; a registered path or an existing directory selects
-matching pairs; patterns with metacharacters are matched against both
-sides; any argument matching nothing is an error.
-
-Exit codes:
-  0  verify completed with no error-severity findings
-  1  verify completed but produced at least one error finding
-  2  verify could not run: config invalid, target selection failed,
-     --decrypt with no identity, --decrypt and --no-decrypt together,
-     or report delivery failed
-
-CI usage: run without --decrypt for pure static analysis. Add --decrypt
-with a key available in the environment for full content verification.
-
-Output: summary and findings to stdout; warnings and diagnostics to
-stderr. --json prints only a JSON object on stdout; errors stay on stderr.
-verify never prints plaintext, private keys, data keys, or plaintext
-digests; recipients are shown as aliases or short public keys.
-
-See also: "yews plan" to audit mappings and authorization without touching
-ciphertext, "yews encrypt" to repair recipient drift, "yews diff" to
-inspect content differences.
+See also: "yews plan" for mappings and authorization only, "yews encrypt"
+to repair recipient and .sops.yaml drift, "yews diff" to inspect a
+plaintext difference.
 
 Documentation: ` + docsVerify,
-		Example: `  # Run all static checks (no private key needed)
+		Example: `  # Check everything in the current directory scope
   yews verify
 
-  # Verify a single registered file
+  # Check one registered mapping
   yews verify config/production.yaml
 
-  # Force the decrypt layer; fail if no identity is available
-  yews verify --decrypt --key-file /run/secrets/age-identities
-
-  # Static-only even if an identity is configured
+  # CI without private keys: static checks only
   yews verify --no-decrypt
 
-  # Machine-readable output for CI scripts (errors on stderr)
-  yews verify --json > health.json`,
-		Args: func(cmd *cobra.Command, args []string) error {
+  # CI with a key: fail unless every file can be decrypted
+  yews verify --decrypt --key-file /run/secrets/yewseal-identities
+
+  # Machine-readable report
+  yews verify --json > verify.json`,
+		Args: func(_ *cobra.Command, args []string) error {
 			if opts.Decrypt && opts.NoDecrypt {
-				return errx.Usage(fmt.Errorf("--decrypt and --no-decrypt are mutually exclusive"))
+				return fmt.Errorf("--decrypt and --no-decrypt are mutually exclusive")
 			}
 			for _, arg := range args {
 				if err := validateTargetArg(arg); err != nil {
@@ -105,40 +110,34 @@ Documentation: ` + docsVerify,
 			return nil
 		},
 		RunE: withConfig(load, func(cmd *cobra.Command, args []string, cfg *config.Config) error {
-			out := presentation.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), opts.Verbose)
-			result, err := yewsapp.Verify(cfg, yewsapp.VerifyRequest{
+			report, err := yewsapp.Verify(cfg, yewsapp.VerifyRequest{
 				Targets:        args,
 				KeyFile:        opts.KeyFile,
 				Decrypt:        opts.Decrypt,
 				NoDecrypt:      opts.NoDecrypt,
 				SyncSOPSConfig: opts.SyncSOPSConfig,
-				JSON:           opts.JSON,
-				Verbose:        opts.Verbose,
 			})
 			if err != nil {
 				return err
 			}
-			reportErr := out.Finish(out.VerifyReport(result.Report, presentation.VerifyPrintOptions{
-				JSON:    opts.JSON,
-				Verbose: opts.Verbose,
-				CWD:     config.CurrentDir(cfg),
-			}))
-			if reportErr != nil {
-				return reportErr
+			out := presentation.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false)
+			out.SetDirectory(config.CurrentDir(cfg))
+			// An undeliverable report means verify could not report its result.
+			if err := out.Finish(out.VerifyReport(report, opts.JSON)); err != nil {
+				return errx.Usage(err)
 			}
-			if result.ExitCode == 1 {
+			if !report.OK() {
 				return errx.NewFindingsError()
 			}
 			return nil
 		}),
 	}
-	cmd.Flags().BoolVar(&opts.Decrypt, "decrypt", false, "Require a private identity; mismatch or missing identity exits 2 (env YEWSEAL_VERIFY_DECRYPT)")
-	cmd.Flags().BoolVar(&opts.NoDecrypt, "no-decrypt", false, "Skip the decrypt layer entirely, even if an identity is available")
-	cmd.Flags().BoolVar(&opts.SyncSOPSConfig, "sync-sops-config", opts.SyncSOPSConfig, "Treat .sops.yaml as managed and check it for drift; false skips the check")
+	cmd.Flags().BoolVar(&opts.Decrypt, "decrypt", false, "Require an Age identity and treat undecryptable files as errors")
+	cmd.Flags().BoolVar(&opts.NoDecrypt, "no-decrypt", false, "Skip decryption checks without reading any identity source")
+	cmd.Flags().BoolVar(&opts.SyncSOPSConfig, "sync-sops-config", opts.SyncSOPSConfig, "Check .sops.yaml against the resolved policy; false skips the comparison")
 	markSharedEnv(cmd.Flags().Lookup("sync-sops-config"), syncSOPSConfigEnv)
-	cmd.Flags().BoolVar(&opts.JSON, "json", false, "Print the verify report as JSON on stdout (diagnostics stay on stderr)")
-	cmd.Flags().BoolVarP(&opts.Verbose, "verbose", "v", false, "Enable verbose output")
-	resolver = newOptionResolver(cmd, &opts)
+	cmd.Flags().BoolVar(&opts.JSON, "json", false, "Print the verify report as JSON on stdout (errors stay on stderr)")
+	resolver := newOptionResolver(cmd, &opts)
 	cmd.Args = resolver.before(cmd.Args)
 	return cmd
 }

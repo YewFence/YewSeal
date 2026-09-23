@@ -19,6 +19,7 @@ type Finding struct {
 	Severity      Severity `json:"severity"`
 	PlaintextPath string   `json:"plaintext_path,omitempty"`
 	EncryptedPath string   `json:"encrypted_path,omitempty"`
+	Recipient     string   `json:"recipient,omitempty"`
 	Message       string   `json:"message"`
 	Hint          string   `json:"hint,omitempty"`
 }
@@ -48,8 +49,15 @@ func (r *Report) Add(f Finding) {
 
 func (r *Report) AddPass() { r.PassCount++ }
 
+// AddSkip counts one skipped check. Identical reasons are recorded once so the
+// report explains each skipped layer without repeating it per file.
 func (r *Report) AddSkip(reason string) {
 	r.SkipCount++
+	for _, existing := range r.SkipReasons {
+		if existing == reason {
+			return
+		}
+	}
 	r.SkipReasons = append(r.SkipReasons, reason)
 }
 

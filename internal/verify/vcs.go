@@ -9,164 +9,140 @@ import (
 	"github.com/YewFence/YewSeal/internal/execx"
 )
 
-// vcsAdapter abstracts the dual-list contract over git and jj.
+// vcsAdapter exposes the dual-list contract shared by git and jj. Paths are
+// slash-separated and relative to the repository root.
 type vcsAdapter interface {
-	// committedFiles returns files that are already in version control history (list A → error).
-	committedFiles() (map[string]bool, error)
-	// trackedFiles returns files that are one step away from history (list B → warning).
-	// For jj this is @; for git this is untracked-not-excluded files.
+	name() string
+	// historyFiles are already in (or bound for) version-control history: error.
+	historyFiles() (map[string]bool, error)
+	// pendingFiles are one step away from history: warning.
 	pendingFiles() (map[string]bool, error)
 }
 
-// detectVCS walks up from dir looking for .jj or .git, preferring .jj.
-// Returns the repo root and adapter, or nil if not in a VCS repo.
-func detectVCS(dir string) (string, vcsAdapter, error) {
+// vcsState is the result of querying the repository once per verify run.
+type vcsState struct {
+	root    string
+	history map[string]bool
+	pending map[string]bool
+}
+
+// detectVCS walks up from dir looking for .jj or .git. .jj wins because jj owns
+// the working copy of a colocated repository.
+func detectVCS(dir string) (string, vcsAdapter) {
 	current := dir
 	for {
-		// jj takes precedence over git (colocated repos have both, jj semantics apply)
 		if _, err := os.Stat(filepath.Join(current, ".jj")); err == nil {
-			return current, &jjAdapter{root: current}, nil
+			return current, &jjAdapter{root: current}
 		}
 		if _, err := os.Stat(filepath.Join(current, ".git")); err == nil {
-			return current, &gitAdapter{root: current}, nil
+			return current, &gitAdapter{root: current}
 		}
 		parent := filepath.Dir(current)
 		if parent == current {
-			return "", nil, nil
+			return "", nil
 		}
 		current = parent
 	}
 }
 
-// checkVCS runs the VCS layer for a single plaintext path and optional key file path.
-func checkVCS(report *Report, plaintextPath, keyFilePath, repoRoot string, adapter vcsAdapter) {
-	committed, err := adapter.committedFiles()
+func queryVCS(root string, adapter vcsAdapter) (vcsState, error) {
+	history, err := adapter.historyFiles()
 	if err != nil {
-		report.Add(Finding{
-			Code:          "vcs_query_failed",
-			Severity:      SeverityError,
-			PlaintextPath: plaintextPath,
-			Message:       fmt.Sprintf("VCS query failed: %v", err),
-			Hint:          "ensure git or jj is installed and the repository is accessible",
-		})
-		return
+		return vcsState{}, err
 	}
 	pending, err := adapter.pendingFiles()
 	if err != nil {
-		report.Add(Finding{
-			Code:          "vcs_query_failed",
-			Severity:      SeverityError,
-			PlaintextPath: plaintextPath,
-			Message:       fmt.Sprintf("VCS query failed: %v", err),
-			Hint:          "ensure git or jj is installed and the repository is accessible",
-		})
-		return
+		return vcsState{}, err
 	}
-
-	checkFileVCS(report, plaintextPath, repoRoot, committed, pending, "plaintext_tracked", "plaintext_not_ignored")
-	if keyFilePath != "" {
-		checkFileVCS(report, keyFilePath, repoRoot, committed, pending, "key_tracked", "key_not_ignored")
-	}
+	return vcsState{root: root, history: history, pending: pending}, nil
 }
 
-func checkFileVCS(report *Report, absPath, repoRoot string, committed, pending map[string]bool, errorCode, warningCode string) {
-	rel, err := filepath.Rel(repoRoot, absPath)
-	if err != nil || strings.HasPrefix(rel, "..") {
-		// File is outside the repository; pass.
+// vcsSubject names what is classified, so plaintext and key findings share one
+// classification path but keep distinct codes and wording.
+type vcsSubject struct {
+	trackedCode    string
+	notIgnoredCode string
+	noun           string
+}
+
+var (
+	plaintextSubject = vcsSubject{trackedCode: "plaintext_tracked", notIgnoredCode: "plaintext_not_ignored", noun: "plaintext file"}
+	keySubject       = vcsSubject{trackedCode: "key_tracked", notIgnoredCode: "key_not_ignored", noun: "Age private key file"}
+)
+
+// classify applies the dual-list contract to one absolute path. finding
+// carries the mapping paths for plaintext subjects and stays path-less for keys.
+func (s vcsState) classify(report *Report, absPath string, subject vcsSubject, finding Finding) {
+	rel, err := filepath.Rel(s.root, absPath)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 		report.AddPass()
 		return
 	}
 	rel = filepath.ToSlash(rel)
-
-	if committed[rel] {
-		sev := SeverityError
-		msg := fmt.Sprintf("%s is tracked in version control history", absPath)
-		hint := "remove it from version control history; adding to .gitignore after the fact does not remove it from history"
-		if warningCode == "key_not_ignored" || errorCode == "key_tracked" {
-			msg = fmt.Sprintf("Age private key file %s is tracked in version control history", absPath)
-		}
-		report.Add(Finding{
-			Code:          errorCode,
-			Severity:      sev,
-			PlaintextPath: absPath,
-			Message:       msg,
-			Hint:          hint,
-		})
+	switch {
+	case s.history[rel]:
+		finding.Code = subject.trackedCode
+		finding.Severity = SeverityError
+		finding.Message = fmt.Sprintf("%s %s is tracked by version control", subject.noun, rel)
+		finding.Hint = "remove it from version control and review repository history; ignoring it now does not remove it from history"
+	case s.pending[rel]:
+		finding.Code = subject.notIgnoredCode
+		finding.Severity = SeverityWarning
+		finding.Message = fmt.Sprintf("%s %s is not ignored and would enter history with the next commit", subject.noun, rel)
+		finding.Hint = "add it to .gitignore"
+	default:
+		report.AddPass()
 		return
 	}
-	if pending[rel] {
-		msg := fmt.Sprintf("%s is not ignored and would enter version control on the next commit", absPath)
-		hint := "add it to .gitignore before committing"
-		if warningCode == "key_not_ignored" {
-			msg = fmt.Sprintf("Age private key file %s is not ignored and could be committed accidentally", absPath)
-		}
-		report.Add(Finding{
-			Code:          warningCode,
-			Severity:      SeverityWarning,
-			PlaintextPath: absPath,
-			Message:       msg,
-			Hint:          hint,
-		})
-		return
-	}
-	report.AddPass()
+	report.Add(finding)
 }
 
-// gitAdapter implements vcsAdapter for plain git repos.
+// gitAdapter uses the index as history: a staged file enters the next commit
+// even when it is ignored afterwards.
 type gitAdapter struct{ root string }
 
-func (g *gitAdapter) committedFiles() (map[string]bool, error) {
-	stdout, stderr, err := execx.ExecCommand("git", "-C", g.root, "ls-files", "-z", "--")
-	if err != nil {
-		return nil, fmt.Errorf("git ls-files: %v\n%s", err, strings.TrimRight(stderr, "\n"))
-	}
-	return splitNullLines(stdout), nil
+func (g *gitAdapter) name() string { return "git" }
+
+func (g *gitAdapter) historyFiles() (map[string]bool, error) {
+	return g.list("ls-files", "-z", "--")
 }
 
 func (g *gitAdapter) pendingFiles() (map[string]bool, error) {
-	stdout, stderr, err := execx.ExecCommand("git", "-C", g.root, "ls-files", "-z", "--others", "--exclude-standard", "--")
-	if err != nil {
-		return nil, fmt.Errorf("git ls-files --others: %v\n%s", err, strings.TrimRight(stderr, "\n"))
-	}
-	return splitNullLines(stdout), nil
+	return g.list("ls-files", "-z", "--others", "--exclude-standard", "--")
 }
 
-// jjAdapter implements vcsAdapter for jj repos (including colocated).
+func (g *gitAdapter) list(args ...string) (map[string]bool, error) {
+	stdout, stderr, err := execx.ExecCommand("git", append([]string{"-C", g.root}, args...)...)
+	if err != nil {
+		return nil, fmt.Errorf("git %s: %v: %s", strings.Join(args, " "), err, strings.TrimSpace(stderr))
+	}
+	return splitNUL(stdout), nil
+}
+
+// jjAdapter has no untracked state: @ absorbs every non-ignored file, so @-
+// (the latest real commit) is history and @ is the scratch snapshot.
 type jjAdapter struct{ root string }
 
-func (j *jjAdapter) committedFiles() (map[string]bool, error) {
-	// @- is the most recent real commit; files here are already in history.
-	stdout, stderr, err := execx.ExecCommand("jj", "--no-pager", "file", "list", "-r", "@-")
+func (j *jjAdapter) name() string { return "jj" }
+
+func (j *jjAdapter) historyFiles() (map[string]bool, error) { return j.list("@-") }
+
+func (j *jjAdapter) pendingFiles() (map[string]bool, error) { return j.list("@") }
+
+// list uses a template because jj's default output is relative to the process
+// working directory, while classification compares repository-root paths.
+// NUL separation keeps file names containing newlines unambiguous.
+func (j *jjAdapter) list(revision string) (map[string]bool, error) {
+	stdout, stderr, err := execx.ExecCommand("jj", "--no-pager", "-R", j.root, "file", "list", "-r", revision, "-T", `path ++ "\0"`)
 	if err != nil {
-		return nil, fmt.Errorf("jj file list -r @-: %v\n%s", err, strings.TrimRight(stderr, "\n"))
+		return nil, fmt.Errorf("jj file list -r %s: %v: %s", revision, err, strings.TrimSpace(stderr))
 	}
-	return splitNewlines(stdout), nil
+	return splitNUL(stdout), nil
 }
 
-func (j *jjAdapter) pendingFiles() (map[string]bool, error) {
-	// @ is the working-copy snapshot; files here are one describe away from history.
-	stdout, stderr, err := execx.ExecCommand("jj", "--no-pager", "file", "list", "-r", "@")
-	if err != nil {
-		return nil, fmt.Errorf("jj file list -r @: %v\n%s", err, strings.TrimRight(stderr, "\n"))
-	}
-	return splitNewlines(stdout), nil
-}
-
-func splitNullLines(s string) map[string]bool {
+func splitNUL(s string) map[string]bool {
 	m := make(map[string]bool)
 	for _, p := range strings.Split(s, "\x00") {
-		p = strings.TrimSpace(p)
-		if p != "" {
-			m[p] = true
-		}
-	}
-	return m
-}
-
-func splitNewlines(s string) map[string]bool {
-	m := make(map[string]bool)
-	for _, p := range strings.Split(s, "\n") {
-		p = strings.TrimSpace(p)
 		if p != "" {
 			m[p] = true
 		}

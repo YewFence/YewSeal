@@ -29,8 +29,15 @@ func checkDecrypt(report *Report, pair config.ResolvedFilePair, bundle agekey.Id
 		FormatOverride: pair.Format,
 	})
 
-	if errors.Is(decryptErr, seal.ErrNoIdentity) {
-		report.AddSkip("no identity available for decrypt layer")
+	if errors.Is(decryptErr, sopsx.ErrMACMismatch) {
+		report.Add(Finding{
+			Code:          "mac_mismatch",
+			Severity:      SeverityError,
+			PlaintextPath: pair.PlaintextPath,
+			EncryptedPath: pair.EncryptedPath,
+			Message:       fmt.Sprintf("MAC verification failed for %s: file may have been tampered with", pair.EncryptedPath),
+			Hint:          "the ciphertext may be corrupted or modified; re-encrypt from a trusted plaintext source",
+		})
 		return
 	}
 	if errors.Is(decryptErr, sopsx.ErrNoMatchingIdentity) {
@@ -70,7 +77,7 @@ func checkDecrypt(report *Report, pair config.ResolvedFilePair, bundle agekey.Id
 
 	currentData, err := os.ReadFile(pair.PlaintextPath)
 	if os.IsNotExist(err) {
-		report.AddSkip(fmt.Sprintf("plaintext %s absent; consistency not checked", pair.PlaintextPath))
+		report.AddSkip("local plaintext absent; plaintext consistency not checked for those files")
 		return
 	}
 	if err != nil {

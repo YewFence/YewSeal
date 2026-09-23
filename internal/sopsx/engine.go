@@ -339,7 +339,7 @@ func loadAndDecryptTree(store sops.Store, encData []byte, ageIdentity string) (d
 		}
 	}
 	if storedMACString != mac {
-		return decryptedTree{}, fmt.Errorf("MAC mismatch: file may have been tampered with")
+		return decryptedTree{}, fmt.Errorf("%w", ErrMACMismatch)
 	}
 
 	return decryptedTree{tree: &tree, dataKey: dataKey, cipher: cipher}, nil

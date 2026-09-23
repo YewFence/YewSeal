@@ -4,103 +4,58 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/YewFence/YewSeal/internal/config"
 	"github.com/YewFence/YewSeal/internal/verify"
 )
 
-// VerifyPrintOptions controls how the verify report is rendered.
-type VerifyPrintOptions struct {
-	JSON    bool
-	Verbose bool
-	CWD     string
-}
-
-// VerifyReport renders the verify report to the appropriate output stream.
-func (o *Output) VerifyReport(report *verify.Report, opts VerifyPrintOptions) error {
-	if report == nil {
-		return nil
+// VerifyReport renders a verify report on the content stream.
+func (o *Output) VerifyReport(report *verify.Report, asJSON bool) error {
+	if asJSON {
+		return o.verifyReportJSON(report)
 	}
-	if opts.JSON {
-		return o.verifyReportJSON(report, opts.CWD)
-	}
-	return o.verifyReportText(report, opts)
-}
-
-func (o *Output) verifyReportText(report *verify.Report, opts VerifyPrintOptions) error {
-	// Summary line first.
-	summary := fmt.Sprintf("Summary: %d passed, %d warnings, %d errors, %d skipped",
+	var b strings.Builder
+	fmt.Fprintf(&b, "Summary: %d passed, %d warnings, %d errors, %d skipped\n",
 		report.PassCount, report.WarningCount, report.ErrorCount, report.SkipCount)
-	if _, err := fmt.Fprintln(o, summary); err != nil {
-		return err
-	}
-
-	// Skip reasons (always shown so CI knows what was not checked).
 	for _, reason := range report.SkipReasons {
-		if _, err := fmt.Fprintf(o, "SKIPPED: %s\n", reason); err != nil {
-			return err
-		}
+		fmt.Fprintf(&b, "SKIPPED %s\n", reason)
 	}
-
-	if len(report.Findings) == 0 {
-		return nil
-	}
-
-	if _, err := fmt.Fprintln(o, ""); err != nil {
-		return err
-	}
-
 	for _, f := range report.Findings {
-		label := strings.ToUpper(string(f.Severity))
-		path := displayFindingPath(f, opts.CWD)
-		line := fmt.Sprintf("%s [%s]%s: %s", label, f.Code, path, f.Message)
-		if _, err := fmt.Fprintln(o, line); err != nil {
-			return err
-		}
+		fmt.Fprintf(&b, "%s [%s]%s: %s\n", strings.ToUpper(string(f.Severity)), f.Code, o.findingLocation(f), f.Message)
 		if f.Hint != "" {
-			if _, err := fmt.Fprintf(o, "  Hint: %s\n", f.Hint); err != nil {
-				return err
-			}
+			fmt.Fprintf(&b, "  hint: %s\n", f.Hint)
 		}
 	}
-	return nil
+	_, err := o.Write([]byte(b.String()))
+	return err
 }
 
-func displayFindingPath(f verify.Finding, cwd string) string {
-	path := f.PlaintextPath
-	if path == "" {
-		path = f.EncryptedPath
+func (o *Output) findingLocation(f verify.Finding) string {
+	switch {
+	case f.PlaintextPath != "" && f.EncryptedPath != "":
+		return " " + o.path(f.PlaintextPath) + " -> " + o.path(f.EncryptedPath)
+	case f.PlaintextPath != "":
+		return " " + o.path(f.PlaintextPath)
+	case f.EncryptedPath != "":
+		return " " + o.path(f.EncryptedPath)
 	}
-	if path == "" {
-		return ""
-	}
-	if cwd != "" {
-		path = config.DisplayPath(cwd, path)
-	}
-	return " " + path
+	return ""
 }
 
-// verifyReportJSON renders the report as JSON on stdout; errors go to stderr.
-func (o *Output) verifyReportJSON(report *verify.Report, cwd string) error {
+func (o *Output) verifyReportJSON(report *verify.Report) error {
 	findings := make([]verifyFindingJSON, 0, len(report.Findings))
 	for _, f := range report.Findings {
-		plain := f.PlaintextPath
-		enc := f.EncryptedPath
-		if cwd != "" {
-			if plain != "" {
-				plain = config.DisplayPath(cwd, plain)
-			}
-			if enc != "" {
-				enc = config.DisplayPath(cwd, enc)
-			}
+		entry := verifyFindingJSON{
+			Code:     f.Code,
+			Severity: string(f.Severity),
+			Message:  f.Message,
+			Hint:     f.Hint,
 		}
-		findings = append(findings, verifyFindingJSON{
-			Code:          f.Code,
-			Severity:      string(f.Severity),
-			PlaintextPath: plain,
-			EncryptedPath: enc,
-			Message:       f.Message,
-			Hint:          f.Hint,
-		})
+		if f.PlaintextPath != "" {
+			entry.PlaintextPath = o.path(f.PlaintextPath)
+		}
+		if f.EncryptedPath != "" {
+			entry.EncryptedPath = o.path(f.EncryptedPath)
+		}
+		findings = append(findings, entry)
 	}
 	return encodeReportJSON(o, verifyReportJSON{
 		OK: report.OK(),
@@ -110,6 +65,7 @@ func (o *Output) verifyReportJSON(report *verify.Report, cwd string) error {
 			Error:   report.ErrorCount,
 			Skipped: report.SkipCount,
 		},
+		Skipped:  append([]string{}, report.SkipReasons...),
 		Findings: findings,
 	})
 }
@@ -117,6 +73,7 @@ func (o *Output) verifyReportJSON(report *verify.Report, cwd string) error {
 type verifyReportJSON struct {
 	OK       bool                `json:"ok"`
 	Summary  verifySummaryJSON   `json:"summary"`
+	Skipped  []string            `json:"skipped"`
 	Findings []verifyFindingJSON `json:"findings"`
 }
 

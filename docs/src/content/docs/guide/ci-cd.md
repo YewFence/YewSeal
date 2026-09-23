@@ -82,6 +82,19 @@ In both examples, store the private key value from `.age/keys.txt` as a reposito
 A common best practice is pinning actions to commit SHAs and `go install` to a release tag, and letting a bot like [Renovate](https://docs.renovatebot.com/) keep them updated — general CI hygiene rather than YewSeal-specific guidance.
 :::
 
+## Checking repository health
+
+Deploy jobs prove that ciphertext can be opened; a pull-request job can also prove that the repository itself is safe, without holding any private key. `yews verify` checks every selected mapping read-only: the ciphertext exists and parses, its Age recipients match `.yewseal.toml`, no plaintext or file-backed Age key is tracked by git or jj, and `.sops.yaml` matches the resolved policy. A plaintext committed and ignored afterwards still fails, because ignoring a file does not remove it from history.
+
+```yaml
+      - name: Verify encrypted configuration
+        run: yews verify --no-decrypt
+```
+
+`--no-decrypt` keeps the job from reading any identity source, so the checks stay the same whether or not the runner happens to have a key. A job that does receive a key can use `yews verify --decrypt` instead, which additionally decrypts every file, checks its MAC, and fails when no identity is available or one file cannot be opened. Without either flag, verify decrypts when an identity is available and states in its output which checks it skipped.
+
+The exit code separates the two kinds of failure: `1` means the repository needs fixing (for example recipient drift, which `yews encrypt` repairs by rewrapping the data key), and `2` means verify could not run (an invalid config, `--decrypt` without an identity). `yews verify --json` prints a machine-readable report whose finding codes are stable; the complete list is in the command reference.
+
 ## With Infisical
 
 If private keys are hosted in Infisical, use its CLI independently to export the current deployment environment's identity first, then hand it to `yews`. Reference scripts and authentication notes live in [External private key sources](/guide/private-keys#infisical-reference-script). YewSeal never calls Infisical and does not require production to share a key with development machines.

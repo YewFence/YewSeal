@@ -9,137 +9,113 @@ import (
 	"github.com/YewFence/YewSeal/internal/sopsx"
 )
 
-// checkCiphertext performs the static ciphertext layer: file existence,
-// regular-file check, SOPS parseability, and recipient-set comparison.
-// No private key is required.
-func checkCiphertext(report *Report, pair config.ResolvedFilePair) {
-	encPath := pair.EncryptedPath
-
-	info, err := os.Lstat(encPath)
-	if os.IsNotExist(err) {
+// checkCiphertext runs the static ciphertext checks, which need no private
+// key, and reports whether the ciphertext is usable for the decrypt layer.
+func checkCiphertext(report *Report, pair config.ResolvedFilePair, labels recipientLabels) bool {
+	fail := func(code, message, hint string) bool {
 		report.Add(Finding{
-			Code:          "ciphertext_missing",
+			Code:          code,
 			Severity:      SeverityError,
 			PlaintextPath: pair.PlaintextPath,
-			EncryptedPath: encPath,
-			Message:       fmt.Sprintf("encrypted file %s does not exist", encPath),
-			Hint:          "run 'yews encrypt' to create it",
+			EncryptedPath: pair.EncryptedPath,
+			Message:       message,
+			Hint:          hint,
 		})
-		return
+		return false
 	}
+
+	info, err := os.Lstat(pair.EncryptedPath)
+	switch {
+	case os.IsNotExist(err):
+		return fail("ciphertext_missing", "encrypted file does not exist", "run 'yews encrypt' to create it")
+	case err != nil:
+		return fail("ciphertext_stat_error", fmt.Sprintf("failed to inspect encrypted file: %v", err), "")
+	case !info.Mode().IsRegular():
+		return fail("ciphertext_not_regular", "encrypted path is not a regular file", "replace it with the encrypted file itself")
+	}
+	encData, err := os.ReadFile(pair.EncryptedPath)
 	if err != nil {
-		report.Add(Finding{
-			Code:          "ciphertext_stat_error",
-			Severity:      SeverityError,
-			PlaintextPath: pair.PlaintextPath,
-			EncryptedPath: encPath,
-			Message:       fmt.Sprintf("failed to inspect encrypted file %s: %v", encPath, err),
-		})
-		return
+		return fail("ciphertext_read_error", fmt.Sprintf("failed to read encrypted file: %v", err), "")
 	}
-	if !info.Mode().IsRegular() {
-		report.Add(Finding{
-			Code:          "ciphertext_not_regular",
-			Severity:      SeverityError,
-			PlaintextPath: pair.PlaintextPath,
-			EncryptedPath: encPath,
-			Message:       fmt.Sprintf("encrypted path %s is not a regular file", encPath),
-		})
-		return
-	}
-
-	encData, err := os.ReadFile(encPath)
-	if err != nil {
-		report.Add(Finding{
-			Code:          "ciphertext_read_error",
-			Severity:      SeverityError,
-			PlaintextPath: pair.PlaintextPath,
-			EncryptedPath: encPath,
-			Message:       fmt.Sprintf("failed to read encrypted file %s: %v", encPath, err),
-		})
-		return
-	}
-
 	inspected, err := sopsx.Inspect(encData, pair.Format)
 	if err != nil {
-		report.Add(Finding{
-			Code:          "ciphertext_parse_error",
-			Severity:      SeverityError,
-			PlaintextPath: pair.PlaintextPath,
-			EncryptedPath: encPath,
-			Message:       fmt.Sprintf("encrypted file %s cannot be parsed by SOPS: %v", encPath, err),
-			Hint:          "the file may be corrupted or not a SOPS-encrypted file",
-		})
-		return
+		return fail("ciphertext_parse_error", fmt.Sprintf("encrypted file is not valid %s SOPS ciphertext: %v", pair.Format, err), "restore it from version control or re-encrypt it with 'yews encrypt --force'")
 	}
 	if len(inspected.AgeRecipients) == 0 {
-		report.Add(Finding{
-			Code:          "ciphertext_no_recipients",
-			Severity:      SeverityError,
-			PlaintextPath: pair.PlaintextPath,
-			EncryptedPath: encPath,
-			Message:       fmt.Sprintf("encrypted file %s contains no Age recipients in its SOPS metadata", encPath),
-			Hint:          "re-encrypt the file with 'yews encrypt'",
-		})
-		return
+		return fail("ciphertext_no_recipients", "SOPS metadata contains no Age recipient", "re-encrypt it with 'yews encrypt --force'")
 	}
-
-	checkRecipientDrift(report, pair, inspected.AgeRecipients)
+	checkRecipients(report, pair, inspected.AgeRecipients, labels)
+	return true
 }
 
-func checkRecipientDrift(report *Report, pair config.ResolvedFilePair, actual []string) {
-	if len(pair.Recipients) == 0 {
-		report.AddPass()
-		return
+// checkRecipients compares the metadata recipient list with the configured
+// canonical set. Missing, extra, and duplicate recipients are reported
+// separately because each needs a different repair.
+func checkRecipients(report *Report, pair config.ResolvedFilePair, actual []string, labels recipientLabels) {
+	configured := make(map[string]bool, len(pair.Recipients))
+	for _, recipient := range pair.Recipients {
+		configured[recipient] = true
+	}
+	counts := make(map[string]int, len(actual))
+	for _, recipient := range actual {
+		counts[recipient]++
 	}
 
-	configured := canonicalSet(pair.Recipients)
-	present := canonicalSet(actual)
-
-	var missing, extra []string
-	for r := range configured {
-		if !present[r] {
-			missing = append(missing, r)
-		}
-	}
-	for r := range present {
-		if !configured[r] {
-			extra = append(extra, r)
-		}
-	}
-	sort.Strings(missing)
-	sort.Strings(extra)
-
-	if len(missing) == 0 && len(extra) == 0 {
-		report.AddPass()
-		return
-	}
-	for _, r := range missing {
-		report.Add(Finding{
-			Code:          "recipient_missing",
+	var findings []Finding
+	add := func(code, recipient, message string) {
+		findings = append(findings, Finding{
+			Code:          code,
 			Severity:      SeverityError,
 			PlaintextPath: pair.PlaintextPath,
 			EncryptedPath: pair.EncryptedPath,
-			Message:       fmt.Sprintf("recipient %s is declared in config but absent from ciphertext metadata", r),
-			Hint:          "run 'yews encrypt' to rewrap the data key for all configured recipients",
+			Recipient:     recipient,
+			Message:       message,
+			Hint:          "run 'yews encrypt' to rewrap the data key for the configured recipients",
 		})
 	}
-	for _, r := range extra {
-		report.Add(Finding{
-			Code:          "recipient_extra",
-			Severity:      SeverityError,
-			PlaintextPath: pair.PlaintextPath,
-			EncryptedPath: pair.EncryptedPath,
-			Message:       fmt.Sprintf("recipient %s is present in ciphertext metadata but not declared in config", r),
-			Hint:          "run 'yews encrypt' to rewrap with only the configured recipients",
-		})
+	for _, recipient := range sortedKeys(configured) {
+		if counts[recipient] == 0 {
+			add("recipient_missing", recipient, fmt.Sprintf("configured recipient %s cannot decrypt this file", labels.label(recipient)))
+		}
+	}
+	for _, recipient := range sortedKeys(counts) {
+		if !configured[recipient] {
+			add("recipient_extra", recipient, fmt.Sprintf("recipient %s can decrypt this file but is not configured", labels.label(recipient)))
+		}
+		if counts[recipient] > 1 {
+			add("recipient_duplicate", recipient, fmt.Sprintf("recipient %s appears %d times in SOPS metadata", labels.label(recipient), counts[recipient]))
+		}
+	}
+	if len(findings) == 0 {
+		report.AddPass()
+		return
+	}
+	for _, finding := range findings {
+		report.Add(finding)
 	}
 }
 
-func canonicalSet(recipients []string) map[string]bool {
-	m := make(map[string]bool, len(recipients))
-	for _, r := range recipients {
-		m[r] = true
+// recipientLabels maps canonical public keys to registry aliases for display.
+type recipientLabels map[string]string
+
+// label shows the alias when known, otherwise a short public-key fingerprint;
+// full keys stay in the Recipient field for machine consumers.
+func (l recipientLabels) label(recipient string) string {
+	if alias, ok := l[recipient]; ok {
+		return alias
 	}
-	return m
+	const edge = 8
+	if len(recipient) <= 2*edge {
+		return recipient
+	}
+	return recipient[:edge] + "…" + recipient[len(recipient)-edge:]
+}
+
+func sortedKeys[V any](m map[string]V) []string {
+	keys := make([]string, 0, len(m))
+	for key := range m {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
 }
