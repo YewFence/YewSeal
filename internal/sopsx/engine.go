@@ -34,6 +34,7 @@ const sopsVersion = "3.13.3"
 // Info describes an encrypted file's sops metadata, readable without a key.
 type Info struct {
 	AgeRecipients []string
+	HasNonAgeKeys bool
 	LastModified  time.Time
 	Version       string
 }
@@ -231,9 +232,41 @@ func Inspect(encData []byte, format string) (Info, error) {
 
 	return Info{
 		AgeRecipients: ageRecipientsFromTree(tree),
+		HasNonAgeKeys: hasNonAgeKeys(tree),
 		LastModified:  tree.Metadata.LastModified,
 		Version:       tree.Metadata.Version,
 	}, nil
+}
+
+func hasNonAgeKeys(tree sops.Tree) bool {
+	for _, group := range tree.Metadata.KeyGroups {
+		for _, key := range group {
+			if _, ok := key.(*sopsage.MasterKey); !ok {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// PlaintextEqual compares two plaintext documents as Update compares content.
+func PlaintextEqual(left, right []byte, format string) (bool, error) {
+	if bytes.Equal(left, right) {
+		return true, nil
+	}
+	store, err := storeForFormat(format)
+	if err != nil {
+		return false, err
+	}
+	leftBranches, err := store.LoadPlainFile(left)
+	if err != nil {
+		return false, fmt.Errorf("failed to load decrypted plaintext: %w", err)
+	}
+	rightBranches, err := store.LoadPlainFile(right)
+	if err != nil {
+		return false, fmt.Errorf("failed to load local plaintext: %w", err)
+	}
+	return reflect.DeepEqual(leftBranches, rightBranches), nil
 }
 
 // ExtractAgeRecipients returns all age recipients of an encrypted file.

@@ -18,6 +18,7 @@ import (
 	"github.com/YewFence/YewSeal/internal/verify"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
 )
 
 // ── helpers ────────────────────────────────────────────────────────────────
@@ -36,6 +37,13 @@ func newTestKey(t *testing.T) testKey {
 	bundle, err := agekey.NewIdentityBundle([]string{secret})
 	require.NoError(t, err)
 	return testKey{identity: secret, recipient: id.Recipient().String(), bundle: bundle}
+}
+
+func clearIdentityEnv(t *testing.T) {
+	t.Helper()
+	for _, name := range []string{"SOPS_AGE_KEY", "SOPS_AGE_KEY_FILE", "SOPS_AGE_KEY_CMD", "YEWSEAL_AGE_IDENTITIES", "YEWSEAL_AGE_KEY_CMD"} {
+		t.Setenv(name, "")
+	}
 }
 
 func makeEncrypted(t *testing.T, dir, name, format string, plain []byte, recipients []string) string {
@@ -211,6 +219,24 @@ func TestCiphertextRecipientExtra(t *testing.T) {
 	requireFinding(t, report, "recipient_extra", verify.SeverityError)
 }
 
+func TestCiphertextNonAgeRecipientIsRejected(t *testing.T) {
+	dir := t.TempDir()
+	key := newTestKey(t)
+	encPath := makeEncrypted(t, dir, "config.enc.yaml", "yaml", []byte("token: secret\n"), []string{key.recipient})
+	data, err := os.ReadFile(encPath)
+	require.NoError(t, err)
+	var doc map[string]any
+	require.NoError(t, yaml.Unmarshal(data, &doc))
+	metadata := doc["sops"].(map[string]any)
+	metadata["pgp"] = []map[string]string{{"fp": "0123456789ABCDEF0123456789ABCDEF01234567", "enc": "wrapped", "created_at": time.Now().UTC().Format(time.RFC3339)}}
+	data, err = yaml.Marshal(doc)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(encPath, data, 0600))
+	report, err := verify.Check(minimalSelection(resolvedPair(filepath.Join(dir, "config.yaml"), encPath, "yaml", []string{key.recipient})), dir, verify.Options{DecryptMode: verify.DecryptDisabled})
+	require.NoError(t, err)
+	requireFinding(t, report, "recipient_unsupported", verify.SeverityError)
+}
+
 func TestCiphertextRecipientMatchPass(t *testing.T) {
 	dir := t.TempDir()
 	key := newTestKey(t)
@@ -229,6 +255,7 @@ func TestCiphertextRecipientMatchPass(t *testing.T) {
 // ── decrypt layer ──────────────────────────────────────────────────────────
 
 func TestDecryptAutoSkipsWhenNoIdentity(t *testing.T) {
+	clearIdentityEnv(t)
 	dir := t.TempDir()
 	key := newTestKey(t)
 	encPath := makeEncrypted(t, dir, "config.enc.yaml", "yaml",
@@ -241,11 +268,12 @@ func TestDecryptAutoSkipsWhenNoIdentity(t *testing.T) {
 		CheckSOPSConfig: false,
 	})
 	require.NoError(t, err)
-	assert.Greater(t, report.SkipCount, 0, "should skip decrypt layer when no identity")
+	assert.Contains(t, report.SkipReasons, "no Age identity available; decryption, MAC, and plaintext consistency not checked")
 	requireNoFinding(t, report, "decrypt_failed")
 }
 
 func TestDecryptRequiredErrorsWhenNoIdentity(t *testing.T) {
+	clearIdentityEnv(t)
 	dir := t.TempDir()
 	key := newTestKey(t)
 	encPath := makeEncrypted(t, dir, "config.enc.yaml", "yaml",
@@ -334,7 +362,7 @@ func TestDecryptLayerSkippedWithNoDecrypt(t *testing.T) {
 	})
 	require.NoError(t, err)
 	requireNoFinding(t, report, "decrypt_failed")
-	assert.Greater(t, report.SkipCount, 0)
+	assert.Contains(t, report.SkipReasons, "decrypt layer disabled by --no-decrypt; decryption, MAC, and plaintext consistency not checked")
 }
 
 func TestPlaintextDriftDetected(t *testing.T) {
@@ -352,6 +380,28 @@ func TestPlaintextDriftDetected(t *testing.T) {
 	})
 	require.NoError(t, err)
 	requireFinding(t, report, "plaintext_drift", verify.SeverityError)
+}
+
+func TestPlaintextFormattingDoesNotDrift(t *testing.T) {
+	dir := t.TempDir()
+	key := newTestKey(t)
+	encPath := makeEncrypted(t, dir, "config.enc.json", "json", []byte("{\"token\": \"secret\"}\n"), []string{key.recipient})
+	plainPath := makePlaintext(t, dir, "config.json", []byte("{\n  \"token\": \"secret\"\n}\n"))
+	selectPairs := minimalSelection(resolvedPair(plainPath, encPath, "json", []string{key.recipient}))
+	report, err := verify.Check(selectPairs, dir, verify.Options{KeyFile: writeKeyFile(t, dir, key)})
+	require.NoError(t, err)
+	requireNoFinding(t, report, "plaintext_drift")
+	requireNoFinding(t, report, "plaintext_parse_error")
+}
+
+func TestMalformedLocalPlaintextIsReported(t *testing.T) {
+	dir := t.TempDir()
+	key := newTestKey(t)
+	encPath := makeEncrypted(t, dir, "config.enc.json", "json", []byte("{\"token\": \"secret\"}\n"), []string{key.recipient})
+	plainPath := makePlaintext(t, dir, "config.json", []byte("not json"))
+	report, err := verify.Check(minimalSelection(resolvedPair(plainPath, encPath, "json", []string{key.recipient})), dir, verify.Options{KeyFile: writeKeyFile(t, dir, key)})
+	require.NoError(t, err)
+	requireFinding(t, report, "plaintext_parse_error", verify.SeverityError)
 }
 
 func TestPlaintextAbsentDecryptPass(t *testing.T) {
@@ -623,6 +673,23 @@ func TestVCSLayerGitIgnoredIsPass(t *testing.T) {
 	requireNoFinding(t, report, "plaintext_not_ignored")
 }
 
+func TestVCSLayerGitSymlinkTargetIsChecked(t *testing.T) {
+	dir := t.TempDir()
+	isolateVCSConfig(t)
+	runGit(t, dir, "init", "-q")
+	key := newTestKey(t)
+	secret := makePlaintext(t, dir, "tracked.yaml", []byte("token: secret\n"))
+	runGit(t, dir, "add", "tracked.yaml")
+	runGit(t, dir, "commit", "-q", "-m", "track secret")
+	require.NoError(t, os.WriteFile(filepath.Join(dir, ".gitignore"), []byte("link.yaml\n"), 0644))
+	link := filepath.Join(dir, "link.yaml")
+	require.NoError(t, os.Symlink(secret, link))
+	encPath := makeEncrypted(t, dir, "config.enc.yaml", "yaml", []byte("token: secret\n"), []string{key.recipient})
+	report, err := verify.Check(minimalSelection(resolvedPair(link, encPath, "yaml", []string{key.recipient})), dir, verify.Options{DecryptMode: verify.DecryptDisabled})
+	require.NoError(t, err)
+	requireFinding(t, report, "plaintext_tracked", verify.SeverityError)
+}
+
 // ── VCS layer: jj ─────────────────────────────────────────────────────────
 
 func TestVCSLayerJJScratchIsWarning(t *testing.T) {
@@ -654,6 +721,29 @@ func TestVCSLayerJJCommittedIsError(t *testing.T) {
 	sel := minimalSelection(resolvedPair(plainPath, encPath, "yaml", []string{key.recipient}))
 	report, err := verify.Check(sel, dir, verify.Options{CheckSOPSConfig: false})
 	require.NoError(t, err)
+	requireFinding(t, report, "plaintext_tracked", verify.SeverityError)
+}
+
+func TestVCSLayerJJMergeParentsAreCombined(t *testing.T) {
+	requireJJ(t)
+	dir := t.TempDir()
+	isolateVCSConfig(t)
+	runJJ(t, dir, "git", "init")
+	key := newTestKey(t)
+	plainPath := makePlaintext(t, dir, "config.yaml", []byte("token: secret\n"))
+	runJJ(t, dir, "commit", "-m", "first parent")
+	cmd := exec.Command("jj", "log", "-r", "@-", "--no-graph", "-T", "commit_id")
+	cmd.Dir = dir
+	first, err := cmd.Output()
+	require.NoError(t, err)
+	runJJ(t, dir, "new", "root()")
+	makePlaintext(t, dir, "other.yaml", []byte("other: value\n"))
+	runJJ(t, dir, "commit", "-m", "second parent")
+	runJJ(t, dir, "new", string(first), "@-")
+	encPath := makeEncrypted(t, dir, "config.enc.yaml", "yaml", []byte("token: secret\n"), []string{key.recipient})
+	report, err := verify.Check(minimalSelection(resolvedPair(plainPath, encPath, "yaml", []string{key.recipient})), dir, verify.Options{DecryptMode: verify.DecryptDisabled})
+	require.NoError(t, err)
+	requireNoFinding(t, report, "vcs_query_failed")
 	requireFinding(t, report, "plaintext_tracked", verify.SeverityError)
 }
 
@@ -729,6 +819,23 @@ func TestVCSLayerKeyFileTrackedIsError(t *testing.T) {
 	encPath := makeEncrypted(t, dir, "config.enc.yaml", "yaml", []byte("token: secret\n"), []string{key.recipient})
 	sel := minimalSelection(resolvedPair(filepath.Join(dir, "config.yaml"), encPath, "yaml", []string{key.recipient}))
 	report, err := verify.Check(sel, dir, verify.Options{KeyFile: kf, DecryptMode: verify.DecryptDisabled})
+	require.NoError(t, err)
+	requireFinding(t, report, "key_tracked", verify.SeverityError)
+}
+
+func TestVCSLayerKeySymlinkTargetIsChecked(t *testing.T) {
+	dir := t.TempDir()
+	isolateVCSConfig(t)
+	runGit(t, dir, "init", "-q")
+	key := newTestKey(t)
+	secret := writeKeyFile(t, dir, key)
+	runGit(t, dir, "add", "keys.txt")
+	runGit(t, dir, "commit", "-q", "-m", "track key")
+	require.NoError(t, os.WriteFile(filepath.Join(dir, ".gitignore"), []byte("ignored-key.txt\n"), 0644))
+	link := filepath.Join(dir, "ignored-key.txt")
+	require.NoError(t, os.Symlink(secret, link))
+	encPath := makeEncrypted(t, dir, "config.enc.yaml", "yaml", []byte("token: secret\n"), []string{key.recipient})
+	report, err := verify.Check(minimalSelection(resolvedPair(filepath.Join(dir, "config.yaml"), encPath, "yaml", []string{key.recipient})), dir, verify.Options{KeyFile: link, DecryptMode: verify.DecryptDisabled})
 	require.NoError(t, err)
 	requireFinding(t, report, "key_tracked", verify.SeverityError)
 }

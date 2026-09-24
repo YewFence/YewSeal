@@ -88,6 +88,23 @@ func TestEncryptUsesEncryptedSOPSMAC(t *testing.T) {
 	}
 }
 
+func TestInspectDetectsNonAgeKeys(t *testing.T) {
+	key := newTestKey(t)
+	encData, err := Encrypt(samplePlaintext("yaml"), "yaml", []string{key.recipient})
+	require.NoError(t, err)
+	store, err := storeForFormat("yaml")
+	require.NoError(t, err)
+	tree, err := store.LoadEncryptedFile(encData)
+	require.NoError(t, err)
+	tree.Metadata.KeyGroups[0] = append(tree.Metadata.KeyGroups[0], &sopspgp.MasterKey{Fingerprint: "0123456789ABCDEF0123456789ABCDEF01234567", EncryptedKey: "wrapped"})
+	withPGP, err := store.EmitEncryptedFile(tree)
+	require.NoError(t, err)
+	info, err := Inspect(withPGP, "yaml")
+	require.NoError(t, err)
+	require.Equal(t, []string{key.recipient}, info.AgeRecipients)
+	require.True(t, info.HasNonAgeKeys)
+}
+
 func TestCiphertextInteroperatesWithNativeSOPSDecryptTree(t *testing.T) {
 	key := newTestKey(t)
 	t.Setenv("SOPS_AGE_KEY", key.identity)

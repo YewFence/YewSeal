@@ -152,6 +152,33 @@ func TestPlanRejectsCompetingMappingsUnlessExplicitlyResolved(t *testing.T) {
 	require.Equal(t, cfg.Encryption.Files[0].PlaintextPath, result.FilePairs[0].PlaintextPath)
 }
 
+func TestVerifyRejectsCompetingMappingsUnlessExplicitlyResolved(t *testing.T) {
+	cfg := selectionConfig(t)
+	for _, name := range []string{"config.yaml", "config.yml", "config.enc.yaml"} {
+		selectionFile(t, cfg.CurrentDir, name)
+	}
+	cfg.Encryption.Groups = []GroupConfig{{ConfigDir: cfg.CurrentDir, Patterns: []string{"*.yaml", "*.yml"}}}
+	_, err := ResolveSelection(cfg, SelectionOptions{Command: task.ModeVerify})
+	require.ErrorContains(t, err, "conflicting group file pairs")
+	cfg.Encryption.Files = []FilePair{{PlaintextPath: filepath.Join(cfg.CurrentDir, "custom.yaml"), EncryptedPath: filepath.Join(cfg.CurrentDir, "config.enc.yaml"), Format: "yaml"}}
+	result, err := ResolveSelection(cfg, SelectionOptions{Command: task.ModeVerify})
+	require.NoError(t, err)
+	require.Len(t, result.FilePairs, 1)
+	require.Equal(t, cfg.Encryption.Files[0].PlaintextPath, result.FilePairs[0].PlaintextPath)
+}
+
+func TestVerifyPatternMatchesEitherSideLikePlan(t *testing.T) {
+	cfg := selectionConfig(t)
+	encrypted := selectionFile(t, cfg.CurrentDir, "remote.enc.yaml")
+	cfg.Encryption.Files = []FilePair{{PlaintextPath: filepath.Join(cfg.CurrentDir, "remote.yaml"), EncryptedPath: encrypted}}
+	for _, command := range []string{task.ModePlan, task.ModeVerify} {
+		selection, err := ResolveSelection(cfg, SelectionOptions{Command: command, Targets: []string{"*.enc.yaml"}})
+		require.NoError(t, err, command)
+		require.Len(t, selection.FilePairs, 1)
+		require.Equal(t, encrypted, selection.FilePairs[0].EncryptedPath)
+	}
+}
+
 func TestSelectionChecksUnselectedAuthorizationBeforeFiltering(t *testing.T) {
 	cfg := selectionConfig(t)
 	missing := []string{"missing"}

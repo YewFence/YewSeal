@@ -276,15 +276,15 @@ func matchPairsByPattern(filePairs []FilePair, pattern, command, cwd string) ([]
 	return selected, nil
 }
 
-// pairMatchesPattern 按命令主侧匹配：decrypt 匹配密文路径，plan 匹配
-// 任一侧，其余命令（encrypt、diff 等）匹配明文路径。
+// pairMatchesPattern 按选择策略匹配：decrypt 匹配密文路径，plan 和 verify
+// 匹配任一侧，其余命令（encrypt、diff 等）匹配明文路径。
 func pairMatchesPattern(matcher task.PatternMatcher, filePair FilePair, command, cwd string) bool {
 	matches := func(path string) bool {
 		decided, included := matcher.Decision(DisplayPath(cwd, path), false)
 		return decided && included
 	}
-	switch command {
-	case task.ModeDecrypt, task.ModeView:
+	switch policyForCommand(command).scopeMode {
+	case task.ModeDecrypt:
 		return matches(filePair.EncryptedPath)
 	case task.ModePlan:
 		return matches(filePair.PlaintextPath) || matches(filePair.EncryptedPath)
@@ -294,6 +294,7 @@ func pairMatchesPattern(matcher task.PatternMatcher, filePair FilePair, command,
 }
 
 func configuredFilePairs(cfg *Config, mode string) ([]FilePair, error) {
+	mode = policyForCommand(mode).discoveryMode
 	groupPairs, err := scopedConfigGroupPairs(cfg, mode)
 	if err != nil {
 		return nil, err

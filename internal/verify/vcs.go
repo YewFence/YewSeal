@@ -73,10 +73,20 @@ var (
 // classify applies the dual-list contract to one absolute path. finding
 // carries the mapping paths for plaintext subjects and stays path-less for keys.
 func (s vcsState) classify(report *Report, absPath string, subject vcsSubject, finding Finding) {
+	classified := s.classifyPath(report, absPath, subject, finding)
+	target, err := filepath.EvalSymlinks(absPath)
+	if err == nil && target != absPath {
+		classified = s.classifyPath(report, target, subject, finding) || classified
+	}
+	if !classified {
+		report.AddPass()
+	}
+}
+
+func (s vcsState) classifyPath(report *Report, absPath string, subject vcsSubject, finding Finding) bool {
 	rel, err := filepath.Rel(s.root, absPath)
 	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		report.AddPass()
-		return
+		return false
 	}
 	rel = filepath.ToSlash(rel)
 	switch {
@@ -91,10 +101,10 @@ func (s vcsState) classify(report *Report, absPath string, subject vcsSubject, f
 		finding.Message = fmt.Sprintf("%s %s is not ignored and would enter history with the next commit", subject.noun, rel)
 		finding.Hint = "add it to .gitignore"
 	default:
-		report.AddPass()
-		return
+		return false
 	}
 	report.Add(finding)
+	return true
 }
 
 // gitAdapter uses the index as history: a staged file enters the next commit
@@ -119,13 +129,29 @@ func (g *gitAdapter) list(args ...string) (map[string]bool, error) {
 	return splitNUL(stdout), nil
 }
 
-// jjAdapter has no untracked state: @ absorbs every non-ignored file, so @-
-// (the latest real commit) is history and @ is the scratch snapshot.
+// jjAdapter has no untracked state: @ absorbs every non-ignored file, so its
+// parents are history and @ is the scratch snapshot.
 type jjAdapter struct{ root string }
 
 func (j *jjAdapter) name() string { return "jj" }
 
-func (j *jjAdapter) historyFiles() (map[string]bool, error) { return j.list("@-") }
+func (j *jjAdapter) historyFiles() (map[string]bool, error) {
+	stdout, stderr, err := execx.ExecCommand("jj", "--no-pager", "-R", j.root, "log", "--no-graph", "-r", "@-", "-T", `commit_id ++ "\0"`)
+	if err != nil {
+		return nil, fmt.Errorf("jj log -r @-: %v: %s", err, strings.TrimSpace(stderr))
+	}
+	history := make(map[string]bool)
+	for parent := range splitNUL(stdout) {
+		files, err := j.list(parent)
+		if err != nil {
+			return nil, err
+		}
+		for path := range files {
+			history[path] = true
+		}
+	}
+	return history, nil
+}
 
 func (j *jjAdapter) pendingFiles() (map[string]bool, error) { return j.list("@") }
 

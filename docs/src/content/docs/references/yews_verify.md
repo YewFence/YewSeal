@@ -21,12 +21,13 @@ Checks:
                   invalid config, unknown alias, empty recipient set, or
                   group conflict is a calling error, not a finding.
   ciphertext      no private key needed: the encrypted file exists, is a
-                  regular file, parses as SOPS, and its Age recipients
-                  equal the configured public keys (order ignored; renaming
-                  an alias without changing its key is not drift).
+                  regular file, parses as SOPS, contains no non-Age keys,
+                  and its Age recipients equal the configured public keys
+                  (order ignored; renaming an alias without changing its
+                  key is not drift).
   decryption      runs when an Age identity is available: decrypts, checks
-                  the MAC, and byte-compares an existing local plaintext
-                  with the decrypted content. Without an identity it is
+                  the MAC, and compares an existing local plaintext with
+                  decrypted content by parsed structure. Without an identity it is
                   skipped. --decrypt requires an identity and treats a
                   file no identity can open as an error; --no-decrypt reads
                   no identity source. A missing plaintext is skipped.
@@ -35,20 +36,21 @@ Checks:
                   are already in history (git index; jj @-) are errors,
                   files one commit away (git untracked and not ignored;
                   jj @ only) are warnings. Ignoring a file after it was
-                  committed does not clear the error. Outside a repository
+                  committed does not clear the error. Symlink paths and their
+                  effective targets are both checked. Outside a repository
                   this check is skipped; a failed git or jj query is an
                   error. jj snapshots its working copy while listing @.
-  .sops.yaml      compared with what encrypt would generate from the
-                  complete resolved policy; a difference is an error, an
-                  absent file is skipped. --sync-sops-config=false (shared
+  .sops.yaml      compared with the complete resolved verify policy;
+                  a difference is an error, an absent file is skipped.
+                  --sync-sops-config=false (shared
                   with init and encrypt) skips the comparison.
 
 Finding codes are stable: ciphertext_missing, ciphertext_not_regular,
 ciphertext_stat_error, ciphertext_read_error, ciphertext_parse_error,
-ciphertext_no_recipients, recipient_missing, recipient_extra,
+ciphertext_no_recipients, recipient_unsupported, recipient_missing, recipient_extra,
 recipient_duplicate, decrypt_failed, mac_mismatch,
 decrypt_no_matching_identity (warning, error with --decrypt),
-plaintext_read_error, plaintext_drift, plaintext_tracked,
+plaintext_read_error, plaintext_parse_error, plaintext_drift, plaintext_tracked,
 plaintext_not_ignored (warning), key_tracked, key_not_ignored (warning),
 vcs_query_failed, sops_config_read_error, sops_config_generate_error,
 sops_config_drift. All are errors unless marked.
@@ -69,8 +71,7 @@ key file, a failed key command, --decrypt without any identity, or a
 report that cannot be written.
 
 See also: "yews plan" for mappings and authorization only, "yews encrypt"
-to repair recipient and .sops.yaml drift, "yews diff" to inspect a
-plaintext difference.
+to repair recipient drift, "yews diff" to inspect a plaintext difference.
 
 Documentation: https://yewfence.github.io/YewSeal/guide/ci-cd#checking-repository-health
 

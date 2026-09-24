@@ -10,8 +10,7 @@ import (
 	"github.com/YewFence/YewSeal/internal/sopsconfig"
 )
 
-// checkSOPSDrift compares .sops.yaml in cwd with the exact bytes encrypt's
-// synchronization would write for the complete resolved policy.
+// checkSOPSDrift compares .sops.yaml in cwd with the complete resolved verify policy.
 func checkSOPSDrift(report *Report, allPairs []config.ResolvedFilePair, cwd string) {
 	onDisk, err := os.ReadFile(filepath.Join(cwd, ".sops.yaml"))
 	if os.IsNotExist(err) {
@@ -26,7 +25,7 @@ func checkSOPSDrift(report *Report, allPairs []config.ResolvedFilePair, cwd stri
 		})
 		return
 	}
-	// encrypt synchronizes with cwd-relative paths; render the same view.
+	// .sops.yaml uses cwd-relative paths.
 	expected, err := sopsconfig.Render(config.DisplayResolvedFilePairs(allPairs, cwd))
 	if err != nil {
 		report.Add(Finding{
@@ -44,6 +43,6 @@ func checkSOPSDrift(report *Report, allPairs []config.ResolvedFilePair, cwd stri
 		Code:     "sops_config_drift",
 		Severity: SeverityError,
 		Message:  ".sops.yaml differs from the resolved project policy",
-		Hint:     "run 'yews encrypt' to regenerate it",
+		Hint:     "review .sops.yaml against the resolved verify policy",
 	})
 }

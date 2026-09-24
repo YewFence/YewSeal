@@ -44,10 +44,11 @@ func (o *Output) verifyReportJSON(report *verify.Report) error {
 	findings := make([]verifyFindingJSON, 0, len(report.Findings))
 	for _, f := range report.Findings {
 		entry := verifyFindingJSON{
-			Code:     f.Code,
-			Severity: string(f.Severity),
-			Message:  f.Message,
-			Hint:     f.Hint,
+			Code:      f.Code,
+			Severity:  string(f.Severity),
+			Recipient: f.Recipient,
+			Message:   f.Message,
+			Hint:      f.Hint,
 		}
 		if f.PlaintextPath != "" {
 			entry.PlaintextPath = o.path(f.PlaintextPath)
@@ -89,6 +90,7 @@ type verifyFindingJSON struct {
 	Severity      string `json:"severity"`
 	PlaintextPath string `json:"plaintext_path,omitempty"`
 	EncryptedPath string `json:"encrypted_path,omitempty"`
+	Recipient     string `json:"recipient,omitempty"`
 	Message       string `json:"message"`
 	Hint          string `json:"hint,omitempty"`
 }

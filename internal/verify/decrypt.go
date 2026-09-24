@@ -1,7 +1,6 @@
 package verify
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"os"
@@ -90,7 +89,18 @@ func checkDecrypt(report *Report, pair config.ResolvedFilePair, bundle agekey.Id
 		})
 		return
 	}
-	if bytes.Equal(currentData, plainData) {
+	equal, err := sopsx.PlaintextEqual(plainData, currentData, pair.Format)
+	if err != nil {
+		report.Add(Finding{
+			Code:          "plaintext_parse_error",
+			Severity:      SeverityError,
+			PlaintextPath: pair.PlaintextPath,
+			EncryptedPath: pair.EncryptedPath,
+			Message:       fmt.Sprintf("failed to compare plaintext %s: %v", pair.PlaintextPath, err),
+		})
+		return
+	}
+	if equal {
 		report.AddPass()
 	} else {
 		report.Add(Finding{

@@ -44,6 +44,9 @@ func checkCiphertext(report *Report, pair config.ResolvedFilePair, labels recipi
 	if len(inspected.AgeRecipients) == 0 {
 		return fail("ciphertext_no_recipients", "SOPS metadata contains no Age recipient", "re-encrypt it with 'yews encrypt --force'")
 	}
+	if inspected.HasNonAgeKeys {
+		fail("recipient_unsupported", "SOPS metadata contains non-Age decryption keys", "re-encrypt it with 'yews encrypt --force' to remove unauthorized keys")
+	}
 	checkRecipients(report, pair, inspected.AgeRecipients, labels)
 	return true
 }
