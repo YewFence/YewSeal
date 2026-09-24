@@ -36,8 +36,10 @@ unchanged values retain their ciphertext, and recipient-only changes only
 rewrap the existing data key. If no identity is available, or none matches a
 specific file, encrypt warns and replaces that ciphertext from the current
 plaintext. --force always performs this fresh encryption and rotates the data
-key without reading the old ciphertext. Missing plaintext is reported and
-skipped without creating an output directory.
+key without reading the old ciphertext. encrypt reads only plaintext files:
+when a plaintext is missing, it is reported and skipped without creating an
+output directory. Regardless of the selected targets, .sops.yaml is synced
+from the complete project configuration, including ciphertext-only mappings.
 
 --output only changes the location, never the format. There is no
 --format flag: non-standard extensions are declared via "format" or

@@ -103,8 +103,9 @@ func TestDiffSelectionDoesNotDiscoverCiphertextOnlyGroups(t *testing.T) {
 	cfg := selectionConfig(t)
 	enc := selectionFile(t, cfg.CurrentDir, "remote.enc.yaml")
 	cfg.Encryption.Groups = []GroupConfig{{ConfigDir: cfg.CurrentDir, Patterns: []string{"*.yaml"}}}
-	_, err := ResolveSelection(cfg, SelectionOptions{Command: task.ModeDiff})
-	require.ErrorContains(t, err, "no configured file pairs selected")
+	selection, err := ResolveSelection(cfg, SelectionOptions{Command: task.ModeDiff})
+	require.NoError(t, err)
+	require.Empty(t, selection.FilePairs)
 	_, err = ResolveSelection(cfg, SelectionOptions{Command: task.ModeDiff, Targets: []string{enc}})
 	require.ErrorContains(t, err, "not configured")
 	cfg.Encryption.Files = []FilePair{{PlaintextPath: filepath.Join(cfg.CurrentDir, "remote.yaml"), EncryptedPath: enc}}

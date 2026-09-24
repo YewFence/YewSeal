@@ -85,10 +85,9 @@ func selectConfiguredFilePairs(cfg *Config, allConfigPairs []FilePair, opts Sele
 	if opts.RequireSingleTarget && len(selected) != 1 {
 		return SelectionResult{}, fmt.Errorf("%s requires exactly one target", opts.Command)
 	}
-	if len(selected) == 0 {
+	if len(selected) == 0 && !policyForCommand(opts.Command).allowEmptySelection {
 		return SelectionResult{}, fmt.Errorf("no configured file pairs selected for current directory scope %s", DisplayPath(cwdFromConfig(cfg), cwdFromConfig(cfg)))
 	}
-
 	return SelectionResult{
 		FilePairs:       selected,
 		AllConfigPairs:  allConfigPairs,
@@ -352,6 +351,7 @@ func scopedConfigGroupPairs(cfg *Config, mode string) ([]FilePair, error) {
 			FormatRules:     group.FormatRules,
 			ExcludedPaths:   excludedPaths,
 			UnknownAsBinary: group.UnknownAsBinary,
+			AllowEmpty:      true,
 			Mode:            policy.discoveryMode,
 		})
 		if err != nil {

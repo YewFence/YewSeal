@@ -10,6 +10,7 @@ import (
 	"github.com/YewFence/YewSeal/internal/config"
 	"github.com/YewFence/YewSeal/internal/presentation"
 	"github.com/YewFence/YewSeal/internal/seal"
+	"github.com/YewFence/YewSeal/internal/sopsx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -280,6 +281,25 @@ func TestEncryptFilesWritesPortableSopsPaths(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, string(content), `path_regex: ^secret\.enc\.yaml$`)
 	assert.NotContains(t, string(content), config.CurrentDir(cfg))
+}
+
+func TestEncryptFilesSkipsCiphertextOnlyGroupAndSyncsPolicy(t *testing.T) {
+	env := newAppCryptoTestEnv(t)
+	ciphertext, err := sopsx.Encrypt([]byte("token: value\n"), "yaml", []string{env.publicKey})
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile("secret.enc.yaml", ciphertext, 0600))
+	cwd, err := os.Getwd()
+	require.NoError(t, err)
+	cfg := configWithOwnerRecipient(&config.Config{
+		CurrentDir: cwd,
+		Encryption: config.EncryptionConfig{Groups: []config.GroupConfig{{ConfigDir: cwd, Patterns: []string{"*.yaml"}}}},
+	}, env.publicKey)
+
+	require.NoError(t, EncryptFiles(cfg, EncryptRequest{UpdateProjectMetadata: true, SyncSOPSConfig: true}))
+	require.NoFileExists(t, "secret.yaml")
+	content, err := os.ReadFile(".sops.yaml")
+	require.NoError(t, err)
+	require.Contains(t, string(content), `path_regex: ^secret\.enc\.yaml$`)
 }
 
 func TestTargetedEncryptSyncsCompleteProjectSopsPolicy(t *testing.T) {

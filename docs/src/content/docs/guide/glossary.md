@@ -54,7 +54,7 @@ The set of mappings a command will process, produced by interpreting CLI argumen
 
 ## Sides
 
-The two paths of a [mapping](#mapping): the *plaintext side* (`config.toml`) and the *encrypted side* (`config.enc.toml`). Commands differ in which side they look at — `encrypt` and `diff` match by plaintext, `decrypt` by ciphertext, `plan` by either. See [Target selection](/guide/target-selection).
+The two paths of a [mapping](#mapping): the *plaintext side* (`config.toml`) and the *encrypted side* (`config.enc.toml`). Commands differ in which side they look at — `encrypt` and `diff` match by plaintext, `decrypt` by ciphertext, and `plan` by either. See [Target selection](/guide/target-selection).
 
 ## Skip
 

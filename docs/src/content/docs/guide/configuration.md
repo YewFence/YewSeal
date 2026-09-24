@@ -53,7 +53,7 @@ plaintext = "config.toml"
 encrypted = "config.enc.toml"
 ```
 
-Every path processed at runtime must come from an explicit file pair or a group. A missing config, an empty config, or an unregistered target never auto-generates a file pair; the default private key file remains `.age/keys.txt`.
+Every path processed at runtime must come from an explicit file pair or a group. A missing or empty config, or an unregistered target, never auto-generates a file pair; the default private key file remains `.age/keys.txt`.
 
 Pair paths resolve at load time: a relative `plaintext` or `encrypted` path is interpreted against the directory of the config file that declares it — the same base as a group's [discovery root](/guide/glossary#discovery-root). 
 

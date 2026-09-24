@@ -27,7 +27,7 @@ type Options struct {
 func Encrypt(opts Options) (*Summary, error) {
 	filePairs := opts.FilePairs
 	if len(filePairs) == 0 {
-		return nil, fmt.Errorf("no configured file pairs to encrypt")
+		return &Summary{}, nil
 	}
 
 	processor := func(pair FilePair) (Outcome, string, error) {
@@ -68,7 +68,7 @@ func Encrypt(opts Options) (*Summary, error) {
 func Decrypt(opts Options) (*Summary, error) {
 	filePairs := opts.FilePairs
 	if len(filePairs) == 0 {
-		return nil, fmt.Errorf("no configured file pairs to decrypt")
+		return &Summary{}, nil
 	}
 
 	processor := func(pair FilePair) (Outcome, string, error) {

@@ -196,7 +196,7 @@ func TestSelectFilePairs_PatternTargetMatchesCommandPrimarySide(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, result.FilePairs, 2)
 
-	// encrypt 匹配明文侧：*.enc.yaml 不命中任何明文路径，报错
+	// encrypt 匹配明文侧：*.enc.yaml 不命中任何明文路径。
 	_, err = SelectFilePairs(cfg, SelectionOptions{
 		Command: task.ModeEncrypt,
 		Targets: []string{"*.enc.yaml"},

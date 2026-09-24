@@ -115,6 +115,9 @@ func loadConfigFiles(cwd string, configFiles []LoadedFile) (*Config, error) {
 			return nil, err
 		}
 	}
+	if len(config.Encryption.Files) == 0 && len(config.Encryption.Groups) == 0 && !hasRecipientPolicy(config) {
+		return nil, fmt.Errorf("YewSeal configuration contains no encryption files or groups")
+	}
 	if hasRecipientPolicy(config) {
 		if err := config.ValidateRecipientConfig(); err != nil {
 			return nil, err

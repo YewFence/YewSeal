@@ -190,7 +190,7 @@ func TestIdentitiesHumanTableAndRevealColumn(t *testing.T) {
 func TestIdentitiesNoSourcePrintsEmptyReport(t *testing.T) {
 	clearCLIEnvironment(t)
 	t.Chdir(t.TempDir())
-	require.NoError(t, os.WriteFile(".yewseal.toml", nil, 0600))
+	require.NoError(t, os.WriteFile(".yewseal.toml", []byte("[recipients.registry]\nowner = 'age1r09mha3l82nt25r3kujgkpw4ts60ezntwcj74vnk0t3e9elyu3rswkx08j'\n"), 0600))
 
 	stdout, stderr, err := runIdentities(t, "--json")
 	require.NoError(t, err)
@@ -203,7 +203,7 @@ func TestIdentitiesNoSourcePrintsEmptyReport(t *testing.T) {
 func TestIdentitiesMalformedSourcePrintsEmptyReportWithWarning(t *testing.T) {
 	clearCLIEnvironment(t)
 	t.Chdir(t.TempDir())
-	require.NoError(t, os.WriteFile(".yewseal.toml", nil, 0600))
+	require.NoError(t, os.WriteFile(".yewseal.toml", []byte("[recipients.registry]\nowner = 'age1r09mha3l82nt25r3kujgkpw4ts60ezntwcj74vnk0t3e9elyu3rswkx08j'\n"), 0600))
 	t.Setenv("YEWSEAL_AGE_IDENTITIES", "invalid")
 
 	stdout, stderr, err := runIdentities(t, "--json")
