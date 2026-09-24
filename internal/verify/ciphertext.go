@@ -44,17 +44,27 @@ func checkCiphertext(report *Report, pair config.ResolvedFilePair, labels recipi
 	if len(inspected.AgeRecipients) == 0 {
 		return fail("ciphertext_no_recipients", "SOPS metadata contains no Age recipient", "re-encrypt it with 'yews encrypt --force'")
 	}
+	metadataValid := true
+	keyGroupsSupported := inspected.KeyGroupCount == 1
+	if !keyGroupsSupported {
+		fail("key_groups_unsupported", "SOPS metadata contains unsupported multiple key groups", "re-encrypt it with 'yews encrypt --force' to normalize the key group layout")
+		metadataValid = false
+	}
 	if inspected.HasNonAgeKeys {
 		fail("recipient_unsupported", "SOPS metadata contains non-Age decryption keys", "re-encrypt it with 'yews encrypt --force' to remove unauthorized keys")
+		metadataValid = false
 	}
-	checkRecipients(report, pair, inspected.AgeRecipients, labels)
-	return true
+	recipientsValid := checkRecipients(report, pair, inspected.AgeRecipients, labels)
+	if metadataValid && recipientsValid {
+		report.AddPass()
+	}
+	return keyGroupsSupported
 }
 
 // checkRecipients compares the metadata recipient list with the configured
 // canonical set. Missing, extra, and duplicate recipients are reported
 // separately because each needs a different repair.
-func checkRecipients(report *Report, pair config.ResolvedFilePair, actual []string, labels recipientLabels) {
+func checkRecipients(report *Report, pair config.ResolvedFilePair, actual []string, labels recipientLabels) bool {
 	configured := make(map[string]bool, len(pair.Recipients))
 	for _, recipient := range pair.Recipients {
 		configured[recipient] = true
@@ -90,12 +100,12 @@ func checkRecipients(report *Report, pair config.ResolvedFilePair, actual []stri
 		}
 	}
 	if len(findings) == 0 {
-		report.AddPass()
-		return
+		return true
 	}
 	for _, finding := range findings {
 		report.Add(finding)
 	}
+	return false
 }
 
 // recipientLabels maps canonical public keys to registry aliases for display.

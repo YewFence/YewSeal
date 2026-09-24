@@ -32,8 +32,9 @@ Checks:
                   invalid config, unknown alias, empty recipient set, or
                   group conflict is a calling error, not a finding.
   ciphertext      no private key needed: the encrypted file exists, is a
-                  regular file, parses as SOPS, contains no non-Age keys,
-                  and its Age recipients equal the configured public keys
+                  regular file, parses as SOPS, contains exactly one key
+                  group with no non-Age keys, and its Age recipients equal
+                  the configured public keys
                   (order ignored; renaming an alias without changing its
                   key is not drift).
   decryption      runs when an Age identity is available: decrypts, checks
@@ -58,7 +59,7 @@ Checks:
 
 Finding codes are stable: ciphertext_missing, ciphertext_not_regular,
 ciphertext_stat_error, ciphertext_read_error, ciphertext_parse_error,
-ciphertext_no_recipients, recipient_unsupported, recipient_missing, recipient_extra,
+ciphertext_no_recipients, key_groups_unsupported, recipient_unsupported, recipient_missing, recipient_extra,
 recipient_duplicate, decrypt_failed, mac_mismatch,
 decrypt_no_matching_identity (warning, error with --decrypt),
 plaintext_read_error, plaintext_parse_error, plaintext_drift, plaintext_tracked,

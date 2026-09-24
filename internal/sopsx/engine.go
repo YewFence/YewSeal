@@ -34,6 +34,7 @@ const sopsVersion = "3.13.3"
 // Info describes an encrypted file's sops metadata, readable without a key.
 type Info struct {
 	AgeRecipients []string
+	KeyGroupCount int
 	HasNonAgeKeys bool
 	LastModified  time.Time
 	Version       string
@@ -232,6 +233,7 @@ func Inspect(encData []byte, format string) (Info, error) {
 
 	return Info{
 		AgeRecipients: ageRecipientsFromTree(tree),
+		KeyGroupCount: len(tree.Metadata.KeyGroups),
 		HasNonAgeKeys: hasNonAgeKeys(tree),
 		LastModified:  tree.Metadata.LastModified,
 		Version:       tree.Metadata.Version,

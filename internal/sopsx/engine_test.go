@@ -102,7 +102,28 @@ func TestInspectDetectsNonAgeKeys(t *testing.T) {
 	info, err := Inspect(withPGP, "yaml")
 	require.NoError(t, err)
 	require.Equal(t, []string{key.recipient}, info.AgeRecipients)
+	require.Equal(t, 1, info.KeyGroupCount)
 	require.True(t, info.HasNonAgeKeys)
+}
+
+func TestInspectReportsMultipleKeyGroups(t *testing.T) {
+	first := newTestKey(t)
+	second := newTestKey(t)
+	encData, err := Encrypt(samplePlaintext("yaml"), "yaml", []string{first.recipient, second.recipient})
+	require.NoError(t, err)
+	store, err := storeForFormat("yaml")
+	require.NoError(t, err)
+	tree, err := store.LoadEncryptedFile(encData)
+	require.NoError(t, err)
+	tree.Metadata.KeyGroups = []sops.KeyGroup{{tree.Metadata.KeyGroups[0][0]}, {tree.Metadata.KeyGroups[0][1]}}
+	withMultipleGroups, err := store.EmitEncryptedFile(tree)
+	require.NoError(t, err)
+
+	info, err := Inspect(withMultipleGroups, "yaml")
+	require.NoError(t, err)
+	require.ElementsMatch(t, []string{first.recipient, second.recipient}, info.AgeRecipients)
+	require.Equal(t, 2, info.KeyGroupCount)
+	require.False(t, info.HasNonAgeKeys)
 }
 
 func TestCiphertextInteroperatesWithNativeSOPSDecryptTree(t *testing.T) {
@@ -441,6 +462,7 @@ func TestInspect(t *testing.T) {
 	info, err := Inspect(encData, "toml")
 	require.NoError(t, err)
 	assert.Equal(t, []string{key.recipient}, info.AgeRecipients)
+	assert.Equal(t, 1, info.KeyGroupCount)
 	assert.Equal(t, sopsVersion, info.Version)
 	// sops serializes LastModified with second precision.
 	assert.WithinDuration(t, before, info.LastModified, 2*time.Second)

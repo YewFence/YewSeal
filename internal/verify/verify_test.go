@@ -235,6 +235,37 @@ func TestCiphertextNonAgeRecipientIsRejected(t *testing.T) {
 	report, err := verify.Check(minimalSelection(resolvedPair(filepath.Join(dir, "config.yaml"), encPath, "yaml", []string{key.recipient})), dir, verify.Options{DecryptMode: verify.DecryptDisabled})
 	require.NoError(t, err)
 	requireFinding(t, report, "recipient_unsupported", verify.SeverityError)
+	assert.Equal(t, 0, report.PassCount)
+}
+
+func TestCiphertextMultipleKeyGroupsAreRejected(t *testing.T) {
+	dir := t.TempDir()
+	first := newTestKey(t)
+	second := newTestKey(t)
+	encPath := makeEncrypted(t, dir, "config.enc.yaml", "yaml", []byte("token: secret\n"), []string{first.recipient, second.recipient})
+	data, err := os.ReadFile(encPath)
+	require.NoError(t, err)
+	var doc map[string]any
+	require.NoError(t, yaml.Unmarshal(data, &doc))
+	metadata := doc["sops"].(map[string]any)
+	ageKeys := metadata["age"].([]any)
+	require.Len(t, ageKeys, 2)
+	metadata["key_groups"] = []map[string]any{{"age": []any{ageKeys[0]}}, {"age": []any{ageKeys[1]}}}
+	delete(metadata, "age")
+	data, err = yaml.Marshal(doc)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(encPath, data, 0600))
+
+	report, err := verify.Check(
+		minimalSelection(resolvedPair(filepath.Join(dir, "config.yaml"), encPath, "yaml", []string{first.recipient, second.recipient})),
+		dir,
+		verify.Options{DecryptMode: verify.DecryptDisabled},
+	)
+	require.NoError(t, err)
+	requireFinding(t, report, "key_groups_unsupported", verify.SeverityError)
+	requireNoFinding(t, report, "recipient_missing")
+	requireNoFinding(t, report, "recipient_extra")
+	assert.Equal(t, 0, report.PassCount)
 }
 
 func TestCiphertextRecipientMatchPass(t *testing.T) {
