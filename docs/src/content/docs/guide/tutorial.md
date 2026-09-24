@@ -257,3 +257,4 @@ If you saved your edits with `encrypt` first, `clean` removes the plaintext with
 - [CI/CD integration](/guide/ci-cd) — the same `decrypt --strict` flow as a deployment gate
 - [Target selection](/guide/target-selection) — what CLI arguments select and what they never do
 - [Cleaning local plaintext](/guide/plaintext-cleanup) — remove decrypted files once the ciphertext proves them recoverable
+- [Verifying repository health](/guide/verifying) — catch recipient drift, committed plaintext, and `.sops.yaml` drift before a deployment does

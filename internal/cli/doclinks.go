@@ -14,5 +14,5 @@ const (
 	docsPrivateKeys        = docsBaseURL + "/guide/private-keys"
 	docsSOPS               = docsBaseURL + "/guide/sops"
 	docsCICD               = docsBaseURL + "/guide/ci-cd"
-	docsVerify             = docsCICD + "#checking-repository-health"
+	docsVerify             = docsBaseURL + "/guide/verifying"
 )

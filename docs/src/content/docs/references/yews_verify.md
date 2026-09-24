@@ -74,7 +74,7 @@ report that cannot be written.
 See also: "yews plan" for mappings and authorization only, "yews encrypt"
 to repair recipient drift, "yews diff" to inspect a plaintext difference.
 
-Documentation: https://yewfence.github.io/YewSeal/guide/ci-cd#checking-repository-health
+Documentation: https://yewfence.github.io/YewSeal/guide/verifying
 
 ```
 yews verify [command options] [path-or-pattern]... [flags]

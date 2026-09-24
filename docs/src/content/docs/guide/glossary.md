@@ -59,3 +59,5 @@ The two paths of a [mapping](#mapping): the *plaintext side* (`config.toml`) and
 ## Skip
 
 A per-file outcome meaning "no matching [identity](#identity)" for `decrypt`, or a missing input for `diff` — not an error in [lenient](#lenient-and-strict) mode, never a sign of corruption. See [Decryption results and strict mode](/guide/decryption-results).
+
+`verify` reports skipped checks too, but that is a different concept: a layer that did not run — no identity available, outside a repository — not a per-file outcome. See [Verifying repository health](/guide/verifying).
