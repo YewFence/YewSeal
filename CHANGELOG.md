@@ -1,3 +1,12 @@
+## [0.18.0] - 2026-09-24
+
+### 🚀 Features
+
+- *(verify)* [**breaking**] Add verify command and unify YEWSEAL_SYNC_SOPS_CONFIG (#71)
+
+### ⚙️ Miscellaneous Tasks
+
+- *(mise-deps)* Update mise tools (#72)
 ## [0.17.0] - 2026-09-22
 
 ### 🚀 Features
