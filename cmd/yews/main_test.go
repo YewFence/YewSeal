@@ -49,6 +49,7 @@ func TestCLIConfigurationLoading(t *testing.T) {
 		{"init", "--help"}, {"encrypt", "--help"}, {"decrypt", "--help"},
 		{"clean", "--help"},
 		{"plan", "--help"}, {"edit", "--help"}, {"view", "--help"}, {"diff", "--help"},
+		{"verify", "--help"},
 		{"init", "--help", "--format", "invalid"},
 		{"completion", "bash"}, {"completion", "zsh"}, {"completion", "fish"}, {"completion", "powershell"},
 		{"__complete", ""}, {"__complete", "decrypt", "--"},

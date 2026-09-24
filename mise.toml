@@ -21,6 +21,8 @@ cue = "0"
 typos = "1"
 betterleaks = "1"
 actionlint = "1"
+# https://github.com/jj-vcs/jj (verify's VCS-layer tests exercise real jj repos)
+jj = "0"
 
 [vars]
 nllint_excludes = ""

@@ -14,10 +14,12 @@ import (
 )
 
 func TestEncryptAndDecryptRequireResolvedFilePairs(t *testing.T) {
-	_, err := Encrypt(Options{})
-	require.EqualError(t, err, "no configured file pairs to encrypt")
-	_, err = Decrypt(Options{})
-	require.EqualError(t, err, "no configured file pairs to decrypt")
+	encryptSummary, err := Encrypt(Options{})
+	require.NoError(t, err)
+	require.Empty(t, encryptSummary.Results)
+	decryptSummary, err := Decrypt(Options{})
+	require.NoError(t, err)
+	require.Empty(t, decryptSummary.Results)
 }
 
 func TestEncryptDecryptFilePairsWithFormatOverride(t *testing.T) {

@@ -45,13 +45,12 @@ func TestLoadConfig_NoFile(t *testing.T) {
 	assert.Nil(t, cfg)
 }
 
-func TestLoadConfigEmptyFileIsNotMissing(t *testing.T) {
+func TestLoadConfigRejectsEmptyFile(t *testing.T) {
 	t.Chdir(t.TempDir())
 	require.NoError(t, os.WriteFile(".yewseal.toml", nil, 0600))
 	cfg, err := LoadConfig()
-	require.NoError(t, err)
-	require.Len(t, cfg.LoadedFiles, 1)
-	require.Empty(t, cfg.GetFiles())
+	require.Nil(t, cfg)
+	require.ErrorContains(t, err, "contains no encryption files or groups")
 }
 
 func TestLoadConfig_WithFile(t *testing.T) {

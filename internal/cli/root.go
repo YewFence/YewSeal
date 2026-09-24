@@ -52,6 +52,7 @@ Documentation: ` + docsBaseURL + `/`,
 		editCommand(load),
 		viewCommand(load),
 		diffCommand(load),
+		verifyCommand(load),
 	)
 
 	return rootCmd

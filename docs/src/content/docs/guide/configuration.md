@@ -53,7 +53,7 @@ plaintext = "config.toml"
 encrypted = "config.enc.toml"
 ```
 
-Every path processed at runtime must come from an explicit file pair or a group. A missing config, an empty config, or an unregistered target never auto-generates a file pair; the default private key file remains `.age/keys.txt`.
+Every path processed at runtime must come from an explicit file pair or a group. A missing or empty config, or an unregistered target, never auto-generates a file pair; the default private key file remains `.age/keys.txt`.
 
 Pair paths resolve at load time: a relative `plaintext` or `encrypted` path is interpreted against the directory of the config file that declares it — the same base as a group's [discovery root](/guide/glossary#discovery-root). 
 
@@ -119,7 +119,7 @@ A group's discovery root is always the directory of the config that owns it. CLI
 
 ## .sops.yaml
 
-`.sops.yaml` is SOPS's own config. `init` creates it by default, while interactive initialization asks unless `--sync-sops-config` was explicitly set. `encrypt` defaults to synchronizing it after processing. Setting `--sync-sops-config=false` leaves any existing `.sops.yaml` untouched for both commands, including forced initialization; `YEWSEAL_INIT_SYNC_SOPS_CONFIG=false` and `YEWSEAL_ENCRYPT_SYNC_SOPS_CONFIG=false` provide the corresponding environment settings. Skipping `.sops.yaml` does not affect YewSeal's own encryption through the embedded SOPS engine, but having it makes direct `sops` usage more convenient.
+`.sops.yaml` is SOPS's own config. `init` creates it by default, while interactive initialization asks unless `--sync-sops-config` was explicitly set. `encrypt` defaults to synchronizing it after processing. Setting `--sync-sops-config=false` leaves any existing `.sops.yaml` untouched for both commands, including forced initialization, and makes `verify` skip its `.sops.yaml` drift check. The flag describes one project-wide policy, so `init`, `encrypt`, and `verify` share a single environment variable: `YEWSEAL_SYNC_SOPS_CONFIG=false`. Skipping `.sops.yaml` does not affect YewSeal's own encryption through the embedded SOPS engine, but having it makes direct `sops` usage more convenient.
 
 ```yaml
 creation_rules:

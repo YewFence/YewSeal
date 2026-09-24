@@ -73,7 +73,6 @@ func resolveSelection(cfg *Config, opts SelectionOptions) (ResolvedSelection, er
 	if err != nil {
 		return ResolvedSelection{}, err
 	}
-
 	// Resolve the entire configured scope before applying selectors or output overrides.
 	allConfigPairs, err := resolveFilePairs(cfg, filePairs, opts)
 	if err != nil {

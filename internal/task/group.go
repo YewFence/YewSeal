@@ -18,6 +18,7 @@ const (
 	ModePlan    = "plan"
 	ModeView    = "view"
 	ModeClean   = "clean"
+	ModeVerify  = "verify"
 )
 
 // protocolFilePatterns is how decryption discovers ciphertext: YewSeal
@@ -39,6 +40,7 @@ type GroupOptions struct {
 	FormatRules     []string
 	ExcludedPaths   []string
 	UnknownAsBinary bool
+	AllowEmpty      bool
 	Mode            string
 }
 
@@ -50,7 +52,7 @@ type FormatRule struct {
 
 func BuildGroupFilePairs(opts GroupOptions) ([]FilePair, error) {
 	if opts.Mode == ModePlan {
-		return buildBidirectionalGroupFilePairs(opts, false)
+		return buildBidirectionalGroupFilePairs(opts, opts.AllowEmpty)
 	}
 	if opts.Mode == ModeClean {
 		return buildBidirectionalGroupFilePairs(opts, true)
@@ -59,7 +61,7 @@ func BuildGroupFilePairs(opts GroupOptions) ([]FilePair, error) {
 		opts.Mode = ModeEncrypt
 		return buildGroupFilePairs(opts, true)
 	}
-	return buildGroupFilePairs(opts, false)
+	return buildGroupFilePairs(opts, opts.AllowEmpty)
 }
 
 func buildGroupFilePairs(opts GroupOptions, allowEmpty bool) ([]FilePair, error) {
@@ -159,7 +161,7 @@ func BuildProjectGroupFilePairs(opts GroupOptions) ([]FilePair, error) {
 	if opts.Mode != ModeDecrypt {
 		return BuildGroupFilePairs(opts)
 	}
-	return buildProjectDecryptFilePairs(opts, false)
+	return buildProjectDecryptFilePairs(opts, opts.AllowEmpty)
 }
 
 func buildProjectDecryptFilePairs(opts GroupOptions, allowEmpty bool) ([]FilePair, error) {

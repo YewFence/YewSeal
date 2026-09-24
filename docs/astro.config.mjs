@@ -53,6 +53,7 @@ export default defineConfig({
             { label: 'Target selection', link: '/guide/target-selection/' },
             { label: 'Decryption results and strict mode', link: '/guide/decryption-results/' },
             { label: 'Cleaning local plaintext', link: '/guide/plaintext-cleanup/' },
+            { label: 'Verifying repository health', link: '/guide/verifying/' },
             { label: 'Glossary', link: '/guide/glossary/' },
           ],
         },

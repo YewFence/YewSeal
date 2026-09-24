@@ -42,6 +42,7 @@ func TestGenerateWritesOnePagePerCommand(t *testing.T) {
 		"yews_edit",
 		"yews_view",
 		"yews_diff",
+		"yews_verify",
 		"yews_completion",
 	} {
 		assert.FileExists(t, filepath.Join(dir, name+".md"))

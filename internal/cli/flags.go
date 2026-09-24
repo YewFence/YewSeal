@@ -76,6 +76,7 @@ func addEncryptFlags(flags *pflag.FlagSet, opts *encryptOptions) {
 	flags.BoolVarP(&opts.Verbose, "verbose", "v", false, "Enable verbose output")
 	flags.BoolVar(&opts.JSON, "json", false, "Print the batch report as JSON on stdout (diagnostics stay on stderr)")
 	flags.BoolVar(&opts.SyncSOPSConfig, "sync-sops-config", opts.SyncSOPSConfig, "Sync the complete project policy to .sops.yaml after encryption")
+	markSharedEnv(flags.Lookup("sync-sops-config"), syncSOPSConfigEnv)
 }
 
 func addDecryptFlags(flags *pflag.FlagSet, opts *decryptOptions) {
@@ -98,4 +99,12 @@ func addCleanFlags(flags *pflag.FlagSet, opts *cleanOptions) {
 func addPlanFlags(flags *pflag.FlagSet, opts *planOptions) {
 	flags.BoolVarP(&opts.Verbose, "verbose", "v", false, "Enable verbose output")
 	flags.BoolVar(&opts.JSON, "json", false, "Print configured file mappings as JSON")
+}
+
+type verifyOptions struct {
+	KeyFile        string `mapstructure:"key-file"`
+	Decrypt        bool   `mapstructure:"decrypt"`
+	NoDecrypt      bool   `mapstructure:"no-decrypt"`
+	SyncSOPSConfig bool   `mapstructure:"sync-sops-config"`
+	JSON           bool   `mapstructure:"json"`
 }

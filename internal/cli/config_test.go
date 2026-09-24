@@ -149,8 +149,7 @@ func TestConfigLoadingDistinguishesMissingFromEmpty(t *testing.T) {
 	cmd := NewRootCommand("test")
 	quietCommand(cmd, []string{"plan"})
 	err := cmd.Execute()
-	require.ErrorContains(t, err, "no configured file pairs selected")
-	require.NotContains(t, err.Error(), "failed to load config")
+	require.ErrorContains(t, err, "configuration contains no encryption files or groups")
 }
 
 func TestSuccessfulConfigLoadIsNotCached(t *testing.T) {
@@ -163,7 +162,7 @@ func TestSuccessfulConfigLoadIsNotCached(t *testing.T) {
 		return config.LoadConfig()
 	})
 	quietCommand(cmd, []string{"plan"})
-	require.ErrorContains(t, cmd.Execute(), "no configured file pairs selected")
+	require.ErrorContains(t, cmd.Execute(), "configuration contains no encryption files or groups")
 	require.Equal(t, 1, calls)
 	require.NoError(t, os.WriteFile(".yewseal.toml", []byte("[broken"), 0600))
 	require.ErrorContains(t, cmd.Execute(), "failed to parse config file")

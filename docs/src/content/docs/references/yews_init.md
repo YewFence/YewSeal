@@ -86,7 +86,7 @@ yews init [flags]
   -i, --input string       Plaintext file for the first config entry (switches to non-interactive mode) (env YEWSEAL_INIT_INPUT)
       --json               Print the initialization report as JSON on stdout (prompts and diagnostics stay on stderr) (env YEWSEAL_INIT_JSON)
   -o, --output string      Encrypted file for the first config entry (non-interactive mode) (env YEWSEAL_INIT_OUTPUT)
-      --sync-sops-config   Create or update .sops.yaml; explicit true or false skips the interactive prompt (env YEWSEAL_INIT_SYNC_SOPS_CONFIG) (default true)
+      --sync-sops-config   Create or update .sops.yaml; explicit true or false skips the interactive prompt (env YEWSEAL_SYNC_SOPS_CONFIG) (default true)
 ```
 
 ## Options inherited from parent commands

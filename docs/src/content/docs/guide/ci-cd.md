@@ -82,6 +82,17 @@ In both examples, store the private key value from `.age/keys.txt` as a reposito
 A common best practice is pinning actions to commit SHAs and `go install` to a release tag, and letting a bot like [Renovate](https://docs.renovatebot.com/) keep them updated — general CI hygiene rather than YewSeal-specific guidance.
 :::
 
+## Checking repository health
+
+Deploy jobs prove that ciphertext can be opened; a pull-request job can also prove that the repository itself is safe, without holding any private key:
+
+```yaml
+      - name: Verify encrypted configuration
+        run: yews verify --no-decrypt
+```
+
+`--no-decrypt` keeps the job keyless and its check set reproducible; a runner that does receive a key can gate on `yews verify --decrypt` instead. What each layer checks, what the findings mean, and how to repair them is covered in [Verifying repository health](/guide/verifying).
+
 ## With Infisical
 
 If private keys are hosted in Infisical, use its CLI independently to export the current deployment environment's identity first, then hand it to `yews`. Reference scripts and authentication notes live in [External private key sources](/guide/private-keys#infisical-reference-script). YewSeal never calls Infisical and does not require production to share a key with development machines.

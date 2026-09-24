@@ -117,8 +117,9 @@ func TestCleanOutsideProjectMappingSelectedExplicitlyButNotByScope(t *testing.T)
 		Format:        "yaml",
 	}}
 
-	_, err := ResolveSelection(cfg, SelectionOptions{Command: task.ModeClean})
-	require.ErrorContains(t, err, "no configured file pairs selected for current directory scope")
+	selection, err := ResolveSelection(cfg, SelectionOptions{Command: task.ModeClean})
+	require.NoError(t, err)
+	require.Empty(t, selection.FilePairs)
 
 	byTarget, err := ResolveSelection(cfg, SelectionOptions{Command: task.ModeClean, Targets: []string{outsidePlain}})
 	require.NoError(t, err)
