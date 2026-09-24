@@ -26,7 +26,7 @@ ERROR [recipient_missing] config.toml -> config.enc.toml: configured recipient o
 
 Only key sets are compared — renaming an alias without changing its key is not drift.
 
-**Version-control exposure.** Selected plaintext paths and file-backed Age keys must not be tracked by the nearest git or jj repository. This is the layer where "committed, then ignored" fails: ignoring a file does not remove it from history, so a plaintext that ever reached a commit stays an error until the history is rewritten. A file one commit away from leaking — untracked and not ignored — is a warning.
+**Version-control exposure.** Selected plaintext paths and file-backed Age keys must not be tracked by the nearest git or jj repository. This layer reads the current state — the git index, or jj's parent commit — not the whole history: a `plaintext_tracked` finding can be a file that is only staged, and untracking it (`git rm --cached`) clears the finding even when earlier commits still hold the bytes. Ignoring never untracks, so "committed, then ignored" keeps failing. Verify does not scan past commits — audit history separately when exposure is suspected. A file one commit away from leaking — untracked and not ignored — is a warning.
 
 **`.sops.yaml` drift.** The managed file is compared against the complete resolved policy, because a hand edit here would silently change what the standalone `sops` CLI may decrypt while `yews` keeps following `.yewseal.toml`. `yews encrypt` re-synchronizes it after processing; the comparison is governed by the one `--sync-sops-config` policy that `init`, `encrypt`, and `verify` share ([Configuration - .sops.yaml](/guide/configuration#sops-yaml)).
 
@@ -42,8 +42,8 @@ The decryption layer is the only tunable one, and its three postures match three
 
 Every finding carries a hint; the common repairs:
 
-- **Recipient drift** (`recipient_missing`, `recipient_extra`) — run `yews encrypt`: it rewraps the existing data key for the configured recipients without touching plaintext content.
-- **Plaintext exposure** (`plaintext_not_ignored` warning, `plaintext_tracked` error) — a warning means the ignore rule vanished; restore it (`decrypt` maintains these rules automatically). An error means the file reached a commit: get any unsaved change into ciphertext first (`diff`, then `encrypt`), remove the plaintext with [`clean`](/guide/plaintext-cleanup), and rewrite history — ignoring the file is not a repair.
+- **Recipient drift** (`recipient_missing`, `recipient_extra`) — `yews encrypt` repairs this only while the plaintext exists locally: with an identity matching the old recipients it rewraps the existing data key, without one it encrypts the plaintext fresh. With ciphertext only, nothing happens — the file is skipped — so restore the plaintext first with `yews decrypt`, which requires an identity among the old recipients. Holding neither is a dead end inherent to the SOPS + Age model: the data key is wrapped for the configured recipients only, so the finding stays red until one of them decrypts or re-encrypts the file.
+- **Plaintext exposure** (`plaintext_not_ignored` warning, `plaintext_tracked` error) — a warning means the ignore rule vanished; restore it (`decrypt` maintains these rules automatically). An error means the file is tracked now, possibly only staged: get any unsaved change into ciphertext first (`diff`, then `encrypt`), untrack the file, and remove the plaintext with [`clean`](/guide/plaintext-cleanup). Whether earlier commits also hold the plaintext is a separate history audit — ignoring the file is not a repair.
 - **Private key exposure** (`key_not_ignored` warning, `key_tracked` error) — treat the key as leaked: rotate to a new key pair, update the registry, and re-encrypt.
 - **Corrupt or undecryptable ciphertext** (`decrypt_failed`, `mac_mismatch`) — the data key no longer opens the file or its integrity check failed; recover the plaintext from another source and re-encrypt.
 
