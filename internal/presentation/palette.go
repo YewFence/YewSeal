@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/fatih/color"
+	"github.com/mattn/go-isatty"
 	"github.com/muesli/termenv"
 )
 
@@ -15,9 +16,12 @@ import (
 // while the xterm 256-color grays keep fixed RGB values everywhere, so the
 // muted role uses a gray from that palette to stay readable across themes.
 type colorPalette struct {
-	muted    *color.Color // summary keys, table headers, origin kinds
+	muted    *color.Color // summary keys, table headers, neutral status labels
 	format   *color.Color // format tokens
 	accent   *color.Color // aliases and provenance paths
+	warning  *color.Color // warning status labels
+	error     *color.Color // failure status labels
+	success  *color.Color // completed-action status labels
 	diffHead *color.Color // ---/+++ headers
 	diffHunk *color.Color // @@ hunks
 	diffDel  *color.Color // removed lines
@@ -29,6 +33,9 @@ var (
 		muted:    fg256(245),
 		format:   color.New(color.FgHiCyan),
 		accent:   color.New(color.FgHiYellow),
+		warning:  color.New(color.FgHiYellow),
+		error:     color.New(color.FgHiRed),
+		success:  color.New(color.FgHiGreen),
 		diffHead: color.New(color.FgHiCyan, color.Bold),
 		diffHunk: color.New(color.FgHiMagenta),
 		diffDel:  color.New(color.FgHiRed),
@@ -38,6 +45,9 @@ var (
 		muted:    fg256(242),
 		format:   color.New(color.FgCyan),
 		accent:   color.New(color.FgYellow),
+		warning:  color.New(color.FgYellow),
+		error:     color.New(color.FgRed),
+		success:  color.New(color.FgGreen),
 		diffHead: color.New(color.FgCyan, color.Bold),
 		diffHunk: color.New(color.FgMagenta),
 		diffDel:  color.New(color.FgRed),
@@ -50,9 +60,9 @@ func fg256(n int) *color.Color {
 	return color.New(color.Attribute(38), color.Attribute(5), color.Attribute(n))
 }
 
-// paint colors s with c; an unset role leaves s untouched.
+// paint colors s with c; unset roles and empty strings stay untouched.
 func paint(c *color.Color, s string) string {
-	if c == nil {
+	if c == nil || s == "" {
 		return s
 	}
 	return c.Sprint(s)
@@ -78,6 +88,26 @@ func paletteFor(w io.Writer) colorPalette {
 		return colorPalette{}
 	}
 	if terminalHasDarkBackground() {
+		return darkPalette
+	}
+	return lightPalette
+}
+
+// diagnosticsPaletteFor picks the palette for the diagnostic stream. It
+// checks NO_COLOR, TERM=dumb, and the writer's own TTY state, because
+// fatih/color's global NoColor only reflects the stdout stream: stderr may
+// be redirected while stdout is an interactive terminal, and vice versa.
+func diagnosticsPaletteFor(w io.Writer) colorPalette {
+	if os.Getenv("NO_COLOR") != "" || os.Getenv("TERM") == "dumb" {
+		return colorPalette{}
+	}
+	// termenv keeps its TTY probe private, so an isatty check on the writer's
+	// file descriptor decides whether colors can go out at all.
+	file, ok := w.(*os.File)
+	if !ok || !isatty.IsTerminal(file.Fd()) {
+		return colorPalette{}
+	}
+	if termenv.NewOutput(w).HasDarkBackground() {
 		return darkPalette
 	}
 	return lightPalette

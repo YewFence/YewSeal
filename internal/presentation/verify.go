@@ -2,9 +2,11 @@ package presentation
 
 import (
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/YewFence/YewSeal/internal/verify"
+	"github.com/fatih/color"
 )
 
 // VerifyReport renders a verify report on the content stream.
@@ -12,30 +14,46 @@ func (o *Output) VerifyReport(report *verify.Report, asJSON bool) error {
 	if asJSON {
 		return o.verifyReportJSON(report)
 	}
+	return printVerifyReport(o, report, paletteFor(o.content), o.path)
+}
+
+func printVerifyReport(w io.Writer, report *verify.Report, pal colorPalette, displayPath func(string) string) error {
 	var b strings.Builder
-	fmt.Fprintf(&b, "Summary: %d passed, %d warnings, %d errors, %d skipped\n",
-		report.PassCount, report.WarningCount, report.ErrorCount, report.SkipCount)
+	fmt.Fprintf(&b, "%s %d passed, %d warnings, %d errors, %d skipped\n",
+		paint(pal.muted, "Summary:"), report.PassCount, report.WarningCount, report.ErrorCount, report.SkipCount)
 	for _, reason := range report.SkipReasons {
-		fmt.Fprintf(&b, "SKIPPED %s\n", reason)
+		fmt.Fprintf(&b, "%s %s\n", paint(pal.muted, "SKIPPED"), reason)
 	}
 	for _, f := range report.Findings {
-		fmt.Fprintf(&b, "%s [%s]%s: %s\n", strings.ToUpper(string(f.Severity)), f.Code, o.findingLocation(f), f.Message)
+		fmt.Fprintf(&b, "%s [%s]%s: %s\n",
+			paint(severityColor(pal, f.Severity), strings.ToUpper(string(f.Severity))), f.Code,
+			verifyFindingLocation(f, displayPath), f.Message)
 		if f.Hint != "" {
-			fmt.Fprintf(&b, "  hint: %s\n", f.Hint)
+			fmt.Fprintf(&b, "%s %s\n", paint(pal.muted, "  hint:"), f.Hint)
 		}
 	}
-	_, err := o.Write([]byte(b.String()))
+	_, err := w.Write([]byte(b.String()))
 	return err
 }
 
-func (o *Output) findingLocation(f verify.Finding) string {
+func severityColor(pal colorPalette, severity verify.Severity) *color.Color {
+	switch severity {
+	case verify.SeverityError:
+		return pal.error
+	case verify.SeverityWarning:
+		return pal.warning
+	}
+	return pal.muted
+}
+
+func verifyFindingLocation(f verify.Finding, displayPath func(string) string) string {
 	switch {
 	case f.PlaintextPath != "" && f.EncryptedPath != "":
-		return " " + o.path(f.PlaintextPath) + " -> " + o.path(f.EncryptedPath)
+		return " " + displayPath(f.PlaintextPath) + " -> " + displayPath(f.EncryptedPath)
 	case f.PlaintextPath != "":
-		return " " + o.path(f.PlaintextPath)
+		return " " + displayPath(f.PlaintextPath)
 	case f.EncryptedPath != "":
-		return " " + o.path(f.EncryptedPath)
+		return " " + displayPath(f.EncryptedPath)
 	}
 	return ""
 }

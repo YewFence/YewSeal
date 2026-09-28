@@ -7,6 +7,7 @@ require (
 	github.com/YewFence/sops/v3 v3.0.0-20260917010022-e81f46a61f75
 	github.com/fatih/color v1.19.0
 	github.com/go-git/go-git/v5 v5.19.2
+	github.com/mattn/go-isatty v0.0.24
 	github.com/muesli/termenv v0.16.0
 	github.com/pelletier/go-toml/v2 v2.4.4-0.20260711173024-cbe6f88bcc08
 	github.com/sergi/go-diff v1.4.0
@@ -104,7 +105,6 @@ require (
 	github.com/lib/pq v1.12.3 // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
 	github.com/mattn/go-colorable v0.1.15 // indirect
-	github.com/mattn/go-isatty v0.0.24 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
