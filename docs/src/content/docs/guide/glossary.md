@@ -30,7 +30,7 @@ An `[[encryption.files]]` entry pairing one plaintext path with one encrypted pa
 
 ## Provenance
 
-Where a resolved value came from. The `plan` table reports a source column for the mapping, the format, and the authorization (e.g. `.yewseal.toml format`), so drift between config layers is visible before anything is written.
+Where a resolved value came from. `plan --source` reports each path, format, authorization, and registry origin (e.g. `.yewseal.toml format`) in a describe block, so drift between config layers is visible before anything is written.
 
 ## Protocol file
 

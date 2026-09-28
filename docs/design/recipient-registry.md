@@ -17,7 +17,7 @@
 5. **Identity bundle**：显式 key file、`YEWSEAL_AGE_IDENTITIES`、既有 SOPS source 和默认 key file 按优先级解析一次，去重后作为完整 bundle 供整个解密批次复用。
 6. **Decrypt/Edit**：decrypt 遇到已失效 alias 时向 stderr 输出非致命 warning，并继续依据密文 metadata 解密；edit 提供单个文件的解密、编辑、加密快捷流程。
 7. **Init 与 SOPS 配置**：init 写入 owner registry、defaults、显式 FilePair 及其 alias；`--force` 重建 key/policy/files，并在跳过 SOPS 配置时删除旧托管文件；key、主配置和 `.sops.yaml` 使用临时文件替换。
-8. **可审查输出**：plan 的表格和 JSON 均展示 alias、canonical recipients、effective authorization source 和 registry 来源；`.sops.yaml` 按文件生成稳定、多 recipient、完全托管的规则。
+8. **可审查输出**：plan 默认表格展示映射、格式和 alias，`--source` 按映射展示字段来源与 registry 来源，JSON 保留 alias、canonical recipients、effective authorization source 等全部字段；`.sops.yaml` 按文件生成稳定、多 recipient、完全托管的规则。
 
 当前文档后续章节仍保留原始设计依据、边界和验收标准，作为实现行为的规范说明。
 本版本的核心目标是：让每个加密文件最终拥有清晰、可审查的 Age recipient 集合，同时通过默认授权集合保持 quickstart 的低摩擦体验。文件路径必须属于 YewSeal 配置模型，但用户不必为每个文件重复书写 `recipients`。

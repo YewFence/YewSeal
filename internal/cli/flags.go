@@ -33,6 +33,7 @@ type cleanOptions struct {
 type planOptions struct {
 	Verbose bool `mapstructure:"verbose"`
 	JSON    bool `mapstructure:"json"`
+	Source  bool `mapstructure:"source"`
 }
 
 type initOptions struct {
@@ -99,6 +100,7 @@ func addCleanFlags(flags *pflag.FlagSet, opts *cleanOptions) {
 func addPlanFlags(flags *pflag.FlagSet, opts *planOptions) {
 	flags.BoolVarP(&opts.Verbose, "verbose", "v", false, "Enable verbose output")
 	flags.BoolVar(&opts.JSON, "json", false, "Print configured file mappings as JSON")
+	flags.BoolVar(&opts.Source, "source", false, "Show field-level origins in a describe layout (plain output only)")
 }
 
 type verifyOptions struct {

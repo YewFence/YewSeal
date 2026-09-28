@@ -14,16 +14,17 @@ import (
 type PlanPrintOptions struct {
 	JSON    bool
 	Verbose bool
+	Source  bool
 }
 
 func (o *Output) Plan(cfg *config.Config, selection config.ResolvedSelection, opts PlanPrintOptions) error {
 	if opts.JSON {
 		return printPlanJSON(o, cfg, selection)
 	}
-	return printPlanTable(o, cfg, selection, opts)
+	return printPlanText(o, cfg, selection, opts)
 }
 
-func printPlanTable(w io.Writer, cfg *config.Config, selection config.ResolvedSelection, opts PlanPrintOptions) error {
+func printPlanText(w io.Writer, cfg *config.Config, selection config.ResolvedSelection, opts PlanPrintOptions) error {
 	cwd := config.CurrentDir(cfg)
 	scope := config.DisplayPath(cwd, selection.CurrentDirScope)
 	if scope == "" {
@@ -58,30 +59,58 @@ func printPlanTable(w io.Writer, cfg *config.Config, selection config.ResolvedSe
 	if _, err := fmt.Fprintln(w); err != nil {
 		return err
 	}
+	if opts.Source {
+		return printPlanSources(w, cwd, selection.FilePairs)
+	}
+	return printPlanTable(w, cwd, selection.FilePairs)
+}
+
+func printPlanTable(w io.Writer, cwd string, filePairs []config.ResolvedFilePair) error {
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	if _, err := fmt.Fprintln(tw, "Plaintext\tP.Source\tEncrypted\tE.Source\tFormat\tF.Source\tAliases\tRecipients\tAuthorization\tRegistry Sources\tSelected By"); err != nil {
+	if _, err := fmt.Fprintln(tw, "Plaintext\tEncrypted\tFormat\tAliases"); err != nil {
 		return err
 	}
-	for _, filePair := range selection.FilePairs {
+	for _, filePair := range filePairs {
 		if _, err := fmt.Fprintf(
 			tw,
-			"%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+			"%s\t%s\t%s\t%s\n",
 			config.DisplayPath(cwd, filePair.PlaintextPath),
-			config.FormatValueSource(filePair.PlaintextSource, cwd),
 			config.DisplayPath(cwd, filePair.EncryptedPath),
-			config.FormatValueSource(filePair.EncryptedSource, cwd),
 			filePair.Format,
-			config.FormatValueSource(filePair.FormatSource, cwd),
 			strings.Join(filePair.RecipientAliases, ","),
-			strings.Join(filePair.Recipients, ","),
-			formatAuthorizationSource(filePair, cwd),
-			formatRegistrySources(filePair.RecipientInfo, cwd),
-			filePair.SelectedBy,
 		); err != nil {
 			return err
 		}
 	}
 	return tw.Flush()
+}
+
+func printPlanSources(w io.Writer, cwd string, filePairs []config.ResolvedFilePair) error {
+	for i, filePair := range filePairs {
+		if i > 0 {
+			if _, err := fmt.Fprintln(w); err != nil {
+				return err
+			}
+		}
+		if _, err := fmt.Fprintf(w, "%s -> %s  format=%s  aliases=%s\n",
+			config.DisplayPath(cwd, filePair.PlaintextPath),
+			config.DisplayPath(cwd, filePair.EncryptedPath),
+			filePair.Format, strings.Join(filePair.RecipientAliases, ",")); err != nil {
+			return err
+		}
+		for _, field := range []struct{ label, source string }{
+			{"plaintext", config.FormatValueSource(filePair.PlaintextSource, cwd)},
+			{"encrypted", config.FormatValueSource(filePair.EncryptedSource, cwd)},
+			{"format", config.FormatValueSource(filePair.FormatSource, cwd)},
+			{"authz", formatAuthorizationSource(filePair, cwd)},
+			{"registry", formatRegistrySources(filePair.RecipientInfo, cwd)},
+		} {
+			if _, err := fmt.Fprintf(w, "  %-11s%s\n", field.label, field.source); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func printPlanJSON(w io.Writer, cfg *config.Config, selection config.ResolvedSelection) error {
@@ -160,7 +189,7 @@ func formatRegistrySources(info config.RecipientProvenance, cwd string) string {
 	for _, alias := range aliases {
 		formatted = append(formatted, alias+"="+config.DisplayPath(cwd, info.RegistrySources[alias]))
 	}
-	return strings.Join(formatted, ",")
+	return strings.Join(formatted, " ")
 }
 
 func resolvedFilePairJSON(cwd string, filePair config.ResolvedFilePair) planPairJSON {
