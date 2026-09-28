@@ -121,8 +121,9 @@ func identitiesCommand(load configLoader) *cobra.Command {
 	var resolver *optionResolver
 
 	cmd := &cobra.Command{
-		Use:   "identities",
-		Short: "List the Age identities YewSeal would decrypt with, their winning source, and registry aliases",
+		Use:     "identities",
+		Aliases: []string{"i"},
+		Short:   "List the Age identities YewSeal would decrypt with, their winning source, and registry aliases",
 		Long: `List the Age identities YewSeal would decrypt with: which source won the
 resolution chain, which present sources it shadowed, and every identity in
 the winning source with its derived public key and registry alias.
