@@ -6,9 +6,9 @@ import (
 	"io"
 	"sort"
 	"strings"
-	"text/tabwriter"
 
 	"github.com/YewFence/YewSeal/internal/config"
+	"github.com/fatih/color"
 )
 
 type PlanPrintOptions struct {
@@ -21,32 +21,32 @@ func (o *Output) Plan(cfg *config.Config, selection config.ResolvedSelection, op
 	if opts.JSON {
 		return printPlanJSON(o, cfg, selection)
 	}
-	return printPlanText(o, cfg, selection, opts)
+	return printPlanText(o, cfg, selection, opts, paletteFor(o.content))
 }
 
-func printPlanText(w io.Writer, cfg *config.Config, selection config.ResolvedSelection, opts PlanPrintOptions) error {
+func printPlanText(w io.Writer, cfg *config.Config, selection config.ResolvedSelection, opts PlanPrintOptions, pal colorPalette) error {
 	cwd := config.CurrentDir(cfg)
 	scope := config.DisplayPath(cwd, selection.CurrentDirScope)
 	if scope == "" {
 		scope = "."
 	}
-	if _, err := fmt.Fprintf(w, "Loaded %s\n", countNoun(len(selection.ConfigFiles), "config file")); err != nil {
+	if _, err := fmt.Fprintf(w, "%s %s\n", paint(pal.muted, "Loaded"), countNoun(len(selection.ConfigFiles), "config file")); err != nil {
 		return err
 	}
-	if _, err := fmt.Fprintf(w, "Command %s\n", selection.Command); err != nil {
+	if _, err := fmt.Fprintf(w, "%s %s\n", paint(pal.muted, "Command"), selection.Command); err != nil {
 		return err
 	}
-	if _, err := fmt.Fprintf(w, "Scope %s\n", scope); err != nil {
+	if _, err := fmt.Fprintf(w, "%s %s\n", paint(pal.muted, "Scope"), scope); err != nil {
 		return err
 	}
-	if _, err := fmt.Fprintf(w, "Selected %s\n", countNoun(len(selection.FilePairs), "file pair")); err != nil {
+	if _, err := fmt.Fprintf(w, "%s %s\n", paint(pal.muted, "Selected"), countNoun(len(selection.FilePairs), "file pair")); err != nil {
 		return err
 	}
 	if opts.Verbose && len(selection.ConfigFiles) > 0 {
 		if _, err := fmt.Fprintln(w); err != nil {
 			return err
 		}
-		if _, err := fmt.Fprintln(w, "Config files"); err != nil {
+		if _, err := fmt.Fprintln(w, paint(pal.muted, "Config files")); err != nil {
 			return err
 		}
 		for i, file := range selection.ConfigFiles {
@@ -60,42 +60,74 @@ func printPlanText(w io.Writer, cfg *config.Config, selection config.ResolvedSel
 		return err
 	}
 	if opts.Source {
-		return printPlanSources(w, cwd, selection.FilePairs)
+		return printPlanSources(w, cwd, selection.FilePairs, pal)
 	}
-	return printPlanTable(w, cwd, selection.FilePairs)
+	return printPlanTable(w, cwd, selection.FilePairs, pal)
 }
 
-func printPlanTable(w io.Writer, cwd string, filePairs []config.ResolvedFilePair) error {
-	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	if _, err := fmt.Fprintln(tw, "Plaintext\tEncrypted\tFormat\tAliases"); err != nil {
-		return err
-	}
-	for _, filePair := range filePairs {
-		if _, err := fmt.Fprintf(
-			tw,
-			"%s\t%s\t%s\t%s\n",
+// printPlanTable renders the four-column table. Padding is computed on the
+// plain text and colors are applied afterwards, because tabwriter counts
+// ANSI escape sequences as cell width and would misalign colored columns.
+func printPlanTable(w io.Writer, cwd string, filePairs []config.ResolvedFilePair, pal colorPalette) error {
+	headers := []string{"Plaintext", "Encrypted", "Format", "Aliases"}
+	rows := make([][]string, len(filePairs))
+	for i, filePair := range filePairs {
+		rows[i] = []string{
 			config.DisplayPath(cwd, filePair.PlaintextPath),
 			config.DisplayPath(cwd, filePair.EncryptedPath),
 			filePair.Format,
 			strings.Join(filePair.RecipientAliases, ","),
-		); err != nil {
-			return err
 		}
 	}
-	return tw.Flush()
+	widths := make([]int, len(headers))
+	for column, header := range headers {
+		widths[column] = len(header)
+	}
+	for _, row := range rows {
+		for column, cell := range row {
+			widths[column] = max(widths[column], len(cell))
+		}
+	}
+	var table strings.Builder
+	for column, header := range headers {
+		table.WriteString(paint(pal.muted, padCell(header, widths[column], column == len(headers)-1)))
+	}
+	table.WriteString("\n")
+	columnColors := []*color.Color{nil, nil, pal.format, pal.accent}
+	for _, row := range rows {
+		for column, cell := range row {
+			table.WriteString(paint(columnColors[column], padCell(cell, widths[column], column == len(row)-1)))
+		}
+		table.WriteString("\n")
+	}
+	_, err := io.WriteString(w, table.String())
+	return err
 }
 
-func printPlanSources(w io.Writer, cwd string, filePairs []config.ResolvedFilePair) error {
+// padCell pads a table cell to its column width plus the two-space gap,
+// except after the final column, matching tabwriter output byte for byte.
+func padCell(cell string, width int, final bool) string {
+	if final {
+		return cell
+	}
+	return cell + strings.Repeat(" ", width-len(cell)+2)
+}
+
+func printPlanSources(w io.Writer, cwd string, filePairs []config.ResolvedFilePair, pal colorPalette) error {
 	for i, filePair := range filePairs {
 		if i > 0 {
 			if _, err := fmt.Fprintln(w); err != nil {
 				return err
 			}
 		}
-		if _, err := fmt.Fprintf(w, "%s -> %s  format=%s  aliases=%s\n",
-			config.DisplayPath(cwd, filePair.PlaintextPath),
-			config.DisplayPath(cwd, filePair.EncryptedPath),
-			filePair.Format, strings.Join(filePair.RecipientAliases, ",")); err != nil {
+		if _, err := fmt.Fprintf(w, "%s %s %s  %s%s  %s%s\n",
+			paint(pal.muted, config.DisplayPath(cwd, filePair.PlaintextPath)),
+			paint(pal.muted, "->"),
+			paint(pal.muted, config.DisplayPath(cwd, filePair.EncryptedPath)),
+			paint(pal.muted, "format="),
+			paint(pal.format, filePair.Format),
+			paint(pal.muted, "aliases="),
+			paint(pal.accent, strings.Join(filePair.RecipientAliases, ","))); err != nil {
 			return err
 		}
 		for _, field := range []struct{ label, source string }{
@@ -105,12 +137,29 @@ func printPlanSources(w io.Writer, cwd string, filePairs []config.ResolvedFilePa
 			{"authz", formatAuthorizationSource(filePair, cwd)},
 			{"registry", formatRegistrySources(filePair.RecipientInfo, cwd)},
 		} {
-			if _, err := fmt.Fprintf(w, "  %-11s%s\n", field.label, field.source); err != nil {
+			if _, err := fmt.Fprintf(w, "  %s%s\n", paint(pal.muted, fmt.Sprintf("%-11s", field.label)), colorOrigin(pal, field.source)); err != nil {
 				return err
 			}
 		}
 	}
 	return nil
+}
+
+// colorOrigin colors a provenance value: "path kind" highlights the path
+// and dims the kind, "alias=path" entries highlight the paths.
+func colorOrigin(pal colorPalette, source string) string {
+	if strings.Contains(source, "=") {
+		entries := strings.Split(source, " ")
+		for i, entry := range entries {
+			alias, path, _ := strings.Cut(entry, "=")
+			entries[i] = alias + "=" + paint(pal.accent, path)
+		}
+		return strings.Join(entries, " ")
+	}
+	if path, kind, ok := strings.Cut(source, " "); ok {
+		return paint(pal.accent, path) + " " + paint(pal.muted, kind)
+	}
+	return source
 }
 
 func printPlanJSON(w io.Writer, cfg *config.Config, selection config.ResolvedSelection) error {
