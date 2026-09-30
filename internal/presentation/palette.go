@@ -20,7 +20,7 @@ type colorPalette struct {
 	format   *color.Color // format tokens
 	accent   *color.Color // aliases and provenance paths
 	warning  *color.Color // warning status labels
-	error     *color.Color // failure status labels
+	error    *color.Color // failure status labels
 	success  *color.Color // completed-action status labels
 	diffHead *color.Color // ---/+++ headers
 	diffHunk *color.Color // @@ hunks
@@ -34,7 +34,7 @@ var (
 		format:   color.New(color.FgHiCyan),
 		accent:   color.New(color.FgHiYellow),
 		warning:  color.New(color.FgHiYellow),
-		error:     color.New(color.FgHiRed),
+		error:    color.New(color.FgHiRed),
 		success:  color.New(color.FgHiGreen),
 		diffHead: color.New(color.FgHiCyan, color.Bold),
 		diffHunk: color.New(color.FgHiMagenta),
@@ -46,7 +46,7 @@ var (
 		format:   color.New(color.FgCyan),
 		accent:   color.New(color.FgYellow),
 		warning:  color.New(color.FgYellow),
-		error:     color.New(color.FgRed),
+		error:    color.New(color.FgRed),
 		success:  color.New(color.FgGreen),
 		diffHead: color.New(color.FgCyan, color.Bold),
 		diffHunk: color.New(color.FgMagenta),
@@ -107,10 +107,16 @@ func diagnosticsPaletteFor(w io.Writer) colorPalette {
 	if !ok || !isatty.IsTerminal(file.Fd()) {
 		return colorPalette{}
 	}
+	base := lightPalette
 	if termenv.NewOutput(w).HasDarkBackground() {
-		return darkPalette
+		base = darkPalette
 	}
-	return lightPalette
+	for _, role := range []**color.Color{&base.muted, &base.warning, &base.error, &base.success} {
+		copied := **role
+		copied.EnableColor()
+		*role = &copied
+	}
+	return base
 }
 
 // forcedDiffPalette colors diff output even when stdout is redirected, for

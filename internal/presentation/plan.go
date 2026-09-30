@@ -9,6 +9,7 @@ import (
 
 	"github.com/YewFence/YewSeal/internal/config"
 	"github.com/fatih/color"
+	"github.com/rivo/uniseg"
 )
 
 type PlanPrintOptions struct {
@@ -81,11 +82,11 @@ func printPlanTable(w io.Writer, cwd string, filePairs []config.ResolvedFilePair
 	}
 	widths := make([]int, len(headers))
 	for column, header := range headers {
-		widths[column] = len(header)
+		widths[column] = uniseg.StringWidth(header)
 	}
 	for _, row := range rows {
 		for column, cell := range row {
-			widths[column] = max(widths[column], len(cell))
+			widths[column] = max(widths[column], uniseg.StringWidth(cell))
 		}
 	}
 	var table strings.Builder
@@ -104,13 +105,13 @@ func printPlanTable(w io.Writer, cwd string, filePairs []config.ResolvedFilePair
 	return err
 }
 
-// padCell pads a table cell to its column width plus the two-space gap,
-// except after the final column, matching tabwriter output byte for byte.
+// padCell pads a table cell to its display width plus the two-space gap,
+// except after the final column.
 func padCell(cell string, width int, final bool) string {
 	if final {
 		return cell
 	}
-	return cell + strings.Repeat(" ", width-len(cell)+2)
+	return cell + strings.Repeat(" ", width-uniseg.StringWidth(cell)+2)
 }
 
 func printPlanSources(w io.Writer, cwd string, filePairs []config.ResolvedFilePair, pal colorPalette) error {
@@ -131,13 +132,13 @@ func printPlanSources(w io.Writer, cwd string, filePairs []config.ResolvedFilePa
 			return err
 		}
 		for _, field := range []struct{ label, source string }{
-			{"plaintext", config.FormatValueSource(filePair.PlaintextSource, cwd)},
-			{"encrypted", config.FormatValueSource(filePair.EncryptedSource, cwd)},
-			{"format", config.FormatValueSource(filePair.FormatSource, cwd)},
-			{"authz", formatAuthorizationSource(filePair, cwd)},
-			{"registry", formatRegistrySources(filePair.RecipientInfo, cwd)},
+			{"plaintext", formatValueSource(filePair.PlaintextSource, cwd, pal)},
+			{"encrypted", formatValueSource(filePair.EncryptedSource, cwd, pal)},
+			{"format", formatValueSource(filePair.FormatSource, cwd, pal)},
+			{"authz", formatAuthorizationSource(filePair, cwd, pal)},
+			{"registry", formatRegistrySources(filePair.RecipientInfo, cwd, pal)},
 		} {
-			if _, err := fmt.Fprintf(w, "  %s%s\n", paint(pal.muted, fmt.Sprintf("%-11s", field.label)), colorOrigin(pal, field.source)); err != nil {
+			if _, err := fmt.Fprintf(w, "  %s%s\n", paint(pal.muted, fmt.Sprintf("%-11s", field.label)), field.source); err != nil {
 				return err
 			}
 		}
@@ -145,21 +146,15 @@ func printPlanSources(w io.Writer, cwd string, filePairs []config.ResolvedFilePa
 	return nil
 }
 
-// colorOrigin colors a provenance value: "path kind" highlights the path
-// and dims the kind, "alias=path" entries highlight the paths.
-func colorOrigin(pal colorPalette, source string) string {
-	if strings.Contains(source, "=") {
-		entries := strings.Split(source, " ")
-		for i, entry := range entries {
-			alias, path, _ := strings.Cut(entry, "=")
-			entries[i] = alias + "=" + paint(pal.accent, path)
-		}
-		return strings.Join(entries, " ")
+func formatValueSource(source config.ValueSource, cwd string, pal colorPalette) string {
+	if source.ConfigPath == "" {
+		return config.FormatValueSource(source, cwd)
 	}
-	if path, kind, ok := strings.Cut(source, " "); ok {
-		return paint(pal.accent, path) + " " + paint(pal.muted, kind)
+	detail := source.Detail
+	if detail == "" {
+		detail = config.FormatValueSource(config.ValueSource{Kind: source.Kind}, cwd)
 	}
-	return source
+	return paint(pal.accent, config.DisplayPath(cwd, source.ConfigPath)) + " " + paint(pal.muted, detail)
 }
 
 func printPlanJSON(w io.Writer, cfg *config.Config, selection config.ResolvedSelection) error {
@@ -221,14 +216,14 @@ type planValueSourceJSON struct {
 	Detail     string `json:"detail,omitempty"`
 }
 
-func formatAuthorizationSource(filePair config.ResolvedFilePair, cwd string) string {
+func formatAuthorizationSource(filePair config.ResolvedFilePair, cwd string, pal colorPalette) string {
 	if filePair.RecipientInfo.EffectiveSource.Kind != "" {
-		return config.FormatValueSource(filePair.RecipientInfo.EffectiveSource, cwd)
+		return formatValueSource(filePair.RecipientInfo.EffectiveSource, cwd, pal)
 	}
 	return filePair.RecipientInfo.Kind
 }
 
-func formatRegistrySources(info config.RecipientProvenance, cwd string) string {
+func formatRegistrySources(info config.RecipientProvenance, cwd string, pal colorPalette) string {
 	aliases := make([]string, 0, len(info.RegistrySources))
 	for alias := range info.RegistrySources {
 		aliases = append(aliases, alias)
@@ -236,7 +231,7 @@ func formatRegistrySources(info config.RecipientProvenance, cwd string) string {
 	sort.Strings(aliases)
 	formatted := make([]string, 0, len(aliases))
 	for _, alias := range aliases {
-		formatted = append(formatted, alias+"="+config.DisplayPath(cwd, info.RegistrySources[alias]))
+		formatted = append(formatted, alias+"="+paint(pal.accent, config.DisplayPath(cwd, info.RegistrySources[alias])))
 	}
 	return strings.Join(formatted, " ")
 }

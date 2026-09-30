@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
+	"github.com/rivo/uniseg"
 )
 
 // IdentitiesReport 是 identities 命令的呈现模型：解析链的生效来源与
@@ -76,11 +77,11 @@ func printIdentitiesTable(w io.Writer, report IdentitiesReport, opts IdentitiesP
 	}
 	widths := make([]int, len(headers))
 	for column, header := range headers {
-		widths[column] = len(header)
+		widths[column] = uniseg.StringWidth(header)
 	}
 	for _, row := range rows {
 		for column, cell := range row {
-			widths[column] = max(widths[column], len(cell))
+			widths[column] = max(widths[column], uniseg.StringWidth(cell))
 		}
 	}
 	columnColors := []*color.Color{pal.accent, nil}
