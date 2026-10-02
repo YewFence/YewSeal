@@ -23,28 +23,29 @@ func ResolveDiffColor(mode string, w io.Writer) (bool, error) {
 }
 
 func (o *Output) Diff(text string, colorEnabled bool) error {
-	_, err := o.Write([]byte(highlightUnifiedDiff(text, colorEnabled)))
+	pal := colorPalette{}
+	if colorEnabled {
+		pal = forcedDiffPalette()
+	}
+	_, err := o.Write([]byte(highlightUnifiedDiff(text, pal)))
 	return err
 }
 
-func highlightUnifiedDiff(text string, enabled bool) string {
-	if !enabled || text == "" { return text }
-	headerColor := color.New(color.FgCyan, color.Bold)
-	hunkColor := color.New(color.FgMagenta)
-	deleteColor := color.New(color.FgRed)
-	insertColor := color.New(color.FgGreen)
-	for _, c := range []*color.Color{headerColor, hunkColor, deleteColor, insertColor} { c.EnableColor() }
+func highlightUnifiedDiff(text string, pal colorPalette) string {
+	if text == "" || pal.diffHead == nil {
+		return text
+	}
 	var out strings.Builder
 	for _, line := range strings.SplitAfter(text, "\n") {
 		switch {
 		case strings.HasPrefix(line, "--- ") || strings.HasPrefix(line, "+++ "):
-			out.WriteString(headerColor.Sprint(line))
+			out.WriteString(paint(pal.diffHead, line))
 		case strings.HasPrefix(line, "@@"):
-			out.WriteString(hunkColor.Sprint(line))
+			out.WriteString(paint(pal.diffHunk, line))
 		case strings.HasPrefix(line, "-"):
-			out.WriteString(deleteColor.Sprint(line))
+			out.WriteString(paint(pal.diffDel, line))
 		case strings.HasPrefix(line, "+"):
-			out.WriteString(insertColor.Sprint(line))
+			out.WriteString(paint(pal.diffIns, line))
 		default:
 			out.WriteString(line)
 		}

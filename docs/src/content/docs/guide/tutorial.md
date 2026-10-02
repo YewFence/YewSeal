@@ -111,11 +111,11 @@ Command plan
 Scope .
 Selected 1 file pair
 
-Plaintext    P.Source             Encrypted        E.Source             Format  F.Source              Aliases  Recipients                                                      Authorization             Registry Sources     Selected By
-config.toml  .yewseal.toml exact  config.enc.toml  .yewseal.toml exact  toml    .yewseal.toml format  owner    age1rczdrfjqq8h9e8hpax33j8smdcvgjzspxzhy4afp2fqx8d4hxqjq89sv49  .yewseal.toml recipients  owner=.yewseal.toml  current-directory
+Plaintext    Encrypted        Format  Aliases
+config.toml  config.enc.toml  toml    owner
 ```
 
-Every `Source` column answers "where did this come from?" — the mapping is exact from `.yewseal.toml`, the format is declared on the file pair, and the recipient set came from the file's `recipients`. Nothing is written; run `plan` after any config edit to catch unknown aliases or empty authorization sets before they bite during encryption. It reads no private keys and is not a dry run.
+The four columns show the mapping, format, and authorized aliases at a glance. Use `yews plan --source` to see where each path, format, authorization set, and registry alias came from (for example `.yewseal.toml recipients`); `--json` also exposes the canonical public keys and selection reasons for deeper audits. Nothing is written; run `plan` after any config edit to catch unknown aliases or empty authorization sets before they bite during encryption. It reads no private keys and is not a dry run.
 
 ## Encrypt
 

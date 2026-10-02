@@ -42,3 +42,19 @@ func TestCommandsAreSelfDocumented(t *testing.T) {
 	}
 	walk(root)
 }
+
+func TestPlanHelpDocumentsReportModes(t *testing.T) {
+	root := newRootCommand("test", nil)
+	cmd, _, err := root.Find([]string{"plan"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, detail := range []string{"Plaintext/Encrypted/Format/Aliases", "--source", "--json", "canonical recipients", "selection reasons"} {
+		if !strings.Contains(cmd.Long, detail) {
+			t.Errorf("plan help must describe %s", detail)
+		}
+	}
+	if !strings.Contains(cmd.Example, "yews plan --source") {
+		t.Error("plan examples must show the describe layout")
+	}
+}

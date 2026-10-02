@@ -6,46 +6,48 @@ import (
 	"io"
 	"sort"
 	"strings"
-	"text/tabwriter"
 
 	"github.com/YewFence/YewSeal/internal/config"
+	"github.com/fatih/color"
+	"github.com/rivo/uniseg"
 )
 
 type PlanPrintOptions struct {
 	JSON    bool
 	Verbose bool
+	Source  bool
 }
 
 func (o *Output) Plan(cfg *config.Config, selection config.ResolvedSelection, opts PlanPrintOptions) error {
 	if opts.JSON {
 		return printPlanJSON(o, cfg, selection)
 	}
-	return printPlanTable(o, cfg, selection, opts)
+	return printPlanText(o, cfg, selection, opts, paletteFor(o.content))
 }
 
-func printPlanTable(w io.Writer, cfg *config.Config, selection config.ResolvedSelection, opts PlanPrintOptions) error {
+func printPlanText(w io.Writer, cfg *config.Config, selection config.ResolvedSelection, opts PlanPrintOptions, pal colorPalette) error {
 	cwd := config.CurrentDir(cfg)
 	scope := config.DisplayPath(cwd, selection.CurrentDirScope)
 	if scope == "" {
 		scope = "."
 	}
-	if _, err := fmt.Fprintf(w, "Loaded %s\n", countNoun(len(selection.ConfigFiles), "config file")); err != nil {
+	if _, err := fmt.Fprintf(w, "%s %s\n", paint(pal.muted, "Loaded"), countNoun(len(selection.ConfigFiles), "config file")); err != nil {
 		return err
 	}
-	if _, err := fmt.Fprintf(w, "Command %s\n", selection.Command); err != nil {
+	if _, err := fmt.Fprintf(w, "%s %s\n", paint(pal.muted, "Command"), selection.Command); err != nil {
 		return err
 	}
-	if _, err := fmt.Fprintf(w, "Scope %s\n", scope); err != nil {
+	if _, err := fmt.Fprintf(w, "%s %s\n", paint(pal.muted, "Scope"), scope); err != nil {
 		return err
 	}
-	if _, err := fmt.Fprintf(w, "Selected %s\n", countNoun(len(selection.FilePairs), "file pair")); err != nil {
+	if _, err := fmt.Fprintf(w, "%s %s\n", paint(pal.muted, "Selected"), countNoun(len(selection.FilePairs), "file pair")); err != nil {
 		return err
 	}
 	if opts.Verbose && len(selection.ConfigFiles) > 0 {
 		if _, err := fmt.Fprintln(w); err != nil {
 			return err
 		}
-		if _, err := fmt.Fprintln(w, "Config files"); err != nil {
+		if _, err := fmt.Fprintln(w, paint(pal.muted, "Config files")); err != nil {
 			return err
 		}
 		for i, file := range selection.ConfigFiles {
@@ -58,30 +60,101 @@ func printPlanTable(w io.Writer, cfg *config.Config, selection config.ResolvedSe
 	if _, err := fmt.Fprintln(w); err != nil {
 		return err
 	}
-	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	if _, err := fmt.Fprintln(tw, "Plaintext\tP.Source\tEncrypted\tE.Source\tFormat\tF.Source\tAliases\tRecipients\tAuthorization\tRegistry Sources\tSelected By"); err != nil {
-		return err
+	if opts.Source {
+		return printPlanSources(w, cwd, selection.FilePairs, pal)
 	}
-	for _, filePair := range selection.FilePairs {
-		if _, err := fmt.Fprintf(
-			tw,
-			"%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+	return printPlanTable(w, cwd, selection.FilePairs, pal)
+}
+
+// printPlanTable renders the four-column table. Padding is computed on the
+// plain text and colors are applied afterwards, because tabwriter counts
+// ANSI escape sequences as cell width and would misalign colored columns.
+func printPlanTable(w io.Writer, cwd string, filePairs []config.ResolvedFilePair, pal colorPalette) error {
+	headers := []string{"Plaintext", "Encrypted", "Format", "Aliases"}
+	rows := make([][]string, len(filePairs))
+	for i, filePair := range filePairs {
+		rows[i] = []string{
 			config.DisplayPath(cwd, filePair.PlaintextPath),
-			config.FormatValueSource(filePair.PlaintextSource, cwd),
 			config.DisplayPath(cwd, filePair.EncryptedPath),
-			config.FormatValueSource(filePair.EncryptedSource, cwd),
 			filePair.Format,
-			config.FormatValueSource(filePair.FormatSource, cwd),
 			strings.Join(filePair.RecipientAliases, ","),
-			strings.Join(filePair.Recipients, ","),
-			formatAuthorizationSource(filePair, cwd),
-			formatRegistrySources(filePair.RecipientInfo, cwd),
-			filePair.SelectedBy,
-		); err != nil {
-			return err
 		}
 	}
-	return tw.Flush()
+	widths := make([]int, len(headers))
+	for column, header := range headers {
+		widths[column] = uniseg.StringWidth(header)
+	}
+	for _, row := range rows {
+		for column, cell := range row {
+			widths[column] = max(widths[column], uniseg.StringWidth(cell))
+		}
+	}
+	var table strings.Builder
+	for column, header := range headers {
+		table.WriteString(paint(pal.muted, padCell(header, widths[column], column == len(headers)-1)))
+	}
+	table.WriteString("\n")
+	columnColors := []*color.Color{nil, nil, pal.format, pal.accent}
+	for _, row := range rows {
+		for column, cell := range row {
+			table.WriteString(paint(columnColors[column], padCell(cell, widths[column], column == len(row)-1)))
+		}
+		table.WriteString("\n")
+	}
+	_, err := io.WriteString(w, table.String())
+	return err
+}
+
+// padCell pads a table cell to its display width plus the two-space gap,
+// except after the final column.
+func padCell(cell string, width int, final bool) string {
+	if final {
+		return cell
+	}
+	return cell + strings.Repeat(" ", width-uniseg.StringWidth(cell)+2)
+}
+
+func printPlanSources(w io.Writer, cwd string, filePairs []config.ResolvedFilePair, pal colorPalette) error {
+	for i, filePair := range filePairs {
+		if i > 0 {
+			if _, err := fmt.Fprintln(w); err != nil {
+				return err
+			}
+		}
+		if _, err := fmt.Fprintf(w, "%s %s %s  %s%s  %s%s\n",
+			paint(pal.muted, config.DisplayPath(cwd, filePair.PlaintextPath)),
+			paint(pal.muted, "->"),
+			paint(pal.muted, config.DisplayPath(cwd, filePair.EncryptedPath)),
+			paint(pal.muted, "format="),
+			paint(pal.format, filePair.Format),
+			paint(pal.muted, "aliases="),
+			paint(pal.accent, strings.Join(filePair.RecipientAliases, ","))); err != nil {
+			return err
+		}
+		for _, field := range []struct{ label, source string }{
+			{"plaintext", formatValueSource(filePair.PlaintextSource, cwd, pal)},
+			{"encrypted", formatValueSource(filePair.EncryptedSource, cwd, pal)},
+			{"format", formatValueSource(filePair.FormatSource, cwd, pal)},
+			{"authz", formatAuthorizationSource(filePair, cwd, pal)},
+			{"registry", formatRegistrySources(filePair.RecipientInfo, cwd, pal)},
+		} {
+			if _, err := fmt.Fprintf(w, "  %s%s\n", paint(pal.muted, fmt.Sprintf("%-11s", field.label)), field.source); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func formatValueSource(source config.ValueSource, cwd string, pal colorPalette) string {
+	if source.ConfigPath == "" {
+		return config.FormatValueSource(source, cwd)
+	}
+	detail := source.Detail
+	if detail == "" {
+		detail = config.FormatValueSource(config.ValueSource{Kind: source.Kind}, cwd)
+	}
+	return paint(pal.accent, config.DisplayPath(cwd, source.ConfigPath)) + " " + paint(pal.muted, detail)
 }
 
 func printPlanJSON(w io.Writer, cfg *config.Config, selection config.ResolvedSelection) error {
@@ -143,14 +216,14 @@ type planValueSourceJSON struct {
 	Detail     string `json:"detail,omitempty"`
 }
 
-func formatAuthorizationSource(filePair config.ResolvedFilePair, cwd string) string {
+func formatAuthorizationSource(filePair config.ResolvedFilePair, cwd string, pal colorPalette) string {
 	if filePair.RecipientInfo.EffectiveSource.Kind != "" {
-		return config.FormatValueSource(filePair.RecipientInfo.EffectiveSource, cwd)
+		return formatValueSource(filePair.RecipientInfo.EffectiveSource, cwd, pal)
 	}
 	return filePair.RecipientInfo.Kind
 }
 
-func formatRegistrySources(info config.RecipientProvenance, cwd string) string {
+func formatRegistrySources(info config.RecipientProvenance, cwd string, pal colorPalette) string {
 	aliases := make([]string, 0, len(info.RegistrySources))
 	for alias := range info.RegistrySources {
 		aliases = append(aliases, alias)
@@ -158,9 +231,9 @@ func formatRegistrySources(info config.RecipientProvenance, cwd string) string {
 	sort.Strings(aliases)
 	formatted := make([]string, 0, len(aliases))
 	for _, alias := range aliases {
-		formatted = append(formatted, alias+"="+config.DisplayPath(cwd, info.RegistrySources[alias]))
+		formatted = append(formatted, alias+"="+paint(pal.accent, config.DisplayPath(cwd, info.RegistrySources[alias])))
 	}
-	return strings.Join(formatted, ",")
+	return strings.Join(formatted, " ")
 }
 
 func resolvedFilePairJSON(cwd string, filePair config.ResolvedFilePair) planPairJSON {

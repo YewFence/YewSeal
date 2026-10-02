@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"io"
 	"strings"
-	"text/tabwriter"
+
+	"github.com/fatih/color"
+	"github.com/rivo/uniseg"
 )
 
 // IdentitiesReport 是 identities 命令的呈现模型：解析链的生效来源与
@@ -38,45 +40,67 @@ func (o *Output) Identities(report IdentitiesReport, opts IdentitiesPrintOptions
 	}
 	for _, entry := range report.Identities {
 		if entry.Warning != "" {
-			o.diagnostic(fmt.Sprintf("warning: %s (%s)\n", entry.Warning, entry.PublicKey))
+			o.statusf(o.diagnosticsPalette.warning, "warning:", " %s (%s)\n", entry.Warning, entry.PublicKey)
 		}
 	}
 	if opts.JSON {
 		return printIdentitiesJSON(o, report, opts)
 	}
-	return printIdentitiesTable(o, report, opts)
+	return printIdentitiesTable(o, report, opts, paletteFor(o.content))
 }
 
-func printIdentitiesTable(w io.Writer, report IdentitiesReport, opts IdentitiesPrintOptions) error {
-	if _, err := fmt.Fprintf(w, "Source %s\n", report.Source); err != nil {
+// printIdentitiesTable pads plain text before painting (ANSI sequences must
+// not affect column width) with the same cell gap the tabwriter layout used.
+func printIdentitiesTable(w io.Writer, report IdentitiesReport, opts IdentitiesPrintOptions, pal colorPalette) error {
+	if _, err := fmt.Fprintf(w, "%s %s\n", paint(pal.muted, "Source"), report.Source); err != nil {
 		return err
 	}
 	if len(report.Shadowed) > 0 {
-		if _, err := fmt.Fprintf(w, "Shadowed %s\n", strings.Join(report.Shadowed, ", ")); err != nil {
+		if _, err := fmt.Fprintf(w, "%s %s\n", paint(pal.muted, "Shadowed"), strings.Join(report.Shadowed, ", ")); err != nil {
 			return err
 		}
 	}
 	if _, err := fmt.Fprintln(w); err != nil {
 		return err
 	}
-	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	header := "Alias\tPublic key"
+	headers := []string{"Alias", "Public key"}
 	if opts.Reveal {
-		header += "\tSecret"
+		headers = append(headers, "Secret")
 	}
-	if _, err := fmt.Fprintln(tw, header); err != nil {
-		return err
-	}
-	for _, entry := range report.Identities {
-		row := entry.Alias + "\t" + entry.PublicKey
+	rows := make([][]string, len(report.Identities))
+	for i, entry := range report.Identities {
+		row := []string{entry.Alias, entry.PublicKey}
 		if opts.Reveal {
-			row += "\t" + entry.Secret
+			row = append(row, entry.Secret)
 		}
-		if _, err := fmt.Fprintln(tw, row); err != nil {
-			return err
+		rows[i] = row
+	}
+	widths := make([]int, len(headers))
+	for column, header := range headers {
+		widths[column] = uniseg.StringWidth(header)
+	}
+	for _, row := range rows {
+		for column, cell := range row {
+			widths[column] = max(widths[column], uniseg.StringWidth(cell))
 		}
 	}
-	return tw.Flush()
+	columnColors := []*color.Color{pal.accent, nil}
+	for range headers[2:] {
+		columnColors = append(columnColors, nil)
+	}
+	var table strings.Builder
+	for column, header := range headers {
+		table.WriteString(paint(pal.muted, padCell(header, widths[column], column == len(headers)-1)))
+	}
+	table.WriteString("\n")
+	for _, row := range rows {
+		for column, cell := range row {
+			table.WriteString(paint(columnColors[column], padCell(cell, widths[column], column == len(row)-1)))
+		}
+		table.WriteString("\n")
+	}
+	_, err := io.WriteString(w, table.String())
+	return err
 }
 
 type identitiesJSON struct {

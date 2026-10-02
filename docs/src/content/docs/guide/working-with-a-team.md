@@ -56,12 +56,12 @@ Command plan
 Scope .
 Selected 2 file pairs
 
-Plaintext    P.Source             Encrypted        E.Source             Format  F.Source              Aliases         Recipients                                                                                                                     Authorization             Registry Sources                            Selected By
-config.toml  .yewseal.toml exact  config.enc.toml  .yewseal.toml exact  toml    .yewseal.toml format  owner,teammate  age15hp2gjg20zgkqgu7p56f2u8t6j3lzqwknxdls7jwhzqsn4ra4pzsk83w07,age1rczdrfjqq8h9e8hpax33j8smdcvgjzspxzhy4afp2fqx8d4hxqjq89sv49  .yewseal.toml recipients  owner=.yewseal.toml,teammate=.yewseal.toml  current-directory
-ops.toml     .yewseal.toml exact  ops.enc.toml     .yewseal.toml exact  toml    .yewseal.toml format  owner           age1rczdrfjqq8h9e8hpax33j8smdcvgjzspxzhy4afp2fqx8d4hxqjq89sv49                                                                 .yewseal.toml recipients  owner=.yewseal.toml                         current-directory
+Plaintext    Encrypted        Format  Aliases
+config.toml  config.enc.toml  toml    owner,teammate
+ops.toml     ops.enc.toml     toml    owner
 ```
 
-Two mappings, two different authorization sets — visible at a glance, reviewable in the commit that changed them. Re-encrypt so the ciphertext actually carries the new recipient, then push:
+Two mappings, two different authorization sets — visible at a glance, reviewable in the commit that changed them. `yews plan --source` shows where each alias set and registry entry came from; `--json` includes the canonical public keys. Re-encrypt so the ciphertext actually carries the new recipient, then push:
 
 ```bash
 $ yews encrypt

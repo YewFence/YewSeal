@@ -32,15 +32,20 @@ conflict. Explicit entries do not require the files to exist.
 plan applies the same strict authorization semantics as encrypt to
 every mapping resolved from the loaded config, including unselected
 ones: unknown aliases, empty recipient sets, and group conflicts fail
-the run. The report includes recipient aliases, canonical recipients,
-registry origins, and the effective authorization source. plan does not
-load an identity bundle and does not read ciphertext content or
-metadata, so it has no historical-decrypt tolerance.
+the run. The report shows recipient aliases; --source additionally shows
+the origins of each path, format, authorization set, and registry alias.
+Use --json to audit canonical recipients, selection reasons, and all
+provenance fields. plan does not load an identity bundle and does not
+read ciphertext content or metadata, so it has no historical-decrypt
+tolerance.
 
-Output: a table report on stdout (config count, selection scope, file
-mappings); --json prints only JSON; errors go to stderr and never mix
-into the report. plan defines no output or worker flags, reads no
-output-related environment variables, and its report contains no
+Output: stdout shows a config count and selection scope followed by a
+four-column Plaintext/Encrypted/Format/Aliases table. --source replaces
+the table with one describe block per mapping and field-level origins;
+--verbose also lists loaded config files. --json prints only the full
+JSON report and takes precedence over --source; errors go to stderr and
+never mix into the report. plan defines no output-path or worker flags,
+reads no output-path environment variables, and its report contains no
 metadata write plan.
 
 Exit codes: 0 on success; calling errors (invalid patterns, a missing
@@ -69,6 +74,9 @@ yews plan [command options] [path-or-pattern]... [flags]
   # Filter registered mappings with a pattern
   yews plan './configs/*.toml'
 
+  # Trace where each path, format, and authorization set came from
+  yews plan --source
+
   # Print JSON for scripts (errors stay on stderr)
   yews plan --json > plan.json
 ```
@@ -78,6 +86,7 @@ yews plan [command options] [path-or-pattern]... [flags]
 ```
   -h, --help      help for plan
       --json      Print configured file mappings as JSON (env YEWSEAL_PLAN_JSON)
+      --source    Show field-level origins in a describe layout (plain output only) (env YEWSEAL_PLAN_SOURCE)
   -v, --verbose   Enable verbose output (env YEWSEAL_PLAN_VERBOSE)
 ```
 

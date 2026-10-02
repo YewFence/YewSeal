@@ -245,3 +245,13 @@ func TestIdentitiesFailsWhenTheReportCannotBeDelivered(t *testing.T) {
 	require.Equal(t, "content", outputErr.Channel)
 	require.Equal(t, 1, ExitCode(executed, err))
 }
+
+func TestIdentitiesSingleLetterAlias(t *testing.T) {
+	clearCLIEnvironment(t)
+	root := newRootCommand("test", func() (*config.Config, error) {
+		return nil, errors.New("not loaded")
+	})
+	cmd, _, err := root.Find([]string{"i"})
+	require.NoError(t, err)
+	require.Equal(t, "identities", cmd.Name())
+}
