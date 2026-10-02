@@ -1,3 +1,14 @@
+## [0.19.0] - 2026-10-02
+
+### 🚀 Features
+
+- Polish command output with background-adaptive colors (#78)
+
+### ⚙️ Miscellaneous Tasks
+
+- *(npm-deps)* Update npm dependencies (#75)
+- *(gomod-deps)* Update go modules (#74)
+- *(ci)* Bump mise-action to v5
 ## [0.18.0] - 2026-09-24
 
 ### 🚀 Features
