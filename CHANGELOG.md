@@ -1,3 +1,12 @@
+## [0.19.1] - 2026-10-04
+
+### ⚙️ Miscellaneous Tasks
+
+- *(mise-deps)* Lock file maintenance (#63)
+- *(gomod-deps)* Update go modules (#80)
+- *(deps)* Update github actions to v5.0.1 (#82)
+- *(mise-deps)* Update dependency pnpm to 11 (#76)
+- *(npm-deps)* Lock file maintenance (#77)
 ## [0.19.0] - 2026-10-02
 
 ### 🚀 Features
