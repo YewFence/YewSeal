@@ -6,29 +6,16 @@ Encrypt configuration file (supports .toml, .yaml, .yml, .json, .env, .ini, and 
 
 ## Synopsis
 
-Encrypt registered configuration files with SOPS and Age. Supported
-formats: .toml, .yaml, .yml, .json, .env, .ini, and binary output; every
-format is encrypted natively by the embedded SOPS engine and the
-ciphertext keeps the original format.
+Encrypt registered configuration files with SOPS and Age,
+preserving their format. Supported formats: TOML, YAML, JSON, ENV, INI, and binary.
 
-Target selection (no argument: every file and group in .yewseal.toml
-within the current directory scope):
-  - a registered plaintext or encrypted path selects that single mapping;
-  - an existing directory selects mappings whose plaintext side is inside
-    it (groups always scan by their own config directory, never by the
-    target directory);
-  - arguments containing *, ?, and similar metacharacters are patterns
-    matched against registered plaintext paths (a leading / anchors to
-    the current working directory, ** is supported);
-  - multiple arguments take the union; patterns only include, excludes
-    come from group "patterns" in the config; any argument matching
-    nothing is an error.
+With no arguments, encrypt selects registered plaintext under the current
+directory and its subdirectories. Use file paths, directories, or patterns
+to select targets; directories and patterns match plaintext paths.
 
-Recipients come strictly from alias resolution in .yewseal.toml (file
-"recipients" > group > top-level recipients.defaults); there is no
---public-key flag. An empty final set, an unknown alias, or groups
-disagreeing on the same path fails the whole batch before any ciphertext
-is written.
+Recipients come from .yewseal.toml. An empty recipient set, an unknown
+alias, or conflicting group authorization fails the batch before any
+ciphertext is written.
 
 When ciphertext already exists, encrypt uses an available private identity
 to verify and update it in place: unchanged files remain byte-identical,
@@ -36,26 +23,17 @@ unchanged values retain their ciphertext, and recipient-only changes only
 rewrap the existing data key. If no identity is available, or none matches a
 specific file, encrypt warns and replaces that ciphertext from the current
 plaintext. --force always performs this fresh encryption and rotates the data
-key without reading the old ciphertext. encrypt reads only plaintext files:
-when a plaintext is missing, it is reported and skipped without creating an
-output directory. Regardless of the selected targets, .sops.yaml is synced
-from all configured ciphertext mappings within the current directory
-subtree, including ciphertext-only mappings.
+key without reading the old ciphertext. Missing plaintext is reported and
+skipped.
 
---output only changes the location, never the format. There is no
---format flag: non-standard extensions are declared via "format" or
-"format_rules" in the config. Group results get the format's standard
-.enc.* path; --output applies to single file targets only, never to
-config-wide or directory-driven batches.
+--output changes the destination of a single file target, preserving its
+configured format. Declare non-standard extensions with "format" or
+"format_rules" in .yewseal.toml.
 
-Before processing, .gitignore is updated with configured plaintext paths
-within the current directory subtree. After processing,
---sync-sops-config (enabled by default) rewrites .sops.yaml from the complete
-resolved policy for ciphertext paths within that subtree, not only the
-selected targets. Both files use paths relative to the current directory;
-paths outside it are excluded even when explicitly selected for encryption.
-Encryption always finishes before synchronization is attempted.
-A synchronization failure leaves completed ciphertext work in place but
+Before encryption, .gitignore receives entries for all configured plaintext
+paths allowed by the managed-file rules. After encryption,
+--sync-sops-config (enabled by default) rewrites .sops.yaml using those rules.
+A synchronization failure leaves completed ciphertext work in place and
 makes the command fail.
 
 Exit codes: 0 on success (skips without real errors allowed, including
@@ -75,11 +53,11 @@ stdout stays empty.
 To encrypt an unregistered file ad hoc without a project config, use
 the SOPS CLI directly.
 
-See also: "yews plan" to audit mappings and authorization (not an
-encrypt dry run), "yews diff" to compare plaintext with the stored
-ciphertext.
+See also: "yews plan" to inspect mappings and authorization, "yews diff"
+to compare plaintext with stored ciphertext.
 
-Documentation: https://yewfence.github.io/YewSeal/guide/target-selection
+Target selection: https://yewfence.github.io/YewSeal/guide/target-selection
+Managed-file rules: https://yewfence.github.io/YewSeal/guide/configuration#managed-files
 
 ```
 yews encrypt [command options] [path-or-pattern]... [flags]
@@ -88,7 +66,7 @@ yews encrypt [command options] [path-or-pattern]... [flags]
 ## Examples
 
 ```
-  # Encrypt every file registered in the config
+  # Encrypt registered plaintext under the current directory
   yews encrypt
 
   # Encrypt one registered mapping (either side locates it)
@@ -116,7 +94,7 @@ yews encrypt [command options] [path-or-pattern]... [flags]
       --json               Print the batch report as JSON on stdout (diagnostics stay on stderr) (env YEWSEAL_ENCRYPT_JSON)
   -o, --output string      Output encrypted file for a single file target (env YEWSEAL_ENCRYPT_OUTPUT)
   -P, --parallel int       Number of parallel workers for batch mode (minimum 1) (env YEWSEAL_ENCRYPT_PARALLEL) (default 1)
-      --sync-sops-config   Sync the current directory subtree's ciphertext policy to .sops.yaml after encryption (env YEWSEAL_SYNC_SOPS_CONFIG) (default true)
+      --sync-sops-config   Rewrite .sops.yaml after encryption using the managed-file rules (env YEWSEAL_SYNC_SOPS_CONFIG) (default true)
   -v, --verbose            Enable verbose output (env YEWSEAL_ENCRYPT_VERBOSE)
 ```
 

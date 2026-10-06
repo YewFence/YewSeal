@@ -2,23 +2,23 @@
 title: Glossary
 ---
 
-Short definitions of the terms the guides use with precision. Each entry links to the page that covers the topic in depth.
+Short definitions for looking up unfamiliar terms. Each entry can be read on its own; the links offer optional detail.
 
 ## Alias
 
-A reviewable name in the [registry](#registry) standing for one public Age key, e.g. `owner` or `teammate`. Authorization lists (`recipients`) accept aliases only, never raw keys. Aliases are case-sensitive and must start with an ASCII letter.
+A name in the [registry](#registry) for one public Age key, such as `owner` or `teammate`. See [recipient authorization](/guide/configuration#recipient-authorization) for accepted names and authorization lists.
 
 ## Discovery root
 
-The directory of the config file that owns a [group](#group) — and the base against which every explicit file pair path in that config resolves. Group scans always run under their own discovery root; CLI arguments can never turn an arbitrary directory into a new one. See [Target selection](/guide/target-selection).
+The directory of the config file that owns a group, also used to resolve that config's relative file paths. See [Configuration](/guide/configuration#group-scanning).
 
 ## Group
 
-An `[[encryption.groups]]` entry that discovers many files at once by gitignore-style `patterns` under its [discovery root](#discovery-root), instead of listing [mappings](#mapping) one by one. Encrypted paths follow the [protocol file](#protocol-file) naming. See [Configuration - group scanning](/guide/configuration#group-scanning).
+An `[[encryption.groups]]` entry that discovers multiple file mappings using gitignore-style patterns relative to its config directory. See [Configuration - group scanning](/guide/configuration#group-scanning).
 
 ## Identity
 
-A private Age key (or a bundle of several in one file) that can decrypt files. Identities come from `--key-file`, environment variables, or `.age/keys.txt` — never from the project config. The first present source wins, including a source that parses to an empty bundle; sources are never merged. `yews identities` lists the resolved identities with their winning source and registry aliases. See [Configuration - reading private keys](/guide/configuration#reading-private-keys).
+A private Age key that provides decryption access. Several identities can form a bundle. See [Configuration - reading private keys](/guide/configuration#reading-private-keys) for sources and their precedence, and [`yews identities`](/references/yews_identities) to inspect them.
 
 ## Lenient and strict
 
@@ -26,7 +26,7 @@ The two postures of `decrypt`. Lenient (the default) treats [skips](#skip) as ac
 
 ## Mapping
 
-An `[[encryption.files]]` entry pairing one plaintext path with one encrypted path, optionally with `format` and `recipients`. Also called a *file pair*. Explicit mappings are exact: both paths come from the config, and the files do not need to exist on disk to be selectable by `plan` and `diff`.
+An `[[encryption.files]]` entry pairing one plaintext path with one encrypted path, optionally with `format` and `recipients`. Also called a *file pair*. See [Configuration - file mappings](/guide/configuration#file-mappings).
 
 ## Provenance
 
@@ -34,11 +34,11 @@ Where a resolved value came from. `plan --source` reports each path, format, aut
 
 ## Protocol file
 
-An encrypted file named by the `.enc.*` protocol. Specifically, they are `.enc.toml`, `.enc.yaml`, `.enc.json`, `.enc.env`, `.enc.ini`, and `.enc.bin`. Group discovery always excludes protocol files from the plaintext side, so `encrypt` never double-encrypts.
+An encrypted file with a format-specific `.enc.*` suffix, such as `config.enc.toml`. See [file naming conventions](/guide/configuration#file-naming-conventions) for the supported suffixes.
 
 ## Recipient
 
-A public Age key a file is encrypted *to*. The effective set resolves as file pair over group over `recipients.defaults`, each level fully replacing the previous one. Adding or removing a recipient is a config edit followed by `encrypt`; see [Working with a team](/guide/working-with-a-team).
+A public Age key a file is encrypted to. See [recipient authorization](/guide/configuration#recipient-authorization) for how the configured set is chosen, and [Working with a team](/guide/working-with-a-team) for changing access.
 
 ## Registry
 
@@ -46,7 +46,7 @@ A public Age key a file is encrypted *to*. The effective set resolves as file pa
 
 ## Scope
 
-The directory-restricted view of registered [mappings](#mapping) a command operates in when invoked without arguments: the current directory and below, never the whole repository. See [Target selection](/guide/target-selection).
+The directory range a command considers. With no target arguments, this is the current working directory and its subdirectories. See [default selection](/guide/target-selection#default-selection) for command-specific rules.
 
 ## Selection
 
@@ -54,7 +54,7 @@ The set of mappings a command will process, produced by interpreting CLI argumen
 
 ## Sides
 
-The two paths of a [mapping](#mapping): the *plaintext side* (`config.toml`) and the *encrypted side* (`config.enc.toml`). Commands differ in which side they look at — `encrypt` and `diff` match by plaintext, `decrypt` by ciphertext, and `plan` by either. See [Target selection](/guide/target-selection).
+The plaintext and encrypted paths of a mapping, such as `config.toml` and `config.enc.toml`. See [Target selection](/guide/target-selection#the-two-sides-of-a-mapping) for the side each command selects by.
 
 ## Skip
 

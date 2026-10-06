@@ -11,18 +11,9 @@ paths. The format comes from the project config or the registered file
 path; runtime format overrides and cross-format conversion are not
 supported.
 
-Target selection (no argument: every registered file and group result
-whose ciphertext side is within the current directory scope):
-  - a registered plaintext or encrypted path selects that single mapping;
-  - an existing directory selects mappings whose encrypted side is inside
-    it (groups always scan by their own config directory, never by the
-    target directory);
-  - arguments containing *, ?, and similar metacharacters are patterns
-    matched against registered encrypted paths (a leading / anchors to
-    the current working directory, ** is supported);
-  - multiple arguments take the union; patterns only include, excludes
-    come from group "patterns" in the config; any argument matching
-    nothing is an error.
+With no arguments, decrypt selects registered ciphertext under the current
+directory and its subdirectories. Use file paths, directories, or patterns
+to select targets; directories and patterns match encrypted paths.
 
 The config still governs plaintext/ciphertext paths and formats, but the
 recipients actually used for decryption come from the ciphertext's SOPS
@@ -31,10 +22,9 @@ exists, decrypt warns on stderr and continues with the identity bundle.
 
 Overwrite protection: an existing plaintext file whose content differs
 from the decryption result is not overwritten unless --force is set.
-Before processing, .gitignore is updated with plaintext paths from the
-metadata scope (all configured mappings with no target, selected mappings
-otherwise). Only paths within the current directory subtree are added,
-relative to the current directory; paths outside it are excluded.
+Before decryption, .gitignore receives plaintext entries for selected
+mappings, or all configured mappings when no target is given, according to
+the managed-file rules.
 
 Exit codes: by default, files are skipped when no Age identity is
 available (outcome "no-identity") or when the available identities do
@@ -48,10 +38,8 @@ files are still processed and successful results are kept;
 (invalid arguments, a missing or invalid .yewseal.toml, selection
 failure, an unreadable explicit key file, or a failed key command) exit 2.
 
-TOML ciphertext is decrypted natively by the embedded TOML store without
-format conversion; the output is normalized TOML (single-quoted literal
-strings, comments preserved, equivalent content, possibly different
-layout from the handwritten original).
+TOML output uses normalized formatting: single-quoted literal strings,
+preserved comments, and equivalent content with possibly different layout.
 
 Output: plaintext goes to files and stdout stays empty; warnings,
 per-file skip and failure reasons, and the summary go to stderr
@@ -60,16 +48,14 @@ stdout with the batch report (summary and per-file outcomes); stderr
 diagnostics stay unchanged, and when the run never starts (a calling
 error, exit 2) stdout stays empty.
 
-To decrypt an unregistered file ad hoc without a project config, use
-the SOPS CLI directly (a fork build with the native TOML store is needed
-for native TOML ciphertext).
+For unregistered files, see the SOPS interoperability guide.
 
-See also: "yews plan" to audit mappings and authorization (not a decrypt
-dry run, and it does not verify that the current identity can decrypt),
-"yews view" to print plaintext to stdout, "yews diff" to compare
-plaintext with the ciphertext.
+See also: "yews plan" to inspect mappings and authorization, "yews view"
+to print plaintext, "yews diff" to compare it with stored ciphertext.
 
-Documentation: https://yewfence.github.io/YewSeal/guide/target-selection
+Target selection: https://yewfence.github.io/YewSeal/guide/target-selection
+Managed-file rules: https://yewfence.github.io/YewSeal/guide/configuration#managed-files
+SOPS interoperability: https://yewfence.github.io/YewSeal/guide/sops
 Result classification and exit codes: https://yewfence.github.io/YewSeal/guide/decryption-results
 
 ```
@@ -79,7 +65,7 @@ yews decrypt [command options] [path-or-pattern]... [flags]
 ## Examples
 
 ```
-  # Decrypt every file registered in the config
+  # Decrypt registered ciphertext under the current directory
   yews decrypt
 
   # Decrypt one registered encrypted file to its configured plaintext

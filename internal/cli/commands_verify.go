@@ -20,12 +20,10 @@ func verifyCommand(load configLoader) *cobra.Command {
 		Long: `Check the health of registered encrypted files without modifying any
 project file. verify never prints plaintext, private keys, or data keys.
 
-Target selection is the same as plan: directionless, with either side of
-a mapping selecting it (no argument: mappings with either side within the
-current directory scope; a registered path selects one mapping; a
-directory filters registered mappings; patterns match either side; any
-argument matching nothing is an error). Explicit entries do not require
-their files to exist; a missing ciphertext is a finding.
+With no arguments, verify selects mappings with either path under the current
+directory and its subdirectories. Use file paths, directories, or patterns
+to select targets; directories and patterns match either path.
+Missing ciphertext is a finding.
 
 Checks:
   configuration   the same strict authorization as plan and encrypt; an
@@ -43,21 +41,19 @@ Checks:
                   skipped. --decrypt requires an identity and treats a
                   file no identity can open as an error; --no-decrypt reads
                   no identity source. A missing plaintext is skipped.
-  version control from the nearest git or jj repository (.jj wins when both
-                  exist): selected plaintext and file-backed Age keys that
-                  are already in history (git index; jj @-) are errors,
-                  files one commit away (git untracked and not ignored;
-                  jj @ only) are warnings. Ignoring a file after it was
-                  committed does not clear the error. Symlink paths and their
-                  effective targets are both checked. Outside a repository
-                  this check is skipped; a failed git or jj query is an
-                  error. jj snapshots its working copy while listing @.
-  .sops.yaml      compared with the complete resolved policy for ciphertext
-                  paths within the current directory subtree, using relative
-                  paths independently of the selected targets;
-                  a difference is an error, an absent file is skipped.
-                  --sync-sops-config=false (shared
-                  with init and encrypt) skips the comparison.
+  version control selected plaintext and file-backed Age keys in the nearest
+                  git or jj repository (.jj wins when both exist): tracked
+                  files are errors, unignored files awaiting a commit are
+                  warnings. In git, staged files count as tracked; in jj,
+                  files in a parent of @ count as tracked and files only in
+                  @ produce warnings. Ignoring a tracked file does not
+                  clear the error. Symlinks and their targets are both
+                  checked. Past commits are not audited. Outside a repository
+                  this check is skipped; a failed VCS query is an error.
+                  With jj, verification may snapshot the working copy.
+  .sops.yaml      checked against the managed-file rules, independently of
+                  selected targets. A difference is an error; an absent file
+                  is skipped. --sync-sops-config=false skips the comparison.
 
 Finding codes are stable: ciphertext_missing, ciphertext_not_regular,
 ciphertext_stat_error, ciphertext_read_error, ciphertext_parse_error,
@@ -87,8 +83,10 @@ report that cannot be written.
 See also: "yews plan" for mappings and authorization only, "yews encrypt"
 to repair recipient drift, "yews diff" to inspect a plaintext difference.
 
-Documentation: ` + docsVerify,
-		Example: `  # Check everything in the current directory scope
+Target selection: ` + docsTargetSelect + `
+Managed-file rules: ` + docsManagedFiles + `
+Verification workflows: ` + docsVerify,
+		Example: `  # Check registered mappings under the current directory
   yews verify
 
   # Check one registered mapping
@@ -138,7 +136,7 @@ Documentation: ` + docsVerify,
 	}
 	cmd.Flags().BoolVar(&opts.Decrypt, "decrypt", false, "Require an Age identity and treat undecryptable files as errors")
 	cmd.Flags().BoolVar(&opts.NoDecrypt, "no-decrypt", false, "Skip decryption checks without reading any identity source")
-	cmd.Flags().BoolVar(&opts.SyncSOPSConfig, "sync-sops-config", opts.SyncSOPSConfig, "Check .sops.yaml against the resolved policy; false skips the comparison")
+	cmd.Flags().BoolVar(&opts.SyncSOPSConfig, "sync-sops-config", opts.SyncSOPSConfig, "Check .sops.yaml using the managed-file rules; false skips the comparison")
 	markSharedEnv(cmd.Flags().Lookup("sync-sops-config"), syncSOPSConfigEnv)
 	cmd.Flags().BoolVar(&opts.JSON, "json", false, "Print the verify report as JSON on stdout (errors stay on stderr)")
 	resolver := newOptionResolver(cmd, &opts)

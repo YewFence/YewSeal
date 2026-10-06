@@ -16,7 +16,9 @@ This project is in early development and does not require backward compatibility
 
 **配置 Schema**：`.yewseal.toml` 的权威 schema 是 `schema/config.cue`（CUE），`schema/yewseal.schema.json` 由它导出（不要手改，用 `mise run schema:export` 重新导出）。修改 `internal/config` 的配置 struct 时，必须同步更新 `schema/config.cue` 和全字段锚点 `schema/example.yewseal.toml` 并重新导出；`internal/config/schema_sync_test.go` 的 tripwire 测试和 `mise run schema:check`（已含在 `mise run check`）会强制这一约定。
 
-**CLI 帮助是命令契约的唯一来源**：每个业务命令的 `--help`（Cobra 的 `Long`、`Example` 和 flag usage）必须自带完整契约——用途、目标选择、每个 flag、退出码、输出通道和可运行示例，并以文档站 deep-link 收尾。改命令语义就在同一提交改 help，再跑 `mise run cli:docs` 重新生成 `docs/src/content/docs/references/`（生成物不手改；`cmd/gendocs/main_test.go` 的 tripwire 会比对生成物与已提交页面）。不再写按 flag 罗列的手写命令参考页（`docs/commands/` 已删除）：命令出现在 guide 里必须处于工作流或概念语境，概念页可以比 help 更详细，help 用浓缩版加链接回指它。文档站 URL 集中在 `internal/cli/doclinks.go`，`internal/cli/help_tripwire_test.go` 强制每个业务命令的 `Long`、`Example` 和 deep-link 非空。guide 与 help 或 `docs/design/` 冲突时以后者为准，改 guide。
+**用户文档原则**：相同概念的详细规则只在一个权威位置定义，其他帮助和页面直接引用该位置，不复制整套规则。简短、必要的上下文直接写在原处，读者无需跳转也能理解当前操作；不要为了单一来源把普通表达替换成必须点击的术语。`--help` 和指南直接链接到提供详细规则的页面，不经术语表中转；术语表只作查词入口，条目自身可读，链接用于可选延伸。用户文档（含 `--help`）只说明可观察行为、操作步骤和使用限制；设计取舍、架构分层和内部实现只放在 `docs/design/` 等开发资料中。
+
+**CLI 帮助是命令契约的唯一来源**：每个业务命令的 `--help`（Cobra 的 `Long`、`Example` 和 flag usage）说明用途、本命令的目标选择、每个 flag、退出码、输出通道和可运行示例；共享概念引用权威定义，不在各命令中重复展开，并以文档站 deep-link 收尾。改命令语义就在同一提交改 help，再跑 `mise run cli:docs` 重新生成 `docs/src/content/docs/references/`（生成物不手改；`cmd/gendocs/main_test.go` 的 tripwire 会比对生成物与已提交页面）。guide 围绕工作流展开，概念页维护共享规则，术语表提供简短释义，不再写按 flag 罗列的手写命令参考页。文档站 URL 集中在 `internal/cli/doclinks.go`，`internal/cli/help_tripwire_test.go` 强制每个业务命令的 `Long`、`Example` 和 deep-link 非空。命令行为以 help 为准，共享概念以对应定义页为准；`docs/design/` 记录开发决策，不作为用户文档内容来源。
 
 **内嵌库依赖**：`filippo.io/age`（密钥生成）、`github.com/YewFence/sops/v3`（加解密引擎——作者的个人 fork，带原生 TOML store；引擎层问题应在 fork 仓库开 Issue 或修复） 
 
