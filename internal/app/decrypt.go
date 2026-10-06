@@ -10,16 +10,16 @@ import (
 )
 
 type DecryptRequest struct {
-	Presentation          *presentation.Output
-	KeyFile               string
-	Output                string
-	OutputSet             bool
-	Targets               []string
-	Parallel              int
-	Force                 bool
-	Strict                bool
-	JSON                  bool
-	UpdateProjectMetadata bool
+	Presentation    *presentation.Output
+	KeyFile         string
+	Output          string
+	OutputSet       bool
+	Targets         []string
+	Parallel        int
+	Force           bool
+	Strict          bool
+	JSON            bool
+	UpdateGitignore bool
 }
 
 func DecryptFiles(cfg *config.Config, req DecryptRequest) (err error) {
@@ -33,7 +33,7 @@ func DecryptFiles(cfg *config.Config, req DecryptRequest) (err error) {
 	out.IdentityBundle(preflight.IdentityBundle)
 	out.Selection(preflight.Selection)
 
-	if req.UpdateProjectMetadata {
+	if req.UpdateGitignore {
 		metadataPairs := config.ResolvedFilePairsToFilePairs(preflight.MetadataPairs)
 		if err := project.UpdateGitignore(metadataPairs); err != nil {
 			return err

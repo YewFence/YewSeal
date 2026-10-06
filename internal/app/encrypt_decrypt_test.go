@@ -247,7 +247,7 @@ func TestEncryptFilesRejectsMissingAuthorizationBeforeWrites(t *testing.T) {
 	t.Cleanup(func() { require.NoError(t, os.Chdir(oldWd)) })
 	require.NoError(t, os.WriteFile("secret.yaml", []byte("token: value\n"), 0644))
 	cfg := &config.Config{CurrentDir: root, UserConfig: true, Encryption: config.EncryptionConfig{Files: []config.FilePair{{PlaintextPath: "secret.yaml", EncryptedPath: "secret.enc.yaml", Format: "yaml"}}}}
-	err = EncryptFiles(cfg, EncryptRequest{Targets: []string{"secret.yaml"}, UpdateProjectMetadata: true})
+	err = EncryptFiles(cfg, EncryptRequest{Targets: []string{"secret.yaml"}, UpdateGitignore: true})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "no recipient set")
 	_, statErr := os.Stat("secret.enc.yaml")
@@ -276,7 +276,7 @@ func TestEncryptFilesWritesPortableSopsPaths(t *testing.T) {
 	env := newAppCryptoTestEnv(t)
 	require.NoError(t, os.WriteFile("secret.yaml", []byte("token: value\n"), 0644))
 	cfg := configWithOwnerRecipient(&config.Config{CurrentDir: config.CurrentDir(&config.Config{}), Encryption: config.EncryptionConfig{Files: []config.FilePair{{PlaintextPath: "secret.yaml", EncryptedPath: "secret.enc.yaml", Format: "yaml"}}}}, env.publicKey)
-	require.NoError(t, EncryptFiles(cfg, EncryptRequest{Targets: []string{"secret.yaml"}, Parallel: 1, UpdateProjectMetadata: true, SyncSOPSConfig: true}))
+	require.NoError(t, EncryptFiles(cfg, EncryptRequest{Targets: []string{"secret.yaml"}, Parallel: 1, UpdateGitignore: true, SyncSOPSConfig: true}))
 	content, err := os.ReadFile(".sops.yaml")
 	require.NoError(t, err)
 	assert.Contains(t, string(content), `path_regex: ^secret\.enc\.yaml$`)
@@ -295,7 +295,7 @@ func TestEncryptFilesSkipsCiphertextOnlyGroupAndSyncsPolicy(t *testing.T) {
 		Encryption: config.EncryptionConfig{Groups: []config.GroupConfig{{ConfigDir: cwd, Patterns: []string{"*.yaml"}}}},
 	}, env.publicKey)
 
-	require.NoError(t, EncryptFiles(cfg, EncryptRequest{UpdateProjectMetadata: true, SyncSOPSConfig: true}))
+	require.NoError(t, EncryptFiles(cfg, EncryptRequest{UpdateGitignore: true, SyncSOPSConfig: true}))
 	require.NoFileExists(t, "secret.yaml")
 	content, err := os.ReadFile(".sops.yaml")
 	require.NoError(t, err)
@@ -313,12 +313,12 @@ func TestTargetedEncryptSyncsCompleteProjectSopsPolicy(t *testing.T) {
 	}}}, env.publicKey)
 
 	require.NoError(t, EncryptFiles(cfg, EncryptRequest{
-		Targets:               []string{"first.yaml"},
-		Output:                "review.enc.yaml",
-		OutputSet:             true,
-		Parallel:              1,
-		UpdateProjectMetadata: true,
-		SyncSOPSConfig:        true,
+		Targets:         []string{"first.yaml"},
+		Output:          "review.enc.yaml",
+		OutputSet:       true,
+		Parallel:        1,
+		UpdateGitignore: true,
+		SyncSOPSConfig:  true,
 	}))
 
 	content, err := os.ReadFile(".sops.yaml")
@@ -337,7 +337,7 @@ func TestEncryptLeavesSopsConfigUntouchedWhenSyncDisabled(t *testing.T) {
 	require.NoError(t, os.WriteFile(".sops.yaml", stale, 0o600))
 	cfg := configWithOwnerRecipient(&config.Config{Encryption: config.EncryptionConfig{Files: []config.FilePair{{PlaintextPath: "secret.yaml", EncryptedPath: "secret.enc.yaml", Format: "yaml"}}}}, env.publicKey)
 
-	require.NoError(t, EncryptFiles(cfg, EncryptRequest{Parallel: 1, UpdateProjectMetadata: true}))
+	require.NoError(t, EncryptFiles(cfg, EncryptRequest{Parallel: 1, UpdateGitignore: true}))
 	content, err := os.ReadFile(".sops.yaml")
 	require.NoError(t, err)
 	assert.Equal(t, stale, content)
@@ -356,10 +356,10 @@ func TestEncryptReturnsSopsSyncFailureAfterCompletingEncryption(t *testing.T) {
 	var diagnostics bytes.Buffer
 
 	err := EncryptFiles(cfg, EncryptRequest{
-		Presentation:          presentation.New(nil, &diagnostics, false),
-		Parallel:              1,
-		UpdateProjectMetadata: true,
-		SyncSOPSConfig:        true,
+		Presentation:    presentation.New(nil, &diagnostics, false),
+		Parallel:        1,
+		UpdateGitignore: true,
+		SyncSOPSConfig:  true,
 	})
 	require.ErrorContains(t, err, "failed to update .sops.yaml after encryption")
 	require.ErrorContains(t, err, "Ciphertext processing completed")
@@ -382,9 +382,9 @@ func TestEncryptReturnsTaskAndSopsSyncFailures(t *testing.T) {
 	}}}, env.publicKey)
 
 	err := EncryptFiles(cfg, EncryptRequest{
-		Parallel:              1,
-		UpdateProjectMetadata: true,
-		SyncSOPSConfig:        true,
+		Parallel:        1,
+		UpdateGitignore: true,
+		SyncSOPSConfig:  true,
 	})
 	require.ErrorContains(t, err, "1 of 2 files failed to encrypt")
 	require.ErrorContains(t, err, "failed to update .sops.yaml after encryption")

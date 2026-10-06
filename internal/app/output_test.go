@@ -64,9 +64,9 @@ func TestBatchCompletesDespiteDiagnosticFailure(t *testing.T) {
 						var body bytes.Buffer
 						out := presentation.New(&body, w, true)
 						if action == "encrypt" {
-							err = EncryptFiles(cfg, EncryptRequest{Presentation: out, Parallel: workers, UpdateProjectMetadata: true})
+							err = EncryptFiles(cfg, EncryptRequest{Presentation: out, Parallel: workers, UpdateGitignore: true})
 						} else {
-							err = DecryptFiles(cfg, DecryptRequest{Presentation: out, KeyFile: env.keyFile, Parallel: workers, UpdateProjectMetadata: true})
+							err = DecryptFiles(cfg, DecryptRequest{Presentation: out, KeyFile: env.keyFile, Parallel: workers, UpdateGitignore: true})
 						}
 						want := errReadOutput
 						if short {

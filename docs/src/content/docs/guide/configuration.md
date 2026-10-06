@@ -130,7 +130,7 @@ For synchronization failures and exit codes, see [`yews encrypt --help`](/refere
 
 ### .gitignore
 
-Run `init`, `encrypt`, or `decrypt` to add plaintext ignore entries and the default `.age/keys.txt` entry. Existing rules are preserved. For which mappings each command adds, see [`encrypt`](/references/yews_encrypt) and [`decrypt`](/references/yews_decrypt).
+By default, `init`, `encrypt`, and `decrypt` add plaintext ignore entries and the default `.age/keys.txt` entry. Existing rules are preserved. To maintain ignore rules yourself, set the shared environment variable `YEWSEAL_UPDATE_GITIGNORE=false` or pass `--update-gitignore=false`. This leaves an existing `.gitignore` untouched and does not create one when absent, including during `init --force`. The setting is independent of `.sops.yaml` synchronization; `verify` still checks version-control exposure. An explicit flag overrides the environment variable. For which mappings each command adds, see [`encrypt`](/references/yews_encrypt) and [`decrypt`](/references/yews_decrypt).
 
 For the [Tutorial](/guide/tutorial) project, the generated entries are:
 

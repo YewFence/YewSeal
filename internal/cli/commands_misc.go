@@ -15,7 +15,7 @@ import (
 )
 
 func initCommand() *cobra.Command {
-	opts := initOptions{SyncSOPSConfig: true}
+	opts := initOptions{SyncSOPSConfig: true, UpdateGitignore: true}
 	var resolver *optionResolver
 
 	cmd := &cobra.Command{
@@ -38,6 +38,8 @@ Generated files:
                  control
   .sops.yaml     SOPS config for direct sops usage; skipped with
                  --sync-sops-config=false
+  .gitignore    plaintext and default key ignore entries; skipped with
+                 --update-gitignore=false
 
 When only --input is given, the encrypted file name is inferred
 (config.toml becomes config.enc.toml; other formats use the matching
@@ -65,6 +67,7 @@ to decrypt them. Private key storage and distribution are managed
 outside YewSeal.
 
 Documentation: ` + docsTutorial + `
+Managed-file rules: ` + docsManagedFiles + `
 Private key handling: ` + docsPrivateKeys,
 		Example: `  # Interactive setup
   yews init
@@ -99,6 +102,7 @@ Private key handling: ` + docsPrivateKeys,
 				CreateExampleSet:  resolver.IsSet("create-example"),
 				SyncSOPSConfig:    opts.SyncSOPSConfig,
 				SyncSOPSConfigSet: resolver.IsSet("sync-sops-config"),
+				UpdateGitignore:   opts.UpdateGitignore,
 				JSON:              opts.JSON,
 			}, out, out.Prompts(cmd.InOrStdin()))
 		},
@@ -110,6 +114,8 @@ Private key handling: ` + docsPrivateKeys,
 	cmd.Flags().BoolVar(&opts.CreateExample, "create-example", false, "Create an example plaintext file (interactive: for recorded entries; non-interactive: for the first entry)")
 	cmd.Flags().BoolVar(&opts.SyncSOPSConfig, "sync-sops-config", opts.SyncSOPSConfig, "Create or update .sops.yaml; explicit true or false skips the interactive prompt")
 	markSharedEnv(cmd.Flags().Lookup("sync-sops-config"), syncSOPSConfigEnv)
+	cmd.Flags().BoolVar(&opts.UpdateGitignore, "update-gitignore", opts.UpdateGitignore, "Add plaintext and default key entries to .gitignore; false leaves it untouched")
+	markSharedEnv(cmd.Flags().Lookup("update-gitignore"), updateGitignoreEnv)
 	cmd.Flags().BoolVar(&opts.JSON, "json", false, "Print the initialization report as JSON on stdout (prompts and diagnostics stay on stderr)")
 	resolver = newOptionResolver(cmd, &opts)
 	cmd.Args = resolver.before(cmd.Args)

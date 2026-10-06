@@ -3,23 +3,25 @@ package cli
 import "github.com/spf13/pflag"
 
 type encryptOptions struct {
-	KeyFile        string `mapstructure:"key-file"`
-	Output         string `mapstructure:"output"`
-	Parallel       int    `mapstructure:"parallel"`
-	Force          bool   `mapstructure:"force"`
-	Verbose        bool   `mapstructure:"verbose"`
-	JSON           bool   `mapstructure:"json"`
-	SyncSOPSConfig bool   `mapstructure:"sync-sops-config"`
+	KeyFile         string `mapstructure:"key-file"`
+	Output          string `mapstructure:"output"`
+	Parallel        int    `mapstructure:"parallel"`
+	Force           bool   `mapstructure:"force"`
+	Verbose         bool   `mapstructure:"verbose"`
+	JSON            bool   `mapstructure:"json"`
+	SyncSOPSConfig  bool   `mapstructure:"sync-sops-config"`
+	UpdateGitignore bool   `mapstructure:"update-gitignore"`
 }
 
 type decryptOptions struct {
-	KeyFile  string `mapstructure:"key-file"`
-	Output   string `mapstructure:"output"`
-	Parallel int    `mapstructure:"parallel"`
-	Force    bool   `mapstructure:"force"`
-	Strict   bool   `mapstructure:"strict"`
-	Verbose  bool   `mapstructure:"verbose"`
-	JSON     bool   `mapstructure:"json"`
+	KeyFile         string `mapstructure:"key-file"`
+	Output          string `mapstructure:"output"`
+	Parallel        int    `mapstructure:"parallel"`
+	Force           bool   `mapstructure:"force"`
+	Strict          bool   `mapstructure:"strict"`
+	Verbose         bool   `mapstructure:"verbose"`
+	JSON            bool   `mapstructure:"json"`
+	UpdateGitignore bool   `mapstructure:"update-gitignore"`
 }
 
 type cleanOptions struct {
@@ -37,13 +39,14 @@ type planOptions struct {
 }
 
 type initOptions struct {
-	Force          bool   `mapstructure:"force"`
-	Input          string `mapstructure:"input"`
-	Output         string `mapstructure:"output"`
-	Format         string `mapstructure:"format"`
-	CreateExample  bool   `mapstructure:"create-example"`
-	SyncSOPSConfig bool   `mapstructure:"sync-sops-config"`
-	JSON           bool   `mapstructure:"json"`
+	Force           bool   `mapstructure:"force"`
+	Input           string `mapstructure:"input"`
+	Output          string `mapstructure:"output"`
+	Format          string `mapstructure:"format"`
+	CreateExample   bool   `mapstructure:"create-example"`
+	SyncSOPSConfig  bool   `mapstructure:"sync-sops-config"`
+	UpdateGitignore bool   `mapstructure:"update-gitignore"`
+	JSON            bool   `mapstructure:"json"`
 }
 
 type editOptions struct {
@@ -78,6 +81,8 @@ func addEncryptFlags(flags *pflag.FlagSet, opts *encryptOptions) {
 	flags.BoolVar(&opts.JSON, "json", false, "Print the batch report as JSON on stdout (diagnostics stay on stderr)")
 	flags.BoolVar(&opts.SyncSOPSConfig, "sync-sops-config", opts.SyncSOPSConfig, "Rewrite .sops.yaml after encryption using the managed-file rules")
 	markSharedEnv(flags.Lookup("sync-sops-config"), syncSOPSConfigEnv)
+	flags.BoolVar(&opts.UpdateGitignore, "update-gitignore", opts.UpdateGitignore, "Add plaintext and default key entries to .gitignore; false leaves it untouched")
+	markSharedEnv(flags.Lookup("update-gitignore"), updateGitignoreEnv)
 }
 
 func addDecryptFlags(flags *pflag.FlagSet, opts *decryptOptions) {
@@ -87,6 +92,8 @@ func addDecryptFlags(flags *pflag.FlagSet, opts *decryptOptions) {
 	flags.BoolVar(&opts.Strict, "strict", false, "Require every selected file to be decrypted")
 	flags.BoolVarP(&opts.Verbose, "verbose", "v", false, "Enable verbose output (selection info and per-file results on stderr)")
 	flags.BoolVar(&opts.JSON, "json", false, "Print the batch report as JSON on stdout (diagnostics stay on stderr)")
+	flags.BoolVar(&opts.UpdateGitignore, "update-gitignore", opts.UpdateGitignore, "Add plaintext and default key entries to .gitignore; false leaves it untouched")
+	markSharedEnv(flags.Lookup("update-gitignore"), updateGitignoreEnv)
 }
 
 func addCleanFlags(flags *pflag.FlagSet, opts *cleanOptions) {

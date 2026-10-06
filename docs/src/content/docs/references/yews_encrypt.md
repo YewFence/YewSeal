@@ -30,8 +30,8 @@ skipped.
 configured format. Declare non-standard extensions with "format" or
 "format_rules" in .yewseal.toml.
 
-Before encryption, .gitignore receives entries for all configured plaintext
-paths allowed by the managed-file rules. After encryption,
+Before encryption, --update-gitignore (enabled by default) adds all configured
+plaintext entries using the managed-file rules. After encryption,
 --sync-sops-config (enabled by default) rewrites .sops.yaml using those rules.
 A synchronization failure leaves completed ciphertext work in place and
 makes the command fail.
@@ -95,6 +95,7 @@ yews encrypt [command options] [path-or-pattern]... [flags]
   -o, --output string      Output encrypted file for a single file target (env YEWSEAL_ENCRYPT_OUTPUT)
   -P, --parallel int       Number of parallel workers for batch mode (minimum 1) (env YEWSEAL_ENCRYPT_PARALLEL) (default 1)
       --sync-sops-config   Rewrite .sops.yaml after encryption using the managed-file rules (env YEWSEAL_SYNC_SOPS_CONFIG) (default true)
+      --update-gitignore   Add plaintext and default key entries to .gitignore; false leaves it untouched (env YEWSEAL_UPDATE_GITIGNORE) (default true)
   -v, --verbose            Enable verbose output (env YEWSEAL_ENCRYPT_VERBOSE)
 ```
 

@@ -33,6 +33,7 @@ const sharedEnvAnnotation = "yewseal.shared-env"
 // syncSOPSConfigEnv is shared by every command that owns --sync-sops-config,
 // because the flag describes one project-wide policy rather than a per-command choice.
 const syncSOPSConfigEnv = "YEWSEAL_SYNC_SOPS_CONFIG"
+const updateGitignoreEnv = "YEWSEAL_UPDATE_GITIGNORE"
 
 func newOptionResolver(cmd *cobra.Command, target any) *optionResolver {
 	resolver := &optionResolver{viper: viper.New(), target: target}

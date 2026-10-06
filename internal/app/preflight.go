@@ -26,7 +26,7 @@ func PreflightEncrypt(cfg *config.Config, req EncryptRequest) (PreflightResult, 
 		return PreflightResult{}, err
 	}
 	result := PreflightResult{Selection: selection, MetadataPairs: metadataPairsForSelection(selection)}
-	if req.UpdateProjectMetadata || req.SyncSOPSConfig {
+	if req.UpdateGitignore || req.SyncSOPSConfig {
 		metadataSelection, err := config.ResolveSelection(cfg, config.SelectionOptions{Command: task.ModePlan})
 		if err != nil {
 			return PreflightResult{}, err

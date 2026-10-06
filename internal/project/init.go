@@ -31,6 +31,7 @@ type InitOptions struct {
 	CreateExampleSet  bool
 	SyncSOPSConfig    bool
 	SyncSOPSConfigSet bool
+	UpdateGitignore   bool
 	JSON              bool
 }
 
@@ -99,8 +100,10 @@ func InitProject(opts InitOptions, out *presentation.Output, prompts *tools.Sess
 		return fmt.Errorf("failed to save configuration: %w", err)
 	}
 
-	if err := UpdateGitignore(filePairs); err != nil {
-		return err
+	if opts.UpdateGitignore {
+		if err := UpdateGitignore(filePairs); err != nil {
+			return err
+		}
 	}
 
 	exampleFiles := make([]string, 0, len(selections.ExampleFiles))
