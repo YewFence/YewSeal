@@ -15,7 +15,7 @@ type vcsAdapter interface {
 	name() string
 	// historyFiles are already in (or bound for) version-control history: error.
 	historyFiles() (map[string]bool, error)
-	// pendingFiles are one step away from history: warning.
+	// pendingFiles are not ignored and would enter history with the next commit.
 	pendingFiles() (map[string]bool, error)
 }
 
@@ -97,7 +97,7 @@ func (s vcsState) classifyPath(report *Report, absPath string, subject vcsSubjec
 		finding.Hint = "remove it from version control and review repository history; ignoring it now does not remove it from history"
 	case s.pending[rel]:
 		finding.Code = subject.notIgnoredCode
-		finding.Severity = SeverityWarning
+		finding.Severity = SeverityError
 		finding.Message = fmt.Sprintf("%s %s is not ignored and would enter history with the next commit", subject.noun, rel)
 		finding.Hint = "add it to .gitignore"
 	default:
