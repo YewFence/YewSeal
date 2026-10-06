@@ -1,3 +1,24 @@
+## [0.20.0] - 2026-10-06
+
+### 🚀 Features
+
+- *(cli)* Make gitignore maintenance optional
+
+### 🐛 Bug Fixes
+
+- *(project)* Keep managed paths within the current directory
+- *(verify)* Reject unignored plaintext and private keys
+- *(init)* Omit disabled gitignore updates from summary
+
+### 📚 Documentation
+
+- Simplify help and guide navigation (#87)
+- Recommend verification before pushing sensitive configurations
+
+### ⚙️ Miscellaneous Tasks
+
+- *(npm-deps)* Update dependency @astrojs/starlight to ^0.42.5 (#85)
+- *(gomod-deps)* Update go modules (#84)
 ## [0.19.1] - 2026-10-04
 
 ### ⚙️ Miscellaneous Tasks
