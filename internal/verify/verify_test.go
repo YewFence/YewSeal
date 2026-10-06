@@ -665,7 +665,8 @@ func TestVCSLayerGitUntrackedNotIgnoredIsWarning(t *testing.T) {
 	sel := minimalSelection(resolvedPair(plainPath, encPath, "yaml", []string{key.recipient}))
 	report, err := verify.Check(sel, dir, verify.Options{CheckSOPSConfig: false})
 	require.NoError(t, err)
-	requireFinding(t, report, "plaintext_not_ignored", verify.SeverityWarning)
+	requireFinding(t, report, "plaintext_not_ignored", verify.SeverityError)
+	require.False(t, report.OK())
 }
 
 func TestVCSLayerGitTrackedAfterIgnoreStillError(t *testing.T) {
@@ -723,7 +724,7 @@ func TestVCSLayerGitSymlinkTargetIsChecked(t *testing.T) {
 
 // ── VCS layer: jj ─────────────────────────────────────────────────────────
 
-func TestVCSLayerJJScratchIsWarning(t *testing.T) {
+func TestVCSLayerJJScratchIsError(t *testing.T) {
 	requireJJ(t)
 	dir := t.TempDir()
 	isolateVCSConfig(t)
@@ -735,8 +736,8 @@ func TestVCSLayerJJScratchIsWarning(t *testing.T) {
 	sel := minimalSelection(resolvedPair(plainPath, encPath, "yaml", []string{key.recipient}))
 	report, err := verify.Check(sel, dir, verify.Options{CheckSOPSConfig: false})
 	require.NoError(t, err)
-	// In jj, a new file in @ (scratch, not yet committed) is a warning
-	requireFinding(t, report, "plaintext_not_ignored", verify.SeverityWarning)
+	requireFinding(t, report, "plaintext_not_ignored", verify.SeverityError)
+	require.False(t, report.OK())
 }
 
 func TestVCSLayerJJCommittedIsError(t *testing.T) {
@@ -882,7 +883,8 @@ func TestVCSLayerShadowedSOPSAgeKeyFileIsChecked(t *testing.T) {
 	sel := minimalSelection(resolvedPair(filepath.Join(dir, "config.yaml"), encPath, "yaml", []string{key.recipient}))
 	report, err := verify.Check(sel, dir, verify.Options{DecryptMode: verify.DecryptDisabled})
 	require.NoError(t, err)
-	requireFinding(t, report, "key_not_ignored", verify.SeverityWarning)
+	requireFinding(t, report, "key_not_ignored", verify.SeverityError)
+	require.False(t, report.OK())
 }
 
 func TestVCSLayerSpecialFileNamesAreLiteral(t *testing.T) {

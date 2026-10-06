@@ -43,10 +43,10 @@ Checks:
                   no identity source. A missing plaintext is skipped.
   version control selected plaintext and file-backed Age keys in the nearest
                   git or jj repository (.jj wins when both exist): tracked
-                  files are errors, unignored files awaiting a commit are
-                  warnings. In git, staged files count as tracked; in jj,
-                  files in a parent of @ count as tracked and files only in
-                  @ produce warnings. Ignoring a tracked file does not
+                  files and unignored files awaiting a commit are errors.
+                  In git, staged files count as tracked; in jj, files in a
+                  parent of @ count as tracked and unignored files only in
+                  @ are also errors. Ignoring a tracked file does not
                   clear the error. Symlinks and their targets are both
                   checked. Past commits are not audited. Outside a repository
                   this check is skipped; a failed VCS query is an error.
@@ -61,7 +61,7 @@ ciphertext_no_recipients, key_groups_unsupported, recipient_unsupported, recipie
 recipient_duplicate, decrypt_failed, mac_mismatch,
 decrypt_no_matching_identity (warning, error with --decrypt),
 plaintext_read_error, plaintext_parse_error, plaintext_drift, plaintext_tracked,
-plaintext_not_ignored (warning), key_tracked, key_not_ignored (warning),
+plaintext_not_ignored, key_tracked, key_not_ignored,
 vcs_query_failed, sops_config_read_error, sops_config_generate_error,
 sops_config_drift. All are errors unless marked.
 

@@ -162,20 +162,30 @@ func TestVerifyReportsExposureWithGitignoreUpdatesDisabled(t *testing.T) {
 		require.Zero(t, code, stderr)
 	}
 	stdout, stderr, code := runMetadataCommand(t, binary, dir, env, "verify", "--no-decrypt", "--json")
-	require.Zero(t, code, stderr)
+	require.Equal(t, 1, code, stderr)
 	var report struct {
+		OK       bool `json:"ok"`
 		Findings []struct {
-			Code string `json:"code"`
+			Code     string `json:"code"`
+			Severity string `json:"severity"`
 		} `json:"findings"`
 	}
 	require.NoError(t, json.Unmarshal([]byte(stdout), &report))
+	require.False(t, report.OK)
 	codes := make([]string, 0, len(report.Findings))
 	for _, finding := range report.Findings {
 		codes = append(codes, finding.Code)
+		require.Equal(t, "error", finding.Severity)
 	}
 	require.Contains(t, codes, "plaintext_not_ignored")
 	require.Contains(t, codes, "key_not_ignored")
 	require.NoFileExists(t, filepath.Join(dir, ".gitignore"))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, ".gitignore"), []byte("config.yaml\n.age/\n"), 0600))
+	stdout, stderr, code = runMetadataCommand(t, binary, dir, env, "verify", "--no-decrypt", "--json")
+	require.Zero(t, code, stderr)
+	require.NoError(t, json.Unmarshal([]byte(stdout), &report))
+	require.True(t, report.OK)
+	require.Empty(t, report.Findings)
 }
 
 func runMetadataCommand(t *testing.T, binary, dir string, env []string, args ...string) (string, string, int) {
