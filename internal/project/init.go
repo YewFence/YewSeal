@@ -112,7 +112,7 @@ func InitProject(opts InitOptions, out *presentation.Output, prompts *tools.Sess
 			exampleFiles = append(exampleFiles, exampleFile)
 		}
 	}
-	i.output.Initialized(len(filePairs), shouldCreateSopsConfig)
+	i.output.Initialized(len(filePairs), shouldCreateSopsConfig, opts.UpdateGitignore)
 	if opts.JSON {
 		if err := i.output.InitReportJSON(i.buildInitReport(filePairs, exampleFiles, shouldCreateSopsConfig)); err != nil {
 			return err

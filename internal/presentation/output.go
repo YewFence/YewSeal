@@ -303,8 +303,11 @@ func (o *Output) Edited(path string, changed bool) {
 	}
 }
 
-func (o *Output) Initialized(files int, sops bool) {
-	paths := ".yewseal.toml, .age/keys.txt, .gitignore"
+func (o *Output) Initialized(files int, sops, gitignore bool) {
+	paths := ".yewseal.toml, .age/keys.txt"
+	if gitignore {
+		paths += ", .gitignore"
+	}
 	if sops {
 		paths += ", .sops.yaml"
 	}
