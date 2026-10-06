@@ -110,6 +110,39 @@ func TestInitFailsWhenSopsSyncFails(t *testing.T) {
 	require.NotContains(t, diagnostics.String(), "Initialized ")
 }
 
+func TestInitSummaryListsEnabledManagedFiles(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		gitignore bool
+		sops      bool
+		paths     string
+	}{
+		{name: "neither", paths: ".yewseal.toml, .age/keys.txt"},
+		{name: "gitignore", gitignore: true, paths: ".yewseal.toml, .age/keys.txt, .gitignore"},
+		{name: "sops", sops: true, paths: ".yewseal.toml, .age/keys.txt, .sops.yaml"},
+		{name: "both", gitignore: true, sops: true, paths: ".yewseal.toml, .age/keys.txt, .gitignore, .sops.yaml"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Chdir(t.TempDir())
+			var diagnostics bytes.Buffer
+			out := presentation.New(io.Discard, &diagnostics, false)
+			err := InitProject(InitOptions{
+				InputFile:       "config.yaml",
+				UpdateGitignore: tc.gitignore,
+				SyncSOPSConfig:  tc.sops,
+			}, out, out.Prompts(unreadableInput{}))
+			require.NoError(t, err)
+			require.Contains(t, diagnostics.String(), "Initialized 1 file mapping: "+tc.paths+"\n")
+			if !tc.gitignore {
+				require.NotContains(t, diagnostics.String(), ".gitignore")
+				require.NoFileExists(t, ".gitignore")
+			} else {
+				require.FileExists(t, ".gitignore")
+			}
+		})
+	}
+}
+
 func testInitProject(force bool, input, output, format string, example, skip bool) error {
 	i := testInitializer()
 	return InitProject(InitOptions{
