@@ -72,6 +72,6 @@ When integrating verification into a script, use `--json` and handle the [docume
 yews verify --no-decrypt --json > verify.json
 ```
 
-Warnings and skipped checks allow exit `0`. If your hook must reject warnings too, inspect the report's `findings` rather than relying only on the exit status.
+Unignored plaintext and private-key files make verification fail with exit `1`. Warnings and skipped checks still allow exit `0`; see the [command contract](/references/yews_verify) for their meanings.
 
 For CI setup, see [CI/CD integration - checking repository health](/guide/ci-cd#checking-repository-health).
