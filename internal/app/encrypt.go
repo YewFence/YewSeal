@@ -37,8 +37,8 @@ func EncryptFiles(cfg *config.Config, req EncryptRequest) (err error) {
 	out.IdentityBundle(preflight.IdentityBundle)
 
 	if req.UpdateProjectMetadata {
-		metadataDisplayPairs := config.DisplayFilePairs(config.ResolvedFilePairsToFilePairs(preflight.MetadataPairs), config.CurrentDir(cfg))
-		if err := project.UpdateGitignore(metadataDisplayPairs); err != nil {
+		metadataPairs := config.ResolvedFilePairsToFilePairs(preflight.MetadataPairs)
+		if err := project.UpdateGitignore(metadataPairs); err != nil {
 			return err
 		}
 	}
@@ -55,8 +55,7 @@ func EncryptFiles(cfg *config.Config, req EncryptRequest) (err error) {
 	out.BatchSummary(summary, "encrypted")
 	var syncErr error
 	if req.UpdateProjectMetadata && req.SyncSOPSConfig {
-		resolvedDisplay := config.DisplayResolvedFilePairs(preflight.MetadataPairs, config.CurrentDir(cfg))
-		if err := project.SyncResolvedSopsYaml(resolvedDisplay); err != nil {
+		if err := project.SyncResolvedSopsYaml(preflight.MetadataPairs); err != nil {
 			syncErr = fmt.Errorf("failed to update .sops.yaml after encryption: %w\nCiphertext processing completed. Fix the synchronization error, or use --sync-sops-config=false when direct SOPS interoperability is not required", err)
 		}
 	}

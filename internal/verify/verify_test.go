@@ -539,7 +539,7 @@ func TestSOPSDriftPassesForSynchronizedFile(t *testing.T) {
 	key := newTestKey(t)
 	encPath := makeEncrypted(t, dir, "config.enc.yaml", "yaml", []byte("token: secret\n"), []string{key.recipient})
 	pair := resolvedPair(filepath.Join(dir, "config.yaml"), encPath, "yaml", []string{key.recipient})
-	rendered, err := sopsconfig.Render(config.DisplayResolvedFilePairs([]config.ResolvedFilePair{pair}, dir))
+	rendered, err := sopsconfig.Render([]config.ResolvedFilePair{pair}, dir)
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, ".sops.yaml"), rendered, 0644))
 	report, err := verify.Check(minimalSelection(pair), dir, verify.Options{CheckSOPSConfig: true})

@@ -35,7 +35,7 @@ func DecryptFiles(cfg *config.Config, req DecryptRequest) (err error) {
 
 	if req.UpdateProjectMetadata {
 		metadataPairs := config.ResolvedFilePairsToFilePairs(preflight.MetadataPairs)
-		if err := project.UpdateGitignore(config.DisplayFilePairs(metadataPairs, config.CurrentDir(cfg))); err != nil {
+		if err := project.UpdateGitignore(metadataPairs); err != nil {
 			return err
 		}
 	}

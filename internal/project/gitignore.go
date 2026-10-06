@@ -14,9 +14,14 @@ const (
 	privateKeyPath       = ".age/keys.txt"
 )
 
-// UpdateGitignore creates or updates .gitignore with plaintext file entries.
+// UpdateGitignore creates or updates .gitignore with directory-relative plaintext
+// entries, excluding paths outside the current directory subtree.
 func UpdateGitignore(filePairs []config.FilePair) error {
-	plaintextFiles := uniquePlaintextFiles(filePairs)
+	dir, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("failed to get working directory: %w", err)
+	}
+	plaintextFiles := uniquePlaintextFiles(filePairs, dir)
 	if len(plaintextFiles) == 0 {
 		return nil
 	}
@@ -94,13 +99,13 @@ func renderGitignoreSection(plaintextFiles []string) string {
 	return strings.Join(lines, "\n") + "\n"
 }
 
-func uniquePlaintextFiles(filePairs []config.FilePair) []string {
+func uniquePlaintextFiles(filePairs []config.FilePair, dir string) []string {
 	seen := make(map[string]struct{}, len(filePairs))
 	files := make([]string, 0, len(filePairs))
 
 	for _, filePair := range filePairs {
-		plaintextFile := strings.TrimSpace(filePair.PlaintextPath)
-		if plaintextFile == "" {
+		plaintextFile, inside := config.RelativePathWithin(dir, filePair.PlaintextPath)
+		if !inside {
 			continue
 		}
 		if _, ok := seen[plaintextFile]; ok {

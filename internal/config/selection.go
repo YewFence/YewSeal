@@ -173,6 +173,24 @@ func DisplayPath(cwd, path string) string {
 	return filepath.Clean(path)
 }
 
+// RelativePathWithin returns a slash-separated path relative to root when path
+// belongs to root's directory subtree. Relative input paths resolve against root.
+func RelativePathWithin(root, path string) (string, bool) {
+	if strings.TrimSpace(path) == "" {
+		return "", false
+	}
+	root = cleanAbsPath(root)
+	rel, err := filepath.Rel(root, resolveCommandPath(root, path))
+	if err != nil {
+		return "", false
+	}
+	rel = filepath.ToSlash(rel)
+	if rel == ".." || strings.HasPrefix(rel, "../") {
+		return "", false
+	}
+	return rel, true
+}
+
 // selectTargetFilePairs 把每个位置参数解析为一组 FilePair 并取并集：
 // 精确路径命中任一已登记映射（明文或密文路径均可），目录按命令主侧收缩
 // 范围，含 glob 元字符的参数按模式与已登记映射求交集。任一参数零命中
