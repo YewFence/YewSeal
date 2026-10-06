@@ -10,7 +10,7 @@ import (
 	"github.com/YewFence/YewSeal/internal/sopsconfig"
 )
 
-// checkSOPSDrift compares .sops.yaml in cwd with the complete resolved verify policy.
+// checkSOPSDrift compares .sops.yaml in cwd with the complete directory policy.
 func checkSOPSDrift(report *Report, allPairs []config.ResolvedFilePair, cwd string) {
 	onDisk, err := os.ReadFile(filepath.Join(cwd, ".sops.yaml"))
 	if os.IsNotExist(err) {
@@ -25,8 +25,7 @@ func checkSOPSDrift(report *Report, allPairs []config.ResolvedFilePair, cwd stri
 		})
 		return
 	}
-	// .sops.yaml uses cwd-relative paths.
-	expected, err := sopsconfig.Render(config.DisplayResolvedFilePairs(allPairs, cwd))
+	expected, err := sopsconfig.Render(allPairs, cwd)
 	if err != nil {
 		report.Add(Finding{
 			Code:     "sops_config_generate_error",
@@ -42,7 +41,7 @@ func checkSOPSDrift(report *Report, allPairs []config.ResolvedFilePair, cwd stri
 	report.Add(Finding{
 		Code:     "sops_config_drift",
 		Severity: SeverityError,
-		Message:  ".sops.yaml differs from the resolved project policy",
+		Message:  ".sops.yaml differs from the resolved current-directory policy",
 		Hint:     "review .sops.yaml against the resolved verify policy",
 	})
 }

@@ -127,7 +127,7 @@ creation_rules:
     age: age1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
-YewSeal generates exact-match rules for the complete resolved project policy. Encrypt targets only select ciphertext work: synchronizing after a single target or an `--output` override still rewrites `.sops.yaml` from every configured mapping and the registered group scan results. Encryption finishes before synchronization is attempted. A synchronization failure does not roll back completed ciphertext work, but it makes the command exit with status 1. During initialization, a synchronization failure also makes `init` fail.
+YewSeal generates exact-match rules for every resolved ciphertext path within the current working directory and its descendants. Rules use paths relative to the generated `.sops.yaml`; paths outside this subtree are excluded, even when explicitly selected for encryption. Encrypt targets only select ciphertext work: synchronizing after a single target or an `--output` override still rewrites `.sops.yaml` from the complete configured policy within that subtree, including ciphertext-only group results. Encryption finishes before synchronization is attempted. A synchronization failure does not roll back completed ciphertext work, but it makes the command exit with status 1. During initialization, a synchronization failure also makes `init` fail.
 
 ## Age key management
 
@@ -213,7 +213,7 @@ The recommended naming convention:
 
 ### Version control
 
-`init` (and `decrypt`) maintain `.gitignore` for you: each registered plaintext path is added with a `# YewSeal - Decrypted configuration files` header, and the default key file is excluded under `# YewSeal - Age private keys`. This is the exact content generated for the [Tutorial](/guide/tutorial) project:
+`init`, `encrypt`, and `decrypt` maintain `.gitignore` in the current working directory: plaintext paths within that directory and its descendants are added relative to it under a `# YewSeal - Decrypted configuration files` header, and the default key file is excluded under `# YewSeal - Age private keys`. Paths outside this subtree are not added. Encrypt uses the complete configured metadata scope; decrypt uses all configured mappings without a target, or the selected mappings when targets are given. This is the exact content generated for the [Tutorial](/guide/tutorial) project:
 
 ```ini
 # YewSeal - Decrypted configuration files

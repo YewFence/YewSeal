@@ -54,7 +54,8 @@ plaintext. --force always performs this fresh encryption and rotates the data
 key without reading the old ciphertext. encrypt reads only plaintext files:
 when a plaintext is missing, it is reported and skipped without creating an
 output directory. Regardless of the selected targets, .sops.yaml is synced
-from the complete project configuration, including ciphertext-only mappings.
+from all configured ciphertext mappings within the current directory
+subtree, including ciphertext-only mappings.
 
 --output only changes the location, never the format. There is no
 --format flag: non-standard extensions are declared via "format" or
@@ -62,9 +63,13 @@ from the complete project configuration, including ciphertext-only mappings.
 .enc.* path; --output applies to single file targets only, never to
 config-wide or directory-driven batches.
 
-After processing, --sync-sops-config (enabled by default) rewrites
-.sops.yaml from the complete resolved project policy, not only the selected
-targets. Encryption always finishes before synchronization is attempted.
+Before processing, .gitignore is updated with configured plaintext paths
+within the current directory subtree. After processing,
+--sync-sops-config (enabled by default) rewrites .sops.yaml from the complete
+resolved policy for ciphertext paths within that subtree, not only the
+selected targets. Both files use paths relative to the current directory;
+paths outside it are excluded even when explicitly selected for encryption.
+Encryption always finishes before synchronization is attempted.
 A synchronization failure leaves completed ciphertext work in place but
 makes the command fail.
 
@@ -167,6 +172,10 @@ exists, decrypt warns on stderr and continues with the identity bundle.
 
 Overwrite protection: an existing plaintext file whose content differs
 from the decryption result is not overwritten unless --force is set.
+Before processing, .gitignore is updated with plaintext paths from the
+metadata scope (all configured mappings with no target, selected mappings
+otherwise). Only paths within the current directory subtree are added,
+relative to the current directory; paths outside it are excluded.
 
 Exit codes: by default, files are skipped when no Age identity is
 available (outcome "no-identity") or when the available identities do

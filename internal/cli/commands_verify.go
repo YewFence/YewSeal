@@ -52,7 +52,9 @@ Checks:
                   effective targets are both checked. Outside a repository
                   this check is skipped; a failed git or jj query is an
                   error. jj snapshots its working copy while listing @.
-  .sops.yaml      compared with the complete resolved verify policy;
+  .sops.yaml      compared with the complete resolved policy for ciphertext
+                  paths within the current directory subtree, using relative
+                  paths independently of the selected targets;
                   a difference is an error, an absent file is skipped.
                   --sync-sops-config=false (shared
                   with init and encrypt) skips the comparison.

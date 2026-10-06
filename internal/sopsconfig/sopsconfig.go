@@ -20,21 +20,22 @@ type creationRule struct {
 	Age       string `yaml:"age"`
 }
 
-// Render returns the complete managed .sops.yaml content for resolved per-file
-// policy. Writers and read-only drift checks share it so they cannot diverge.
-func Render(filePairs []config.ResolvedFilePair) ([]byte, error) {
+// Render returns managed .sops.yaml content for ciphertext paths within dir,
+// relative to dir. Writers and drift checks share the same directory policy.
+func Render(filePairs []config.ResolvedFilePair, dir string) ([]byte, error) {
 	creationRules := make([]creationRule, 0, len(filePairs))
 	seen := make(map[string]string, len(filePairs))
 
 	for _, filePair := range filePairs {
-		if filePair.EncryptedPath == "" {
+		path, inside := config.RelativePathWithin(dir, filePair.EncryptedPath)
+		if !inside {
 			continue
 		}
 		if len(filePair.Recipients) == 0 {
 			return nil, fmt.Errorf("file %s has no resolved recipients", filePair.EncryptedPath)
 		}
 
-		pathRegex := buildPathRegex(filePair.EncryptedPath)
+		pathRegex := buildPathRegex(path)
 		recipients := append([]string(nil), filePair.Recipients...)
 		sort.Strings(recipients)
 		ageValue := strings.Join(recipients, ",")

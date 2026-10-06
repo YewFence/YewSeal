@@ -12,7 +12,11 @@ const sopsYamlPath = ".sops.yaml"
 
 // SyncResolvedSopsYaml rewrites .sops.yaml from resolved per-file policy.
 func SyncResolvedSopsYaml(filePairs []config.ResolvedFilePair) error {
-	data, err := sopsconfig.Render(filePairs)
+	dir, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("failed to get working directory: %w", err)
+	}
+	data, err := sopsconfig.Render(filePairs, dir)
 	if err != nil {
 		return err
 	}

@@ -39,7 +39,8 @@ plaintext. --force always performs this fresh encryption and rotates the data
 key without reading the old ciphertext. encrypt reads only plaintext files:
 when a plaintext is missing, it is reported and skipped without creating an
 output directory. Regardless of the selected targets, .sops.yaml is synced
-from the complete project configuration, including ciphertext-only mappings.
+from all configured ciphertext mappings within the current directory
+subtree, including ciphertext-only mappings.
 
 --output only changes the location, never the format. There is no
 --format flag: non-standard extensions are declared via "format" or
@@ -47,9 +48,13 @@ from the complete project configuration, including ciphertext-only mappings.
 .enc.* path; --output applies to single file targets only, never to
 config-wide or directory-driven batches.
 
-After processing, --sync-sops-config (enabled by default) rewrites
-.sops.yaml from the complete resolved project policy, not only the selected
-targets. Encryption always finishes before synchronization is attempted.
+Before processing, .gitignore is updated with configured plaintext paths
+within the current directory subtree. After processing,
+--sync-sops-config (enabled by default) rewrites .sops.yaml from the complete
+resolved policy for ciphertext paths within that subtree, not only the
+selected targets. Both files use paths relative to the current directory;
+paths outside it are excluded even when explicitly selected for encryption.
+Encryption always finishes before synchronization is attempted.
 A synchronization failure leaves completed ciphertext work in place but
 makes the command fail.
 
@@ -111,7 +116,7 @@ yews encrypt [command options] [path-or-pattern]... [flags]
       --json               Print the batch report as JSON on stdout (diagnostics stay on stderr) (env YEWSEAL_ENCRYPT_JSON)
   -o, --output string      Output encrypted file for a single file target (env YEWSEAL_ENCRYPT_OUTPUT)
   -P, --parallel int       Number of parallel workers for batch mode (minimum 1) (env YEWSEAL_ENCRYPT_PARALLEL) (default 1)
-      --sync-sops-config   Sync the complete project policy to .sops.yaml after encryption (env YEWSEAL_SYNC_SOPS_CONFIG) (default true)
+      --sync-sops-config   Sync the current directory subtree's ciphertext policy to .sops.yaml after encryption (env YEWSEAL_SYNC_SOPS_CONFIG) (default true)
   -v, --verbose            Enable verbose output (env YEWSEAL_ENCRYPT_VERBOSE)
 ```
 

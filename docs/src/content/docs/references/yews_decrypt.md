@@ -31,6 +31,10 @@ exists, decrypt warns on stderr and continues with the identity bundle.
 
 Overwrite protection: an existing plaintext file whose content differs
 from the decryption result is not overwritten unless --force is set.
+Before processing, .gitignore is updated with plaintext paths from the
+metadata scope (all configured mappings with no target, selected mappings
+otherwise). Only paths within the current directory subtree are added,
+relative to the current directory; paths outside it are excluded.
 
 Exit codes: by default, files are skipped when no Age identity is
 available (outcome "no-identity") or when the available identities do
