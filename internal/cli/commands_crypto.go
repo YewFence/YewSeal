@@ -12,8 +12,9 @@ import (
 
 func encryptCommand(load configLoader) *cobra.Command {
 	opts := encryptOptions{
-		Parallel:       1,
-		SyncSOPSConfig: true,
+		Parallel:        1,
+		SyncSOPSConfig:  true,
+		UpdateGitignore: true,
 	}
 	var resolver *optionResolver
 
@@ -45,8 +46,8 @@ skipped.
 configured format. Declare non-standard extensions with "format" or
 "format_rules" in .yewseal.toml.
 
-Before encryption, .gitignore receives entries for all configured plaintext
-paths allowed by the managed-file rules. After encryption,
+Before encryption, --update-gitignore (enabled by default) adds all configured
+plaintext entries using the managed-file rules. After encryption,
 --sync-sops-config (enabled by default) rewrites .sops.yaml using those rules.
 A synchronization failure leaves completed ciphertext work in place and
 makes the command fail.
@@ -96,16 +97,16 @@ Managed-file rules: ` + docsManagedFiles,
 		},
 		RunE: withConfig(load, func(cmd *cobra.Command, args []string, cfg *config.Config) error {
 			return yewsapp.EncryptFiles(cfg, yewsapp.EncryptRequest{
-				Presentation:          presentation.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), opts.Verbose),
-				KeyFile:               opts.KeyFile,
-				Output:                opts.Output,
-				OutputSet:             resolver.IsSet("output"),
-				Targets:               args,
-				Parallel:              opts.Parallel,
-				Force:                 opts.Force,
-				JSON:                  opts.JSON,
-				UpdateProjectMetadata: true,
-				SyncSOPSConfig:        opts.SyncSOPSConfig,
+				Presentation:    presentation.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), opts.Verbose),
+				KeyFile:         opts.KeyFile,
+				Output:          opts.Output,
+				OutputSet:       resolver.IsSet("output"),
+				Targets:         args,
+				Parallel:        opts.Parallel,
+				Force:           opts.Force,
+				JSON:            opts.JSON,
+				UpdateGitignore: opts.UpdateGitignore,
+				SyncSOPSConfig:  opts.SyncSOPSConfig,
 			})
 		}),
 	}
@@ -117,7 +118,8 @@ Managed-file rules: ` + docsManagedFiles,
 
 func decryptCommand(load configLoader) *cobra.Command {
 	opts := decryptOptions{
-		Parallel: 1,
+		Parallel:        1,
+		UpdateGitignore: true,
 	}
 	var resolver *optionResolver
 
@@ -141,9 +143,9 @@ exists, decrypt warns on stderr and continues with the identity bundle.
 
 Overwrite protection: an existing plaintext file whose content differs
 from the decryption result is not overwritten unless --force is set.
-Before decryption, .gitignore receives plaintext entries for selected
-mappings, or all configured mappings when no target is given, according to
-the managed-file rules.
+Before decryption, --update-gitignore (enabled by default) adds plaintext
+entries for selected mappings, or all configured mappings when no target is
+given, using the managed-file rules.
 
 Exit codes: by default, files are skipped when no Age identity is
 available (outcome "no-identity") or when the available identities do
@@ -201,16 +203,16 @@ Result classification and exit codes: ` + docsDecryptResults,
 		},
 		RunE: withConfig(load, func(cmd *cobra.Command, args []string, cfg *config.Config) error {
 			return yewsapp.DecryptFiles(cfg, yewsapp.DecryptRequest{
-				Presentation:          presentation.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), opts.Verbose),
-				KeyFile:               opts.KeyFile,
-				Output:                opts.Output,
-				OutputSet:             resolver.IsSet("output"),
-				Targets:               args,
-				Parallel:              opts.Parallel,
-				Force:                 opts.Force,
-				Strict:                opts.Strict,
-				JSON:                  opts.JSON,
-				UpdateProjectMetadata: true,
+				Presentation:    presentation.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), opts.Verbose),
+				KeyFile:         opts.KeyFile,
+				Output:          opts.Output,
+				OutputSet:       resolver.IsSet("output"),
+				Targets:         args,
+				Parallel:        opts.Parallel,
+				Force:           opts.Force,
+				Strict:          opts.Strict,
+				JSON:            opts.JSON,
+				UpdateGitignore: opts.UpdateGitignore,
 			})
 		}),
 	}

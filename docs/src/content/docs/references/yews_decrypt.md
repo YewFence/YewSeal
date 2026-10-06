@@ -22,9 +22,9 @@ exists, decrypt warns on stderr and continues with the identity bundle.
 
 Overwrite protection: an existing plaintext file whose content differs
 from the decryption result is not overwritten unless --force is set.
-Before decryption, .gitignore receives plaintext entries for selected
-mappings, or all configured mappings when no target is given, according to
-the managed-file rules.
+Before decryption, --update-gitignore (enabled by default) adds plaintext
+entries for selected mappings, or all configured mappings when no target is
+given, using the managed-file rules.
 
 Exit codes: by default, files are skipped when no Age identity is
 available (outcome "no-identity") or when the available identities do
@@ -90,13 +90,14 @@ yews decrypt [command options] [path-or-pattern]... [flags]
 ## Options
 
 ```
-  -f, --force           Force overwrite existing plaintext file when it differs from decrypted content (env YEWSEAL_DECRYPT_FORCE)
-  -h, --help            help for decrypt
-      --json            Print the batch report as JSON on stdout (diagnostics stay on stderr) (env YEWSEAL_DECRYPT_JSON)
-  -o, --output string   Output plaintext file for a single file target (env YEWSEAL_DECRYPT_OUTPUT)
-  -P, --parallel int    Number of parallel workers for batch mode (minimum 1) (env YEWSEAL_DECRYPT_PARALLEL) (default 1)
-      --strict          Require every selected file to be decrypted (env YEWSEAL_DECRYPT_STRICT)
-  -v, --verbose         Enable verbose output (selection info and per-file results on stderr) (env YEWSEAL_DECRYPT_VERBOSE)
+  -f, --force              Force overwrite existing plaintext file when it differs from decrypted content (env YEWSEAL_DECRYPT_FORCE)
+  -h, --help               help for decrypt
+      --json               Print the batch report as JSON on stdout (diagnostics stay on stderr) (env YEWSEAL_DECRYPT_JSON)
+  -o, --output string      Output plaintext file for a single file target (env YEWSEAL_DECRYPT_OUTPUT)
+  -P, --parallel int       Number of parallel workers for batch mode (minimum 1) (env YEWSEAL_DECRYPT_PARALLEL) (default 1)
+      --strict             Require every selected file to be decrypted (env YEWSEAL_DECRYPT_STRICT)
+      --update-gitignore   Add plaintext and default key entries to .gitignore; false leaves it untouched (env YEWSEAL_UPDATE_GITIGNORE) (default true)
+  -v, --verbose            Enable verbose output (selection info and per-file results on stderr) (env YEWSEAL_DECRYPT_VERBOSE)
 ```
 
 ## Options inherited from parent commands

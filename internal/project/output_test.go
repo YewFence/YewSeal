@@ -30,7 +30,7 @@ func TestInitDiagnosticFailureStillCompletesForcedRebuild(t *testing.T) {
 	w := &brokenDiagnostics{}
 	var body bytes.Buffer
 	out := presentation.New(&body, w, false)
-	err := InitProject(InitOptions{Force: true, InputFile: "config.yaml", SyncSOPSConfig: true}, out, out.Prompts(unreadableInput{}))
+	err := InitProject(InitOptions{Force: true, InputFile: "config.yaml", SyncSOPSConfig: true, UpdateGitignore: true}, out, out.Prompts(unreadableInput{}))
 	require.ErrorIs(t, err, io.ErrClosedPipe)
 	require.True(t, presentation.DiagnosticsFailed(err))
 	require.Equal(t, 1, w.calls)
@@ -121,5 +121,6 @@ func testInitProject(force bool, input, output, format string, example, skip boo
 		CreateExampleSet:  true,
 		SyncSOPSConfig:    !skip,
 		SyncSOPSConfigSet: true,
+		UpdateGitignore:   true,
 	}, i.output, i.prompts)
 }

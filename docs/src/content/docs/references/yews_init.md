@@ -23,6 +23,8 @@ Generated files:
                  control
   .sops.yaml     SOPS config for direct sops usage; skipped with
                  --sync-sops-config=false
+  .gitignore    plaintext and default key ignore entries; skipped with
+                 --update-gitignore=false
 
 When only --input is given, the encrypted file name is inferred
 (config.toml becomes config.enc.toml; other formats use the matching
@@ -50,6 +52,7 @@ to decrypt them. Private key storage and distribution are managed
 outside YewSeal.
 
 Documentation: https://yewfence.github.io/YewSeal/guide/tutorial
+Managed-file rules: https://yewfence.github.io/YewSeal/guide/configuration#managed-files
 Private key handling: https://yewfence.github.io/YewSeal/guide/private-keys
 
 ```
@@ -87,6 +90,7 @@ yews init [flags]
       --json               Print the initialization report as JSON on stdout (prompts and diagnostics stay on stderr) (env YEWSEAL_INIT_JSON)
   -o, --output string      Encrypted file for the first config entry (non-interactive mode) (env YEWSEAL_INIT_OUTPUT)
       --sync-sops-config   Create or update .sops.yaml; explicit true or false skips the interactive prompt (env YEWSEAL_SYNC_SOPS_CONFIG) (default true)
+      --update-gitignore   Add plaintext and default key entries to .gitignore; false leaves it untouched (env YEWSEAL_UPDATE_GITIGNORE) (default true)
 ```
 
 ## Options inherited from parent commands

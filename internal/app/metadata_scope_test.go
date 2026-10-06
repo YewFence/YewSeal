@@ -21,10 +21,10 @@ func TestEncryptMetadataStaysWithinCurrentDirectory(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			cfg, env, root := directoryMetadataTestConfig(t)
 			require.NoError(t, EncryptFiles(cfg, EncryptRequest{
-				Targets:               targets,
-				Parallel:              1,
-				UpdateProjectMetadata: true,
-				SyncSOPSConfig:        true,
+				Targets:         targets,
+				Parallel:        1,
+				UpdateGitignore: true,
+				SyncSOPSConfig:  true,
 			}))
 
 			requireDirectoryGitignore(t, root)
@@ -75,9 +75,9 @@ func TestDecryptGitignoreStaysWithinCurrentDirectory(t *testing.T) {
 	require.NoError(t, err)
 
 	require.NoError(t, DecryptFiles(cfg, DecryptRequest{
-		KeyFile:               env.keyFile,
-		Parallel:              1,
-		UpdateProjectMetadata: true,
+		KeyFile:         env.keyFile,
+		Parallel:        1,
+		UpdateGitignore: true,
 	}))
 
 	requireDirectoryGitignore(t, root)

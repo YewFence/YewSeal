@@ -11,16 +11,16 @@ import (
 )
 
 type EncryptRequest struct {
-	Presentation          *presentation.Output
-	KeyFile               string
-	Output                string
-	OutputSet             bool
-	Targets               []string
-	Parallel              int
-	Force                 bool
-	JSON                  bool
-	UpdateProjectMetadata bool
-	SyncSOPSConfig        bool
+	Presentation    *presentation.Output
+	KeyFile         string
+	Output          string
+	OutputSet       bool
+	Targets         []string
+	Parallel        int
+	Force           bool
+	JSON            bool
+	UpdateGitignore bool
+	SyncSOPSConfig  bool
 }
 
 func EncryptFiles(cfg *config.Config, req EncryptRequest) (err error) {
@@ -36,7 +36,7 @@ func EncryptFiles(cfg *config.Config, req EncryptRequest) (err error) {
 	}
 	out.IdentityBundle(preflight.IdentityBundle)
 
-	if req.UpdateProjectMetadata {
+	if req.UpdateGitignore {
 		metadataPairs := config.ResolvedFilePairsToFilePairs(preflight.MetadataPairs)
 		if err := project.UpdateGitignore(metadataPairs); err != nil {
 			return err
@@ -54,7 +54,7 @@ func EncryptFiles(cfg *config.Config, req EncryptRequest) (err error) {
 	summary, encryptErr := task.Encrypt(opts)
 	out.BatchSummary(summary, "encrypted")
 	var syncErr error
-	if req.UpdateProjectMetadata && req.SyncSOPSConfig {
+	if req.SyncSOPSConfig {
 		if err := project.SyncResolvedSopsYaml(preflight.MetadataPairs); err != nil {
 			syncErr = fmt.Errorf("failed to update .sops.yaml after encryption: %w\nCiphertext processing completed. Fix the synchronization error, or use --sync-sops-config=false when direct SOPS interoperability is not required", err)
 		}
