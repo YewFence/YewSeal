@@ -370,18 +370,9 @@ func diffCommand(load configLoader) *cobra.Command {
 registered ciphertext, to preview pending changes during development.
 Showing differences is never itself a failure.
 
-Target selection (no argument: mappings by plaintext path within the
-current directory scope):
-  - a discovered mapping's plaintext or encrypted path selects it;
-  - an existing directory filters registered mappings by their plaintext
-    side (no rescanning by the target directory);
-  - arguments containing *, ?, and similar metacharacters are patterns
-    matched against registered plaintext paths;
-  - multiple arguments take the union; any argument matching nothing is
-    an error.
-Groups are discovered from the plaintext side; group entries with only
-a ciphertext never enter the candidate set. Selecting nothing at all is
-an error, which differs from selecting files that are all skipped.
+With no arguments, diff selects registered plaintext under the current
+directory and its subdirectories. Use file paths, directories, or patterns
+to select targets; directories and patterns match plaintext paths.
 
 A mapping is skipped with the reason reported on stderr when either
 side is missing (no new/deleted patch is emitted and it does not count
@@ -390,8 +381,7 @@ identity is available, each mapping with both inputs present fails instead
 of claiming an identity mismatch. Detected ciphertext corruption,
 permission errors, and other read/write failures are also real errors,
 but a single file's error does not stop the comparison of other files.
-Once a selection succeeds, the identity source is resolved exactly once:
-an unreadable --key-file or a failed key command aborts even when every
+An unreadable --key-file or a failed key command aborts even when every
 mapping would otherwise be skipped.
 
 The format and mapping come from the config; a stale recipient alias
@@ -415,8 +405,9 @@ stderr (--verbose adds selection info and per-file completion notes).
 See also: "yews encrypt" to re-encrypt changed plaintext, "yews view"
 to inspect ciphertext content.
 
-Documentation: ` + docsDecryptResults,
-		Example: `  # Compare every registered file in scope
+Documentation: ` + docsDecryptResults + `
+Target selection: ` + docsTargetSelect,
+		Example: `  # Compare registered plaintext under the current directory
   yews diff
 
   # Compare one mapping via either side

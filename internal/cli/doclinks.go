@@ -8,6 +8,7 @@ const (
 	docsTutorial           = docsBaseURL + "/guide/tutorial"
 	docsConfiguration      = docsBaseURL + "/guide/configuration"
 	docsTargetSelect       = docsBaseURL + "/guide/target-selection"
+	docsManagedFiles       = docsConfiguration + "#managed-files"
 	docsDecryptResults     = docsBaseURL + "/guide/decryption-results"
 	docsPlaintextCleanup   = docsBaseURL + "/guide/plaintext-cleanup"
 	docsReadingPrivateKeys = docsConfiguration + "#reading-private-keys"

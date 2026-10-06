@@ -21,29 +21,16 @@ func encryptCommand(load configLoader) *cobra.Command {
 		Use:     "encrypt [command options] [path-or-pattern]...",
 		Aliases: []string{"e"},
 		Short:   "Encrypt configuration file (supports .toml, .yaml, .yml, .json, .env, .ini, and binary output)",
-		Long: `Encrypt registered configuration files with SOPS and Age. Supported
-formats: .toml, .yaml, .yml, .json, .env, .ini, and binary output; every
-format is encrypted natively by the embedded SOPS engine and the
-ciphertext keeps the original format.
+		Long: `Encrypt registered configuration files with SOPS and Age,
+preserving their format. Supported formats: TOML, YAML, JSON, ENV, INI, and binary.
 
-Target selection (no argument: every file and group in .yewseal.toml
-within the current directory scope):
-  - a registered plaintext or encrypted path selects that single mapping;
-  - an existing directory selects mappings whose plaintext side is inside
-    it (groups always scan by their own config directory, never by the
-    target directory);
-  - arguments containing *, ?, and similar metacharacters are patterns
-    matched against registered plaintext paths (a leading / anchors to
-    the current working directory, ** is supported);
-  - multiple arguments take the union; patterns only include, excludes
-    come from group "patterns" in the config; any argument matching
-    nothing is an error.
+With no arguments, encrypt selects registered plaintext under the current
+directory and its subdirectories. Use file paths, directories, or patterns
+to select targets; directories and patterns match plaintext paths.
 
-Recipients come strictly from alias resolution in .yewseal.toml (file
-"recipients" > group > top-level recipients.defaults); there is no
---public-key flag. An empty final set, an unknown alias, or groups
-disagreeing on the same path fails the whole batch before any ciphertext
-is written.
+Recipients come from .yewseal.toml. An empty recipient set, an unknown
+alias, or conflicting group authorization fails the batch before any
+ciphertext is written.
 
 When ciphertext already exists, encrypt uses an available private identity
 to verify and update it in place: unchanged files remain byte-identical,
@@ -51,26 +38,17 @@ unchanged values retain their ciphertext, and recipient-only changes only
 rewrap the existing data key. If no identity is available, or none matches a
 specific file, encrypt warns and replaces that ciphertext from the current
 plaintext. --force always performs this fresh encryption and rotates the data
-key without reading the old ciphertext. encrypt reads only plaintext files:
-when a plaintext is missing, it is reported and skipped without creating an
-output directory. Regardless of the selected targets, .sops.yaml is synced
-from all configured ciphertext mappings within the current directory
-subtree, including ciphertext-only mappings.
+key without reading the old ciphertext. Missing plaintext is reported and
+skipped.
 
---output only changes the location, never the format. There is no
---format flag: non-standard extensions are declared via "format" or
-"format_rules" in the config. Group results get the format's standard
-.enc.* path; --output applies to single file targets only, never to
-config-wide or directory-driven batches.
+--output changes the destination of a single file target, preserving its
+configured format. Declare non-standard extensions with "format" or
+"format_rules" in .yewseal.toml.
 
-Before processing, .gitignore is updated with configured plaintext paths
-within the current directory subtree. After processing,
---sync-sops-config (enabled by default) rewrites .sops.yaml from the complete
-resolved policy for ciphertext paths within that subtree, not only the
-selected targets. Both files use paths relative to the current directory;
-paths outside it are excluded even when explicitly selected for encryption.
-Encryption always finishes before synchronization is attempted.
-A synchronization failure leaves completed ciphertext work in place but
+Before encryption, .gitignore receives entries for all configured plaintext
+paths allowed by the managed-file rules. After encryption,
+--sync-sops-config (enabled by default) rewrites .sops.yaml using those rules.
+A synchronization failure leaves completed ciphertext work in place and
 makes the command fail.
 
 Exit codes: 0 on success (skips without real errors allowed, including
@@ -90,12 +68,12 @@ stdout stays empty.
 To encrypt an unregistered file ad hoc without a project config, use
 the SOPS CLI directly.
 
-See also: "yews plan" to audit mappings and authorization (not an
-encrypt dry run), "yews diff" to compare plaintext with the stored
-ciphertext.
+See also: "yews plan" to inspect mappings and authorization, "yews diff"
+to compare plaintext with stored ciphertext.
 
-Documentation: ` + docsTargetSelect,
-		Example: `  # Encrypt every file registered in the config
+Target selection: ` + docsTargetSelect + `
+Managed-file rules: ` + docsManagedFiles,
+		Example: `  # Encrypt registered plaintext under the current directory
   yews encrypt
 
   # Encrypt one registered mapping (either side locates it)
@@ -152,18 +130,9 @@ paths. The format comes from the project config or the registered file
 path; runtime format overrides and cross-format conversion are not
 supported.
 
-Target selection (no argument: every registered file and group result
-whose ciphertext side is within the current directory scope):
-  - a registered plaintext or encrypted path selects that single mapping;
-  - an existing directory selects mappings whose encrypted side is inside
-    it (groups always scan by their own config directory, never by the
-    target directory);
-  - arguments containing *, ?, and similar metacharacters are patterns
-    matched against registered encrypted paths (a leading / anchors to
-    the current working directory, ** is supported);
-  - multiple arguments take the union; patterns only include, excludes
-    come from group "patterns" in the config; any argument matching
-    nothing is an error.
+With no arguments, decrypt selects registered ciphertext under the current
+directory and its subdirectories. Use file paths, directories, or patterns
+to select targets; directories and patterns match encrypted paths.
 
 The config still governs plaintext/ciphertext paths and formats, but the
 recipients actually used for decryption come from the ciphertext's SOPS
@@ -172,10 +141,9 @@ exists, decrypt warns on stderr and continues with the identity bundle.
 
 Overwrite protection: an existing plaintext file whose content differs
 from the decryption result is not overwritten unless --force is set.
-Before processing, .gitignore is updated with plaintext paths from the
-metadata scope (all configured mappings with no target, selected mappings
-otherwise). Only paths within the current directory subtree are added,
-relative to the current directory; paths outside it are excluded.
+Before decryption, .gitignore receives plaintext entries for selected
+mappings, or all configured mappings when no target is given, according to
+the managed-file rules.
 
 Exit codes: by default, files are skipped when no Age identity is
 available (outcome "no-identity") or when the available identities do
@@ -189,10 +157,8 @@ files are still processed and successful results are kept;
 (invalid arguments, a missing or invalid .yewseal.toml, selection
 failure, an unreadable explicit key file, or a failed key command) exit 2.
 
-TOML ciphertext is decrypted natively by the embedded TOML store without
-format conversion; the output is normalized TOML (single-quoted literal
-strings, comments preserved, equivalent content, possibly different
-layout from the handwritten original).
+TOML output uses normalized formatting: single-quoted literal strings,
+preserved comments, and equivalent content with possibly different layout.
 
 Output: plaintext goes to files and stdout stays empty; warnings,
 per-file skip and failure reasons, and the summary go to stderr
@@ -201,18 +167,16 @@ stdout with the batch report (summary and per-file outcomes); stderr
 diagnostics stay unchanged, and when the run never starts (a calling
 error, exit 2) stdout stays empty.
 
-To decrypt an unregistered file ad hoc without a project config, use
-the SOPS CLI directly (a fork build with the native TOML store is needed
-for native TOML ciphertext).
+For unregistered files, see the SOPS interoperability guide.
 
-See also: "yews plan" to audit mappings and authorization (not a decrypt
-dry run, and it does not verify that the current identity can decrypt),
-"yews view" to print plaintext to stdout, "yews diff" to compare
-plaintext with the ciphertext.
+See also: "yews plan" to inspect mappings and authorization, "yews view"
+to print plaintext, "yews diff" to compare it with stored ciphertext.
 
-Documentation: ` + docsTargetSelect + `
+Target selection: ` + docsTargetSelect + `
+Managed-file rules: ` + docsManagedFiles + `
+SOPS interoperability: ` + docsSOPS + `
 Result classification and exit codes: ` + docsDecryptResults,
-		Example: `  # Decrypt every file registered in the config
+		Example: `  # Decrypt registered ciphertext under the current directory
   yews decrypt
 
   # Decrypt one registered encrypted file to its configured plaintext
@@ -269,20 +233,19 @@ ciphertext can be decrypted with the current Age identities. clean never
 encrypts files, changes recipients, repairs project metadata, removes
 directories, or displays plaintext or diff content.
 
-Target selection uses the plaintext side for current-directory scope,
-directories, and patterns. Exact registered plaintext or ciphertext paths both
-select a mapping; multiple selectors take the union and every selector must
-match. Dynamic groups discover the union of plaintext and ciphertext sides, so
-a plaintext with missing ciphertext fails safely and a previously cleaned
-ciphertext-only mapping is reported as already absent.
+With no arguments, clean selects registered plaintext under the current
+directory and its subdirectories. Use file paths, directories, or patterns
+to select targets; directories and patterns match plaintext paths.
+A missing ciphertext makes cleanup fail; a missing plaintext is reported
+as already absent.
 
 Matching decrypted bytes are removed automatically. Different bytes prompt
 once per file with No as the safe default. --skip-different keeps every
 difference without reading stdin; --remove-different removes differences
-without reading stdin. Both --remove-different and an interactive Yes decrypt
-the ciphertext again before removal and fail if it changed after the initial
-comparison. These flags are mutually exclusive. Every existing plaintext must
-be decrypted before removal and therefore requires a usable identity. Missing
+without reading stdin. These flags are mutually exclusive. Every existing
+plaintext must be decryptable before removal and requires a usable identity.
+If ciphertext changes after confirmation, removal fails and plaintext is
+retained. Missing
 or damaged ciphertext, no usable or matching identity, non-regular plaintext,
 I/O errors, and a failed final recheck mark the item FAILED and retain it;
 neither policy bypasses these checks.
@@ -296,13 +259,11 @@ CLI-only, has no short form or environment variable, and is mutually exclusive
 with --remove-different and --skip-different. Removed plaintext may not be
 recoverable.
 
-Plaintext paths may contain symlinks. clean follows the complete chain, removes
-only the final regular-file target, and leaves links in place. Broken links are
-already absent. Immediately before normal removal it resolves the chain and
-reads the target again; a changed target, type, or byte snapshot is retained as
-a failure. --force instead confirms that the chain still reaches the same
-regular file without reading its content. Completed removals are not rolled
-back when another item later fails.
+Plaintext paths may contain symlinks. clean removes the final regular-file
+target and leaves links in place. Broken links are already absent. A changed
+target or file type makes removal fail; in normal mode, changed content also
+makes removal fail. Completed removals are not rolled back when another item
+later fails.
 
 Output: stdout is always empty. Prompts, warnings, REMOVED/RETAINED/FAILED
 results, and the final summary go to stderr; --verbose also prints selection
@@ -314,14 +275,14 @@ differences; 1 when any item, prompt, or output channel fails (earlier
 removals remain); 2 for calling errors: invalid arguments, config, selection,
 an unreadable explicit key file, or a failed key command. An empty identity
 set instead makes each plaintext that needs verification fail safely with exit
-1; no file is removed. Identity-source errors do not apply to --force because
-that mode does not resolve identities.
+1; no file is removed. --force does not require an identity.
 
 See also: "yews diff" to inspect a difference before deciding and "yews
 encrypt" to save local changes before cleaning.
 
-Documentation: ` + docsPlaintextCleanup,
-		Example: `  # Clean mappings in the current directory scope
+Documentation: ` + docsPlaintextCleanup + `
+Target selection: ` + docsTargetSelect,
+		Example: `  # Clean registered plaintext under the current directory
   yews clean
 
   # Clean one mapping selected by its plaintext path
@@ -388,22 +349,9 @@ is a directionless mapping check, not an encrypt/decrypt dry run:
 success does not guarantee that files can be encrypted, that ciphertext
 can be opened, or that output paths are writable.
 
-Target selection (no argument: mappings with either side within the
-current directory scope):
-  - a registered plaintext or encrypted path selects that single mapping;
-  - an existing directory selects mappings with either side inside it;
-  - arguments containing *, ?, and similar metacharacters are patterns
-    matched against either side of registered mappings;
-  - multiple arguments take the union; patterns only include; any
-    argument matching nothing is an error.
-Paths only select mappings; they never imply an operation direction.
-
-Groups always scan by their own config directory, and plan uses the
-union of plaintext-side and ciphertext-side discovery: files present on
-only one side still show up (for example config.yml next to
-config.enc.yaml keeps the discovered real plaintext path). Competing
-mappings must be resolved by an explicit file entry or plan reports a
-conflict. Explicit entries do not require the files to exist.
+With no arguments, plan selects mappings with either path under the current
+directory and its subdirectories. Use file paths, directories, or patterns
+to select targets; directories and patterns match either path.
 
 plan applies the same strict authorization semantics as encrypt to
 every mapping resolved from the loaded config, including unselected
@@ -411,28 +359,25 @@ ones: unknown aliases, empty recipient sets, and group conflicts fail
 the run. The report shows recipient aliases; --source additionally shows
 the origins of each path, format, authorization set, and registry alias.
 Use --json to audit canonical recipients, selection reasons, and all
-provenance fields. plan does not load an identity bundle and does not
-read ciphertext content or metadata, so it has no historical-decrypt
-tolerance.
+provenance fields. Historical ciphertext recipients and decryption access
+are not checked.
 
 Output: stdout shows a config count and selection scope followed by a
 four-column Plaintext/Encrypted/Format/Aliases table. --source replaces
 the table with one describe block per mapping and field-level origins;
 --verbose also lists loaded config files. --json prints only the full
 JSON report and takes precedence over --source; errors go to stderr and
-never mix into the report. plan defines no output-path or worker flags,
-reads no output-path environment variables, and its report contains no
-metadata write plan.
+never mix into the report.
 
 Exit codes: 0 on success; calling errors (invalid patterns, a missing
 or invalid .yewseal.toml, or authorization conflicts) exit 2.
 
-See also: "yews encrypt" and "yews decrypt" share the registered-mapping
-selection, with different discovery sides and historical-decrypt
-authorization handling.
+See also: "yews verify" to check ciphertext and decryption access,
+"yews encrypt" and "yews decrypt" to process the configured files.
 
-Documentation: ` + docsConfiguration,
-		Example: `  # Inspect the mappings within the current directory scope
+Documentation: ` + docsConfiguration + `
+Target selection: ` + docsTargetSelect,
+		Example: `  # Inspect registered mappings under the current directory
   yews plan
 
   # Either side of a mapping selects it

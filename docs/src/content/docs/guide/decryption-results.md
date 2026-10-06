@@ -2,7 +2,7 @@
 title: Decryption results and strict mode
 ---
 
-Multiple developers and environments may hold different Age identities. `decrypt` [skips](/guide/glossary#skip) files both when no usable identity is available (`no-identity`) and when the available identities do not match (`no-matching-identity`). `diff` skips only the latter; with an empty identity bundle, a mapping whose two inputs exist fails because no comparison was attempted. Neither command treats corrupted ciphertext, read/write failures, or overwrite conflicts as ordinary skips. `view` and `edit` have no lenient mode and fail when the target cannot be decrypted; the failure rules for encryption are unchanged.
+Multiple developers and environments may hold different Age identities. `decrypt` skips files both when no usable identity is available (`no-identity`) and when the available identities do not match (`no-matching-identity`). `diff` skips only the latter; with an empty identity bundle, a mapping whose two inputs exist fails because no comparison was attempted. Neither command treats corrupted ciphertext, read/write failures, or overwrite conflicts as ordinary skips. `view` and `edit` have no lenient mode and fail when the target cannot be decrypted; the failure rules for encryption are unchanged.
 
 ## Result classification
 
