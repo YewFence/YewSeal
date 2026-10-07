@@ -15,7 +15,9 @@ type Options struct {
 	DecryptMode     DecryptBehavior
 	CheckSOPSConfig bool
 	// RecipientAliases maps canonical public keys to registry aliases.
-	RecipientAliases map[string]string
+	RecipientAliases            map[string]string
+	RepositoryDiscoveryDegraded bool
+	RepositoryDiscoveryWarning  string
 }
 
 // ErrIdentityRequired is returned when DecryptRequired finds no identity.
@@ -60,7 +62,7 @@ func Check(selection config.ResolvedSelection, cwd string, opts Options) (*Repor
 		}
 	}
 
-	checkVersionControl(report, selection.FilePairs, cwd, opts.KeyFile)
+	checkVersionControl(report, selection.FilePairs, cwd, opts.KeyFile, opts.RepositoryDiscoveryDegraded, opts.RepositoryDiscoveryWarning)
 
 	if opts.CheckSOPSConfig {
 		checkSOPSDrift(report, selection.AllConfigPairs, cwd)
@@ -72,14 +74,23 @@ func Check(selection config.ResolvedSelection, cwd string, opts Options) (*Repor
 	return report, nil
 }
 
-func checkVersionControl(report *Report, pairs []config.ResolvedFilePair, cwd, keyFile string) {
-	repository, err := vcs.Open(cwd)
+func checkVersionControl(report *Report, pairs []config.ResolvedFilePair, cwd, keyFile string, degraded bool, discoveryWarning string) {
+	if degraded {
+		report.Add(Finding{
+			Code:     "vcs_query_failed",
+			Severity: SeverityError,
+			Message:  discoveryWarning,
+			Hint:     "restore repository-wide config discovery before relying on verify results",
+		})
+		return
+	}
+	repository, err := vcs.Detect(cwd)
 	if err != nil {
 		report.Add(Finding{
 			Code:     "vcs_query_failed",
 			Severity: SeverityError,
 			Message:  err.Error(),
-			Hint:     "make sure Git or jj is installed and the repository is readable",
+			Hint:     "make sure the repository is readable",
 		})
 		return
 	}
@@ -87,15 +98,25 @@ func checkVersionControl(report *Report, pairs []config.ResolvedFilePair, cwd, k
 		report.AddSkip("no VCS repository found; version-control exposure not checked")
 		return
 	}
+	snapshot, err := repository.Snapshot()
+	if err != nil {
+		report.Add(Finding{
+			Code:     "vcs_query_failed",
+			Severity: SeverityError,
+			Message:  err.Error(),
+			Hint:     "make sure " + repository.Name() + " is installed and the repository is readable",
+		})
+		return
+	}
 	for _, pair := range pairs {
-		classifyVCS(repository, report, pair.PlaintextPath, plaintextSubject, Finding{
+		classifyVCS(snapshot, report, pair.PlaintextPath, plaintextSubject, Finding{
 			PlaintextPath: pair.PlaintextPath,
 			EncryptedPath: pair.EncryptedPath,
 		})
 	}
 	keyPaths, valueSources := identityFileSources(cwd, keyFile)
 	for _, path := range keyPaths {
-		classifyVCS(repository, report, path, keySubject, Finding{})
+		classifyVCS(snapshot, report, path, keySubject, Finding{})
 	}
 	for _, source := range valueSources {
 		report.AddSkip("identity source " + source + " has no file; version-control exposure not checked")

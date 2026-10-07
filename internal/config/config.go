@@ -14,9 +14,11 @@ type Config struct {
 	Encryption EncryptionConfig `toml:"encryption"`
 	Recipients RecipientConfig  `toml:"recipients"`
 
-	LoadedFiles []LoadedFile `toml:"-"`
-	CurrentDir  string       `toml:"-"`
-	UserConfig  bool         `toml:"-"`
+	LoadedFiles       []LoadedFile `toml:"-"`
+	CurrentDir        string       `toml:"-"`
+	UserConfig        bool         `toml:"-"`
+	DiscoveryWarnings []string     `toml:"-"`
+	DiscoveryDegraded bool         `toml:"-"`
 }
 
 type LoadedFile struct {
@@ -88,16 +90,29 @@ func LoadConfig() (*Config, error) {
 		return nil, fmt.Errorf("failed to get working directory: %w", err)
 	}
 
-	configFiles, err := discoverConfigFiles(cwd)
+	discovery, err := discoverConfigFiles(cwd)
 	if err != nil {
 		return nil, err
 	}
 
-	if len(configFiles) == 0 {
-		return nil, fmt.Errorf("no YewSeal configuration found for %s (expected .yewseal.toml, .config/.yewseal.toml, or .yewseal/.yewseal.toml)", cwd)
+	if len(discovery.files) == 0 {
+		return nil, withDiscoveryWarnings(fmt.Errorf("no YewSeal configuration found for %s (expected .yewseal.toml, .config/.yewseal.toml, or .yewseal/.yewseal.toml)", cwd), discovery.warnings)
 	}
 
-	return loadConfigFiles(cwd, configFiles)
+	config, err := loadConfigFiles(cwd, discovery.files)
+	if err != nil {
+		return nil, withDiscoveryWarnings(err, discovery.warnings)
+	}
+	config.DiscoveryWarnings = append([]string(nil), discovery.warnings...)
+	config.DiscoveryDegraded = discovery.degraded
+	return config, nil
+}
+
+func withDiscoveryWarnings(err error, warnings []string) error {
+	if len(warnings) == 0 {
+		return err
+	}
+	return fmt.Errorf("%w; repository config discovery was degraded: %s", err, strings.Join(warnings, "; "))
 }
 
 func loadConfigFiles(cwd string, configFiles []LoadedFile) (*Config, error) {

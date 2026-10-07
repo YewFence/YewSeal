@@ -18,23 +18,23 @@ var (
 	keySubject       = vcsSubject{trackedCode: "key_tracked", notIgnoredCode: "key_not_ignored", noun: "Age private key file"}
 )
 
-func classifyVCS(repository *vcs.Repository, report *Report, absPath string, subject vcsSubject, finding Finding) {
-	classified := classifyVCSPath(repository, report, absPath, subject, finding)
+func classifyVCS(snapshot *vcs.Snapshot, report *Report, absPath string, subject vcsSubject, finding Finding) {
+	classified := classifyVCSPath(snapshot, report, absPath, subject, finding)
 	target, err := filepath.EvalSymlinks(absPath)
 	if err == nil && target != absPath {
-		classified = classifyVCSPath(repository, report, target, subject, finding) || classified
+		classified = classifyVCSPath(snapshot, report, target, subject, finding) || classified
 	}
 	if !classified {
 		report.AddPass()
 	}
 }
 
-func classifyVCSPath(repository *vcs.Repository, report *Report, path string, subject vcsSubject, finding Finding) bool {
-	relative, err := filepath.Rel(repository.Root(), path)
+func classifyVCSPath(snapshot *vcs.Snapshot, report *Report, path string, subject vcsSubject, finding Finding) bool {
+	relative, err := filepath.Rel(snapshot.Root(), path)
 	if err != nil {
 		return false
 	}
-	switch repository.Status(path) {
+	switch snapshot.Status(path) {
 	case vcs.History:
 		finding.Code = subject.trackedCode
 		finding.Severity = SeverityError

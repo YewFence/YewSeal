@@ -17,6 +17,13 @@ func withConfig(load configLoader, run func(*cobra.Command, []string, *config.Co
 		if err != nil {
 			return errx.Usage(fmt.Errorf("failed to load config: %w", err))
 		}
+		if cmd.Name() != "verify" {
+			for _, warning := range cfg.DiscoveryWarnings {
+				if _, err := fmt.Fprintf(cmd.ErrOrStderr(), "Warning: %s\n", warning); err != nil {
+					return fmt.Errorf("failed to write config discovery warning: %w", err)
+				}
+			}
+		}
 		return run(cmd, args, cfg)
 	}
 }

@@ -41,11 +41,8 @@ encrypted = "worker.enc.yaml"
 	t.Chdir(api)
 	cfg, err := LoadConfig()
 	require.NoError(t, err)
-	require.Equal(t, []string{
-		filepath.Join(root, ".yewseal.toml"),
-		filepath.Join(api, ".yewseal.toml"),
-		filepath.Join(worker, ".yewseal.toml"),
-	}, loadedConfigPaths(cfg))
+	require.False(t, cfg.DiscoveryDegraded)
+	require.Len(t, cfg.DiscoveryWarnings, 0)
 	require.Len(t, cfg.GetFiles(), 3)
 
 	selection, err := SelectFilePairs(cfg, SelectionOptions{Command: "encrypt"})
@@ -176,11 +173,22 @@ func TestLoadConfigDiscoversNewJJConfig(t *testing.T) {
 func TestLoadConfigReportsVCSQueryFailure(t *testing.T) {
 	root := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(root, ".git"), 0755))
+	child := filepath.Join(root, "child")
+	require.NoError(t, os.Mkdir(child, 0755))
 	writeConfig(t, filepath.Join(root, ".yewseal.toml"), fileConfig("root"))
+	writeConfig(t, filepath.Join(child, ".yewseal.toml"), fileConfig("child"))
 
-	t.Chdir(root)
-	_, err := LoadConfig()
-	require.ErrorContains(t, err, "failed to query git repository")
+	t.Chdir(child)
+	cfg, err := LoadConfig()
+	require.NoError(t, err)
+	require.Equal(t, []string{
+		filepath.Join(root, ".yewseal.toml"),
+		filepath.Join(child, ".yewseal.toml"),
+	}, loadedConfigPaths(cfg))
+	require.Len(t, cfg.DiscoveryWarnings, 1)
+	require.True(t, cfg.DiscoveryDegraded)
+	require.Contains(t, cfg.DiscoveryWarnings[0], "continuing with configs found from the repository root")
+	require.Contains(t, cfg.DiscoveryWarnings[0], "https://github.com/YewFence/YewSeal/issues")
 }
 
 func TestLoadConfigJJRespectsIgnoredTrackedAndDeletedConfigs(t *testing.T) {
@@ -211,6 +219,31 @@ func TestLoadConfigJJRespectsIgnoredTrackedAndDeletedConfigs(t *testing.T) {
 		filepath.Join(root, ".yewseal.toml"),
 		filepath.Join(root, "tracked", ".yewseal.toml"),
 	}, loadedConfigPaths(cfg))
+}
+
+func TestLoadConfigFallsBackWhenGitUnavailable(t *testing.T) {
+	root := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(root, ".git"), 0755))
+	writeConfig(t, filepath.Join(root, ".yewseal.toml"), fileConfig("root"))
+	t.Setenv("PATH", "")
+
+	t.Chdir(root)
+	cfg, err := LoadConfig()
+	require.NoError(t, err)
+	require.Len(t, cfg.DiscoveryWarnings, 1)
+	require.True(t, cfg.DiscoveryDegraded)
+	require.Contains(t, cfg.DiscoveryWarnings[0], "git is unavailable")
+	require.NotContains(t, cfg.DiscoveryWarnings[0], "/issues")
+}
+
+func TestLoadConfigReportsDegradedDiscoveryWhenFallbackIsEmpty(t *testing.T) {
+	root := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(root, ".git"), 0755))
+	t.Chdir(root)
+
+	_, err := LoadConfig()
+	require.ErrorContains(t, err, "no YewSeal configuration found")
+	require.ErrorContains(t, err, "repository config discovery was degraded")
 }
 
 func fileConfig(name string) string {

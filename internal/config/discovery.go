@@ -1,8 +1,10 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -21,37 +23,39 @@ type configCandidate struct {
 	priority int
 }
 
-func discoverConfigFiles(cwd string) ([]LoadedFile, error) {
-	repository, err := vcs.Open(cwd)
+type configDiscovery struct {
+	files    []LoadedFile
+	warnings []string
+	degraded bool
+}
+
+func discoverConfigFiles(cwd string) (configDiscovery, error) {
+	repository, err := vcs.Detect(cwd)
 	if err != nil {
-		return nil, err
+		return discoverCurrentConfig(cwd, repositoryDetectionWarning(err))
 	}
 	if repository == nil {
-		path, err := highestPriorityConfigPath(cwd)
-		if err != nil || path == "" {
-			return nil, err
-		}
-		return []LoadedFile{{Path: path, Dir: cwd}}, nil
+		return discoverCurrentConfig(cwd, "")
 	}
 
-	selected := make(map[string]configCandidate)
 	directDirs, err := configSearchDirs(repository.Root(), cwd)
 	if err != nil {
-		return nil, err
+		return discoverCurrentConfig(cwd, repositoryDetectionWarning(err))
 	}
-	for _, dir := range directDirs {
-		path, err := highestPriorityConfigPath(dir)
-		if err != nil {
-			return nil, err
-		}
-		if path == "" {
-			continue
-		}
-		priority := configLocationPriority(dir, path)
-		selected[dir] = configCandidate{file: LoadedFile{Path: path, Dir: dir}, priority: priority}
+	selected, err := discoverDirectConfigs(directDirs)
+	if err != nil {
+		return configDiscovery{}, err
 	}
 
-	for _, relativePath := range repository.Files() {
+	snapshot, err := repository.Snapshot()
+	if err != nil {
+		return configDiscovery{
+			files:    sortedConfigFiles(repository.Root(), selected),
+			warnings: []string{repositoryQueryWarning(repository.Name(), err)},
+			degraded: true,
+		}, nil
+	}
+	for _, relativePath := range snapshot.Files() {
 		candidate, ok := repositoryConfigCandidate(repository.Root(), relativePath)
 		if !ok {
 			continue
@@ -60,27 +64,76 @@ func discoverConfigFiles(cwd string) ([]LoadedFile, error) {
 			if os.IsNotExist(err) {
 				continue
 			}
-			return nil, fmt.Errorf("failed to stat config file %s: %w", candidate.file.Path, err)
+			return configDiscovery{}, fmt.Errorf("failed to stat config file %s: %w", candidate.file.Path, err)
 		}
 		existing, found := selected[candidate.file.Dir]
 		if !found || candidate.priority < existing.priority {
 			selected[candidate.file.Dir] = candidate
 		}
 	}
+	return configDiscovery{files: sortedConfigFiles(repository.Root(), selected)}, nil
+}
 
+func discoverCurrentConfig(cwd, warning string) (configDiscovery, error) {
+	path, err := highestPriorityConfigPath(cwd)
+	if err != nil {
+		return configDiscovery{}, err
+	}
+	discovery := configDiscovery{}
+	if path != "" {
+		discovery.files = []LoadedFile{{Path: path, Dir: cwd}}
+	}
+	if warning != "" {
+		discovery.warnings = []string{warning}
+		discovery.degraded = true
+	}
+	return discovery, nil
+}
+
+func discoverDirectConfigs(dirs []string) (map[string]configCandidate, error) {
+	selected := make(map[string]configCandidate)
+	for _, dir := range dirs {
+		path, err := highestPriorityConfigPath(dir)
+		if err != nil {
+			return nil, err
+		}
+		if path == "" {
+			continue
+		}
+		selected[dir] = configCandidate{
+			file:     LoadedFile{Path: path, Dir: dir},
+			priority: configLocationPriority(dir, path),
+		}
+	}
+	return selected, nil
+}
+
+func sortedConfigFiles(root string, selected map[string]configCandidate) []LoadedFile {
 	files := make([]LoadedFile, 0, len(selected))
 	for _, candidate := range selected {
 		files = append(files, candidate.file)
 	}
 	sort.Slice(files, func(i, j int) bool {
-		leftDepth := directoryDepth(repository.Root(), files[i].Dir)
-		rightDepth := directoryDepth(repository.Root(), files[j].Dir)
+		leftDepth := directoryDepth(root, files[i].Dir)
+		rightDepth := directoryDepth(root, files[j].Dir)
 		if leftDepth != rightDepth {
 			return leftDepth < rightDepth
 		}
 		return filepath.ToSlash(files[i].Path) < filepath.ToSlash(files[j].Path)
 	})
-	return files, nil
+	return files
+}
+
+func repositoryQueryWarning(name string, err error) string {
+	var unavailable *exec.Error
+	if errors.As(err, &unavailable) {
+		return fmt.Sprintf("%s is unavailable; continuing with configs found from the repository root to the current directory only. Install %s to enable repository-wide config discovery", name, name)
+	}
+	return fmt.Sprintf("could not enumerate repository-wide configs with %s; continuing with configs found from the repository root to the current directory only: %v. Other repository configs may be missing. If %s can read this repository normally, report this at https://github.com/YewFence/YewSeal/issues", name, err, name)
+}
+
+func repositoryDetectionWarning(err error) string {
+	return fmt.Sprintf("could not determine the repository config search path; continuing with the current-directory config only: %v. Other repository configs may be missing. If this directory belongs to a healthy Git or jj repository, report this at https://github.com/YewFence/YewSeal/issues", err)
 }
 
 func configSearchDirs(root, cwd string) ([]string, error) {
