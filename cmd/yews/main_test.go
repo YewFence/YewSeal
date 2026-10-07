@@ -28,7 +28,7 @@ func clearCommandEnvironment(t *testing.T) {
 
 func initTestGitRepository(t *testing.T, dir string) {
 	t.Helper()
-	output, err := exec.Command("git", "init", "-q", dir).CombinedOutput()
+	output, err := exec.CommandContext(t.Context(), "git", "init", "-q", dir).CombinedOutput()
 	require.NoError(t, err, "%s", output)
 }
 

@@ -47,7 +47,7 @@ func discoverConfigFiles(cwd string) (configDiscovery, error) {
 		return configDiscovery{}, err
 	}
 
-	snapshot, err := repository.Snapshot()
+	relativePaths, err := repository.DiscoveryFiles()
 	if err != nil {
 		return configDiscovery{
 			files:    sortedConfigFiles(repository.Root(), selected),
@@ -55,7 +55,7 @@ func discoverConfigFiles(cwd string) (configDiscovery, error) {
 			degraded: true,
 		}, nil
 	}
-	for _, relativePath := range snapshot.Files() {
+	for _, relativePath := range relativePaths {
 		candidate, ok := repositoryConfigCandidate(repository.Root(), relativePath)
 		if !ok {
 			continue

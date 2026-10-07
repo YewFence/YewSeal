@@ -25,12 +25,10 @@ type Repository struct {
 	adapter adapter
 }
 
-// Snapshot contains the queried repository file state. Files returns Git's
-// tracked and untracked non-ignored files, or the files in jj's working-copy
-// commit. Returned paths are slash-separated and relative to Root.
+// Snapshot contains the queried repository history and current working-copy
+// state used to classify paths.
 type Snapshot struct {
 	root    string
-	files   map[string]bool
 	history map[string]bool
 	pending map[string]bool
 }
@@ -54,6 +52,16 @@ func (r *Repository) Name() string {
 	return r.adapter.name()
 }
 
+// DiscoveryFiles returns repository files eligible for config discovery
+// without querying history or persisting a jj working-copy snapshot.
+func (r *Repository) DiscoveryFiles() ([]string, error) {
+	files, err := r.adapter.discoveryFiles()
+	if err != nil {
+		return nil, fmt.Errorf("failed to query %s repository %s: %w", r.Name(), r.root, err)
+	}
+	return sortedPaths(files), nil
+}
+
 func (r *Repository) Snapshot() (*Snapshot, error) {
 	history, err := r.adapter.historyFiles()
 	if err != nil {
@@ -65,7 +73,6 @@ func (r *Repository) Snapshot() (*Snapshot, error) {
 	}
 	return &Snapshot{
 		root:    r.root,
-		files:   r.adapter.discoveryFiles(history, pending),
 		history: history,
 		pending: pending,
 	}, nil
@@ -73,15 +80,6 @@ func (r *Repository) Snapshot() (*Snapshot, error) {
 
 func (s *Snapshot) Root() string {
 	return s.root
-}
-
-func (s *Snapshot) Files() []string {
-	files := make([]string, 0, len(s.files))
-	for path := range s.files {
-		files = append(files, path)
-	}
-	sort.Strings(files)
-	return files
 }
 
 func (s *Snapshot) Status(path string) Status {
@@ -101,9 +99,9 @@ func (s *Snapshot) Status(path string) Status {
 
 type adapter interface {
 	name() string
+	discoveryFiles() (map[string]bool, error)
 	historyFiles() (map[string]bool, error)
 	pendingFiles() (map[string]bool, error)
-	discoveryFiles(history, pending map[string]bool) map[string]bool
 }
 
 func detect(dir string) (string, adapter, error) {
@@ -156,15 +154,19 @@ func (g *gitAdapter) pendingFiles() (map[string]bool, error) {
 	return g.list("ls-files", "-z", "--others", "--exclude-standard", "--")
 }
 
-func (g *gitAdapter) discoveryFiles(history, pending map[string]bool) map[string]bool {
-	files := make(map[string]bool, len(history)+len(pending))
-	for path := range history {
-		files[path] = true
+func (g *gitAdapter) discoveryFiles() (map[string]bool, error) {
+	files, err := g.historyFiles()
+	if err != nil {
+		return nil, err
+	}
+	pending, err := g.pendingFiles()
+	if err != nil {
+		return nil, err
 	}
 	for path := range pending {
 		files[path] = true
 	}
-	return files
+	return files, nil
 }
 
 func (g *gitAdapter) list(args ...string) (map[string]bool, error) {
@@ -179,8 +181,17 @@ type jjAdapter struct{ root string }
 
 func (j *jjAdapter) name() string { return "jj" }
 
+func (j *jjAdapter) discoveryFiles() (map[string]bool, error) {
+	const configAutoTrack = `snapshot.auto-track="root-glob:\"**/.yewseal.toml\""`
+	stdout, stderr, err := execx.ExecCommand("jj", "--no-pager", "--no-integrate-operation", "--config", configAutoTrack, "-R", j.root, "file", "list", "-r", "@", "-T", `path ++ "\0"`)
+	if err != nil {
+		return nil, fmt.Errorf("jj file list -r @: %w: %s", err, strings.TrimSpace(stderr))
+	}
+	return splitNUL(stdout), nil
+}
+
 func (j *jjAdapter) historyFiles() (map[string]bool, error) {
-	stdout, stderr, err := execx.ExecCommand("jj", "--no-pager", "-R", j.root, "log", "--no-graph", "-r", "@-", "-T", `commit_id ++ "\0"`)
+	stdout, stderr, err := execx.ExecCommand("jj", "--no-pager", "--ignore-working-copy", "-R", j.root, "log", "--no-graph", "-r", "@-", "-T", `commit_id ++ "\0"`)
 	if err != nil {
 		return nil, fmt.Errorf("jj log -r @-: %w: %s", err, strings.TrimSpace(stderr))
 	}
@@ -198,19 +209,28 @@ func (j *jjAdapter) historyFiles() (map[string]bool, error) {
 }
 
 func (j *jjAdapter) pendingFiles() (map[string]bool, error) {
-	return j.list("@")
-}
-
-func (j *jjAdapter) discoveryFiles(_, pending map[string]bool) map[string]bool {
-	return pending
+	stdout, stderr, err := execx.ExecCommand("jj", "--no-pager", "--no-integrate-operation", "-R", j.root, "file", "list", "-r", "@", "-T", `path ++ "\0"`)
+	if err != nil {
+		return nil, fmt.Errorf("jj file list -r @: %w: %s", err, strings.TrimSpace(stderr))
+	}
+	return splitNUL(stdout), nil
 }
 
 func (j *jjAdapter) list(revision string) (map[string]bool, error) {
-	stdout, stderr, err := execx.ExecCommand("jj", "--no-pager", "-R", j.root, "file", "list", "-r", revision, "-T", `path ++ "\0"`)
+	stdout, stderr, err := execx.ExecCommand("jj", "--no-pager", "--ignore-working-copy", "-R", j.root, "file", "list", "-r", revision, "-T", `path ++ "\0"`)
 	if err != nil {
 		return nil, fmt.Errorf("jj file list -r %s: %w: %s", revision, err, strings.TrimSpace(stderr))
 	}
 	return splitNUL(stdout), nil
+}
+
+func sortedPaths(paths map[string]bool) []string {
+	sorted := make([]string, 0, len(paths))
+	for path := range paths {
+		sorted = append(sorted, path)
+	}
+	sort.Strings(sorted)
+	return sorted
 }
 
 func splitNUL(output string) map[string]bool {

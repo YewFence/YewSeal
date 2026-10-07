@@ -33,6 +33,6 @@ The fallback preserves the pre-repository behavior and the existing root-to-curr
 
 ## Non-goals
 
-This decision does not require reimplementing Git or jj repository semantics in the configuration package. VCS adapters may continue to use their native clients for repository-wide enumeration. Replacing those adapters with library-backed implementations is a separate optimization and must preserve the complete-versus-degraded contract.
+This decision does not require reimplementing Git or jj repository semantics in the configuration package. VCS adapters may continue to use their native clients for repository-wide enumeration. Configuration discovery and verification intentionally use separate repository queries: discovery reads only eligible current files, while verification additionally reads parent revisions to classify history. jj discovery uses a non-integrating snapshot with automatic tracking restricted to `.yewseal.toml`, so discovering a new config does not persist unrelated plaintext or key files into the working-copy commit. Replacing these adapters with library-backed implementations is a separate optimization and must preserve the complete-versus-degraded contract.
 
 This decision does not widen command selection. Degraded discovery uses only the configurations that can be found through the direct root-to-current-directory search; it does not recursively scan the filesystem as an unannounced substitute.

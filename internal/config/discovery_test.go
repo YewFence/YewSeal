@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"filippo.io/age"
@@ -158,8 +159,11 @@ func TestLoadConfigDiscoversNewJJConfig(t *testing.T) {
 	runConfigJJ(t, root, "git", "init", "--no-colocate")
 	child := filepath.Join(root, "child")
 	require.NoError(t, os.Mkdir(child, 0755))
+	require.NoError(t, os.Mkdir(filepath.Join(root, ".age"), 0700))
 	writeConfig(t, filepath.Join(root, ".yewseal.toml"), fileConfig("root"))
 	writeConfig(t, filepath.Join(child, ".yewseal.toml"), fileConfig("child"))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "secret.yaml"), []byte("token: fixture\n"), 0600))
+	require.NoError(t, os.WriteFile(filepath.Join(root, ".age", "keys.txt"), []byte("private fixture\n"), 0600))
 
 	t.Chdir(root)
 	cfg, err := LoadConfig()
@@ -168,6 +172,11 @@ func TestLoadConfigDiscoversNewJJConfig(t *testing.T) {
 		filepath.Join(root, ".yewseal.toml"),
 		filepath.Join(child, ".yewseal.toml"),
 	}, loadedConfigPaths(cfg))
+
+	cmd := exec.CommandContext(t.Context(), "jj", "--no-pager", "--ignore-working-copy", "-R", root, "file", "list", "-r", "@", "-T", `path ++ "\n"`)
+	output, err := cmd.CombinedOutput()
+	require.NoError(t, err, "%s", output)
+	require.Empty(t, strings.TrimSpace(string(output)), "config discovery must not persist a jj working-copy snapshot")
 }
 
 func TestLoadConfigReportsVCSQueryFailure(t *testing.T) {

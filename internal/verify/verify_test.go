@@ -738,6 +738,11 @@ func TestVCSLayerJJScratchIsError(t *testing.T) {
 	require.NoError(t, err)
 	requireFinding(t, report, "plaintext_not_ignored", verify.SeverityError)
 	require.False(t, report.OK())
+
+	cmd := exec.CommandContext(t.Context(), "jj", "--no-pager", "--ignore-working-copy", "-R", dir, "file", "list", "-r", "@", "-T", `path ++ "\n"`)
+	output, err := cmd.CombinedOutput()
+	require.NoError(t, err, "%s", output)
+	require.Empty(t, strings.TrimSpace(string(output)), "verify must not persist a jj working-copy snapshot")
 }
 
 func TestVCSLayerJJCommittedIsError(t *testing.T) {
