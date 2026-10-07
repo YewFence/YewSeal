@@ -6,7 +6,7 @@ require (
 	filippo.io/age v1.3.2
 	github.com/YewFence/sops/v3 v3.0.0-20260917010022-e81f46a61f75
 	github.com/fatih/color v1.19.0
-	github.com/go-git/go-git/v5 v5.19.2
+	github.com/go-git/go-git/v5 v5.19.3
 	github.com/mattn/go-isatty v0.0.24
 	github.com/muesli/termenv v0.16.0
 	github.com/pelletier/go-toml/v2 v2.4.4-0.20260711173024-cbe6f88bcc08
