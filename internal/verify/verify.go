@@ -6,6 +6,7 @@ import (
 
 	"github.com/YewFence/YewSeal/internal/agekey"
 	"github.com/YewFence/YewSeal/internal/config"
+	"github.com/YewFence/YewSeal/internal/vcs"
 )
 
 // Options controls one verify run.
@@ -72,30 +73,29 @@ func Check(selection config.ResolvedSelection, cwd string, opts Options) (*Repor
 }
 
 func checkVersionControl(report *Report, pairs []config.ResolvedFilePair, cwd, keyFile string) {
-	root, adapter := detectVCS(cwd)
-	if adapter == nil {
-		report.AddSkip("no VCS repository found; version-control exposure not checked")
-		return
-	}
-	state, err := queryVCS(root, adapter)
+	repository, err := vcs.Open(cwd)
 	if err != nil {
 		report.Add(Finding{
 			Code:     "vcs_query_failed",
 			Severity: SeverityError,
-			Message:  "failed to query " + adapter.name() + " repository " + root + ": " + err.Error(),
-			Hint:     "make sure " + adapter.name() + " is installed and the repository is readable",
+			Message:  err.Error(),
+			Hint:     "make sure Git or jj is installed and the repository is readable",
 		})
 		return
 	}
+	if repository == nil {
+		report.AddSkip("no VCS repository found; version-control exposure not checked")
+		return
+	}
 	for _, pair := range pairs {
-		state.classify(report, pair.PlaintextPath, plaintextSubject, Finding{
+		classifyVCS(repository, report, pair.PlaintextPath, plaintextSubject, Finding{
 			PlaintextPath: pair.PlaintextPath,
 			EncryptedPath: pair.EncryptedPath,
 		})
 	}
 	keyPaths, valueSources := identityFileSources(cwd, keyFile)
 	for _, path := range keyPaths {
-		state.classify(report, path, keySubject, Finding{})
+		classifyVCS(repository, report, path, keySubject, Finding{})
 	}
 	for _, source := range valueSources {
 		report.AddSkip("identity source " + source + " has no file; version-control exposure not checked")

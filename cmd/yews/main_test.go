@@ -26,6 +26,12 @@ func clearCommandEnvironment(t *testing.T) {
 	}
 }
 
+func initTestGitRepository(t *testing.T, dir string) {
+	t.Helper()
+	output, err := exec.Command("git", "init", "-q", dir).CombinedOutput()
+	require.NoError(t, err, "%s", output)
+}
+
 func TestClearCommandEnvironmentUsesNamespaces(t *testing.T) {
 	t.Setenv("YEWSEAL_FUTURE_OPTION", "enabled")
 	t.Setenv("SOPS_FUTURE_OPTION", "enabled")
@@ -113,7 +119,7 @@ func TestCLIConfigurationLoading(t *testing.T) {
 		t.Setenv("YEWSEAL_FORMAT", "invalid")
 		t.Setenv("SOPS_FORMAT", "invalid")
 		dir := t.TempDir()
-		require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0755))
+		initTestGitRepository(t, dir)
 		plainPath := filepath.Join(dir, "config.yaml")
 		plain := []byte("token: value\n")
 		require.NoError(t, os.WriteFile(plainPath, plain, 0600))
@@ -145,7 +151,7 @@ func TestCLIConfigurationLoading(t *testing.T) {
 		t.Setenv("YEWSEAL_FORMAT", "json")
 		t.Setenv("SOPS_FORMAT", "yaml")
 		dir := t.TempDir()
-		require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0755))
+		initTestGitRepository(t, dir)
 		plain := []byte("TOKEN=value\n")
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "secret"), plain, 0600))
 		run := func(args ...string) []byte {

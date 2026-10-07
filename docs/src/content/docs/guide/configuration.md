@@ -4,11 +4,15 @@ title: Configuration
 
 YewSeal uses `.yewseal.toml` to declare [file mappings](#file-mappings) and [recipient authorization](#recipient-authorization). Configure public keys and file paths here, then use the [managed files](#managed-files) with your version-control and SOPS workflows. For decryption, supply a private Age key using the [private-key sources](#reading-private-keys).
 
-## Config loading order
+## Config discovery and loading order
 
-YewSeal loads configuration from the root of the current Git repository down to the current directory, picking at most one config file per directory. Outside a Git repository only the current directory is searched — the loader never walks above it. Within a single directory the priority is `.yewseal/.yewseal.toml` over `.config/.yewseal.toml` over `.yewseal.toml`.
+Inside a Git or jj repository, YewSeal loads configuration for the whole repository, even when the command runs from a subdirectory. Git discovery includes tracked files plus untracked files that are not ignored. jj discovery uses the files in the current working-copy commit (`@`). A new, non-ignored config is therefore available before it is committed; a tracked config remains available after an ignore rule is added; a deleted config and an untracked ignored config are excluded. When `.jj` and `.git` are colocated, jj is used. A failed VCS query is a configuration error.
 
-Child-directory configs override or extend parent ones: an `[[encryption.files]]` entry replaces a parent entry with the same plaintext or encrypted path, and `[[encryption.groups]]` entries accumulate.
+YewSeal also searches every directory from the repository root to the current directory directly. This keeps an ignored config on that path available. Outside a repository, only the current directory is searched — the loader never walks above it or recursively scans descendants.
+
+At most one config is loaded per directory. The priority is `.yewseal/.yewseal.toml` over `.config/.yewseal.toml` over `.yewseal.toml`. Configs load in deterministic parent-before-child order, with paths at the same depth sorted lexically. Relative paths resolve against the directory whose config declares them.
+
+Child-directory configs override or extend earlier ones: an `[[encryption.files]]` entry replaces an earlier entry with the same plaintext or encrypted path, and `[[encryption.groups]]` entries accumulate. Recipient aliases may be declared in one config and referenced from another. The complete project config is validated on every business invocation, so an invalid config elsewhere in the repository fails the command. Loading the whole project does not widen the default operation scope: without a positional target, commands still select mappings under the current directory.
 
 ## When config is loaded
 

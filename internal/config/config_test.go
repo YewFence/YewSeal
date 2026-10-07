@@ -254,7 +254,7 @@ func TestLoadConfig_DiscoversAndMergesToGitRoot(t *testing.T) {
 		require.NoError(t, os.Chdir(oldWd))
 	}()
 
-	require.NoError(t, os.Mkdir(filepath.Join(tmpDir, ".git"), 0755))
+	runConfigGit(t, tmpDir, "init", "-q")
 	apiDir := filepath.Join(tmpDir, "packages", "api")
 	require.NoError(t, os.MkdirAll(apiDir, 0755))
 
@@ -308,7 +308,7 @@ func TestLoadConfig_StopsAtNearestGitRoot(t *testing.T) {
 
 	childDir := filepath.Join(tmpDir, "child")
 	require.NoError(t, os.MkdirAll(childDir, 0755))
-	require.NoError(t, os.Mkdir(filepath.Join(childDir, ".git"), 0755))
+	runConfigGit(t, childDir, "init", "-q")
 	parentConfig := `[encryption]
 
 [[encryption.files]]

@@ -136,7 +136,6 @@ func TestBusinessCommandsLoadConfigOncePerExecution(t *testing.T) {
 func TestConfigLoadingDistinguishesMissingFromEmpty(t *testing.T) {
 	clearCLIEnvironment(t)
 	t.Chdir(t.TempDir())
-	require.NoError(t, os.Mkdir(".git", 0755))
 	for _, args := range [][]string{
 		{"encrypt"}, {"decrypt"}, {"plan"}, {"view", "secret.enc.yaml"}, {"edit", "--file", "secret.enc.yaml"}, {"diff"},
 	} {
