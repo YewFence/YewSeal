@@ -1,3 +1,15 @@
+## [0.21.0] - 2026-10-08
+
+### 🚀 Features
+
+- *(config)* Discover repository-wide configurations (#97)
+
+### ⚙️ Miscellaneous Tasks
+
+- *(deps)* Update github actions to v5.1.0 (#93)
+- *(mise-deps)* Update dependency pnpm to 11 (#92)
+- *(deps)* Update github actions to v5.1.1 (#96)
+- *(gomod-deps)* Update module github.com/go-git/go-git/v5 to v5.19.3 (#95)
 ## [0.20.0] - 2026-10-06
 
 ### 🚀 Features
