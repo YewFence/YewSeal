@@ -42,6 +42,6 @@ func checkSOPSDrift(report *Report, allPairs []config.ResolvedFilePair, cwd stri
 		Code:     "sops_config_drift",
 		Severity: SeverityError,
 		Message:  ".sops.yaml differs from the resolved current-directory policy",
-		Hint:     "review .sops.yaml against the resolved verify policy",
+		Hint:     "run 'yews encrypt' to restore the managed SOPS rules; for manually maintained rules, follow the opt-out instructions in the configuration guide" + hintAgentHandoff,
 	})
 }

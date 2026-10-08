@@ -24,6 +24,24 @@ type Finding struct {
 	Hint          string   `json:"hint,omitempty"`
 }
 
+// Hint suffixes shared across findings. Each hint explains the repair first;
+// the agent-facing suffix then states the safety contract — which findings an
+// automated agent may repair itself and which it must hand back to the user,
+// since 'yews encrypt' reads the local plaintext file and would adopt it into
+// the ciphertext when run on plaintext drift.
+const (
+	// hintAgentRewrapSafe appends to findings whose repair rewraps only the
+	// data-key recipients without touching secret content.
+	hintAgentRewrapSafe = " an agent may run 'yews encrypt' itself; rewrapping changes recipients, not ciphertext content"
+	// hintAgentAutoOK appends to findings whose repair is a reversible local
+	// edit (such as appending an ignore rule) and touches neither ciphertext
+	// content nor version-control history, so an agent may do it itself.
+	hintAgentAutoOK = " an agent may apply this itself; the edit is local and reversible"
+	// hintAgentHandoff appends to findings where the repair changes ciphertext
+	// content or needs a human judgment, so an agent must not auto-repair.
+	hintAgentHandoff = " if you are an agent, do not repair this yourself: report it to the user, since 'yews encrypt' reads the local plaintext file and would adopt it into the ciphertext"
+)
+
 // Report is the full result of a verify run.
 type Report struct {
 	Findings    []Finding

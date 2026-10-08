@@ -39,6 +39,8 @@ yews plan                  # preview selection and authorization; writes nothing
 yews encrypt               # encrypt in place; commit ciphertext + config
 ```
 
+**Verify before handing back.** After touching recipients or authorization, run `yews verify` as the closing self-check — it is read-only, prints no plaintext, and catches drift the `plan` → `encrypt` loop can miss (MAC, recipient set vs ciphertext metadata, `.sops.yaml` drift, VCS exposure). Each finding carries a `hint:` that states the repair *and* whether you may apply it yourself or must report it to the user — follow the hint, and read it from the installed `yews verify --help`, not from memory. The repair table in `docs/src/content/docs/guide/verifying.md` expands on each finding when the hint is not enough.
+
 **Recipient keypair generation is on-request work.** Run the bundled helper `sh scripts/recipient-keygen.sh <alias>` (relative to this skill). It sends the bare private key to the clipboard, prints the public-key path, and deletes the key file — private key bytes never enter your context. The clipboard is the only copy, so tell the user immediately to save it into their password manager; register the alias from the printed `.pub` file once they confirm.
 
 **Plaintext stays out of scope.** `decrypt`, `view`, and `diff` expose secret content — run them only on the user's explicit authorization. Plaintext files already sitting on disk are equally off limits: general-purpose reads and searches over them leak secrets into your context, so operate through yews subcommands, whose output stays summarized, and read `.yewseal.toml`, never the plaintext. To know which paths to avoid, list them by name with the bundled helper `scripts/plaintext-files.py` (relative to this skill; run it from the repository root or the config directory): it parses `yews plan --json` and prints one registered plaintext path per line — names are safe to see, contents never are.
@@ -53,8 +55,8 @@ yews encrypt               # encrypt in place; commit ciphertext + config
 
 The CLI help is authoritative for flags; the repository markdown is authoritative for concepts and workflows. When this skill's summary is insufficient, read the Markdown in the source repository `github.com/YewFence/YewSeal`:
 
-- Guides: `docs/src/content/docs/guide/` — tutorial, installation, configuration, target-selection, decryption-results, working-with-a-team, private-keys, sops, ci-cd, docker, glossary
-- Per-command reference: `docs/src/content/docs/references/` — `yews.md` plus `yews_<command>.md` for encrypt, decrypt, view, diff, edit, plan, init, completion
+- Guides: `docs/src/content/docs/guide/` — tutorial, installation, configuration, target-selection, verifying, decryption-results, working-with-a-team, private-keys, plaintext-cleanup, sops, ci-cd, docker, glossary
+- Per-command reference: `docs/src/content/docs/references/` — `yews.md` plus `yews_<command>.md` for encrypt, decrypt, view, diff, edit, plan, verify, clean, identities, init, completion
 - Config schema: `schema/yewseal.schema.json` — the quick field-level check for an edited `.yewseal.toml`
 - Every-field config example: `schema/example.yewseal.toml`
 

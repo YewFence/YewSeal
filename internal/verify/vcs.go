@@ -39,12 +39,12 @@ func classifyVCSPath(snapshot *vcs.Snapshot, report *Report, path string, subjec
 		finding.Code = subject.trackedCode
 		finding.Severity = SeverityError
 		finding.Message = fmt.Sprintf("%s %s is tracked by version control", subject.noun, filepath.ToSlash(relative))
-		finding.Hint = "remove it from version control and review repository history; ignoring it now does not remove it from history"
+		finding.Hint = "remove it from version control and review repository history; ignoring it now does not remove it from history" + hintAgentHandoff
 	case vcs.Pending:
 		finding.Code = subject.notIgnoredCode
 		finding.Severity = SeverityError
 		finding.Message = fmt.Sprintf("%s %s is not ignored and would enter history with the next commit", subject.noun, filepath.ToSlash(relative))
-		finding.Hint = "add it to .gitignore"
+		finding.Hint = "add it to .gitignore" + hintAgentAutoOK
 	default:
 		return false
 	}

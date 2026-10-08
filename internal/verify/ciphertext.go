@@ -27,31 +27,31 @@ func checkCiphertext(report *Report, pair config.ResolvedFilePair, labels recipi
 	info, err := os.Lstat(pair.EncryptedPath)
 	switch {
 	case os.IsNotExist(err):
-		return fail("ciphertext_missing", "encrypted file does not exist", "run 'yews encrypt' to create it")
+		return fail("ciphertext_missing", "encrypted file does not exist", "run 'yews encrypt' to create it"+hintAgentHandoff)
 	case err != nil:
-		return fail("ciphertext_stat_error", fmt.Sprintf("failed to inspect encrypted file: %v", err), "")
+		return fail("ciphertext_stat_error", fmt.Sprintf("failed to inspect encrypted file: %v", err), "inspect the path permissions and retry")
 	case !info.Mode().IsRegular():
 		return fail("ciphertext_not_regular", "encrypted path is not a regular file", "replace it with the encrypted file itself")
 	}
 	encData, err := os.ReadFile(pair.EncryptedPath)
 	if err != nil {
-		return fail("ciphertext_read_error", fmt.Sprintf("failed to read encrypted file: %v", err), "")
+		return fail("ciphertext_read_error", fmt.Sprintf("failed to read encrypted file: %v", err), "inspect the file permissions and retry")
 	}
 	inspected, err := sopsx.Inspect(encData, pair.Format)
 	if err != nil {
-		return fail("ciphertext_parse_error", fmt.Sprintf("encrypted file is not valid %s SOPS ciphertext: %v", pair.Format, err), "restore it from version control or re-encrypt it with 'yews encrypt --force'")
+		return fail("ciphertext_parse_error", fmt.Sprintf("encrypted file is not valid %s SOPS ciphertext: %v", pair.Format, err), "restore it from version control or re-encrypt it with 'yews encrypt --force'"+hintAgentHandoff)
 	}
 	if len(inspected.AgeRecipients) == 0 {
-		return fail("ciphertext_no_recipients", "SOPS metadata contains no Age recipient", "re-encrypt it with 'yews encrypt --force'")
+		return fail("ciphertext_no_recipients", "SOPS metadata contains no Age recipient", "re-encrypt it with 'yews encrypt --force'"+hintAgentHandoff)
 	}
 	metadataValid := true
 	keyGroupsSupported := inspected.KeyGroupCount == 1
 	if !keyGroupsSupported {
-		fail("key_groups_unsupported", "SOPS metadata contains unsupported multiple key groups", "re-encrypt it with 'yews encrypt --force' to normalize the key group layout")
+		fail("key_groups_unsupported", "SOPS metadata contains unsupported multiple key groups", "re-encrypt it with 'yews encrypt --force' to normalize the key group layout"+hintAgentHandoff)
 		metadataValid = false
 	}
 	if inspected.HasNonAgeKeys {
-		fail("recipient_unsupported", "SOPS metadata contains non-Age decryption keys", "re-encrypt it with 'yews encrypt --force' to remove unauthorized keys")
+		fail("recipient_unsupported", "SOPS metadata contains non-Age decryption keys", "re-encrypt it with 'yews encrypt --force' to remove unauthorized keys"+hintAgentHandoff)
 		metadataValid = false
 	}
 	recipientsValid := checkRecipients(report, pair, inspected.AgeRecipients, labels)
@@ -83,7 +83,7 @@ func checkRecipients(report *Report, pair config.ResolvedFilePair, actual []stri
 			EncryptedPath: pair.EncryptedPath,
 			Recipient:     recipient,
 			Message:       message,
-			Hint:          "run 'yews encrypt' to rewrap the data key for the configured recipients",
+			Hint:          "run 'yews encrypt' to rewrap the data key for the configured recipients" + hintAgentRewrapSafe,
 		})
 	}
 	for _, recipient := range sortedKeys(configured) {

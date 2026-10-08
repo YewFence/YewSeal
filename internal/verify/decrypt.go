@@ -35,7 +35,7 @@ func checkDecrypt(report *Report, pair config.ResolvedFilePair, bundle agekey.Id
 			PlaintextPath: pair.PlaintextPath,
 			EncryptedPath: pair.EncryptedPath,
 			Message:       fmt.Sprintf("MAC verification failed for %s: file may have been tampered with", pair.EncryptedPath),
-			Hint:          "the ciphertext may be corrupted or modified; re-encrypt from a trusted plaintext source",
+			Hint:          "the ciphertext may be corrupted or modified; re-encrypt from a trusted plaintext source" + hintAgentHandoff,
 		})
 		return
 	}
@@ -68,6 +68,7 @@ func checkDecrypt(report *Report, pair config.ResolvedFilePair, bundle agekey.Id
 			PlaintextPath: pair.PlaintextPath,
 			EncryptedPath: pair.EncryptedPath,
 			Message:       fmt.Sprintf("failed to decrypt %s: %v", pair.EncryptedPath, decryptErr),
+			Hint:          hintAgentHandoff[1:],
 		})
 		return
 	}
@@ -86,6 +87,7 @@ func checkDecrypt(report *Report, pair config.ResolvedFilePair, bundle agekey.Id
 			PlaintextPath: pair.PlaintextPath,
 			EncryptedPath: pair.EncryptedPath,
 			Message:       fmt.Sprintf("failed to read plaintext %s: %v", pair.PlaintextPath, err),
+			Hint:          "inspect the file permissions and retry",
 		})
 		return
 	}
@@ -97,6 +99,7 @@ func checkDecrypt(report *Report, pair config.ResolvedFilePair, bundle agekey.Id
 			PlaintextPath: pair.PlaintextPath,
 			EncryptedPath: pair.EncryptedPath,
 			Message:       fmt.Sprintf("failed to compare plaintext %s: %v", pair.PlaintextPath, err),
+			Hint:          hintAgentHandoff[1:],
 		})
 		return
 	}
@@ -109,7 +112,7 @@ func checkDecrypt(report *Report, pair config.ResolvedFilePair, bundle agekey.Id
 			PlaintextPath: pair.PlaintextPath,
 			EncryptedPath: pair.EncryptedPath,
 			Message:       fmt.Sprintf("plaintext %s differs from decrypted content of %s", pair.PlaintextPath, pair.EncryptedPath),
-			Hint:          "run 'yews encrypt' to sync the ciphertext, or 'yews decrypt --force' to restore from ciphertext",
+			Hint:          "run 'yews diff' to inspect, then choose: 'yews encrypt' to accept the local plaintext into ciphertext, or 'yews decrypt --force' to restore the local plaintext from ciphertext" + hintAgentHandoff,
 		})
 	}
 }
