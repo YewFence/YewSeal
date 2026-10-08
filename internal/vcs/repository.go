@@ -63,11 +63,7 @@ func (r *Repository) DiscoveryFiles() ([]string, error) {
 }
 
 func (r *Repository) Snapshot() (*Snapshot, error) {
-	history, err := r.adapter.historyFiles()
-	if err != nil {
-		return nil, fmt.Errorf("failed to query %s repository %s: %w", r.Name(), r.root, err)
-	}
-	pending, err := r.adapter.pendingFiles()
+	history, pending, err := r.adapter.snapshot()
 	if err != nil {
 		return nil, fmt.Errorf("failed to query %s repository %s: %w", r.Name(), r.root, err)
 	}
@@ -100,8 +96,7 @@ func (s *Snapshot) Status(path string) Status {
 type adapter interface {
 	name() string
 	discoveryFiles() (map[string]bool, error)
-	historyFiles() (map[string]bool, error)
-	pendingFiles() (map[string]bool, error)
+	snapshot() (history, pending map[string]bool, err error)
 }
 
 func detect(dir string) (string, adapter, error) {
@@ -146,20 +141,20 @@ type gitAdapter struct{ root string }
 
 func (g *gitAdapter) name() string { return "git" }
 
-func (g *gitAdapter) historyFiles() (map[string]bool, error) {
-	return g.list("ls-files", "-z", "--")
-}
-
-func (g *gitAdapter) pendingFiles() (map[string]bool, error) {
-	return g.list("ls-files", "-z", "--others", "--exclude-standard", "--")
+func (g *gitAdapter) snapshot() (history, pending map[string]bool, err error) {
+	history, err = g.list("ls-files", "-z", "--")
+	if err != nil {
+		return nil, nil, err
+	}
+	pending, err = g.list("ls-files", "-z", "--others", "--exclude-standard", "--")
+	if err != nil {
+		return nil, nil, err
+	}
+	return history, pending, nil
 }
 
 func (g *gitAdapter) discoveryFiles() (map[string]bool, error) {
-	files, err := g.historyFiles()
-	if err != nil {
-		return nil, err
-	}
-	pending, err := g.pendingFiles()
+	files, pending, err := g.snapshot()
 	if err != nil {
 		return nil, err
 	}
@@ -190,38 +185,31 @@ func (j *jjAdapter) discoveryFiles() (map[string]bool, error) {
 	return splitNUL(stdout), nil
 }
 
-func (j *jjAdapter) historyFiles() (map[string]bool, error) {
-	stdout, stderr, err := execx.ExecCommand("jj", "--no-pager", "--ignore-working-copy", "-R", j.root, "log", "--no-graph", "-r", "@-", "-T", `commit_id ++ "\0"`)
+func (j *jjAdapter) snapshot() (history, pending map[string]bool, err error) {
+	const template = `parents.map(|p| p.files().map(|f| "H" ++ f.path() ++ "\0").join("")).join("") ++ self.files().map(|f| "P" ++ f.path() ++ "\0").join("")`
+	stdout, stderr, err := execx.ExecCommand("jj", "--no-pager", "--no-integrate-operation", "-R", j.root, "log", "--no-graph", "-r", "@", "-T", template)
 	if err != nil {
-		return nil, fmt.Errorf("jj log -r @-: %w: %s", err, strings.TrimSpace(stderr))
+		return nil, nil, fmt.Errorf("jj log -r @: %w: %s", err, strings.TrimSpace(stderr))
 	}
-	history := make(map[string]bool)
-	for parent := range splitNUL(stdout) {
-		files, err := j.list(parent)
-		if err != nil {
-			return nil, err
+	history = make(map[string]bool)
+	pending = make(map[string]bool)
+	for _, record := range strings.Split(stdout, "\x00") {
+		if record == "" {
+			continue
 		}
-		for path := range files {
-			history[path] = true
+		if len(record) < 2 {
+			return nil, nil, fmt.Errorf("invalid jj snapshot record: missing path")
+		}
+		switch record[0] {
+		case 'H':
+			history[record[1:]] = true
+		case 'P':
+			pending[record[1:]] = true
+		default:
+			return nil, nil, fmt.Errorf("invalid jj snapshot record tag %q", record[0])
 		}
 	}
-	return history, nil
-}
-
-func (j *jjAdapter) pendingFiles() (map[string]bool, error) {
-	stdout, stderr, err := execx.ExecCommand("jj", "--no-pager", "--no-integrate-operation", "-R", j.root, "file", "list", "-r", "@", "-T", `path ++ "\0"`)
-	if err != nil {
-		return nil, fmt.Errorf("jj file list -r @: %w: %s", err, strings.TrimSpace(stderr))
-	}
-	return splitNUL(stdout), nil
-}
-
-func (j *jjAdapter) list(revision string) (map[string]bool, error) {
-	stdout, stderr, err := execx.ExecCommand("jj", "--no-pager", "--ignore-working-copy", "-R", j.root, "file", "list", "-r", revision, "-T", `path ++ "\0"`)
-	if err != nil {
-		return nil, fmt.Errorf("jj file list -r %s: %w: %s", revision, err, strings.TrimSpace(stderr))
-	}
-	return splitNUL(stdout), nil
+	return history, pending, nil
 }
 
 func sortedPaths(paths map[string]bool) []string {
