@@ -123,7 +123,7 @@ func TestCLIProcessingOutcomes(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			dir := t.TempDir()
-			require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0755))
+			initTestGitRepository(t, dir)
 			require.NoError(t, os.Mkdir(filepath.Join(dir, ".age"), 0700))
 			owner, err := age.GenerateX25519Identity()
 			require.NoError(t, err)
@@ -238,7 +238,7 @@ func TestCLIExitCodes(t *testing.T) {
 	binary := buildYews(t)
 	clearCommandEnvironment(t)
 	dir := t.TempDir()
-	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0755))
+	initTestGitRepository(t, dir)
 
 	for _, tc := range []struct {
 		name string
@@ -366,7 +366,7 @@ func TestCLIBrokenExplicitIdentitySourceRemainsCallingError(t *testing.T) {
 func prepareNoIdentityProject(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
-	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0755))
+	initTestGitRepository(t, dir)
 	identity, err := age.GenerateX25519Identity()
 	require.NoError(t, err)
 	plain := []byte("token: value\n")
@@ -391,7 +391,7 @@ func TestCLIDecryptAliasUsesInlineIdentityEnvironment(t *testing.T) {
 	for _, envName := range []string{"YEWSEAL_AGE_IDENTITIES", "SOPS_AGE_KEY"} {
 		t.Run(envName, func(t *testing.T) {
 			dir := t.TempDir()
-			require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
+			initTestGitRepository(t, dir)
 			owner, err := age.GenerateX25519Identity()
 			require.NoError(t, err)
 			plain := []byte("token: value\n")

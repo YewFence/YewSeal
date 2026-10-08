@@ -39,7 +39,8 @@ Checks:
                   clear the error. Symlinks and their targets are both
                   checked. Past commits are not audited. Outside a repository
                   this check is skipped; a failed VCS query is an error.
-                  With jj, verification may snapshot the working copy.
+                  With jj, verification inspects an uncommitted snapshot
+                  without updating the working-copy commit.
   .sops.yaml      checked against the managed-file rules, independently of
                   selected targets. A difference is an error; an absent file
                   is skipped. --sync-sops-config=false skips the comparison.

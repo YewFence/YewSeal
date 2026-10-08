@@ -40,10 +40,12 @@ func Verify(cfg *config.Config, req VerifyRequest) (*verify.Report, error) {
 		aliases[strings.TrimSpace(recipient)] = alias
 	}
 	report, err := verify.Check(selection, config.CurrentDir(cfg), verify.Options{
-		KeyFile:          req.KeyFile,
-		DecryptMode:      mode,
-		CheckSOPSConfig:  req.SyncSOPSConfig,
-		RecipientAliases: aliases,
+		KeyFile:                     req.KeyFile,
+		DecryptMode:                 mode,
+		CheckSOPSConfig:             req.SyncSOPSConfig,
+		RecipientAliases:            aliases,
+		RepositoryDiscoveryDegraded: cfg.DiscoveryDegraded,
+		RepositoryDiscoveryWarning:  strings.Join(cfg.DiscoveryWarnings, "; "),
 	})
 	return report, errx.Usage(err)
 }

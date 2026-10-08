@@ -99,6 +99,25 @@ func TestVerifyExitCodesAndChannels(t *testing.T) {
 	require.Zero(t, withoutIdentity.code, "%s\n%s", withoutIdentity.stdout, withoutIdentity.stderr)
 	require.Contains(t, withoutIdentity.stdout, "no Age identity available")
 
+	degradedRepository := t.TempDir()
+	dir = degradedRepository
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "config.yaml"), plain, 0600))
+	mustSucceed("init", "--input", "config.yaml", "--output", "config.enc.yaml")
+	mustSucceed("encrypt")
+	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0755))
+	degradedPlan := run("plan", "--json")
+	require.Zero(t, degradedPlan.code, degradedPlan.stderr)
+	require.Contains(t, degradedPlan.stderr, "Warning: could not enumerate repository-wide configs with git")
+	require.Contains(t, degradedPlan.stderr, "https://github.com/YewFence/YewSeal/issues")
+	require.NoError(t, json.Unmarshal([]byte(degradedPlan.stdout), &map[string]any{}))
+	degraded := run("verify", "--no-decrypt", "--json")
+	require.Equal(t, 1, degraded.code, degraded.stderr)
+	require.Contains(t, degraded.stderr, "verify completed with error findings")
+	report = decodeReport(degraded)
+	require.False(t, report.OK)
+	require.Len(t, report.Findings, 1)
+	require.Equal(t, "vcs_query_failed", report.Findings[0].Code)
+
 	missingConfig := t.TempDir()
 	dir = missingConfig
 	require.Equal(t, 2, run("verify").code)

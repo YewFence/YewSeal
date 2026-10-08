@@ -14,9 +14,11 @@ type Config struct {
 	Encryption EncryptionConfig `toml:"encryption"`
 	Recipients RecipientConfig  `toml:"recipients"`
 
-	LoadedFiles []LoadedFile `toml:"-"`
-	CurrentDir  string       `toml:"-"`
-	UserConfig  bool         `toml:"-"`
+	LoadedFiles       []LoadedFile `toml:"-"`
+	CurrentDir        string       `toml:"-"`
+	UserConfig        bool         `toml:"-"`
+	DiscoveryWarnings []string     `toml:"-"`
+	DiscoveryDegraded bool         `toml:"-"`
 }
 
 type LoadedFile struct {
@@ -88,16 +90,29 @@ func LoadConfig() (*Config, error) {
 		return nil, fmt.Errorf("failed to get working directory: %w", err)
 	}
 
-	configFiles, err := discoverConfigFiles(cwd)
+	discovery, err := discoverConfigFiles(cwd)
 	if err != nil {
 		return nil, err
 	}
 
-	if len(configFiles) == 0 {
-		return nil, fmt.Errorf("no YewSeal configuration found for %s (expected .yewseal.toml, .config/.yewseal.toml, or .yewseal/.yewseal.toml)", cwd)
+	if len(discovery.files) == 0 {
+		return nil, withDiscoveryWarnings(fmt.Errorf("no YewSeal configuration found for %s (expected .yewseal.toml, .config/.yewseal.toml, or .yewseal/.yewseal.toml)", cwd), discovery.warnings)
 	}
 
-	return loadConfigFiles(cwd, configFiles)
+	config, err := loadConfigFiles(cwd, discovery.files)
+	if err != nil {
+		return nil, withDiscoveryWarnings(err, discovery.warnings)
+	}
+	config.DiscoveryWarnings = append([]string(nil), discovery.warnings...)
+	config.DiscoveryDegraded = discovery.degraded
+	return config, nil
+}
+
+func withDiscoveryWarnings(err error, warnings []string) error {
+	if len(warnings) == 0 {
+		return err
+	}
+	return fmt.Errorf("%w; repository config discovery was degraded: %s", err, strings.Join(warnings, "; "))
 }
 
 func loadConfigFiles(cwd string, configFiles []LoadedFile) (*Config, error) {
@@ -151,86 +166,6 @@ func loadConfigFiles(cwd string, configFiles []LoadedFile) (*Config, error) {
 	}
 
 	return config, nil
-}
-
-func discoverConfigFiles(cwd string) ([]LoadedFile, error) {
-	searchDirs, err := configSearchDirs(cwd)
-	if err != nil {
-		return nil, err
-	}
-
-	files := make([]LoadedFile, 0, len(searchDirs))
-	for _, dir := range searchDirs {
-		configPath, err := highestPriorityConfigPath(dir)
-		if err != nil {
-			return nil, err
-		}
-		if configPath == "" {
-			continue
-		}
-		files = append(files, LoadedFile{Path: configPath, Dir: dir})
-	}
-	return files, nil
-}
-
-func configSearchDirs(cwd string) ([]string, error) {
-	root, ok, err := gitRoot(cwd)
-	if err != nil {
-		return nil, err
-	}
-	if !ok {
-		return []string{cwd}, nil
-	}
-
-	rel, err := filepath.Rel(root, cwd)
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve current directory relative to git root: %w", err)
-	}
-	dirs := []string{root}
-	if rel == "." {
-		return dirs, nil
-	}
-	for _, part := range strings.Split(rel, string(filepath.Separator)) {
-		if part == "" || part == "." {
-			continue
-		}
-		dirs = append(dirs, filepath.Join(dirs[len(dirs)-1], part))
-	}
-	return dirs, nil
-}
-
-func gitRoot(cwd string) (string, bool, error) {
-	dir := cwd
-	for {
-		gitPath := filepath.Join(dir, ".git")
-		if _, err := os.Stat(gitPath); err == nil {
-			return dir, true, nil
-		} else if !os.IsNotExist(err) {
-			return "", false, fmt.Errorf("failed to stat git marker %s: %w", gitPath, err)
-		}
-
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			return "", false, nil
-		}
-		dir = parent
-	}
-}
-
-func highestPriorityConfigPath(dir string) (string, error) {
-	configPaths := []string{
-		filepath.Join(dir, ".yewseal", ".yewseal.toml"),
-		filepath.Join(dir, ".config", ".yewseal.toml"),
-		filepath.Join(dir, ".yewseal.toml"),
-	}
-	for _, path := range configPaths {
-		if _, err := os.Stat(path); err == nil {
-			return path, nil
-		} else if !os.IsNotExist(err) {
-			return "", fmt.Errorf("failed to stat config file %s: %w", path, err)
-		}
-	}
-	return "", nil
 }
 
 func loadConfigFile(configFile LoadedFile) (*Config, error) {
