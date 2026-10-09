@@ -1,3 +1,18 @@
+## [0.22.1] - 2026-10-09
+
+### 🐛 Bug Fixes
+
+- *(decrypt)* Skip delivery mappings by default instead of erroring
+- Preserve externally-provided PINACT_GITHUB_TOKEN
+
+### 📚 Documentation
+
+- *(guide/private-keys)* Add command-source flow for pass
+- Add plaintext-mode glossary entry and delivery awareness to yewseal skill
+
+### ⚙️ Miscellaneous Tasks
+
+- *(mise-deps)* Update dependency pnpm to 11 (#100)
 ## [0.22.0] - 2026-10-09
 
 ### 🚀 Features
