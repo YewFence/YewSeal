@@ -19,6 +19,40 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestDecryptDeliveryRequestConflictsRejectBeforeIdentityLoading(t *testing.T) {
+	for _, req := range []DecryptRequest{
+		{Force: true}, {Inplace: true},
+	} {
+		req.OutputDir = t.TempDir()
+		req.KeyFile = "nonexistent-key"
+		cfg := &config.Config{}
+		err := DecryptFiles(cfg, req)
+		require.ErrorContains(t, err, "--output conflicts")
+		var usage *errx.UsageError
+		require.ErrorAs(t, err, &usage)
+		entries, err := os.ReadDir(req.OutputDir)
+		require.NoError(t, err)
+		require.Empty(t, entries)
+	}
+}
+
+func TestDecryptDeliveryRejectsDuplicateDestinations(t *testing.T) {
+	projectRoot := t.TempDir()
+	outputRoot := t.TempDir()
+	cfg := &config.Config{CurrentDir: projectRoot, ProjectRoot: projectRoot}
+	selection := config.ResolvedSelection{FilePairs: []config.ResolvedFilePair{
+		{PlaintextPath: filepath.Join(projectRoot, "secret.yaml"), EncryptedPath: filepath.Join(projectRoot, "first.enc.yaml")},
+		{PlaintextPath: filepath.Join(projectRoot, "secret.yaml"), EncryptedPath: filepath.Join(projectRoot, "second.enc.yaml")},
+	}}
+	err := prepareDecryptDelivery(cfg, &selection, DecryptRequest{OutputDir: outputRoot})
+	require.ErrorContains(t, err, "multiple file pairs write to")
+	var usage *errx.UsageError
+	require.ErrorAs(t, err, &usage)
+	entries, err := os.ReadDir(outputRoot)
+	require.NoError(t, err)
+	require.Empty(t, entries)
+}
+
 func TestDecryptDeliveryRootPreconditions(t *testing.T) {
 	for _, kind := range []string{"missing", "file", "symlink", "nonempty", "hidden"} {
 		t.Run(kind, func(t *testing.T) {

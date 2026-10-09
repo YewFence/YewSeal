@@ -3,6 +3,7 @@ package presentation
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
 
@@ -44,6 +45,31 @@ func planFixture() (*config.Config, config.ResolvedSelection) {
 			},
 		},
 	}
+}
+
+func TestPlanSourcePropagatesPlaintextModeOutputFailure(t *testing.T) {
+	cfg, selection := planFixture()
+	failure := errors.New("mode output unavailable")
+	var accepted bytes.Buffer
+	writer := &failPlanModeWriter{accepted: &accepted, err: failure}
+	out := New(writer, nil, false)
+	err := out.Finish(out.Plan(cfg, selection, PlanPrintOptions{Source: true}))
+	require.ErrorIs(t, err, failure)
+	require.Contains(t, accepted.String(), "config.toml -> config.enc.toml")
+	require.NotContains(t, accepted.String(), "  plaintext  ")
+	require.NotContains(t, accepted.String(), "deploy.env")
+}
+
+type failPlanModeWriter struct {
+	accepted *bytes.Buffer
+	err      error
+}
+
+func (w *failPlanModeWriter) Write(data []byte) (int, error) {
+	if bytes.Contains(data, []byte("plaintext_mode")) {
+		return 0, w.err
+	}
+	return w.accepted.Write(data)
 }
 
 func TestPlanDefaultTableHasOnlyCoreColumns(t *testing.T) {

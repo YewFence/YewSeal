@@ -9,6 +9,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestResolveSelectionRejectsInvalidPlaintextMode(t *testing.T) {
+	cfg := selectionConfig(t)
+	cfg.Encryption.Files = []FilePair{{PlaintextPath: "secret.yaml", EncryptedPath: "secret.enc.yaml", PlaintextMode: "unknown"}}
+	_, err := ResolveSelection(cfg, SelectionOptions{Command: task.ModeDecrypt})
+	require.ErrorContains(t, err, "plaintext_mode must be inplace or delivery")
+}
+
 func TestLoadPlaintextMode(t *testing.T) {
 	for _, tc := range []struct{ field, want string }{
 		{"", PlaintextInplace},
