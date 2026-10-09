@@ -2,7 +2,11 @@
 // It is read-only: it never modifies project files, ciphertext, or plaintext.
 package verify
 
-import "sort"
+import (
+	"sort"
+
+	"github.com/YewFence/YewSeal/internal/config"
+)
 
 // Severity classifies a Finding's urgency.
 type Severity string
@@ -44,6 +48,7 @@ const (
 
 // Report is the full result of a verify run.
 type Report struct {
+	FilePairs   []config.ResolvedFilePair
 	Findings    []Finding
 	SkipReasons []string
 

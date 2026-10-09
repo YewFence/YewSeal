@@ -2,18 +2,42 @@
 title: yews decrypt
 ---
 
-Decrypt encrypted file to its configured plaintext path
+Decrypt registered files in place or deliver a mirrored plaintext tree
 
 ## Synopsis
 
 Decrypt registered SOPS-encrypted files to their configured plaintext
-paths. The format comes from the project config or the registered file
-path; runtime format overrides and cross-format conversion are not
+paths, or into a caller-supplied mirrored tree with --output. The
+format comes from the project config or the registered file path;
+runtime format overrides and cross-format conversion are not
 supported.
 
 With no arguments, decrypt selects registered ciphertext under the current
 directory and its subdirectories. Use file paths, directories, or patterns
-to select targets; directories and patterns match encrypted paths.
+to select targets; directories and patterns match encrypted paths. Selectors
+choose what to decrypt; --output chooses where to deliver the same selection.
+
+--output DIR mirrors plaintext paths relative to the repository root (or the
+config discovery root outside a repository), directly under DIR. A single
+selected file keeps its project-relative path, too. Selected plaintext paths
+outside the project root and conflicting destinations are rejected before any
+write. Every destination is a regular file at the logical registered path.
+DIR resolves relative to the calling directory and must already exist as a
+real, empty directory — a file, symlink, or any existing entry, including a
+hidden one, is rejected. New subdirectories use 0700 and plaintext files use
+0600; root permissions stay unchanged. Use a trusted, one-use directory.
+--output is mutually exclusive with --force=true and --inplace=true. Delivery
+writes the tree without consulting .gitignore or .sops.yaml; an output root
+inside the repository is allowed, and the caller owns accidental commit risk
+and output-tree cleanup, including after failure.
+
+Mappings with plaintext_mode=delivery require --output DIR or explicit
+--inplace consent; otherwise the whole selection is rejected before writing.
+--inplace allows these mappings at their configured plaintext paths and is
+mutually exclusive with --output. The default plaintext_mode is inplace.
+Delivery classification is an accident-prevention default; use separate
+recipients and identities for access control. view and encrypt keep their
+existing behavior under this classification.
 
 The config still governs plaintext/ciphertext paths and formats, but the
 recipients actually used for decryption come from the ciphertext's SOPS
@@ -22,7 +46,7 @@ exists, decrypt warns on stderr and continues with the identity bundle.
 
 Overwrite protection: an existing plaintext file whose content differs
 from the decryption result is not overwritten unless --force is set.
-Before decryption, --update-gitignore (enabled by default) adds plaintext
+For configured-path writes, --update-gitignore (enabled by default) adds plaintext
 entries for selected mappings, or all configured mappings when no target is
 given, using the managed-file rules.
 
@@ -33,7 +57,9 @@ so lenient callers can treat unavailable decryption access as a
 degradable condition. Real errors (a missing or corrupted ciphertext,
 read or write failures, overwrite conflicts) and output delivery
 failures exit 1. With --strict, any skip also exits 1, but remaining
-files are still processed and successful results are kept;
+files are still processed and successful results are kept. --output does not
+implicitly enable strict: use --strict for complete runtime snapshots. Failures
+can leave partial plaintext trees; successful writes are never rolled back.
 --strict=false overrides YEWSEAL_DECRYPT_STRICT. Calling errors
 (invalid arguments, a missing or invalid .yewseal.toml, selection
 failure, an unreadable explicit key file, or a failed key command) exit 2.
@@ -57,6 +83,7 @@ Target selection: https://yewfence.github.io/YewSeal/guide/target-selection
 Managed-file rules: https://yewfence.github.io/YewSeal/guide/configuration#managed-files
 SOPS interoperability: https://yewfence.github.io/YewSeal/guide/sops
 Result classification and exit codes: https://yewfence.github.io/YewSeal/guide/decryption-results
+Plaintext delivery and caller-owned lifecycle: https://yewfence.github.io/YewSeal/guide/plaintext-delivery
 
 ```
 yews decrypt [command options] [path-or-pattern]... [flags]
@@ -71,8 +98,12 @@ yews decrypt [command options] [path-or-pattern]... [flags]
   # Decrypt one registered encrypted file to its configured plaintext
   yews decrypt config.enc.toml
 
-  # Decrypt a single target to an explicit output path
-  yews decrypt config.enc.toml -o config.toml
+  # Deliver a complete mirrored tree into a caller-owned empty directory
+  delivery=$(mktemp -d)
+  yews decrypt --strict --output "$delivery"
+
+  # Explicitly permit delivery mappings at configured plaintext paths
+  yews decrypt --inplace
 
   # Select registered ciphertext under ./configs with a pattern
   yews decrypt './configs/*.enc.toml'
@@ -92,11 +123,12 @@ yews decrypt [command options] [path-or-pattern]... [flags]
 ```
   -f, --force              Force overwrite existing plaintext file when it differs from decrypted content (env YEWSEAL_DECRYPT_FORCE)
   -h, --help               help for decrypt
+      --inplace            Allow delivery plaintext at configured paths; conflicts with --output (env YEWSEAL_DECRYPT_INPLACE)
       --json               Print the batch report as JSON on stdout (diagnostics stay on stderr) (env YEWSEAL_DECRYPT_JSON)
-  -o, --output string      Output plaintext file for a single file target (env YEWSEAL_DECRYPT_OUTPUT)
+      --output string      Deliver the project-relative plaintext tree into an existing, real, empty directory; conflicts with --force=true and --inplace (env YEWSEAL_DECRYPT_OUTPUT)
   -P, --parallel int       Number of parallel workers for batch mode (minimum 1) (env YEWSEAL_DECRYPT_PARALLEL) (default 1)
-      --strict             Require every selected file to be decrypted (env YEWSEAL_DECRYPT_STRICT)
-      --update-gitignore   Add plaintext and default key entries to .gitignore; false leaves it untouched (env YEWSEAL_UPDATE_GITIGNORE) (default true)
+      --strict             Require every selected file to be decrypted (successful writes are not rolled back) (env YEWSEAL_DECRYPT_STRICT)
+      --update-gitignore   Add plaintext and default key entries to .gitignore for configured-path writes; ignored with --output; false leaves it untouched (env YEWSEAL_UPDATE_GITIGNORE) (default true)
   -v, --verbose            Enable verbose output (selection info and per-file results on stderr) (env YEWSEAL_DECRYPT_VERBOSE)
 ```
 

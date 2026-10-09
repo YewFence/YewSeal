@@ -12,6 +12,24 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestSelectFilePairsEncryptOutputPreservesConfiguredFormatAndPaths(t *testing.T) {
+	root := t.TempDir()
+	plain := filepath.Join(root, "secret")
+	encrypted := filepath.Join(root, "secret.enc.env")
+	cfg := &Config{CurrentDir: root, Encryption: EncryptionConfig{Files: []FilePair{
+		{PlaintextPath: plain, EncryptedPath: encrypted, Format: "env", PlaintextMode: PlaintextDelivery},
+	}}}
+	result, err := SelectFilePairs(cfg, SelectionOptions{Command: task.ModeEncrypt, Targets: []string{"secret"}, OutputSet: true, Output: "review.json"})
+	require.NoError(t, err)
+	require.Len(t, result.FilePairs, 1)
+	require.Equal(t, filepath.Join(cfg.CurrentDir, "review.json"), result.FilePairs[0].EncryptedPath)
+	require.Equal(t, plain, result.FilePairs[0].PlaintextPath)
+	require.Equal(t, "env", result.FilePairs[0].Format)
+	require.Equal(t, PlaintextDelivery, result.FilePairs[0].PlaintextMode)
+	require.Equal(t, encrypted, result.AllConfigPairs[0].EncryptedPath)
+	require.Equal(t, encrypted, cfg.Encryption.Files[0].EncryptedPath)
+}
+
 func TestScopedConfigGroupPairsSkipsConfiguredCustomEncryptedPaths(t *testing.T) {
 	root := t.TempDir()
 	secretsDir := filepath.Join(root, "secrets")

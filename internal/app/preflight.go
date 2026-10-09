@@ -79,19 +79,21 @@ func pathExists(path string) (bool, error) {
 
 func PreflightDecrypt(cfg *config.Config, req DecryptRequest) (PreflightResult, error) {
 	selection, err := config.ResolveSelection(cfg, config.SelectionOptions{
-		Command:   task.ModeDecrypt,
-		Targets:   req.Targets,
-		Output:    req.Output,
-		OutputSet: req.OutputSet,
+		Command: task.ModeDecrypt,
+		Targets: req.Targets,
 	})
 	if err != nil {
+		return PreflightResult{}, err
+	}
+	metadataPairs := metadataPairsForSelection(selection)
+	if err := prepareDecryptDelivery(cfg, &selection, req); err != nil {
 		return PreflightResult{}, err
 	}
 	identityBundle, err := agekey.GetIdentityBundle(req.KeyFile)
 	if err != nil {
 		return PreflightResult{}, err
 	}
-	return PreflightResult{Selection: selection, IdentityBundle: identityBundle, MetadataPairs: metadataPairsForSelection(selection)}, nil
+	return PreflightResult{Selection: selection, IdentityBundle: identityBundle, MetadataPairs: metadataPairs}, nil
 }
 
 func metadataPairsForSelection(selection config.ResolvedSelection) []config.ResolvedFilePair {

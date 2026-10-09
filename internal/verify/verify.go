@@ -32,7 +32,7 @@ func (ErrIdentityRequired) Error() string {
 // returned error means verify could not run; problems found in the project
 // are findings in the report.
 func Check(selection config.ResolvedSelection, cwd string, opts Options) (*Report, error) {
-	report := &Report{}
+	report := &Report{FilePairs: append([]config.ResolvedFilePair(nil), selection.FilePairs...)}
 
 	var bundle agekey.IdentityBundle
 	if opts.DecryptMode != DecryptDisabled {

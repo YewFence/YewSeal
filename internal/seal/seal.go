@@ -45,6 +45,7 @@ type DecryptOptions struct {
 	IdentityBundle agekey.IdentityBundle
 	FormatOverride string
 	Force          bool
+	Delivery       bool
 }
 
 type DecryptBytesOptions struct {
@@ -206,6 +207,9 @@ func Decrypt(opts DecryptOptions) error {
 		return err
 	}
 
+	if opts.Delivery {
+		return writeDeliveredFile(opts.OutputFile, plainData)
+	}
 	if err := writeDecryptedFile(opts.InputFile, opts.OutputFile, plainData, opts.Force); err != nil {
 		return err
 	}

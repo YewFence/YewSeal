@@ -16,6 +16,7 @@ type encryptOptions struct {
 type decryptOptions struct {
 	KeyFile         string `mapstructure:"key-file"`
 	Output          string `mapstructure:"output"`
+	Inplace         bool   `mapstructure:"inplace"`
 	Parallel        int    `mapstructure:"parallel"`
 	Force           bool   `mapstructure:"force"`
 	Strict          bool   `mapstructure:"strict"`
@@ -86,13 +87,14 @@ func addEncryptFlags(flags *pflag.FlagSet, opts *encryptOptions) {
 }
 
 func addDecryptFlags(flags *pflag.FlagSet, opts *decryptOptions) {
-	flags.StringVarP(&opts.Output, "output", "o", opts.Output, "Output plaintext file for a single file target")
+	flags.StringVar(&opts.Output, "output", opts.Output, "Deliver the project-relative plaintext tree into an existing, real, empty directory; conflicts with --force=true and --inplace")
+	flags.BoolVar(&opts.Inplace, "inplace", false, "Allow delivery plaintext at configured paths; conflicts with --output")
 	flags.IntVarP(&opts.Parallel, "parallel", "P", opts.Parallel, "Number of parallel workers for batch mode (minimum 1)")
 	flags.BoolVarP(&opts.Force, "force", "f", false, "Force overwrite existing plaintext file when it differs from decrypted content")
-	flags.BoolVar(&opts.Strict, "strict", false, "Require every selected file to be decrypted")
+	flags.BoolVar(&opts.Strict, "strict", false, "Require every selected file to be decrypted (successful writes are not rolled back)")
 	flags.BoolVarP(&opts.Verbose, "verbose", "v", false, "Enable verbose output (selection info and per-file results on stderr)")
 	flags.BoolVar(&opts.JSON, "json", false, "Print the batch report as JSON on stdout (diagnostics stay on stderr)")
-	flags.BoolVar(&opts.UpdateGitignore, "update-gitignore", opts.UpdateGitignore, "Add plaintext and default key entries to .gitignore; false leaves it untouched")
+	flags.BoolVar(&opts.UpdateGitignore, "update-gitignore", opts.UpdateGitignore, "Add plaintext and default key entries to .gitignore for configured-path writes; ignored with --output; false leaves it untouched")
 	markSharedEnv(flags.Lookup("update-gitignore"), updateGitignoreEnv)
 }
 

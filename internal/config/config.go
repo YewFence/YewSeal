@@ -16,6 +16,7 @@ type Config struct {
 
 	LoadedFiles       []LoadedFile `toml:"-"`
 	CurrentDir        string       `toml:"-"`
+	ProjectRoot       string       `toml:"-"`
 	UserConfig        bool         `toml:"-"`
 	DiscoveryWarnings []string     `toml:"-"`
 	DiscoveryDegraded bool         `toml:"-"`
@@ -41,6 +42,8 @@ type FilePair struct {
 	// Format overrides the file format detection (toml/yaml/json/env/ini/binary).
 	// Useful for files with non-standard extensions like .dev.vars.
 	Format string `toml:"format,omitempty"`
+	// PlaintextMode controls whether decrypt requires explicit delivery or inplace consent.
+	PlaintextMode string `toml:"plaintext_mode,omitempty"`
 	// Recipients is the explicit authorization set. A nil pointer means the field was omitted.
 	Recipients *[]string `toml:"recipients,omitempty"`
 
@@ -103,6 +106,7 @@ func LoadConfig() (*Config, error) {
 	if err != nil {
 		return nil, withDiscoveryWarnings(err, discovery.warnings)
 	}
+	config.ProjectRoot = discovery.root
 	config.DiscoveryWarnings = append([]string(nil), discovery.warnings...)
 	config.DiscoveryDegraded = discovery.degraded
 	return config, nil
@@ -146,6 +150,11 @@ func loadConfigFiles(cwd string, configFiles []LoadedFile) (*Config, error) {
 		if strings.TrimSpace(filePair.EncryptedPath) == "" {
 			return nil, fmt.Errorf("invalid encryption.files[%d]: encrypted is required", i)
 		}
+		mode, err := normalizePlaintextMode(filePair.PlaintextMode)
+		if err != nil {
+			return nil, fmt.Errorf("invalid encryption.files[%d]: %w", i, err)
+		}
+		config.Encryption.Files[i].PlaintextMode = mode
 	}
 	for groupIndex, group := range config.Encryption.Groups {
 		hasPattern := false

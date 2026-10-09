@@ -35,6 +35,7 @@ type ValueSource struct {
 type ResolvedFilePair struct {
 	PlaintextPath string
 	EncryptedPath string
+	PlaintextMode string
 	Format        string
 	ConfigPath    string
 
@@ -93,11 +94,7 @@ func resolveSelection(cfg *Config, opts SelectionOptions) (ResolvedSelection, er
 		if opts.OutputSet {
 			output := resolveCommandPath(cwdFromConfig(cfg), opts.Output)
 			source := ValueSource{Kind: ValueSourceArgument, Detail: "--output"}
-			if opts.Command == task.ModeEncrypt {
-				resolved.EncryptedPath, resolved.EncryptedSource = output, source
-			} else {
-				resolved.PlaintextPath, resolved.PlaintextSource = output, source
-			}
+			resolved.EncryptedPath, resolved.EncryptedSource = output, source
 		}
 		selected = append(selected, resolved)
 	}
@@ -122,6 +119,7 @@ func ResolvedFilePairsToFilePairs(filePairs []ResolvedFilePair) []FilePair {
 		pairs = append(pairs, FilePair{
 			PlaintextPath: filePair.PlaintextPath,
 			EncryptedPath: filePair.EncryptedPath,
+			PlaintextMode: filePair.PlaintextMode,
 			Format:        filePair.Format,
 			Recipients:    cloneStringSlicePtr(filePair.RecipientAliases),
 			ConfigPath:    filePair.ConfigPath,
@@ -193,6 +191,10 @@ func resolveFilePair(cfg *Config, filePair FilePair, opts SelectionOptions) (Res
 	filePair.PlaintextPath = plainAbs
 	filePair.EncryptedPath = encAbs
 
+	plaintextMode, err := normalizePlaintextMode(filePair.PlaintextMode)
+	if err != nil {
+		return ResolvedFilePair{}, err
+	}
 	format, formatSource, err := resolveFinalFormat(filePair)
 	if err != nil {
 		return ResolvedFilePair{}, err
@@ -224,6 +226,7 @@ func resolveFilePair(cfg *Config, filePair FilePair, opts SelectionOptions) (Res
 	return ResolvedFilePair{
 		PlaintextPath:    plainAbs,
 		EncryptedPath:    encAbs,
+		PlaintextMode:    plaintextMode,
 		Format:           format,
 		ConfigPath:       filePair.ConfigPath,
 		Source:           source,

@@ -3,6 +3,7 @@ package presentation
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
 
@@ -19,7 +20,7 @@ func planFixture() (*config.Config, config.ResolvedSelection) {
 		ConfigFiles: []config.LoadedFile{{Path: configPath}},
 		FilePairs: []config.ResolvedFilePair{
 			{
-				PlaintextPath: cwd + "/config.toml", EncryptedPath: cwd + "/config.enc.toml", Format: "toml",
+				PlaintextPath: cwd + "/config.toml", EncryptedPath: cwd + "/config.enc.toml", Format: "toml", PlaintextMode: "delivery",
 				PlaintextSource:  config.ValueSource{Kind: "exact", ConfigPath: configPath},
 				EncryptedSource:  config.ValueSource{Kind: "exact", ConfigPath: configPath},
 				FormatSource:     config.ValueSource{Kind: "config-format", ConfigPath: configPath, Detail: "format"},
@@ -31,7 +32,7 @@ func planFixture() (*config.Config, config.ResolvedSelection) {
 				SelectedBy: "current-directory", Source: "exact",
 			},
 			{
-				PlaintextPath: cwd + "/deploy.env", EncryptedPath: cwd + "/deploy.enc.env", Format: "env",
+				PlaintextPath: cwd + "/deploy.env", EncryptedPath: cwd + "/deploy.enc.env", Format: "env", PlaintextMode: "inplace",
 				PlaintextSource:  config.ValueSource{Kind: "scan"},
 				EncryptedSource:  config.ValueSource{Kind: "protocol"},
 				FormatSource:     config.ValueSource{Kind: "filename"},
@@ -46,6 +47,31 @@ func planFixture() (*config.Config, config.ResolvedSelection) {
 	}
 }
 
+func TestPlanSourcePropagatesPlaintextModeOutputFailure(t *testing.T) {
+	cfg, selection := planFixture()
+	failure := errors.New("mode output unavailable")
+	var accepted bytes.Buffer
+	writer := &failPlanModeWriter{accepted: &accepted, err: failure}
+	out := New(writer, nil, false)
+	err := out.Finish(out.Plan(cfg, selection, PlanPrintOptions{Source: true}))
+	require.ErrorIs(t, err, failure)
+	require.Contains(t, accepted.String(), "config.toml -> config.enc.toml")
+	require.NotContains(t, accepted.String(), "  plaintext  ")
+	require.NotContains(t, accepted.String(), "deploy.env")
+}
+
+type failPlanModeWriter struct {
+	accepted *bytes.Buffer
+	err      error
+}
+
+func (w *failPlanModeWriter) Write(data []byte) (int, error) {
+	if bytes.Contains(data, []byte("plaintext_mode")) {
+		return 0, w.err
+	}
+	return w.accepted.Write(data)
+}
+
 func TestPlanDefaultTableHasOnlyCoreColumns(t *testing.T) {
 	cfg, selection := planFixture()
 	var out bytes.Buffer
@@ -55,9 +81,9 @@ func TestPlanDefaultTableHasOnlyCoreColumns(t *testing.T) {
 	for _, line := range lines[5:] {
 		require.LessOrEqual(t, len(line), 80)
 	}
-	require.Equal(t, []string{"Plaintext", "Encrypted", "Format", "Aliases"}, strings.Fields(lines[5]))
-	require.Equal(t, []string{"config.toml", "config.enc.toml", "toml", "ops,ci"}, strings.Fields(lines[6]))
-	require.Equal(t, []string{"deploy.env", "deploy.enc.env", "env", "ops"}, strings.Fields(lines[7]))
+	require.Equal(t, []string{"Plaintext", "Encrypted", "Format", "Aliases", "PlaintextMode"}, strings.Fields(lines[5]))
+	require.Equal(t, []string{"config.toml", "config.enc.toml", "toml", "ops,ci", "delivery"}, strings.Fields(lines[6]))
+	require.Equal(t, []string{"deploy.env", "deploy.enc.env", "env", "ops", "inplace"}, strings.Fields(lines[7]))
 	require.Len(t, lines, 8)
 	require.NotContains(t, out.String(), "age1example")
 	require.NotContains(t, out.String(), "Selected By")
@@ -74,6 +100,7 @@ Scope .
 Selected 2 file pairs
 
 config.toml -> config.enc.toml  format=toml  aliases=ops,ci
+  plaintext_mode delivery
   plaintext  .yewseal.toml exact
   encrypted  .yewseal.toml exact
   format     .yewseal.toml format
@@ -81,6 +108,7 @@ config.toml -> config.enc.toml  format=toml  aliases=ops,ci
   registry   ci=.age/ci.txt ops=.age/ops.txt
 
 deploy.env -> deploy.enc.env  format=env  aliases=ops
+  plaintext_mode inplace
   plaintext  scan
   encrypted  protocol
   format     filename
@@ -101,6 +129,7 @@ func TestPlanJSONIgnoresSourceAndVerbose(t *testing.T) {
 		Command     string   `json:"command"`
 		ConfigFiles []string `json:"config_files"`
 		FilePairs   []struct {
+			PlaintextMode string   `json:"plaintext_mode"`
 			Recipients    []string `json:"recipients"`
 			SelectedBy    string   `json:"selected_by"`
 			Authorization struct {
@@ -112,6 +141,8 @@ func TestPlanJSONIgnoresSourceAndVerbose(t *testing.T) {
 	require.Equal(t, "plan", payload.Command)
 	require.Equal(t, []string{"/workspace/.yewseal.toml"}, payload.ConfigFiles)
 	require.Len(t, payload.FilePairs, 2)
+	require.Equal(t, "delivery", payload.FilePairs[0].PlaintextMode)
+	require.Equal(t, "inplace", payload.FilePairs[1].PlaintextMode)
 	require.Equal(t, []string{"age1exampleops", "age1exampleci"}, payload.FilePairs[0].Recipients)
 	require.Equal(t, "current-directory", payload.FilePairs[0].SelectedBy)
 	require.Equal(t, map[string]string{"ops": "/workspace/.age/ops.txt", "ci": "/workspace/.age/ci.txt"}, payload.FilePairs[0].Authorization.RegistrySources)
@@ -155,7 +186,7 @@ func TestPlanTableAlignsDisplayColumns(t *testing.T) {
 				var out bytes.Buffer
 				require.NoError(t, printPlanTable(&out, cfg.CurrentDir, selection.FilePairs, pal))
 				lines := strings.Split(strings.TrimSuffix(ansiEscapes.ReplaceAllString(out.String(), ""), "\n"), "\n")
-				for column := 1; column < 4; column++ {
+				for column := 1; column < 5; column++ {
 					positions := make([]int, len(lines))
 					for i, line := range lines {
 						cell := strings.Fields(line)[column]

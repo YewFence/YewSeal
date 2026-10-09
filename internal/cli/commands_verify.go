@@ -66,12 +66,13 @@ plaintext_not_ignored, key_tracked, key_not_ignored,
 vcs_query_failed, sops_config_read_error, sops_config_generate_error,
 sops_config_drift. All are errors unless marked.
 
-Output: stdout carries a summary line, one line per skipped check kind,
-then each finding with a hint. The summary counts individual checks
+Output: stdout carries a summary line, selected mappings with plaintext_mode,
+one line per skipped check kind, then each finding with a hint. The summary counts individual checks
 (each file contributes one check per layer): pass and skipped count
 checks, warning and error count findings. --json prints only
-{"ok", "summary", "skipped", "findings"} on stdout, where "skipped" lists
-the skip reasons. Errors go to stderr.
+{"ok", "summary", "file_pairs", "skipped", "findings"} on stdout, where
+"file_pairs" lists plaintext_path, encrypted_path, and plaintext_mode;
+"skipped" lists the skip reasons. Errors go to stderr.
 
 Exit codes: 0 when no finding is an error (warnings and skips allowed);
 1 when at least one finding is an error ("fix the repository"); 2 when

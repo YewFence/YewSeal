@@ -11,6 +11,7 @@ const (
 	docsManagedFiles       = docsConfiguration + "#managed-files"
 	docsDecryptResults     = docsBaseURL + "/guide/decryption-results"
 	docsPlaintextCleanup   = docsBaseURL + "/guide/plaintext-cleanup"
+	docsPlaintextDelivery  = docsBaseURL + "/guide/plaintext-delivery"
 	docsReadingPrivateKeys = docsConfiguration + "#reading-private-keys"
 	docsPrivateKeys        = docsBaseURL + "/guide/private-keys"
 	docsSOPS               = docsBaseURL + "/guide/sops"

@@ -79,13 +79,11 @@ func TestOutputOverridePreservesInferredFormatProvenance(t *testing.T) {
 	require.NoError(t, os.WriteFile("config.yaml", []byte("token: value\n"), 0600))
 	require.NoError(t, os.WriteFile("config.enc.yaml", []byte("unused in preflight"), 0600))
 	cfg := configWithOwnerRecipient(&config.Config{Encryption: config.EncryptionConfig{Files: []config.FilePair{{PlaintextPath: "config.yaml", EncryptedPath: "config.enc.yaml", ConfigPath: ".yewseal.toml"}}}}, env.publicKey)
-	for _, command := range []string{task.ModeEncrypt, task.ModeDecrypt} {
-		selection, err := config.ResolveSelection(cfg, config.SelectionOptions{Command: command, Targets: []string{"config.enc.yaml"}, Output: "export.json", OutputSet: true})
-		require.NoError(t, err)
-		require.Len(t, selection.FilePairs, 1)
-		require.Equal(t, "yaml", selection.FilePairs[0].Format)
-		require.Equal(t, config.ValueSourceFilename, selection.FilePairs[0].FormatSource.Kind)
-	}
+	selection, err := config.ResolveSelection(cfg, config.SelectionOptions{Command: task.ModeEncrypt, Targets: []string{"config.enc.yaml"}, Output: "export.json", OutputSet: true})
+	require.NoError(t, err)
+	require.Len(t, selection.FilePairs, 1)
+	require.Equal(t, "yaml", selection.FilePairs[0].Format)
+	require.Equal(t, config.ValueSourceFilename, selection.FilePairs[0].FormatSource.Kind)
 }
 
 func TestPreflightPreservesProjectAndTargetMetadataScopes(t *testing.T) {

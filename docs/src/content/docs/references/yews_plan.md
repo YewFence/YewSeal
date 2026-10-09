@@ -26,7 +26,7 @@ provenance fields. Historical ciphertext recipients and decryption access
 are not checked.
 
 Output: stdout shows a config count and selection scope followed by a
-four-column Plaintext/Encrypted/Format/Aliases table. --source replaces
+Plaintext/Encrypted/Format/Aliases/PlaintextMode table. --source replaces
 the table with one describe block per mapping and field-level origins;
 --verbose also lists loaded config files. --json prints only the full
 JSON report and takes precedence over --source; errors go to stderr and

@@ -4,7 +4,7 @@ title: Verifying repository health
 
 Run `verify` before sharing configuration changes or deploying encrypted files. It checks selected mappings and reports problems without writing project files or printing plaintext or private keys. The checks, finding codes, and exit behavior are defined in [`yews verify --help`](/references/yews_verify).
 
-Use the shared [target-selection rules](/guide/target-selection) to choose what to check. To inspect the configured mappings first, run [`plan`](/references/yews_plan).
+Use the shared [target-selection rules](/guide/target-selection) to choose what to check. To inspect the configured mappings first, run [`plan`](/references/yews_plan). Both reports include each mapping's [plaintext classification](/guide/configuration#plaintext-classification) so delivery policies can be audited without writing plaintext.
 
 ## Choosing a decryption posture
 
@@ -34,7 +34,7 @@ For a gate that must also prove decryption and content integrity, provide an [id
 yews verify --decrypt --key-file /run/secrets/yewseal-identities
 ```
 
-To restore plaintext during deployment, follow verification with [`decrypt --strict`](/guide/decryption-results).
+To restore plaintext during deployment, follow verification with [`decrypt --strict`](/guide/decryption-results); for caller-owned temporary trees, use the [runtime delivery workflow](/guide/plaintext-delivery).
 
 ## What to do with a failing run
 

@@ -19,7 +19,7 @@ YewSeal itself uses the embedded engine: installing an external `sops` is never 
 Files and encryption authorization always come from `.yewseal.toml`:
 
 - A `path` argument selects registered files; mappings or authorization are never auto-created for unregistered files.
-- `--output` only names the output location for an explicit single-file target, and positional arguments (files, directories, or patterns) only select registered files; neither declares new authorization.
+- `encrypt --output` names the output file for an explicit single-file target; `decrypt --output` delivers a [mirrored plaintext tree](/guide/plaintext-delivery). Positional arguments (files, directories, or patterns) only select registered files; none of these options declares new authorization.
 - The format comes from the file's `format`, the group's `format_rules`, or inference from the registered path. Business commands have no `--format` flag; only `init --format` exists, for declaring a format at creation time.
 - `--key-file` supplies a decryption identity, not an encryption authorization; encryption recipients are resolved solely from the alias sets in the config.
 

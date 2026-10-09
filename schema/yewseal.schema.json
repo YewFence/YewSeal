@@ -52,6 +52,13 @@
                     "type": "string",
                     "description": "Plaintext file path, used as the input of encrypt and the output of\ndecrypt. Relative paths resolve against the directory containing\nthis config file; absolute paths take effect literally but bind the\nconfig to a single machine (it breaks after a clone, in CI, or after\nmoving the project directory), so they are not recommended. ~ is not\nexpanded; Windows absolute paths must include a drive letter."
                 },
+                "plaintext_mode": {
+                    "description": "Default inplace permits normal decryption; delivery requires --output or --inplace.",
+                    "enum": [
+                        "inplace",
+                        "delivery"
+                    ]
+                },
                 "recipients": {
                     "type": "array",
                     "description": "Authorized alias set. When omitted, inherits from the group or the\ntop-level defaults.",
