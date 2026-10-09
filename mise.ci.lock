@@ -102,3 +102,7 @@ url_api = "https://api.github.com/repos/orhun/git-cliff/releases/assets/57348722
 [[tools."go:golang.org/x/vuln/cmd/govulncheck"]]
 version = "1.8.0"
 backend = "go:golang.org/x/vuln/cmd/govulncheck"
+
+[[tools."pipx:codecov-cli"]]
+version = "11.3.1"
+backend = "pipx:codecov-cli"

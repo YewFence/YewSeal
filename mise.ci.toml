@@ -1,4 +1,5 @@
 [tools]
+"pipx:codecov-cli" = "11"
 git-cliff = "latest"
 "go:golang.org/x/vuln/cmd/govulncheck" = "latest"
 "aqua:ko-build/ko" = "0.19"

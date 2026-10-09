@@ -32,6 +32,7 @@ nllint_excludes = ""
 [env]
 # the minimum release age of github actions in days
 PINACT_MIN_AGE = "3"
+PINACT_GITHUB_TOKEN = { value = "${MISE_GITHUB_TOKEN:-}", redact = true }
 
 [tasks."mod:tidy"]
 description = "Tidy Go module dependencies"
@@ -53,6 +54,10 @@ run = "go test -v ./..."
 description = "Check concurrent processing and command output for data races"
 run = "go test -race ./internal/presentation ./internal/task ./internal/app ./internal/project ./internal/prompt ./internal/cli"
 
+[tasks.coverage]
+description = "Generate coverage.out for Codecov upload"
+run = "go test -covermode=atomic -coverprofile=coverage.out ./..."
+
 [tasks."fmt:check"]
 description = "Check Go code formatting"
 raw = true
@@ -70,7 +75,13 @@ run = "golangci-lint run -E asciicheck"
 
 [tasks."leaks:check"]
 description = "Run betterleaks checks"
-run = "betterleaks git --redact --no-banner"
+run = '''
+if jj root >/dev/null 2>&1; then
+    jj diff --git 2>/dev/null | betterleaks stdin --redact --no-banner
+else
+    betterleaks git --redact --no-banner
+fi
+'''
 
 [tasks."typos:check"]
 description = "Run Typos Lint"
@@ -82,11 +93,27 @@ run = "typos --write-changes"
 
 [tasks."newline:check"]
 description = "Check final newlines and surrounding whitespace in tracked text files"
-run = "git grep -Ilz '' -- . {{ vars.nllint_excludes }} | xargs -0 nllint --trim-space"
+shell = "bash -c"
+run = '''
+set -o pipefail
+if jj root >/dev/null 2>&1; then
+    jj --ignore-working-copy file list -T 'path ++ "\0"' | xargs -0 nllint --trim-space
+else
+    git grep -Ilz '' -- . {{ vars.nllint_excludes }} | xargs -0 nllint --trim-space
+fi
+'''
 
 [tasks."newline:fix"]
 description = "Fix final newlines and surrounding whitespace in tracked text files"
-run = "git grep -Ilz '' -- . {{ vars.nllint_excludes }} | xargs -0 nllint --fix --trim-space"
+shell = "bash -c"
+run = '''
+set -o pipefail
+if jj root >/dev/null 2>&1; then
+    jj --ignore-working-copy file list -T 'path ++ "\0"' | xargs -0 nllint --fix --trim-space
+else
+    git grep -Ilz '' -- . {{ vars.nllint_excludes }} | xargs -0 nllint --fix --trim-space
+fi
+'''
 
 [tasks.check]
 description = """
