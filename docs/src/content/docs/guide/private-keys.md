@@ -33,6 +33,53 @@ echo "public key: /tmp/yews-$alias.pub"
 
 `wl-copy` is Wayland-only; swap in your platform's clipboard CLI (`pbcopy` on macOS, `xclip -selection clipboard` on X11) — the platform matrix is the helper script's business. Printing the private key to stdout instead works over plain SSH but leaves it in terminal scrollback — prefer the clipboard. If the clipboard is overwritten before you save the key, just rerun the script: a fresh pair costs one command, and an unsaved private key has no recovery path by design. The repository ships the same flow as a helper script (`skills/yewseal/scripts/recipient-keygen.sh`) for agent-assisted setups.
 
+## Command sources: pass
+
+`YEWSEAL_AGE_KEY_CMD` holds a command instead of a path; YewSeal runs it through `sh -c` (`cmd /c` on Windows) and parses stdout with the same rules as a key file — comments, blank lines, and multi-line bundles all work. The private key never lands in the worktree, so a coding agent running `rg`, a directory-syncing Dropbox, or an editor auto-opening `.age/keys.txt` all see nothing to leak. `pass` is the canonical pairing: the keygen clipboard above pastes straight into an entry, and `pass show` feeds it back.
+
+Entry names follow `<git user.name>/<repo>/<alias>` — one identity per alias, mirroring the `YEWS_{alias}` convention in the Infisical section below. Import a materialized `.age/keys.txt` (left by `yews init`, say) and drop the file:
+
+```sh
+#!/bin/sh
+set -eu
+
+alias=${1:-owner}
+keyfile=$PWD/.age/keys.txt
+test -s "$keyfile"
+
+entry="$(git config user.name)/$(basename "$PWD")/$alias"
+grep '^AGE-SECRET-KEY-' "$keyfile" | pass insert -f "$entry"
+
+rm -f "$keyfile"
+rmdir .age 2>/dev/null || true
+```
+
+Only the bare `AGE-SECRET-KEY-1` line goes into the store; the `# public key:` comment is dropped, since `parseIdentityFile` skips comment lines anyway. `rmdir` only removes `.age` when it is now empty. The script imports the first identity it finds — a multi-identity bundle belongs in one entry with `pass insert -m` instead, preserving every line.
+
+The other path skips the file entirely: [gum](https://github.com/charmbracelet/gum) prompts for the alias and the key, so it goes from clipboard to store without touching disk:
+
+```bash
+alias=$(gum input --placeholder "alias (owner, deploy, ci, ...)")
+gum input --password --placeholder "paste the AGE-SECRET-KEY-1 line" \
+  | pass insert -f "$(git config user.name)/$(basename "$PWD")/$alias"
+```
+
+Pulling it back is one variable — set it per project in a shell profile, or the per-project env of direnv or mise:
+
+```bash
+export YEWSEAL_AGE_KEY_CMD="pass show yewfence/myapp/owner"
+yews decrypt
+```
+
+```toml
+[env]
+YEWSEAL_AGE_KEY_CMD = "pass show yewfence/myapp/owner"
+```
+
+Only the store path appears in any committed file; the pass store itself never enters the repository. `yews identities` reports the winning source as `env:YEWSEAL_AGE_KEY_CMD`. A failed command — a locked GPG agent, a missing entry — is a calling error and does not fall back to `.age/keys.txt`, which is the point of moving off the file. For several identities on one machine, either keep them as one bundle entry (what the import script above stores) or join multiple `pass show` calls in one command; `parseIdentityFile` splits on commas, spaces, and newlines alike.
+
+Other vaults fit the same variable: `secret-tool lookup yewseal myapp` (GNOME Keyring), `op read 'op://Private/yewseal-myapp/key'` (1Password), `bw get password yewseal/myapp` (Bitwarden).
+
 ## Infisical reference script
 
 When private keys are hosted in Infisical, you can independently use the [Infisical CLI](https://infisical.com/docs/cli/commands/secrets) to export a secret's full value. Install the CLI and complete a login or machine identity first; authentication, access control, and secret contents are all managed by Infisical.
@@ -184,4 +231,4 @@ env:
 
 ## Other sources
 
-Password managers, cloud secret managers, CI secrets, and local files all follow the same division of responsibility: the external tool provides the identity, YewSeal uses it to decrypt.
+Password managers, cloud secret managers, CI secrets, and local files all follow the same division of responsibility: the external tool provides the identity, YewSeal uses it to decrypt. For vaults with a CLI that prints the key, the [command source](#command-sources-pass) above needs one environment variable and no file at all.
