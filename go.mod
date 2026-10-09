@@ -4,7 +4,7 @@ go 1.27.2
 
 require (
 	filippo.io/age v1.3.2
-	github.com/YewFence/sops/v3 v3.0.0-20260917010022-e81f46a61f75
+	github.com/YewFence/sops/v3 v3.0.0-20261009131638-a4c11459d5fe
 	github.com/fatih/color v1.19.0
 	github.com/go-git/go-git/v5 v5.19.3
 	github.com/mattn/go-isatty v0.0.24
