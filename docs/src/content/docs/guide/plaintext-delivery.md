@@ -24,7 +24,7 @@ An output root inside the repository is allowed. Delivery writes the tree withou
 
 The default is [lenient decryption](/guide/decryption-results): unavailable or non-matching identities may leave a partial tree even on exit `0`. For runtime delivery, always use `--strict` and launch the consumer **only after decrypt succeeds**. Successful writes survive strict failure and real errors, so cleanup must cover failure as well as success. [`clean`](/guide/plaintext-cleanup) handles registered plaintext locations only; delivery trees are outside its scope.
 
-This POSIX-shell example uses `/dev/shm` on a Linux host where it is mounted as tmpfs. Pick another trusted absolute temporary base for your environment; a regular disk-backed directory also works.
+This POSIX-shell example uses `/dev/shm` on a Linux host where it is mounted as tmpfs. Pick another trusted absolute temporary base for your environment; a regular disk-backed directory also works. When you change the base, update the `case` pattern in `cleanup` to match it — the guard refuses to clean anything outside the expected base.
 
 ```sh
 #!/bin/sh

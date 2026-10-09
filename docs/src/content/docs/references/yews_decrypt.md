@@ -7,8 +7,9 @@ Decrypt registered files in place or deliver a mirrored plaintext tree
 ## Synopsis
 
 Decrypt registered SOPS-encrypted files to their configured plaintext
-paths. The format comes from the project config or the registered file
-path; runtime format overrides and cross-format conversion are not
+paths, or into a caller-supplied mirrored tree with --output. The
+format comes from the project config or the registered file path;
+runtime format overrides and cross-format conversion are not
 supported.
 
 With no arguments, decrypt selects registered ciphertext under the current
