@@ -16,6 +16,7 @@ This skill covers the infrastructure side only: configuration, recipients, encry
 - **Registry, alias, recipient** — `[recipients.registry]` maps reviewable aliases (`owner`, `teammate`) to public Age keys. Files are encrypted to aliases (file pair > group > `recipients.defaults`); there is no `--public-key` flag, so authorization stays reviewable in code review.
 - **Identity** — the private Age key that decrypts: `--key-file` (env `YEWSEAL_KEY_FILE`), then `YEWSEAL_AGE_IDENTITIES`, the compatible `SOPS_AGE_KEY*` sources, and finally `.age/keys.txt` in the working directory. Identities never come from the project config.
 - **Protocol file** — encrypted files follow the `.enc.*` naming (`.enc.toml`, …, `.enc.bin`), which keeps group discovery from double-encrypting.
+- **Plaintext mode** — a file-pair field (`inplace` default, `delivery`) that declares where decrypt may leave plaintext. `delivery` mappings skip under ordinary `decrypt` (`delivery-restricted`) and need `--output DIR` or `--inplace` consent; `view` and `encrypt` ignore it. Groups do not support it.
 - **Skip, lenient, strict** — "no matching identity" is a skip, not an error (lenient default), so people holding different keys share one repository; `--strict` turns skips into failures for deployment gates.
 - **Provenance** — `yews plan` reports where each resolved mapping, format, and authorization came from, exposing config drift before anything is written.
 - **SOPS config synchronization** — `encrypt` defaults to generating `.sops.yaml`; it always uses the complete resolved project policy even when its targets select one mapping. It finishes ciphertext work before synchronization, but a synchronization failure still makes the command fail. Use `--sync-sops-config=false` to leave it untouched.
@@ -43,7 +44,7 @@ yews encrypt               # encrypt in place; commit ciphertext + config
 
 **Recipient keypair generation is on-request work.** Run the bundled helper `sh scripts/recipient-keygen.sh <alias>` (relative to this skill). It sends the bare private key to the clipboard, prints the public-key path, and deletes the key file — private key bytes never enter your context. The clipboard is the only copy, so tell the user immediately to save it into their password manager; register the alias from the printed `.pub` file once they confirm.
 
-**Plaintext stays out of scope.** `decrypt`, `view`, and `diff` expose secret content — run them only on the user's explicit authorization. Plaintext files already sitting on disk are equally off limits: general-purpose reads and searches over them leak secrets into your context, so operate through yews subcommands, whose output stays summarized, and read `.yewseal.toml`, never the plaintext. To know which paths to avoid, list them by name with the bundled helper `scripts/plaintext-files.py` (relative to this skill; run it from the repository root or the config directory): it parses `yews plan --json` and prints one registered plaintext path per line — names are safe to see, contents never are.
+**Plaintext stays out of scope.** `decrypt`, `view`, and `diff` expose secret content — run them only on the user's explicit authorization. Plaintext files already sitting on disk are equally off limits, including trees delivered by `decrypt --output` outside the repository: general-purpose reads and searches over them leak secrets into your context, so operate through yews subcommands, whose output stays summarized, and read `.yewseal.toml`, never the plaintext. To know which paths to avoid, list them by name with the bundled helper `scripts/plaintext-files.py` (relative to this skill; run it from the repository root or the config directory): it parses `yews plan --json` and prints one registered plaintext path per line — names are safe to see, contents never are.
 
 ## Boundaries
 
@@ -55,9 +56,9 @@ yews encrypt               # encrypt in place; commit ciphertext + config
 
 The CLI help is authoritative for flags; the repository markdown is authoritative for concepts and workflows. When this skill's summary is insufficient, read the Markdown in the source repository `github.com/YewFence/YewSeal`:
 
-- Guides: `docs/src/content/docs/guide/` — tutorial, installation, configuration, target-selection, verifying, decryption-results, working-with-a-team, private-keys, plaintext-cleanup, sops, ci-cd, docker, glossary
-- Per-command reference: `docs/src/content/docs/references/` — `yews.md` plus `yews_<command>.md` for encrypt, decrypt, view, diff, edit, plan, verify, clean, identities, init, completion
+- Guides: `docs/src/content/docs/guide/` — tutorial, installation, configuration, target-selection, decryption-results, plaintext-delivery, verifying, working-with-a-team, private-keys, plaintext-cleanup, sops, ci-cd, docker, glossary
+- Per-command reference: `docs/src/content/docs/references/` — `yews_<command>.md` files generated from each command's `--help`; reading `yews <command> --help` directly gives the same content.
 - Config schema: `schema/yewseal.schema.json` — the quick field-level check for an edited `.yewseal.toml`
 - Every-field config example: `schema/example.yewseal.toml`
 
-Fetch a file by whatever route the environment offers: a raw.githubusercontent.com URL for this repository and path, `gh api repos/YewFence/YewSeal/contents/<path>`, or a local checkout.
+Fetch a file by whatever route the environment offers: a raw.githubusercontent.com URL for this repository and path, `gh api repos/YewFence/YewSeal/contents/<path>`, or a local checkout, etc.

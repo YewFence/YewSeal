@@ -32,6 +32,10 @@ An `[[encryption.files]]` entry pairing one plaintext path with one encrypted pa
 
 Where a resolved value came from. `plan --source` reports each path, format, authorization, and registry origin (e.g. `.yewseal.toml format`) in a describe block, so drift between config layers is visible before anything is written.
 
+## Plaintext mode
+
+A file-pair field (`inplace` by default, `delivery`) that declares where decrypt may leave plaintext. Delivery mappings skip under ordinary `decrypt` and need `--output` or `--inplace` consent. See [Configuration - plaintext classification](/guide/configuration#plaintext-classification) and [Plaintext delivery](/guide/plaintext-delivery).
+
 ## Protocol file
 
 An encrypted file with a format-specific `.enc.*` suffix, such as `config.enc.toml`. See [file naming conventions](/guide/configuration#file-naming-conventions) for the supported suffixes.
