@@ -3,6 +3,26 @@ name: Coverage
 on:
   push:
     branches: [main]
+    paths:
+      - "**/*.go"
+      - "**/go.mod"
+      - "**/go.sum"
+      - "mise.toml"
+      - "mise.lock"
+      - "mise.ci.toml"
+      - "mise.ci.lock"
+      - ".github/workflows/coverage.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "**/*.go"
+      - "**/go.mod"
+      - "**/go.sum"
+      - "mise.toml"
+      - "mise.lock"
+      - "mise.ci.toml"
+      - "mise.ci.lock"
+      - ".github/workflows/coverage.yml"
   workflow_dispatch:
 
 permissions:
@@ -14,7 +34,7 @@ concurrency:
 
 jobs:
   coverage:
-    if: ${{ github.event_name == 'push' || github.ref == 'refs/heads/main' }}
+    if: ${{ github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main' }}
     name: Coverage
     runs-on: ubuntu-latest
     permissions:
@@ -61,7 +81,7 @@ jobs:
           files: ${{ steps.coverage.outputs.report }}
           disable_search: true
           fail_ci_if_error: true
-          use_oidc: true
+          use_oidc: ${{ github.event_name != 'pull_request' }}
 
       - name: Summarize coverage failure
         if: ${{ failure() }}
