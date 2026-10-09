@@ -21,6 +21,9 @@ func printVerifyReport(w io.Writer, report *verify.Report, pal colorPalette, dis
 	var b strings.Builder
 	fmt.Fprintf(&b, "%s %d passed, %d warnings, %d errors, %d skipped\n",
 		paint(pal.muted, "Summary:"), report.PassCount, report.WarningCount, report.ErrorCount, report.SkipCount)
+	for _, pair := range report.FilePairs {
+		fmt.Fprintf(&b, "%s -> %s  plaintext_mode=%s\n", displayPath(pair.PlaintextPath), displayPath(pair.EncryptedPath), pair.PlaintextMode)
+	}
 	for _, reason := range report.SkipReasons {
 		fmt.Fprintf(&b, "%s %s\n", paint(pal.muted, "SKIPPED"), reason)
 	}
@@ -59,6 +62,14 @@ func verifyFindingLocation(f verify.Finding, displayPath func(string) string) st
 }
 
 func (o *Output) verifyReportJSON(report *verify.Report) error {
+	pairs := make([]verifyPairJSON, 0, len(report.FilePairs))
+	for _, pair := range report.FilePairs {
+		pairs = append(pairs, verifyPairJSON{
+			PlaintextPath: o.path(pair.PlaintextPath),
+			EncryptedPath: o.path(pair.EncryptedPath),
+			PlaintextMode: pair.PlaintextMode,
+		})
+	}
 	findings := make([]verifyFindingJSON, 0, len(report.Findings))
 	for _, f := range report.Findings {
 		entry := verifyFindingJSON{
@@ -77,7 +88,8 @@ func (o *Output) verifyReportJSON(report *verify.Report) error {
 		findings = append(findings, entry)
 	}
 	return encodeReportJSON(o, verifyReportJSON{
-		OK: report.OK(),
+		OK:        report.OK(),
+		FilePairs: pairs,
 		Summary: verifySummaryJSON{
 			Pass:    report.PassCount,
 			Warning: report.WarningCount,
@@ -89,11 +101,18 @@ func (o *Output) verifyReportJSON(report *verify.Report) error {
 	})
 }
 
+type verifyPairJSON struct {
+	PlaintextPath string `json:"plaintext_path"`
+	EncryptedPath string `json:"encrypted_path"`
+	PlaintextMode string `json:"plaintext_mode"`
+}
+
 type verifyReportJSON struct {
-	OK       bool                `json:"ok"`
-	Summary  verifySummaryJSON   `json:"summary"`
-	Skipped  []string            `json:"skipped"`
-	Findings []verifyFindingJSON `json:"findings"`
+	FilePairs []verifyPairJSON    `json:"file_pairs"`
+	OK        bool                `json:"ok"`
+	Summary   verifySummaryJSON   `json:"summary"`
+	Skipped   []string            `json:"skipped"`
+	Findings  []verifyFindingJSON `json:"findings"`
 }
 
 type verifySummaryJSON struct {

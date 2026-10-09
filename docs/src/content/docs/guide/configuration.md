@@ -60,7 +60,7 @@ Relative `plaintext` and `encrypted` paths are resolved against the directory of
 An absolute path is taken literally and may point anywhere on disk. That works but is discouraged: it binds the config to a single machine, and clones, CI checkouts, or a moved project directory break it — keep everything outside the project on a symlink and register the relative link instead. `~` is never expanded, and on Windows an absolute path must include a drive letter.
 :::
 
-Symlinked plaintext paths are followed transparently: `encrypt` and `decrypt` write through the complete link chain to the final regular file, and `clean` deletes that final target while leaving every link in place, so a later `decrypt` writes back to the same location. A broken chain counts as [already absent](/guide/plaintext-cleanup) for `clean` and keeps the link; unresolvable chains and non-regular targets fail rather than being treated as absent.
+Symlinked plaintext paths are followed transparently for configured-path writes: `encrypt` and `decrypt` write through the complete link chain to the final regular file, and `clean` deletes that final target while leaving every link in place, so a later `decrypt` writes back to the same location. A broken chain counts as [already absent](/guide/plaintext-cleanup) for `clean` and keeps the link; unresolvable chains and non-regular targets fail rather than being treated as absent.
 
 Files and encryption authorization are declared centrally in the project config. For one-off single-file tasks that do not need project-level management, use SOPS directly; see [Interop with SOPS](/guide/sops).
 
@@ -88,6 +88,25 @@ format = "env"
 ```
 
 `format` is optional and accepts `toml`, `yaml`, `json`, `env`, `ini`, and `binary` (aliases `yml`, `dotenv`, and `bin` are normalized at runtime). It suits files like `.dev.vars` whose format cannot be inferred from the extension.
+
+### Plaintext classification
+
+`plaintext_mode` is optional on explicit file mappings and accepts `inplace` (the default) or `delivery`. Groups do not support this field; their discovered mappings use `inplace`.
+
+```toml
+[[encryption.files]]
+plaintext = "secrets/prod.env"
+encrypted = "secrets/prod.enc.env"
+plaintext_mode = "delivery"
+```
+
+If ordinary `decrypt` selects any delivery mapping, it rejects the entire selection before writing any plaintext. Use `--output DIR` to deliver a mirrored tree, preferably outside the repository, or `--inplace` to explicitly permit writing the configured plaintext path. `YEWSEAL_DECRYPT_INPLACE` supplies the same consent; `--inplace` and `--output` are mutually exclusive. The detailed output-tree rules and caller-owned cleanup examples live in [Plaintext delivery](/guide/plaintext-delivery).
+
+`view` still emits stdout without checking this classification; `encrypt`, `edit`, `diff`, and `clean` retain their existing behavior. `plan` and `verify` show each mapping's effective `plaintext_mode`.
+
+:::caution
+Delivery classification is an accident-prevention default. Anyone with a matching identity can still use `view` or add `--inplace`; use separate recipients and identities for access control.
+:::
 
 ### Group scanning
 

@@ -74,6 +74,8 @@ With a valid config and no eligible mapping in the current-directory scope, an u
 
 Conflicting group mappings or recipient sets produce an error unless an explicit file entry resolves the conflict; see [recipient authorization](/guide/configuration#recipient-authorization).
 
+`decrypt --output` keeps these selection rules: selectors choose the mappings, while the output directory chooses where their [mirrored plaintext tree](/guide/plaintext-delivery) is written. A [delivery-classified mapping](/guide/configuration#plaintext-classification) still needs `--output` or explicit `--inplace` consent before writing.
+
 A successful selection may still produce skipped files during processing. See [decryption results](/guide/decryption-results) for their meanings and exit behavior.
 
 For `.gitignore` and `.sops.yaml` updates, see the [managed-file rules](/guide/configuration#managed-files).

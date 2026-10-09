@@ -24,6 +24,7 @@ type configCandidate struct {
 }
 
 type configDiscovery struct {
+	root     string
 	files    []LoadedFile
 	warnings []string
 	degraded bool
@@ -50,6 +51,7 @@ func discoverConfigFiles(cwd string) (configDiscovery, error) {
 	relativePaths, err := repository.DiscoveryFiles()
 	if err != nil {
 		return configDiscovery{
+			root:     repository.Root(),
 			files:    sortedConfigFiles(repository.Root(), selected),
 			warnings: []string{repositoryQueryWarning(repository.Name(), err)},
 			degraded: true,
@@ -71,7 +73,7 @@ func discoverConfigFiles(cwd string) (configDiscovery, error) {
 			selected[candidate.file.Dir] = candidate
 		}
 	}
-	return configDiscovery{files: sortedConfigFiles(repository.Root(), selected)}, nil
+	return configDiscovery{root: repository.Root(), files: sortedConfigFiles(repository.Root(), selected)}, nil
 }
 
 func discoverCurrentConfig(cwd, warning string) (configDiscovery, error) {
@@ -79,7 +81,7 @@ func discoverCurrentConfig(cwd, warning string) (configDiscovery, error) {
 	if err != nil {
 		return configDiscovery{}, err
 	}
-	discovery := configDiscovery{}
+	discovery := configDiscovery{root: cwd}
 	if path != "" {
 		discovery.files = []LoadedFile{{Path: path, Dir: cwd}}
 	}

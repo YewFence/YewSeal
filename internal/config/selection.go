@@ -47,17 +47,13 @@ func SelectFilePairs(cfg *Config, opts SelectionOptions) (SelectionResult, error
 			return SelectionResult{}, err
 		}
 		pair.Format = format
-		if opts.Command == task.ModeEncrypt {
-			pair.EncryptedPath = resolveCommandPath(cwdFromConfig(cfg), opts.Output)
-		} else {
-			pair.PlaintextPath = resolveCommandPath(cwdFromConfig(cfg), opts.Output)
-		}
+		pair.EncryptedPath = resolveCommandPath(cwdFromConfig(cfg), opts.Output)
 	}
 	return result, nil
 }
 
 func selectConfiguredFilePairs(cfg *Config, allConfigPairs []FilePair, opts SelectionOptions) (SelectionResult, error) {
-	if !policyForCommand(opts.Command).writes && opts.OutputSet {
+	if opts.Command != task.ModeEncrypt && opts.OutputSet {
 		return SelectionResult{}, fmt.Errorf("%s does not support output overrides", opts.Command)
 	}
 	if hasTargets(opts.Targets) {

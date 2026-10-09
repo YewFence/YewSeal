@@ -3,6 +3,7 @@ package app
 import (
 	"bytes"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"filippo.io/age"
@@ -31,11 +32,9 @@ func TestEncryptDecryptSingleFileOutputUsesConfiguredFormat(t *testing.T) {
 
 	require.NoError(t, os.Remove("secrets.vars"))
 	err = DecryptFiles(cfg, DecryptRequest{
-		KeyFile:   env.keyFile,
-		Targets:   []string{"secrets.vars.enc.yaml"},
-		Output:    "secrets.vars",
-		OutputSet: true,
-		Parallel:  1,
+		KeyFile:  env.keyFile,
+		Targets:  []string{"secrets.vars.enc.yaml"},
+		Parallel: 1,
 	})
 	require.NoError(t, err)
 
@@ -105,20 +104,6 @@ func TestEncryptFiles_DirModeRejectsOutput(t *testing.T) {
 	assert.Contains(t, err.Error(), "--output is only supported when the path target is a file")
 }
 
-func TestDecryptFiles_DirModeRejectsOutput(t *testing.T) {
-	cfg := config.DefaultConfig()
-	tempDir := t.TempDir()
-
-	err := DecryptFiles(cfg, DecryptRequest{
-		Targets:   []string{tempDir},
-		Output:    "out.yaml",
-		OutputSet: true,
-	})
-
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "--output is only supported when the path target is a file")
-}
-
 func TestEncryptFiles_TargetFileUsesConfiguredPair(t *testing.T) {
 	env := newAppCryptoTestEnv(t)
 	require.NoError(t, os.WriteFile(".dev.vars", []byte("TOKEN=secret\n"), 0644))
@@ -158,7 +143,7 @@ func TestEncryptFilesConfiguredFormatHandlesExtensionlessInput(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestDecryptFiles_TargetFileOutputOverride(t *testing.T) {
+func TestDecryptFilesSingleTargetDeliveryKeepsConfiguredFormat(t *testing.T) {
 	env := newAppCryptoTestEnv(t)
 	require.NoError(t, os.WriteFile("config.yaml", []byte("token: secret\n"), 0644))
 	cfg := configWithOwnerRecipient(&config.Config{Encryption: config.EncryptionConfig{Files: []config.FilePair{{PlaintextPath: "config.yaml", EncryptedPath: "config.enc.yaml"}}}}, env.publicKey)
@@ -169,16 +154,16 @@ func TestDecryptFiles_TargetFileOutputOverride(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, os.Remove("config.yaml"))
 
+	outputDir := t.TempDir()
 	err = DecryptFiles(cfg, DecryptRequest{
 		KeyFile:   env.keyFile,
 		Targets:   []string{"config.enc.yaml"},
-		Output:    "custom.json",
-		OutputSet: true,
+		OutputDir: outputDir,
 		Parallel:  1,
 	})
 	require.NoError(t, err)
 
-	content, err := os.ReadFile("custom.json")
+	content, err := os.ReadFile(filepath.Join(outputDir, "config.yaml"))
 	require.NoError(t, err)
 	assert.Equal(t, "token: secret\n", string(content))
 	_, err = os.Stat("config.yaml")
@@ -200,14 +185,6 @@ func TestEncryptFilesOutputOverrideKeepsInferredFormat(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, plain, decrypted)
 	require.NoFileExists(t, "config.enc.yaml")
-}
-
-func TestDecryptFilesOutputRejectsBatchWithOnlyOneSelectedFile(t *testing.T) {
-	env := newAppCryptoTestEnv(t)
-	cfg := configWithOwnerRecipient(&config.Config{Encryption: config.EncryptionConfig{Files: []config.FilePair{{PlaintextPath: "config.yaml", EncryptedPath: "config.enc.yaml", Format: "yaml"}}}}, env.publicKey)
-	err := DecryptFiles(cfg, DecryptRequest{Output: "export.yaml", OutputSet: true})
-	require.ErrorContains(t, err, "--output is only supported when the path target is a file")
-	require.NoFileExists(t, "export.yaml")
 }
 
 type appCryptoTestEnv struct {

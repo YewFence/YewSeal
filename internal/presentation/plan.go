@@ -66,11 +66,11 @@ func printPlanText(w io.Writer, cfg *config.Config, selection config.ResolvedSel
 	return printPlanTable(w, cwd, selection.FilePairs, pal)
 }
 
-// printPlanTable renders the four-column table. Padding is computed on the
+// printPlanTable renders the mapping table. Padding is computed on the
 // plain text and colors are applied afterwards, because tabwriter counts
 // ANSI escape sequences as cell width and would misalign colored columns.
 func printPlanTable(w io.Writer, cwd string, filePairs []config.ResolvedFilePair, pal colorPalette) error {
-	headers := []string{"Plaintext", "Encrypted", "Format", "Aliases"}
+	headers := []string{"Plaintext", "Encrypted", "Format", "Aliases", "PlaintextMode"}
 	rows := make([][]string, len(filePairs))
 	for i, filePair := range filePairs {
 		rows[i] = []string{
@@ -78,6 +78,7 @@ func printPlanTable(w io.Writer, cwd string, filePairs []config.ResolvedFilePair
 			config.DisplayPath(cwd, filePair.EncryptedPath),
 			filePair.Format,
 			strings.Join(filePair.RecipientAliases, ","),
+			filePair.PlaintextMode,
 		}
 	}
 	widths := make([]int, len(headers))
@@ -94,7 +95,7 @@ func printPlanTable(w io.Writer, cwd string, filePairs []config.ResolvedFilePair
 		table.WriteString(paint(pal.muted, padCell(header, widths[column], column == len(headers)-1)))
 	}
 	table.WriteString("\n")
-	columnColors := []*color.Color{nil, nil, pal.format, pal.accent}
+	columnColors := []*color.Color{nil, nil, pal.format, pal.accent, nil}
 	for _, row := range rows {
 		for column, cell := range row {
 			table.WriteString(paint(columnColors[column], padCell(cell, widths[column], column == len(row)-1)))
@@ -129,6 +130,9 @@ func printPlanSources(w io.Writer, cwd string, filePairs []config.ResolvedFilePa
 			paint(pal.format, filePair.Format),
 			paint(pal.muted, "aliases="),
 			paint(pal.accent, strings.Join(filePair.RecipientAliases, ","))); err != nil {
+			return err
+		}
+		if _, err := fmt.Fprintf(w, "  plaintext_mode %s\n", filePair.PlaintextMode); err != nil {
 			return err
 		}
 		for _, field := range []struct{ label, source string }{
@@ -182,6 +186,7 @@ type planJSON struct {
 }
 
 type planPairJSON struct {
+	PlaintextMode    string                `json:"plaintext_mode"`
 	Plaintext        planPathJSON          `json:"plaintext"`
 	Encrypted        planPathJSON          `json:"encrypted"`
 	Format           planFormatJSON        `json:"format"`
@@ -238,6 +243,7 @@ func formatRegistrySources(info config.RecipientProvenance, cwd string, pal colo
 
 func resolvedFilePairJSON(cwd string, filePair config.ResolvedFilePair) planPairJSON {
 	return planPairJSON{
+		PlaintextMode: filePair.PlaintextMode,
 		Plaintext: planPathJSON{
 			Path:    filePair.PlaintextPath,
 			Display: config.DisplayPath(cwd, filePair.PlaintextPath),

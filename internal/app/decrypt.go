@@ -12,8 +12,8 @@ import (
 type DecryptRequest struct {
 	Presentation    *presentation.Output
 	KeyFile         string
-	Output          string
-	OutputSet       bool
+	OutputDir       string
+	Inplace         bool
 	Targets         []string
 	Parallel        int
 	Force           bool
@@ -33,7 +33,7 @@ func DecryptFiles(cfg *config.Config, req DecryptRequest) (err error) {
 	out.IdentityBundle(preflight.IdentityBundle)
 	out.Selection(preflight.Selection)
 
-	if req.UpdateGitignore {
+	if req.UpdateGitignore && req.OutputDir == "" {
 		metadataPairs := config.ResolvedFilePairsToFilePairs(preflight.MetadataPairs)
 		if err := project.UpdateGitignore(metadataPairs); err != nil {
 			return err
@@ -47,6 +47,7 @@ func DecryptFiles(cfg *config.Config, req DecryptRequest) (err error) {
 		OnComplete:     out.FileCompleted,
 		Force:          req.Force,
 		Strict:         req.Strict,
+		Delivery:       req.OutputDir != "",
 	}
 	summary, err := task.Decrypt(opts)
 	out.BatchSummary(summary, "decrypted")

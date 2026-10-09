@@ -111,11 +111,11 @@ Command plan
 Scope .
 Selected 1 file pair
 
-Plaintext    Encrypted        Format  Aliases
-config.toml  config.enc.toml  toml    owner
+Plaintext    Encrypted        Format  Aliases  PlaintextMode
+config.toml  config.enc.toml  toml    owner    inplace
 ```
 
-The four columns show the mapping, format, and authorized aliases at a glance. Use `yews plan --source` to see where each path, format, authorization set, and registry alias came from (for example `.yewseal.toml recipients`); `--json` also exposes the canonical public keys and selection reasons for deeper audits. Nothing is written; run `plan` after any config edit to catch unknown aliases or empty authorization sets before they bite during encryption. It reads no private keys and is not a dry run.
+The columns show the mapping, format, authorized aliases, and [plaintext classification](/guide/configuration#plaintext-classification) at a glance. Use `yews plan --source` to see where each path, format, authorization set, and registry alias came from (for example `.yewseal.toml recipients`); `--json` also exposes the canonical public keys and selection reasons for deeper audits. Nothing is written; run `plan` after any config edit to catch unknown aliases or empty authorization sets before they bite during encryption. It reads no private keys and is not a dry run.
 
 ## Encrypt
 

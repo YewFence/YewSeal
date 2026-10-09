@@ -227,24 +227,17 @@ func TestSelectionOutputOverridePreservesRegisteredSnapshot(t *testing.T) {
 	plain := filepath.Join(cfg.CurrentDir, "config.yaml")
 	enc := filepath.Join(cfg.CurrentDir, "config.enc.yaml")
 	cfg.Encryption.Files = []FilePair{{PlaintextPath: plain, EncryptedPath: enc}}
-	for _, command := range []string{task.ModeEncrypt, task.ModeDecrypt} {
-		for _, target := range []string{plain, enc} {
-			result, err := ResolveSelection(cfg, SelectionOptions{Command: command, Targets: []string{target}, OutputSet: true, Output: "export.json"})
-			require.NoError(t, err)
-			require.Len(t, result.FilePairs, 1)
-			require.Len(t, result.AllConfigPairs, 1)
-			require.Equal(t, plain, result.AllConfigPairs[0].PlaintextPath)
-			require.Equal(t, enc, result.AllConfigPairs[0].EncryptedPath)
-			require.Equal(t, "yaml", result.FilePairs[0].Format)
-			require.Equal(t, ValueSourceFilename, result.FilePairs[0].FormatSource.Kind)
-			if command == task.ModeEncrypt {
-				require.Equal(t, filepath.Join(cfg.CurrentDir, "export.json"), result.FilePairs[0].EncryptedPath)
-				require.Equal(t, ValueSourceArgument, result.FilePairs[0].EncryptedSource.Kind)
-			} else {
-				require.Equal(t, filepath.Join(cfg.CurrentDir, "export.json"), result.FilePairs[0].PlaintextPath)
-				require.Equal(t, ValueSourceArgument, result.FilePairs[0].PlaintextSource.Kind)
-			}
-		}
+	for _, target := range []string{plain, enc} {
+		result, err := ResolveSelection(cfg, SelectionOptions{Command: task.ModeEncrypt, Targets: []string{target}, OutputSet: true, Output: "export.json"})
+		require.NoError(t, err)
+		require.Len(t, result.FilePairs, 1)
+		require.Len(t, result.AllConfigPairs, 1)
+		require.Equal(t, plain, result.AllConfigPairs[0].PlaintextPath)
+		require.Equal(t, enc, result.AllConfigPairs[0].EncryptedPath)
+		require.Equal(t, "yaml", result.FilePairs[0].Format)
+		require.Equal(t, ValueSourceFilename, result.FilePairs[0].FormatSource.Kind)
+		require.Equal(t, filepath.Join(cfg.CurrentDir, "export.json"), result.FilePairs[0].EncryptedPath)
+		require.Equal(t, ValueSourceArgument, result.FilePairs[0].EncryptedSource.Kind)
 	}
 	_, err := ResolveSelection(cfg, SelectionOptions{Command: task.ModePlan, Targets: []string{plain}, OutputSet: true, Output: "export.json"})
 	require.ErrorContains(t, err, "plan does not support output overrides")

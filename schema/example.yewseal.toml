@@ -20,6 +20,7 @@ recipients = ["owner"]
 plaintext = ".dev.vars"
 encrypted = ".dev.vars.enc"
 format = "env"
+plaintext_mode = "delivery"
 recipients = ["owner"]
 
 # 按 glob 模式批量管理一组文件

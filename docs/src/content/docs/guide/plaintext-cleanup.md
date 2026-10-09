@@ -24,7 +24,7 @@ $ yews clean --remove-different
 $ yews clean --force
 ```
 
-`clean` never encrypts, never updates recipients or data keys, and never touches `.gitignore` or `.sops.yaml`. Use `encrypt` to save local changes first; use `diff` to inspect a difference before deciding.
+`clean` only removes registered plaintext locations, including delivery mappings explicitly decrypted with `--inplace`. It never discovers or cleans trees produced by `decrypt --output`; their [lifetime belongs to the caller](/guide/plaintext-delivery). It never encrypts, never updates recipients or data keys, and never touches `.gitignore` or `.sops.yaml`. Use `encrypt` to save local changes first; use `diff` to inspect a difference before deciding.
 
 ## What "safe to delete" means
 

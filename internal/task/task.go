@@ -21,6 +21,7 @@ type Options struct {
 	OnComplete     func(Result)
 	Force          bool
 	Strict         bool
+	Delivery       bool
 	FilePairs      []FilePair
 }
 
@@ -78,6 +79,7 @@ func Decrypt(opts Options) (*Summary, error) {
 			IdentityBundle: opts.IdentityBundle,
 			FormatOverride: pair.Format,
 			Force:          opts.Force,
+			Delivery:       opts.Delivery,
 		})
 		return OutcomeProcessed, "", err
 	}
