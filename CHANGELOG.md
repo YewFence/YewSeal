@@ -1,3 +1,23 @@
+## [0.22.0] - 2026-10-09
+
+### 🚀 Features
+
+- *(verify)* Teach finding hints whether an agent may auto-repair
+- *(decrypt)* Deliver mirrored plaintext tree and classify delivery mappings (#106)
+
+### 🧪 Testing
+
+- Cover clean/diff summaries and config selection helpers
+- Cover vcs repository detection and snapshots with real git/jj
+
+### ⚙️ Miscellaneous Tasks
+
+- Add Codecov coverage upload and sync template updates
+- *(gomod-deps)* Update go modules (#99)
+- Deduplicate coverage into single workflow with path filtering
+- Bump sops fork and go deps (#103)
+- *(gomod-deps)* Update github.com/yewfence/sops/v3 digest to a4c1145 (#105)
+- *(npm-deps)* Update npm dependencies (#104)
 ## [0.21.0] - 2026-10-08
 
 ### 🚀 Features
