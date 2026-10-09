@@ -2,13 +2,13 @@
 title: Decryption results and strict mode
 ---
 
-Multiple developers and environments may hold different Age identities. `decrypt` skips files both when no usable identity is available (`no-identity`) and when the available identities do not match (`no-matching-identity`). `diff` skips only the latter; with an empty identity bundle, a mapping whose two inputs exist fails because no comparison was attempted. Neither command treats corrupted ciphertext, read/write failures, or overwrite conflicts as ordinary skips. `view` and `edit` have no lenient mode and fail when the target cannot be decrypted; the failure rules for encryption are unchanged.
+Multiple developers and environments may hold different Age identities. `decrypt` skips files both when no usable identity is available (`no-identity`) and when the available identities do not match (`no-matching-identity`). It also skips [delivery-classified mappings](/guide/configuration#plaintext-classification) without `--inplace` or `--output` consent (`delivery-restricted`), leaving other selected files eligible for decryption. `diff` skips only the latter; with an empty identity bundle, a mapping whose two inputs exist fails because no comparison was attempted. Neither command treats corrupted ciphertext, read/write failures, or overwrite conflicts as ordinary skips. `view` and `edit` have no lenient mode and fail when the target cannot be decrypted; the failure rules for encryption are unchanged.
 
 ## Result classification
 
 - Success: the decryption or comparison completed. Plaintext that is already identical, or a comparison with no differences, still counts as success; writing a file or producing a diff is not required.
-- Skipped: decrypt has distinct `no-identity` and `no-matching-identity` outcomes; diff skips an identity mismatch only when at least one usable identity was supplied, and also skips mappings missing the plaintext or ciphertext input. A skip is not a successful comparison and proves neither that contents are equal nor that the ciphertext is intact.
-- Failure: detected ciphertext or data key anomalies, integrity check failures, read/write failures, and unauthorized plaintext overwrites. For decrypt, missing, unreadable, or non-regular ciphertext and unresolved formats remain failures and are checked before either identity outcome; without an identity, YewSeal does not parse the SOPS payload or claim that its contents are structurally valid. For diff, no usable identity is a failure for each mapping with both inputs present; only a nonexistent input is a missing-input skip, not real faults such as permission errors.
+- Skipped: decrypt has distinct `no-identity`, `no-matching-identity`, and `delivery-restricted` outcomes; diff skips an identity mismatch only when at least one usable identity was supplied, and also skips mappings missing the plaintext or ciphertext input. A skip is not a successful comparison and proves neither that contents are equal nor that the ciphertext is intact.
+- Failure: detected ciphertext or data key anomalies, integrity check failures, read/write failures, and unauthorized plaintext overwrites. For decrypt mappings eligible for processing, missing, unreadable, or non-regular ciphertext and unresolved formats remain failures and are checked before either identity outcome; without an identity, YewSeal does not parse the SOPS payload or claim that its contents are structurally valid. For diff, no usable identity is a failure for each mapping with both inputs present; only a nonexistent input is a missing-input skip, not real faults such as permission errors.
 
 After a single-file failure, the remaining selected files are still processed and summarized at the end. An empty resolved identity bundle is not a pre-run error. Actual pre-run errors — arguments, config, an unreadable explicit key file, a failed key command, or an impossible scan — abort the run; output channel failures also fail the command.
 
@@ -39,11 +39,12 @@ The variable is read only during business argument validation of `decrypt`; it n
 | Partial success, rest skipped for identity mismatch | 0 | 1 | 0 |
 | All skipped for identity mismatch | 0 | 1 | 0 |
 | No usable identity, inputs present | 0 | 1 | 1 |
+| Some or all selected mappings skipped by delivery policy | 0 | 1 | n/a |
 | All unprocessed for missing input | 1 | 1 | 0 |
 | Partial success, rest missing input | 1 | 1 | 0 |
 | Any real error | 1 | 1 | 1 |
 
-The table assumes selected mappings and successful pre-run validation. `diff` is a development preview command: finding and showing differences is not a failure, and its exit code must not be used to decide whether files are identical. Argument, config, selection, unreadable explicit key file, and failed key-command errors return `2`; processing and output-channel errors return `1`. When a batch produces both differences and a real error, the diffs already obtained are still printed and the exit code is `1`. In lenient decrypt, identity skips never affect the exit code, even when every selected file is skipped; `--strict` turns any skip into exit `1`.
+The table assumes selected mappings and successful pre-run validation. `diff` is a development preview command: finding and showing differences is not a failure, and its exit code must not be used to decide whether files are identical. Argument, config, selection, unreadable explicit key file, and failed key-command errors return `2`; processing and output-channel errors return `1`. When a batch produces both differences and a real error, the diffs already obtained are still printed and the exit code is `1`. In lenient decrypt, identity and delivery-policy skips never affect the exit code, even when every selected file is skipped; `--strict` turns any skip into exit `1`.
 
 ## Probing and gating in scripts
 

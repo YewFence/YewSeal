@@ -191,6 +191,8 @@ func (o *Output) FileCompleted(result task.Result) {
 			reason = "plaintext file is missing; not encrypted"
 		case task.OutcomeNoIdentity:
 			reason = seal.ErrNoIdentity.Error()
+		case task.OutcomeDeliveryRestricted:
+			reason = "delivery plaintext stays off project paths by default; use --inplace or --output DIR"
 		}
 		o.statusf(pal.muted, "SKIPPED", " %s: %s\n", o.path(result.SourceFile), reason)
 	case task.Failed:

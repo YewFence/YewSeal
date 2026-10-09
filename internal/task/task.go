@@ -11,6 +11,7 @@ import (
 type FilePair struct {
 	PlaintextPath string
 	EncryptedPath string
+	PlaintextMode string
 	Format        string
 	Recipients    []string
 }
@@ -22,6 +23,7 @@ type Options struct {
 	Force          bool
 	Strict         bool
 	Delivery       bool
+	Inplace        bool
 	FilePairs      []FilePair
 }
 
@@ -73,6 +75,9 @@ func Decrypt(opts Options) (*Summary, error) {
 	}
 
 	processor := func(pair FilePair) (Outcome, string, error) {
+		if pair.PlaintextMode == "delivery" && !opts.Delivery && !opts.Inplace {
+			return OutcomeDeliveryRestricted, "", nil
+		}
 		err := seal.Decrypt(seal.DecryptOptions{
 			InputFile:      pair.EncryptedPath,
 			OutputFile:     pair.PlaintextPath,

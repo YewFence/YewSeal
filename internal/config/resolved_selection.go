@@ -134,6 +134,7 @@ func ResolvedFilePairsToTaskPairs(filePairs []ResolvedFilePair) []task.FilePair 
 		pairs = append(pairs, task.FilePair{
 			PlaintextPath: filePair.PlaintextPath,
 			EncryptedPath: filePair.EncryptedPath,
+			PlaintextMode: filePair.PlaintextMode,
 			Format:        filePair.Format,
 			Recipients:    append([]string(nil), filePair.Recipients...),
 		})

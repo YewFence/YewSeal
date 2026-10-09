@@ -266,13 +266,20 @@ func TestPlaintextDeliveryPolicyAndUnaffectedCommands(t *testing.T) {
 		require.NoError(t, os.Remove(pair.PlaintextPath))
 	}
 	for _, strict := range []bool{false, true} {
-		err := DecryptFiles(cfg, DecryptRequest{KeyFile: env.keyFile, Strict: strict})
-		require.ErrorContains(t, err, "--output DIR")
-		require.ErrorContains(t, err, "--inplace")
-		var usage *errx.UsageError
-		require.ErrorAs(t, err, &usage)
-		require.Equal(t, 2, usage.ExitCode())
-		require.NoFileExists(t, "first.yaml")
+		var stdout, stderr bytes.Buffer
+		err := DecryptFiles(cfg, DecryptRequest{KeyFile: env.keyFile, Strict: strict, Presentation: presentation.New(&stdout, &stderr, false)})
+		if strict {
+			require.ErrorContains(t, err, "1 of 2 files skipped")
+			var usage *errx.UsageError
+			require.False(t, errors.As(err, &usage))
+		} else {
+			require.NoError(t, err)
+		}
+		require.Empty(t, stdout.String())
+		require.Contains(t, stderr.String(), "SKIPPED secret.enc.yaml")
+		require.Contains(t, stderr.String(), "--output DIR")
+		require.Contains(t, stderr.String(), "--inplace")
+		require.FileExists(t, "first.yaml")
 		require.NoFileExists(t, "secret.yaml")
 	}
 	var view bytes.Buffer

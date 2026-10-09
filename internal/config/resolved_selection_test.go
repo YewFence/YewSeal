@@ -49,6 +49,7 @@ func TestResolvedFilePairsToTaskPairsCopiesRecipients(t *testing.T) {
 			PlaintextPath: "app.toml",
 			EncryptedPath: "app.toml.enc",
 			Format:        "toml",
+			PlaintextMode: PlaintextDelivery,
 			Recipients:    recipients,
 		},
 	})
@@ -57,6 +58,7 @@ func TestResolvedFilePairsToTaskPairsCopiesRecipients(t *testing.T) {
 	assert.Equal(t, "app.toml", pairs[0].PlaintextPath)
 	assert.Equal(t, "app.toml.enc", pairs[0].EncryptedPath)
 	assert.Equal(t, "toml", pairs[0].Format)
+	assert.Equal(t, PlaintextDelivery, pairs[0].PlaintextMode)
 	assert.Equal(t, []string{"age1xyz"}, pairs[0].Recipients)
 
 	recipients[0] = "changed"

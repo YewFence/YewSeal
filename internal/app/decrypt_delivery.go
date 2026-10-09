@@ -11,13 +11,6 @@ import (
 
 func prepareDecryptDelivery(cfg *config.Config, selection *config.ResolvedSelection, req DecryptRequest) error {
 	if req.OutputDir == "" {
-		if !req.Inplace {
-			for _, pair := range selection.FilePairs {
-				if pair.PlaintextMode == config.PlaintextDelivery {
-					return errx.Usage(fmt.Errorf("delivery plaintext %s requires --output DIR for delivery or --inplace to write the configured plaintext path", pair.PlaintextPath))
-				}
-			}
-		}
 		return nil
 	}
 	if req.Force || req.Inplace {

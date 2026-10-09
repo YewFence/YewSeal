@@ -62,13 +62,23 @@ func TestCLIPlaintextDeliveryLifecycle(t *testing.T) {
 		}
 		return stdout.String(), stderr.String()
 	}
-	stdout, stderr := run(projectRoot, 2, "decrypt", "--parallel", "4")
+	stdout, stderr := run(projectRoot, 0, "decrypt", "--parallel", "4")
 	require.Empty(t, stdout)
 	require.Contains(t, stderr, "--output DIR")
 	require.Contains(t, stderr, "--inplace")
-	require.NoFileExists(t, filepath.Join(projectRoot, "config/first.yaml"))
+	require.Contains(t, stderr, "SKIPPED secret.enc.env")
+	require.Contains(t, stderr, "1 succeeded, 1 skipped, 0 failed (2 selected)")
+	require.FileExists(t, filepath.Join(projectRoot, "config/first.yaml"))
 	require.NoFileExists(t, filepath.Join(projectRoot, "secret"))
-	require.NoFileExists(t, filepath.Join(projectRoot, ".gitignore"))
+	require.FileExists(t, filepath.Join(projectRoot, ".gitignore"))
+	stdout, stderr = run(projectRoot, 1, "decrypt", "--strict")
+	require.Empty(t, stdout)
+	require.Contains(t, stderr, "1 of 2 files skipped")
+	require.FileExists(t, filepath.Join(projectRoot, "config/first.yaml"))
+	require.NoFileExists(t, filepath.Join(projectRoot, "secret"))
+	run(projectRoot, 0, "clean")
+	ignoreBefore, err := os.ReadFile(filepath.Join(projectRoot, ".gitignore"))
+	require.NoError(t, err)
 
 	root := t.TempDir()
 	t.Setenv("YEWSEAL_DECRYPT_OUTPUT", root)
@@ -79,7 +89,9 @@ func TestCLIPlaintextDeliveryLifecycle(t *testing.T) {
 		require.FileExists(t, filepath.Join(root, pair.PlaintextPath))
 		require.NoFileExists(t, filepath.Join(projectRoot, pair.PlaintextPath))
 	}
-	require.NoFileExists(t, filepath.Join(projectRoot, ".gitignore"))
+	ignoreAfter, err := os.ReadFile(filepath.Join(projectRoot, ".gitignore"))
+	require.NoError(t, err)
+	require.Equal(t, ignoreBefore, ignoreAfter)
 	require.NoFileExists(t, filepath.Join(projectRoot, ".sops.yaml"))
 
 	otherRoot := t.TempDir()

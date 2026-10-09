@@ -153,11 +153,14 @@ writes the tree without consulting .gitignore or .sops.yaml; an output root
 inside the repository is allowed, and the caller owns accidental commit risk
 and output-tree cleanup, including after failure.
 
-Mappings with plaintext_mode=delivery require --output DIR or explicit
---inplace consent; otherwise the whole selection is rejected before writing.
---inplace allows these mappings at their configured plaintext paths and is
-mutually exclusive with --output. The default plaintext_mode is inplace.
-Delivery classification is an accident-prevention default; use separate
+Mappings with plaintext_mode=delivery are skipped by default (outcome
+"delivery-restricted") without touching the registered paths; other
+selected mappings continue. --inplace explicitly allows these mappings at
+their configured plaintext paths; --output DIR delivers them normally.
+--inplace and --output are mutually exclusive. The default plaintext_mode
+is inplace. --force is a separate overwrite control; it does not supply
+inplace consent. A delivery skip follows the usual lenient/strict exit
+rules. Delivery classification is an accident-prevention default; use separate
 recipients and identities for access control. view and encrypt keep their
 existing behavior under this classification.
 
@@ -174,7 +177,9 @@ given, using the managed-file rules.
 
 Exit codes: by default, files are skipped when no Age identity is
 available (outcome "no-identity") or when the available identities do
-not match ("no-matching-identity"); even a fully skipped batch exits 0,
+not match ("no-matching-identity"), or when delivery mappings have no
+--inplace or --output consent ("delivery-restricted"); even a fully skipped
+batch exits 0.
 so lenient callers can treat unavailable decryption access as a
 degradable condition. Real errors (a missing or corrupted ciphertext,
 read or write failures, overwrite conflicts) and output delivery

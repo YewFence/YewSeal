@@ -22,6 +22,7 @@ const (
 	OutcomeMissingPlaintext   Outcome = "missing-plaintext"
 	OutcomeNoIdentity         Outcome = "no-identity"
 	OutcomeNoMatchingIdentity Outcome = "no-matching-identity"
+	OutcomeDeliveryRestricted Outcome = "delivery-restricted"
 )
 
 type Result struct {
@@ -58,7 +59,7 @@ func newOutcomeResult(source, target string, outcome Outcome, warning string, er
 		result.Outcome = OutcomeNoMatchingIdentity
 	} else if err != nil {
 		result.Status = Failed
-	} else if outcome == OutcomeMissingPlaintext {
+	} else if outcome == OutcomeMissingPlaintext || outcome == OutcomeDeliveryRestricted {
 		result.Status = Skipped
 	}
 	return result

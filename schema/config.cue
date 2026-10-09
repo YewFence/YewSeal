@@ -65,7 +65,7 @@ package schema
 	// (e.g. .dev.vars).
 	format?: #Format
 
-	// Default inplace permits normal decryption; delivery requires --output or --inplace.
+	// Default inplace permits normal decryption; delivery is skipped without --output or --inplace.
 	plaintext_mode?: "inplace" | "delivery"
 
 	// Authorized alias set. When omitted, inherits from the group or the

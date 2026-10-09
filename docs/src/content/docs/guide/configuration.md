@@ -100,7 +100,7 @@ encrypted = "secrets/prod.enc.env"
 plaintext_mode = "delivery"
 ```
 
-If ordinary `decrypt` selects any delivery mapping, it rejects the entire selection before writing any plaintext. Use `--output DIR` to deliver a mirrored tree, preferably outside the repository, or `--inplace` to explicitly permit writing the configured plaintext path. `YEWSEAL_DECRYPT_INPLACE` supplies the same consent; `--inplace` and `--output` are mutually exclusive. The detailed output-tree rules and caller-owned cleanup examples live in [Plaintext delivery](/guide/plaintext-delivery).
+Ordinary `decrypt` skips selected delivery mappings without touching their registered paths, while processing the other mappings normally. The skip is reported as `delivery-restricted`, even for an explicit file target, and follows the [lenient/strict result rules](/guide/decryption-results): lenient permits skips; strict fails after processing the remaining files. `--force` is a separate overwrite control and does not supply inplace consent. Use `--output DIR` to deliver a mirrored tree, preferably outside the repository, or `--inplace` to explicitly permit writing the configured plaintext path. `YEWSEAL_DECRYPT_INPLACE` supplies the same consent; `--inplace` and `--output` are mutually exclusive. The detailed output-tree rules and caller-owned cleanup examples live in [Plaintext delivery](/guide/plaintext-delivery).
 
 `view` still emits stdout without checking this classification; `encrypt`, `edit`, `diff`, and `clean` retain their existing behavior. `plan` and `verify` show each mapping's effective `plaintext_mode`.
 

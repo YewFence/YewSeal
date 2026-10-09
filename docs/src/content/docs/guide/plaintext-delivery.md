@@ -58,7 +58,7 @@ The traps cover normal exit and catchable termination signals. Cleanup errors st
 
 ## Delivery-classified files
 
-Declare runtime-sensitive mappings with [`plaintext_mode = "delivery"`](/guide/configuration#plaintext-classification) so default decrypt routes them to `--output` instead of their configured plaintext path. The configured `secrets/prod.env`, for example, can be delivered to the tmpfs tree above without appearing at its ordinary plaintext location. `plan` and `verify` expose `plaintext_mode` for audits.
+Declare runtime-sensitive mappings with [`plaintext_mode = "delivery"`](/guide/configuration#plaintext-classification) so default decrypt skips them instead of writing their configured plaintext path. Choose `--output` for runtime delivery or explicitly opt into `--inplace` for project-path writes. The configured `secrets/prod.env`, for example, can be delivered to the tmpfs tree above without appearing at its ordinary plaintext location. `plan` and `verify` expose `plaintext_mode` for audits.
 
 :::caution
 Delivery classification is an accident-prevention default. Anyone with a matching identity can still use `view` or add `--inplace`; use separate recipients and identities for access control.

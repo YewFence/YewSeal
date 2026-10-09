@@ -48,6 +48,7 @@ func DecryptFiles(cfg *config.Config, req DecryptRequest) (err error) {
 		Force:          req.Force,
 		Strict:         req.Strict,
 		Delivery:       req.OutputDir != "",
+		Inplace:        req.Inplace,
 	}
 	summary, err := task.Decrypt(opts)
 	out.BatchSummary(summary, "decrypted")

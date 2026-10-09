@@ -97,6 +97,15 @@ func TestConcurrentResultsAndSummaryAreNotDuplicated(t *testing.T) {
 	}
 }
 
+func TestDeliverySkipReportsConsentWithoutIdentityWarning(t *testing.T) {
+	var body, diagnostics bytes.Buffer
+	out := New(&body, &diagnostics, false)
+	out.FileCompleted(task.Result{SourceFile: "prod.enc.env", TargetFile: "prod.env", Status: task.Skipped, Outcome: task.OutcomeDeliveryRestricted})
+	require.NoError(t, out.Finish(nil))
+	require.Empty(t, body.String())
+	require.Equal(t, "SKIPPED prod.enc.env: delivery plaintext stays off project paths by default; use --inplace or --output DIR\n", diagnostics.String())
+}
+
 func TestComparisonKeepsDistinctSkipReasons(t *testing.T) {
 	var diagnostics bytes.Buffer
 	out := New(nil, &diagnostics, false)
