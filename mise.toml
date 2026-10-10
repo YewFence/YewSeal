@@ -56,7 +56,7 @@ run = "go test -race ./internal/presentation ./internal/task ./internal/app ./in
 
 [tasks.coverage]
 description = "Generate coverage.out for Codecov upload"
-run = "go test -covermode=atomic -coverprofile=coverage.out ./..."
+run = "go test -covermode=atomic -coverpkg=./... -coverprofile=coverage.out ./..."
 
 [tasks."fmt:check"]
 description = "Check Go code formatting"
