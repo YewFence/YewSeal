@@ -135,6 +135,37 @@ unknown_as_binary = false
 
 To select part of a group for an operation, use the [target-selection rules](/guide/target-selection).
 
+### Scan exclusions
+
+Put `exclude` at the top level (before any TOML table header) to share exclusion rules across the groups declared in that config:
+
+```toml
+exclude = ["target/", "node_modules/", "vendor/", "*.example.toml", "!config/keep.example.toml"]
+
+[[encryption.groups]]
+patterns = ["**/*.toml"]
+```
+
+`exclude` uses the same gitignore dialect as `patterns`: a plain rule excludes a match, `!` re-includes it, and the last matching rule in each list wins. `patterns` and `exclude` are independent lists — a file enters the selection only when `patterns` selects it and `exclude` leaves it in. Because they are independent, an `exclude` negation only restores a file that `patterns` already selected.
+
+Each config's `exclude` scopes to its own groups, relative to the same discovery root as those groups. Child-directory configs keep their own `exclude`; a parent's rules stay scoped to the parent's groups. Explicit `encryption.files` mappings stay selectable inside excluded directories, and positional selectors select from whatever the group scan returns.
+
+Directory exclusions prune traversal before reading their children. Re-include the directory before re-including anything inside it: `["target/", "!target/", "!target/keep.toml"]` reaches `keep.toml`; `["target/", "!target/keep.toml"]` does not, because `target/` prunes traversal first. Group scans always skip `.git` and `.jj`. Every other directory — build outputs, dependency caches — is scanned unless you exclude it.
+
+File exclusions match the logical plaintext path in both scan directions. `exclude = ["secrets.toml"]` removes the discovered mapping for `secrets.enc.toml` when no plaintext exists; exclusion filters the mapping chosen by the discovery rules rather than retrying a different plaintext name for the same ciphertext.
+
+YewSeal scans every file under a group root, including files that `.gitignore` would skip. Files like `.env` and `*.pem` are often gitignored precisely because they hold secrets that need encrypting; inheriting `.gitignore` would drop them from discovery.
+
+[`yews plan`](/references/yews_plan) prints the loaded `exclude` rules in loading and declaration order, each with its declaring config and one-based array position. This is a static configuration view: it lists rules from every loaded config, including those outside the selected operation scope, and reflects the loaded configuration rather than the directories a particular scan pruned. The JSON report carries the same origins in `exclude` entries (`pattern`, `config`, `index`), or `[]` when no rules loaded.
+
+### Investigating slow scans
+
+Run `yews plan -v` to inspect the configuration and print a scan summary on stderr without changing files. Every group-scanning command supports `-v` for the same summary, also under `--json`.
+
+`entries` counts successful `WalkDir` visits — each scan root and each pruned directory included. `directories` counts the directories actually expanded — scan roots included, pruned directories excluded. Separate groups, plaintext/ciphertext scans, and managed-file synchronization scans each count independently, so the totals reflect traversal volume rather than unique files or syscalls.
+
+When the counts run large, look for build or dependency caches under your group roots. Add directory rules to `exclude` (or `!` patterns on a group), then rerun `plan -v` to compare counts and check the selected mappings. YewSeal applies no automatic cache exclusions and emits no slow-scan warnings.
+
 ## Managed files
 
 YewSeal maintains `.gitignore` and, when enabled, `.sops.yaml` in the current working directory. Entries use relative paths and cover only that directory and its subdirectories, including when an operation explicitly selects an external file. `.gitignore` uses plaintext paths; `.sops.yaml` uses encrypted paths.

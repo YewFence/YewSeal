@@ -51,6 +51,7 @@ type initOptions struct {
 }
 
 type editOptions struct {
+	Verbose bool   `mapstructure:"verbose"`
 	KeyFile string `mapstructure:"key-file"`
 	File    string `mapstructure:"file"`
 }
@@ -78,7 +79,7 @@ func addEncryptFlags(flags *pflag.FlagSet, opts *encryptOptions) {
 	flags.StringVarP(&opts.Output, "output", "o", opts.Output, "Output encrypted file for a single file target")
 	flags.IntVarP(&opts.Parallel, "parallel", "P", opts.Parallel, "Number of parallel workers for batch mode (minimum 1)")
 	flags.BoolVarP(&opts.Force, "force", "f", false, "Freshly encrypt every existing plaintext and rotate its data key")
-	flags.BoolVarP(&opts.Verbose, "verbose", "v", false, "Enable verbose output")
+	flags.BoolVarP(&opts.Verbose, "verbose", "v", false, "Enable verbose output (scan counts, selection info and per-file success on stderr)")
 	flags.BoolVar(&opts.JSON, "json", false, "Print the batch report as JSON on stdout (diagnostics stay on stderr)")
 	flags.BoolVar(&opts.SyncSOPSConfig, "sync-sops-config", opts.SyncSOPSConfig, "Rewrite .sops.yaml after encryption using the managed-file rules")
 	markSharedEnv(flags.Lookup("sync-sops-config"), syncSOPSConfigEnv)
@@ -92,7 +93,7 @@ func addDecryptFlags(flags *pflag.FlagSet, opts *decryptOptions) {
 	flags.IntVarP(&opts.Parallel, "parallel", "P", opts.Parallel, "Number of parallel workers for batch mode (minimum 1)")
 	flags.BoolVarP(&opts.Force, "force", "f", false, "Force overwrite existing plaintext file when it differs from decrypted content")
 	flags.BoolVar(&opts.Strict, "strict", false, "Require every selected file to be decrypted (successful writes are not rolled back)")
-	flags.BoolVarP(&opts.Verbose, "verbose", "v", false, "Enable verbose output (selection info and per-file results on stderr)")
+	flags.BoolVarP(&opts.Verbose, "verbose", "v", false, "Enable verbose output (scan counts, selection info and per-file results on stderr)")
 	flags.BoolVar(&opts.JSON, "json", false, "Print the batch report as JSON on stdout (diagnostics stay on stderr)")
 	flags.BoolVar(&opts.UpdateGitignore, "update-gitignore", opts.UpdateGitignore, "Add plaintext and default key entries to .gitignore for configured-path writes; ignored with --output; false leaves it untouched")
 	markSharedEnv(flags.Lookup("update-gitignore"), updateGitignoreEnv)
@@ -103,16 +104,17 @@ func addCleanFlags(flags *pflag.FlagSet, opts *cleanOptions) {
 	markCLIOnlyFlag(flags.Lookup("force"))
 	flags.BoolVar(&opts.RemoveDifferent, "remove-different", false, "Remove plaintext that differs from successfully decrypted ciphertext without prompting")
 	flags.BoolVar(&opts.SkipDifferent, "skip-different", false, "Keep plaintext that differs from successfully decrypted ciphertext without prompting")
-	flags.BoolVarP(&opts.Verbose, "verbose", "v", false, "Enable verbose output (selection info and already-absent results on stderr)")
+	flags.BoolVarP(&opts.Verbose, "verbose", "v", false, "Enable verbose output (scan counts, selection info and already-absent results on stderr)")
 }
 
 func addPlanFlags(flags *pflag.FlagSet, opts *planOptions) {
-	flags.BoolVarP(&opts.Verbose, "verbose", "v", false, "Enable verbose output")
+	flags.BoolVarP(&opts.Verbose, "verbose", "v", false, "List loaded config files on stdout and scan counts on stderr")
 	flags.BoolVar(&opts.JSON, "json", false, "Print configured file mappings as JSON")
 	flags.BoolVar(&opts.Source, "source", false, "Show field-level origins in a describe layout (plain output only)")
 }
 
 type verifyOptions struct {
+	Verbose        bool   `mapstructure:"verbose"`
 	KeyFile        string `mapstructure:"key-file"`
 	Decrypt        bool   `mapstructure:"decrypt"`
 	NoDecrypt      bool   `mapstructure:"no-decrypt"`

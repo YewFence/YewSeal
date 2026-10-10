@@ -257,12 +257,13 @@ for calling errors (no target, an unregistered file, a missing or invalid
 .yewseal.toml, an unreadable explicit key file, or a failed key command).
 
 Output: stdout stays empty; the update result (or "unchanged"),
-warnings, and errors go to stderr.
+warnings, and errors go to stderr. --verbose adds scan counts.
 
 See also: "yews view" to inspect a file read-only, "yews decrypt" to
 write the plaintext to disk.
 
-Documentation: ` + docsTutorial,
+Documentation: ` + docsTutorial + `
+Scan exclusions: ` + docsScanExclusions,
 		Example: `  # Edit a registered encrypted file
   yews edit -f config.enc.toml
 
@@ -283,13 +284,14 @@ Documentation: ` + docsTutorial,
 		},
 		RunE: withConfig(load, func(cmd *cobra.Command, args []string, cfg *config.Config) error {
 			return yewsapp.EditEncryptedFile(yewsapp.EditRequest{
-				Presentation: presentation.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false),
+				Presentation: presentation.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), opts.Verbose),
 				Config:       cfg,
 				File:         opts.File,
 				KeyFile:      opts.KeyFile,
 			})
 		}),
 	}
+	cmd.Flags().BoolVarP(&opts.Verbose, "verbose", "v", false, "Print scan counts on stderr")
 	cmd.Flags().StringVarP(&opts.File, "file", "f", "", "Encrypted file to edit (must be registered in .yewseal.toml; its configured plaintext path also works)")
 	resolver := newOptionResolver(cmd, &opts)
 	cmd.Args = resolver.before(cmd.Args)
@@ -317,7 +319,7 @@ bundle. It stays single-target: it fails without emitting empty
 plaintext and never touches .gitignore or .sops.yaml.
 
 Output: stdout carries only the plaintext; warnings, errors, and
---verbose detail go to stderr, so the plaintext stays pipeable. --json
+--verbose detail, including scan counts, goes to stderr, so the plaintext stays pipeable. --json
 wraps the plaintext in a JSON envelope (path, format, encoding,
 content); binary formats encode the content as base64.
 
@@ -329,7 +331,8 @@ this includes having no usable identity. 2 is reserved for calling errors
 See also: "yews decrypt" to write plaintext files with overwrite
 protection, "yews edit" to edit the encrypted file directly.
 
-Documentation: ` + docsTargetSelect,
+Documentation: ` + docsTargetSelect + `
+Scan exclusions: ` + docsScanExclusions,
 		Example: `  # Print the decrypted plaintext of a registered file
   yews view config.enc.toml
 
@@ -359,7 +362,7 @@ Documentation: ` + docsTargetSelect,
 			})
 		}),
 	}
-	cmd.Flags().BoolVarP(&opts.Verbose, "verbose", "v", false, "Enable verbose output (detail goes to stderr; stdout stays plaintext only)")
+	cmd.Flags().BoolVarP(&opts.Verbose, "verbose", "v", false, "Enable verbose output (scan counts and detail on stderr; stdout stays plaintext only)")
 	cmd.Flags().BoolVar(&opts.JSON, "json", false, "Print the decrypted content as a JSON envelope on stdout (base64 for binary formats)")
 	resolver := newOptionResolver(cmd, &opts)
 	cmd.Args = resolver.before(cmd.Args)
@@ -404,7 +407,7 @@ explicit key file, or a failed key command) exit 2.
 
 Output: stdout carries only the diff body (empty when nothing differs);
 warnings, per-file skip and failure reasons, and the summary go to
-stderr (--verbose adds selection info and per-file completion notes).
+stderr (--verbose adds selection info, scan counts, and per-file completion notes).
 --json replaces the streamed diff body with the comparison report
 (per-file status with embedded diff bodies).
 
@@ -412,7 +415,8 @@ See also: "yews encrypt" to re-encrypt changed plaintext, "yews view"
 to inspect ciphertext content.
 
 Documentation: ` + docsDecryptResults + `
-Target selection: ` + docsTargetSelect,
+Target selection: ` + docsTargetSelect + `
+Scan exclusions: ` + docsScanExclusions,
 		Example: `  # Compare registered plaintext under the current directory
   yews diff
 
@@ -449,7 +453,7 @@ Target selection: ` + docsTargetSelect,
 		}),
 	}
 	cmd.Flags().StringVar(&opts.Color, "color", opts.Color, "Colorize diff output (auto/always/never)")
-	cmd.Flags().BoolVarP(&opts.Verbose, "verbose", "v", false, "Enable verbose output (selection info and per-file completion notes on stderr)")
+	cmd.Flags().BoolVarP(&opts.Verbose, "verbose", "v", false, "Enable verbose output (scan counts, selection info and per-file completion notes on stderr)")
 	cmd.Flags().BoolVar(&opts.JSON, "json", false, "Print the comparison report as JSON on stdout (per-file status with embedded diff bodies)")
 	resolver := newOptionResolver(cmd, &opts)
 	cmd.Args = resolver.before(cmd.Args)

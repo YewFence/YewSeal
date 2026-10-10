@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/YewFence/YewSeal/internal/task"
 	toml "github.com/pelletier/go-toml/v2"
 )
 
@@ -13,6 +14,7 @@ import (
 type Config struct {
 	Encryption EncryptionConfig `toml:"encryption"`
 	Recipients RecipientConfig  `toml:"recipients"`
+	Exclude    []string         `toml:"exclude,omitempty"`
 
 	LoadedFiles       []LoadedFile `toml:"-"`
 	CurrentDir        string       `toml:"-"`
@@ -23,8 +25,9 @@ type Config struct {
 }
 
 type LoadedFile struct {
-	Path string
-	Dir  string
+	Path    string
+	Dir     string
+	Exclude []string
 }
 
 // EncryptionConfig defines encrypted file mappings.
@@ -212,6 +215,9 @@ func loadConfigFile(configFile LoadedFile) (*Config, error) {
 	if err := toml.Unmarshal(data, config); err != nil {
 		return nil, fmt.Errorf("failed to parse config file %s: %w", configFile.Path, err)
 	}
+	if _, err := task.NewPatternMatcher(config.Exclude); err != nil {
+		return nil, fmt.Errorf("invalid exclude in %s: %w", configFile.Path, err)
+	}
 
 	configPath, err := filepath.Abs(configFile.Path)
 	if err != nil {
@@ -222,7 +228,7 @@ func loadConfigFile(configFile LoadedFile) (*Config, error) {
 		return nil, fmt.Errorf("failed to resolve config root %s: %w", configFile.Dir, err)
 	}
 	configDir = filepath.Clean(configDir)
-	config.LoadedFiles = []LoadedFile{{Path: configPath, Dir: configDir}}
+	config.LoadedFiles = []LoadedFile{{Path: configPath, Dir: configDir, Exclude: append([]string(nil), config.Exclude...)}}
 	if config.Recipients.Defaults != nil {
 		config.Recipients.DefaultsConfigPath = configPath
 	}

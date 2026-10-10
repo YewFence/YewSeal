@@ -171,10 +171,18 @@ func (o *Output) Selection(selection config.ResolvedSelection) {
 	if !o.verbose {
 		return
 	}
+	o.ScanSummary(selection.ScanStats)
 	muted := o.diagnosticsPalette.muted
 	o.diagnostic(paint(muted, fmt.Sprintf("Selected %s from %s\n", countNoun(len(selection.FilePairs), "file pair"), countNoun(len(selection.ConfigFiles), "config file"))))
 	for _, pair := range selection.FilePairs {
 		o.diagnostic(paint(muted, fmt.Sprintf("  %s -> %s\n", o.path(pair.PlaintextPath), o.path(pair.EncryptedPath))))
+	}
+}
+
+// ScanSummary reports actual traversal work on the diagnostic stream in verbose mode.
+func (o *Output) ScanSummary(stats task.ScanStats) {
+	if o.verbose {
+		o.statusf(o.diagnosticsPalette.muted, "Scan:", " %d entries, %d directories expanded\n", stats.Entries, stats.Directories)
 	}
 }
 

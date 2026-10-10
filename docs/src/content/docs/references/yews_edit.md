@@ -40,12 +40,13 @@ for calling errors (no target, an unregistered file, a missing or invalid
 .yewseal.toml, an unreadable explicit key file, or a failed key command).
 
 Output: stdout stays empty; the update result (or "unchanged"),
-warnings, and errors go to stderr.
+warnings, and errors go to stderr. --verbose adds scan counts.
 
 See also: "yews view" to inspect a file read-only, "yews decrypt" to
 write the plaintext to disk.
 
 Documentation: https://yewfence.github.io/YewSeal/guide/tutorial
+Scan exclusions: https://yewfence.github.io/YewSeal/guide/configuration#scan-exclusions
 
 ```
 yews edit [flags]
@@ -70,6 +71,7 @@ yews edit [flags]
 ```
   -f, --file string   Encrypted file to edit (must be registered in .yewseal.toml; its configured plaintext path also works) (env YEWSEAL_EDIT_FILE)
   -h, --help          help for edit
+  -v, --verbose       Print scan counts on stderr (env YEWSEAL_EDIT_VERBOSE)
 ```
 
 ## Options inherited from parent commands

@@ -72,7 +72,8 @@ one line per skipped check kind, then each finding with a hint. The summary coun
 checks, warning and error count findings. --json prints only
 {"ok", "summary", "file_pairs", "skipped", "findings"} on stdout, where
 "file_pairs" lists plaintext_path, encrypted_path, and plaintext_mode;
-"skipped" lists the skip reasons. Errors go to stderr.
+"skipped" lists the skip reasons. Errors go to stderr; --verbose also
+prints scan counts on stderr.
 
 Exit codes: 0 when no finding is an error (warnings and skips allowed);
 1 when at least one finding is an error ("fix the repository"); 2 when
@@ -87,7 +88,8 @@ to repair recipient drift, "yews diff" to inspect a plaintext difference.
 
 Target selection: ` + docsTargetSelect + `
 Managed-file rules: ` + docsManagedFiles + `
-Verification workflows: ` + docsVerify,
+Verification workflows: ` + docsVerify + `
+Scan exclusions: ` + docsScanExclusions,
 		Example: `  # Check registered mappings under the current directory
   yews verify
 
@@ -114,7 +116,9 @@ Verification workflows: ` + docsVerify,
 			return nil
 		},
 		RunE: withConfig(load, func(cmd *cobra.Command, args []string, cfg *config.Config) error {
+			out := presentation.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), opts.Verbose)
 			report, err := yewsapp.Verify(cfg, yewsapp.VerifyRequest{
+				Presentation:   out,
 				Targets:        args,
 				KeyFile:        opts.KeyFile,
 				Decrypt:        opts.Decrypt,
@@ -124,7 +128,6 @@ Verification workflows: ` + docsVerify,
 			if err != nil {
 				return err
 			}
-			out := presentation.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false)
 			out.SetDirectory(config.CurrentDir(cfg))
 			// An undeliverable report means verify could not report its result.
 			if err := out.Finish(out.VerifyReport(report, opts.JSON)); err != nil {
@@ -136,6 +139,7 @@ Verification workflows: ` + docsVerify,
 			return nil
 		}),
 	}
+	cmd.Flags().BoolVarP(&opts.Verbose, "verbose", "v", false, "Print scan counts on stderr")
 	cmd.Flags().BoolVar(&opts.Decrypt, "decrypt", false, "Require an Age identity and treat undecryptable files as errors")
 	cmd.Flags().BoolVar(&opts.NoDecrypt, "no-decrypt", false, "Skip decryption checks without reading any identity source")
 	cmd.Flags().BoolVar(&opts.SyncSOPSConfig, "sync-sops-config", opts.SyncSOPSConfig, "Check .sops.yaml using the managed-file rules; false skips the comparison")

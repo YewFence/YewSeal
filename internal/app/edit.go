@@ -43,6 +43,7 @@ func EditEncryptedFile(req EditRequest) (err error) {
 	if err != nil {
 		return err
 	}
+	out.ScanSummary(selection.ScanStats)
 	resolved := selection.FilePairs[0]
 
 	identityBundle, err := agekey.GetIdentityBundle(req.KeyFile)

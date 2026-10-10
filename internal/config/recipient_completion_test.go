@@ -57,7 +57,7 @@ func TestConfiguredGroupsRejectCanonicalRecipientConflict(t *testing.T) {
 		}},
 	}
 
-	_, err = configuredFilePairs(cfg, task.ModeEncrypt)
+	_, err = configuredFilePairs(cfg, task.ModeEncrypt, nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "conflicting recipient sets")
 }

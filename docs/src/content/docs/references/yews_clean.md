@@ -45,7 +45,7 @@ later fails.
 
 Output: stdout is always empty. Prompts, warnings, REMOVED/RETAINED/FAILED
 results, and the final summary go to stderr; --verbose also prints selection
-details and ALREADY ABSENT results. clean does not update .gitignore or
+details, scan counts, and ALREADY ABSENT results. clean does not update .gitignore or
 .sops.yaml.
 
 Exit codes: 0 when the selected policy completes, including explicitly retained
@@ -60,6 +60,7 @@ encrypt" to save local changes before cleaning.
 
 Documentation: https://yewfence.github.io/YewSeal/guide/plaintext-cleanup
 Target selection: https://yewfence.github.io/YewSeal/guide/target-selection
+Scan exclusions: https://yewfence.github.io/YewSeal/guide/configuration#scan-exclusions
 
 ```
 yews clean [command options] [path-or-pattern]... [flags]
@@ -97,7 +98,7 @@ yews clean [command options] [path-or-pattern]... [flags]
   -h, --help               help for clean
       --remove-different   Remove plaintext that differs from successfully decrypted ciphertext without prompting (env YEWSEAL_CLEAN_REMOVE_DIFFERENT)
       --skip-different     Keep plaintext that differs from successfully decrypted ciphertext without prompting (env YEWSEAL_CLEAN_SKIP_DIFFERENT)
-  -v, --verbose            Enable verbose output (selection info and already-absent results on stderr) (env YEWSEAL_CLEAN_VERBOSE)
+  -v, --verbose            Enable verbose output (scan counts, selection info and already-absent results on stderr) (env YEWSEAL_CLEAN_VERBOSE)
 ```
 
 ## Options inherited from parent commands

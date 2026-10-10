@@ -9,7 +9,8 @@ import (
 )
 
 type PlanRequest struct {
-	Targets []string
+	Targets     []string
+	Diagnostics io.Writer
 }
 
 func PrintPlan(w io.Writer, cfg *config.Config, req PlanRequest, opts presentation.PlanPrintOptions) error {
@@ -17,6 +18,7 @@ func PrintPlan(w io.Writer, cfg *config.Config, req PlanRequest, opts presentati
 	if err != nil {
 		return err
 	}
-	out := presentation.New(w, io.Discard, opts.Verbose)
+	out := presentation.New(w, req.Diagnostics, opts.Verbose)
+	out.ScanSummary(selection.ScanStats)
 	return out.Finish(out.Plan(cfg, selection, opts))
 }

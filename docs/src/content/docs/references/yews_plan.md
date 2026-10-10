@@ -27,9 +27,12 @@ are not checked.
 
 Output: stdout shows a config count and selection scope followed by a
 Plaintext/Encrypted/Format/Aliases/PlaintextMode table. --source replaces
-the table with one describe block per mapping and field-level origins;
---verbose also lists loaded config files. --json prints only the full
-JSON report and takes precedence over --source; errors go to stderr and
+the table with one describe block per mapping and field-level origins.
+The report also lists loaded exclude rules, with their config paths and
+one-based declaration positions; it does not list actual pruned directories.
+--verbose lists loaded config files on stdout and prints scan counts on
+stderr. --json includes exclude rules and their origins, prints only the full
+JSON report on stdout, and takes precedence over --source; errors go to stderr and
 never mix into the report.
 
 Exit codes: 0 on success; calling errors (invalid patterns, a missing
@@ -40,6 +43,7 @@ See also: "yews verify" to check ciphertext and decryption access,
 
 Documentation: https://yewfence.github.io/YewSeal/guide/configuration
 Target selection: https://yewfence.github.io/YewSeal/guide/target-selection
+Scan exclusions: https://yewfence.github.io/YewSeal/guide/configuration#scan-exclusions
 
 ```
 yews plan [command options] [path-or-pattern]... [flags]
@@ -61,6 +65,9 @@ yews plan [command options] [path-or-pattern]... [flags]
   # Trace where each path, format, and authorization set came from
   yews plan --source
 
+  # Inspect loaded exclude rules and scan counts without changing files
+  yews plan -v
+
   # Print JSON for scripts (errors stay on stderr)
   yews plan --json > plan.json
 ```
@@ -71,7 +78,7 @@ yews plan [command options] [path-or-pattern]... [flags]
   -h, --help      help for plan
       --json      Print configured file mappings as JSON (env YEWSEAL_PLAN_JSON)
       --source    Show field-level origins in a describe layout (plain output only) (env YEWSEAL_PLAN_SOURCE)
-  -v, --verbose   Enable verbose output (env YEWSEAL_PLAN_VERBOSE)
+  -v, --verbose   List loaded config files on stdout and scan counts on stderr (env YEWSEAL_PLAN_VERBOSE)
 ```
 
 ## Options inherited from parent commands

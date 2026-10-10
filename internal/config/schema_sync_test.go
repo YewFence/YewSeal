@@ -34,6 +34,7 @@ func TestExampleConfigStrictUnmarshal(t *testing.T) {
 	require.NoError(t, decoder.Decode(&cfg))
 
 	// 抽查关键字段,确认 example 内容映射到了正确位置,而不仅仅是"不报错"
+	require.Equal(t, []string{"target/", "node_modules/", "*.example.toml", "!config/example.toml"}, cfg.Exclude)
 	require.Len(t, cfg.Encryption.Files, 2)
 	require.Equal(t, "wrangler.toml", cfg.Encryption.Files[0].PlaintextPath)
 	require.Equal(t, ".dev.vars", cfg.Encryption.Files[1].PlaintextPath)
@@ -70,7 +71,7 @@ type jsonSchema struct {
 // (FilePair 的 plaintext/encrypted,GroupConfig 的 patterns);Go struct 标签
 // 无法表达这一点,因此在此硬编码,schema 必填性变化必须同步更新本表。
 var schemaRequiredFields = map[string][]string{
-	"FilePair": {"plaintext", "encrypted"},
+	"FilePair":    {"plaintext", "encrypted"},
 	"GroupConfig": {"patterns"},
 }
 

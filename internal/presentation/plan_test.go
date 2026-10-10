@@ -126,8 +126,9 @@ func TestPlanJSONIgnoresSourceAndVerbose(t *testing.T) {
 	require.NoError(t, New(&combined, nil, true).Plan(cfg, selection, PlanPrintOptions{JSON: true, Source: true, Verbose: true}))
 	require.Equal(t, baseline.String(), combined.String())
 	var payload struct {
-		Command     string   `json:"command"`
-		ConfigFiles []string `json:"config_files"`
+		Command     string            `json:"command"`
+		ConfigFiles []string          `json:"config_files"`
+		Exclude     []json.RawMessage `json:"exclude"`
 		FilePairs   []struct {
 			PlaintextMode string   `json:"plaintext_mode"`
 			Recipients    []string `json:"recipients"`
@@ -139,6 +140,8 @@ func TestPlanJSONIgnoresSourceAndVerbose(t *testing.T) {
 	}
 	require.NoError(t, json.Unmarshal(combined.Bytes(), &payload))
 	require.Equal(t, "plan", payload.Command)
+	require.NotNil(t, payload.Exclude)
+	require.Empty(t, payload.Exclude)
 	require.Equal(t, []string{"/workspace/.yewseal.toml"}, payload.ConfigFiles)
 	require.Len(t, payload.FilePairs, 2)
 	require.Equal(t, "delivery", payload.FilePairs[0].PlaintextMode)
