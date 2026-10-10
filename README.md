@@ -1,5 +1,11 @@
 # YewSeal
 
+[![Release](https://img.shields.io/github/v/release/YewFence/YewSeal?sort=semver)](https://github.com/YewFence/YewSeal/releases)
+[![CI](https://github.com/YewFence/YewSeal/actions/workflows/ci.yml/badge.svg)](https://github.com/YewFence/YewSeal/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/YewFence/YewSeal/branch/main/graph/badge.svg)](https://codecov.io/gh/YewFence/YewSeal)
+[![Docs](https://img.shields.io/badge/docs-online-blue)](https://yewfence.github.io/YewSeal/)
+[![License](https://img.shields.io/github/license/YewFence/YewSeal)](LICENSE)
+
 YewSeal is a CLI built around **SOPS + Age** that defines batch encryption and decryption workflows through one clear config file.
 
 It does not reinvent crypto. It wires project initialization, file-mapping registration, and batch encrypt/decrypt into a friendly CLI. Remote storage and distribution of private keys stay with developers and deployment environments.
