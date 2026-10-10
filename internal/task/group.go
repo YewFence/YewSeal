@@ -34,7 +34,15 @@ var protocolFilePatterns = []string{
 	"*.enc.bin",
 }
 
+// ScanStats counts successful WalkDir visits and directories expanded across scans.
+type ScanStats struct {
+	Entries     int
+	Directories int
+}
+
 type GroupOptions struct {
+	Exclude         []string
+	Stats           *ScanStats
 	Root            string
 	Patterns        []string
 	FormatRules     []string
@@ -94,6 +102,10 @@ func buildGroupFilePairs(opts GroupOptions, allowEmpty bool) ([]FilePair, error)
 	if err != nil {
 		return nil, err
 	}
+	excludeMatcher, err := NewPatternMatcher(opts.Exclude)
+	if err != nil {
+		return nil, fmt.Errorf("invalid exclude: %w", err)
+	}
 
 	files := make([]string, 0)
 	excludedPaths := make(map[string]struct{}, len(opts.ExcludedPaths))
@@ -104,8 +116,17 @@ func buildGroupFilePairs(opts GroupOptions, allowEmpty bool) ([]FilePair, error)
 		if walkErr != nil {
 			return walkErr
 		}
+		if opts.Stats != nil {
+			opts.Stats.Entries++
+		}
 		if path == root {
+			if opts.Stats != nil {
+				opts.Stats.Directories++
+			}
 			return nil
+		}
+		if entry.IsDir() && (entry.Name() == ".git" || entry.Name() == ".jj") {
+			return filepath.SkipDir
 		}
 		if mode == ModeEncrypt && !entry.IsDir() {
 			if _, _, ok := fileformat.EncryptedStemAndFormat(entry.Name()); ok {
@@ -122,13 +143,17 @@ func buildGroupFilePairs(opts GroupOptions, allowEmpty bool) ([]FilePair, error)
 		}
 		rel = filepath.ToSlash(rel)
 		decided, included := matcher.Decision(rel, entry.IsDir())
+		_, excluded := excludeMatcher.Decision(rel, entry.IsDir())
 		if entry.IsDir() {
-			if decided && !included {
+			if excluded || (decided && !included) {
 				return filepath.SkipDir
+			}
+			if opts.Stats != nil {
+				opts.Stats.Directories++
 			}
 			return nil
 		}
-		if !decided || !included {
+		if excluded || !decided || !included {
 			return nil
 		}
 		files = append(files, path)
@@ -194,23 +219,41 @@ func buildProjectDecryptFilePairs(opts GroupOptions, allowEmpty bool) ([]FilePai
 	if err != nil {
 		return nil, err
 	}
+	excludeMatcher, err := NewPatternMatcher(opts.Exclude)
+	if err != nil {
+		return nil, fmt.Errorf("invalid exclude: %w", err)
+	}
 
 	pairs := make([]FilePair, 0)
 	if err := filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
+		if opts.Stats != nil {
+			opts.Stats.Entries++
+		}
 		if path == root {
+			if opts.Stats != nil {
+				opts.Stats.Directories++
+			}
 			return nil
 		}
 		if entry.IsDir() {
+			if entry.Name() == ".git" || entry.Name() == ".jj" {
+				return filepath.SkipDir
+			}
 			rel, err := filepath.Rel(root, path)
 			if err != nil {
 				return err
 			}
-			decided, included := logicalMatcher.Decision(filepath.ToSlash(rel), true)
-			if decided && !included {
+			rel = filepath.ToSlash(rel)
+			decided, included := logicalMatcher.Decision(rel, true)
+			_, excluded := excludeMatcher.Decision(rel, true)
+			if excluded || (decided && !included) {
 				return filepath.SkipDir
+			}
+			if opts.Stats != nil {
+				opts.Stats.Directories++
 			}
 			return nil
 		}
@@ -228,7 +271,14 @@ func buildProjectDecryptFilePairs(opts GroupOptions, allowEmpty bool) ([]FilePai
 			return err
 		}
 		if ok {
-			pairs = append(pairs, pair)
+			logicalRel, err := filepath.Rel(root, pair.PlaintextPath)
+			if err != nil {
+				return err
+			}
+			_, excluded := excludeMatcher.Decision(filepath.ToSlash(logicalRel), false)
+			if !excluded {
+				pairs = append(pairs, pair)
+			}
 		}
 		return nil
 	}); err != nil {

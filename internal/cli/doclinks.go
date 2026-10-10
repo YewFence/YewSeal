@@ -9,6 +9,7 @@ const (
 	docsConfiguration      = docsBaseURL + "/guide/configuration"
 	docsTargetSelect       = docsBaseURL + "/guide/target-selection"
 	docsManagedFiles       = docsConfiguration + "#managed-files"
+	docsScanExclusions     = docsConfiguration + "#scan-exclusions"
 	docsDecryptResults     = docsBaseURL + "/guide/decryption-results"
 	docsPlaintextCleanup   = docsBaseURL + "/guide/plaintext-cleanup"
 	docsPlaintextDelivery  = docsBaseURL + "/guide/plaintext-delivery"

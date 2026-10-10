@@ -45,7 +45,7 @@ identity source (an unreadable explicit file or a failed key command).
 
 Output: ciphertext goes to files and stdout stays empty; warnings,
 per-file failure reasons, and the summary go to stderr (--verbose adds
-selection info and per-file success). --json replaces stdout with the
+selection info, scan counts, and per-file success). --json replaces stdout with the
 batch report (summary and per-file outcomes); stderr diagnostics stay
 unchanged, and when the run never starts (a calling error, exit 2)
 stdout stays empty.
@@ -58,6 +58,7 @@ to compare plaintext with stored ciphertext.
 
 Target selection: https://yewfence.github.io/YewSeal/guide/target-selection
 Managed-file rules: https://yewfence.github.io/YewSeal/guide/configuration#managed-files
+Scan exclusions: https://yewfence.github.io/YewSeal/guide/configuration#scan-exclusions
 
 ```
 yews encrypt [command options] [path-or-pattern]... [flags]
@@ -96,7 +97,7 @@ yews encrypt [command options] [path-or-pattern]... [flags]
   -P, --parallel int       Number of parallel workers for batch mode (minimum 1) (env YEWSEAL_ENCRYPT_PARALLEL) (default 1)
       --sync-sops-config   Rewrite .sops.yaml after encryption using the managed-file rules (env YEWSEAL_SYNC_SOPS_CONFIG) (default true)
       --update-gitignore   Add plaintext and default key entries to .gitignore; false leaves it untouched (env YEWSEAL_UPDATE_GITIGNORE) (default true)
-  -v, --verbose            Enable verbose output (env YEWSEAL_ENCRYPT_VERBOSE)
+  -v, --verbose            Enable verbose output (scan counts, selection info and per-file success on stderr) (env YEWSEAL_ENCRYPT_VERBOSE)
 ```
 
 ## Options inherited from parent commands

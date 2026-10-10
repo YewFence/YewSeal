@@ -22,6 +22,7 @@ type SelectionOptions struct {
 }
 
 type SelectionResult struct {
+	ScanStats       task.ScanStats
 	FilePairs       []FilePair
 	AllConfigPairs  []FilePair
 	ConfigMode      bool
@@ -32,7 +33,8 @@ type SelectionResult struct {
 }
 
 func SelectFilePairs(cfg *Config, opts SelectionOptions) (SelectionResult, error) {
-	allConfigPairs, err := configuredFilePairs(cfg, opts.Command)
+	var stats task.ScanStats
+	allConfigPairs, err := configuredFilePairs(cfg, opts.Command, &stats)
 	if err != nil {
 		return SelectionResult{}, err
 	}
@@ -40,6 +42,7 @@ func SelectFilePairs(cfg *Config, opts SelectionOptions) (SelectionResult, error
 	if err != nil {
 		return SelectionResult{}, err
 	}
+	result.ScanStats = stats
 	if opts.OutputSet {
 		pair := &result.FilePairs[0]
 		format, _, err := resolveFinalFormat(*pair)
@@ -306,9 +309,9 @@ func pairMatchesPattern(matcher task.PatternMatcher, filePair FilePair, command,
 	}
 }
 
-func configuredFilePairs(cfg *Config, mode string) ([]FilePair, error) {
+func configuredFilePairs(cfg *Config, mode string, stats *task.ScanStats) ([]FilePair, error) {
 	mode = policyForCommand(mode).discoveryMode
-	groupPairs, err := scopedConfigGroupPairs(cfg, mode)
+	groupPairs, err := scopedConfigGroupPairs(cfg, mode, stats)
 	if err != nil {
 		return nil, err
 	}
@@ -335,7 +338,7 @@ func configuredEncryptedPaths(cfg *Config) []string {
 	return paths
 }
 
-func scopedConfigGroupPairs(cfg *Config, mode string) ([]FilePair, error) {
+func scopedConfigGroupPairs(cfg *Config, mode string, stats *task.ScanStats) ([]FilePair, error) {
 	policy := policyForCommand(mode)
 	groups := cfg.GetGroups()
 	if len(groups) == 0 {
@@ -362,6 +365,8 @@ func scopedConfigGroupPairs(cfg *Config, mode string) ([]FilePair, error) {
 		taskPairs, err := task.BuildProjectGroupFilePairs(task.GroupOptions{
 			Root:            root,
 			Patterns:        group.Patterns,
+			Exclude:         cfg.groupExclude(group),
+			Stats:           stats,
 			FormatRules:     group.FormatRules,
 			ExcludedPaths:   excludedPaths,
 			UnknownAsBinary: group.UnknownAsBinary,

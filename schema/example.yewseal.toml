@@ -7,6 +7,9 @@
 # 真实项目中通常只需要其中一部分字段;配置优先级:
 # 命令行参数 > 环境变量 > 配置文件 > 默认值
 
+# 本配置的 groups 共享排除规则;显式文件对不受影响
+exclude = ["target/", "node_modules/", "*.example.toml", "!config/example.toml"]
+
 [encryption]
 
 # 显式文件对:plaintext 是明文,encrypted 是加密产物

@@ -49,7 +49,7 @@ func TestScopedConfigGroupPairsSkipsConfiguredCustomEncryptedPaths(t *testing.T)
 		},
 	}
 
-	pairs, err := scopedConfigGroupPairs(cfg, task.ModeEncrypt)
+	pairs, err := scopedConfigGroupPairs(cfg, task.ModeEncrypt, nil)
 	require.NoError(t, err)
 	require.Len(t, pairs, 1)
 	assert.Equal(t, otherPlaintext, pairs[0].PlaintextPath)

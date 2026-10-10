@@ -61,7 +61,8 @@ one line per skipped check kind, then each finding with a hint. The summary coun
 checks, warning and error count findings. --json prints only
 {"ok", "summary", "file_pairs", "skipped", "findings"} on stdout, where
 "file_pairs" lists plaintext_path, encrypted_path, and plaintext_mode;
-"skipped" lists the skip reasons. Errors go to stderr.
+"skipped" lists the skip reasons. Errors go to stderr; --verbose also
+prints scan counts on stderr.
 
 Exit codes: 0 when no finding is an error (warnings and skips allowed);
 1 when at least one finding is an error ("fix the repository"); 2 when
@@ -77,6 +78,7 @@ to repair recipient drift, "yews diff" to inspect a plaintext difference.
 Target selection: https://yewfence.github.io/YewSeal/guide/target-selection
 Managed-file rules: https://yewfence.github.io/YewSeal/guide/configuration#managed-files
 Verification workflows: https://yewfence.github.io/YewSeal/guide/verifying
+Scan exclusions: https://yewfence.github.io/YewSeal/guide/configuration#scan-exclusions
 
 ```
 yews verify [command options] [path-or-pattern]... [flags]
@@ -109,6 +111,7 @@ yews verify [command options] [path-or-pattern]... [flags]
       --json               Print the verify report as JSON on stdout (errors stay on stderr) (env YEWSEAL_VERIFY_JSON)
       --no-decrypt         Skip decryption checks without reading any identity source (env YEWSEAL_VERIFY_NO_DECRYPT)
       --sync-sops-config   Check .sops.yaml using the managed-file rules; false skips the comparison (env YEWSEAL_SYNC_SOPS_CONFIG) (default true)
+  -v, --verbose            Print scan counts on stderr (env YEWSEAL_VERIFY_VERBOSE)
 ```
 
 ## Options inherited from parent commands

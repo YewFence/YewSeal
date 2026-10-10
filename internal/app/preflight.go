@@ -32,6 +32,8 @@ func PreflightEncrypt(cfg *config.Config, req EncryptRequest) (PreflightResult, 
 			return PreflightResult{}, err
 		}
 		result.MetadataPairs = metadataPairsForSelection(metadataSelection)
+		result.Selection.ScanStats.Entries += metadataSelection.ScanStats.Entries
+		result.Selection.ScanStats.Directories += metadataSelection.ScanStats.Directories
 	}
 	needsIdentity, err := encryptSelectionNeedsIdentity(selection)
 	if err != nil {

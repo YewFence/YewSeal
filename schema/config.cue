@@ -15,6 +15,10 @@ package schema
 // optional. The encryption and plan-selection stages require paths to come
 // from files/groups and require the final authorized set to be non-empty.
 #Config: {
+	// Exclusions shared by this config's groups, relative to their discovery root.
+	// Ordinary gitignore rules exclude; ! rules undo exclusions only.
+	// Explicit file mappings remain unaffected.
+	exclude?: [...string]
 	encryption?: #EncryptionConfig
 	recipients?: #RecipientConfig
 }

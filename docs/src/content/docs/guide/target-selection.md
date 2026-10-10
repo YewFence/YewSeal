@@ -56,7 +56,7 @@ Quote patterns to pass them to YewSeal without shell expansion:
 yews plan './configs/*.toml'
 ```
 
-An argument containing `*`, `?`, or `[` is a glob. It uses the gitignore dialect described in [group scanning](/guide/configuration#group-scanning), with two differences: positional patterns only include matches, and their root is the current working directory. Exclusions belong to group `patterns` in the config.
+An argument containing `*`, `?`, or `[` is a glob. It uses the gitignore dialect described in [group scanning](/guide/configuration#group-scanning), with two differences: positional patterns only include matches, and their root is the current working directory. Exclusions belong to group `patterns` or top-level `exclude` in the config; see [scan exclusions](/guide/configuration#scan-exclusions).
 
 A pattern containing `/` is anchored to that root. A leading `/` also anchors a single-segment pattern: `/notes.toml` matches only the top-level file, while `notes.toml` can also match `a/b/notes.toml`.
 

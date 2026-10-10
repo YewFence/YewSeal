@@ -62,7 +62,7 @@ identity source (an unreadable explicit file or a failed key command).
 
 Output: ciphertext goes to files and stdout stays empty; warnings,
 per-file failure reasons, and the summary go to stderr (--verbose adds
-selection info and per-file success). --json replaces stdout with the
+selection info, scan counts, and per-file success). --json replaces stdout with the
 batch report (summary and per-file outcomes); stderr diagnostics stay
 unchanged, and when the run never starts (a calling error, exit 2)
 stdout stays empty.
@@ -74,7 +74,8 @@ See also: "yews plan" to inspect mappings and authorization, "yews diff"
 to compare plaintext with stored ciphertext.
 
 Target selection: ` + docsTargetSelect + `
-Managed-file rules: ` + docsManagedFiles,
+Managed-file rules: ` + docsManagedFiles + `
+Scan exclusions: ` + docsScanExclusions,
 		Example: `  # Encrypt registered plaintext under the current directory
   yews encrypt
 
@@ -196,7 +197,7 @@ preserved comments, and equivalent content with possibly different layout.
 
 Output: plaintext goes to files and stdout stays empty; warnings,
 per-file skip and failure reasons, and the summary go to stderr
-(--verbose adds selection info and per-file success). --json replaces
+(--verbose adds selection info, scan counts, and per-file success). --json replaces
 stdout with the batch report (summary and per-file outcomes); stderr
 diagnostics stay unchanged, and when the run never starts (a calling
 error, exit 2) stdout stays empty.
@@ -210,7 +211,8 @@ Target selection: ` + docsTargetSelect + `
 Managed-file rules: ` + docsManagedFiles + `
 SOPS interoperability: ` + docsSOPS + `
 Result classification and exit codes: ` + docsDecryptResults + `
-Plaintext delivery and caller-owned lifecycle: ` + docsPlaintextDelivery,
+Plaintext delivery and caller-owned lifecycle: ` + docsPlaintextDelivery + `
+Scan exclusions: ` + docsScanExclusions,
 		Example: `  # Decrypt registered ciphertext under the current directory
   yews decrypt
 
@@ -317,7 +319,7 @@ later fails.
 
 Output: stdout is always empty. Prompts, warnings, REMOVED/RETAINED/FAILED
 results, and the final summary go to stderr; --verbose also prints selection
-details and ALREADY ABSENT results. clean does not update .gitignore or
+details, scan counts, and ALREADY ABSENT results. clean does not update .gitignore or
 .sops.yaml.
 
 Exit codes: 0 when the selected policy completes, including explicitly retained
@@ -331,7 +333,8 @@ See also: "yews diff" to inspect a difference before deciding and "yews
 encrypt" to save local changes before cleaning.
 
 Documentation: ` + docsPlaintextCleanup + `
-Target selection: ` + docsTargetSelect,
+Target selection: ` + docsTargetSelect + `
+Scan exclusions: ` + docsScanExclusions,
 		Example: `  # Clean registered plaintext under the current directory
   yews clean
 
@@ -414,9 +417,12 @@ are not checked.
 
 Output: stdout shows a config count and selection scope followed by a
 Plaintext/Encrypted/Format/Aliases/PlaintextMode table. --source replaces
-the table with one describe block per mapping and field-level origins;
---verbose also lists loaded config files. --json prints only the full
-JSON report and takes precedence over --source; errors go to stderr and
+the table with one describe block per mapping and field-level origins.
+The report also lists loaded exclude rules, with their config paths and
+one-based declaration positions; it does not list actual pruned directories.
+--verbose lists loaded config files on stdout and prints scan counts on
+stderr. --json includes exclude rules and their origins, prints only the full
+JSON report on stdout, and takes precedence over --source; errors go to stderr and
 never mix into the report.
 
 Exit codes: 0 on success; calling errors (invalid patterns, a missing
@@ -426,7 +432,8 @@ See also: "yews verify" to check ciphertext and decryption access,
 "yews encrypt" and "yews decrypt" to process the configured files.
 
 Documentation: ` + docsConfiguration + `
-Target selection: ` + docsTargetSelect,
+Target selection: ` + docsTargetSelect + `
+Scan exclusions: ` + docsScanExclusions,
 		Example: `  # Inspect registered mappings under the current directory
   yews plan
 
@@ -440,6 +447,9 @@ Target selection: ` + docsTargetSelect,
   # Trace where each path, format, and authorization set came from
   yews plan --source
 
+  # Inspect loaded exclude rules and scan counts without changing files
+  yews plan -v
+
   # Print JSON for scripts (errors stay on stderr)
   yews plan --json > plan.json`,
 		Args: func(cmd *cobra.Command, args []string) error {
@@ -452,7 +462,8 @@ Target selection: ` + docsTargetSelect,
 		},
 		RunE: withConfig(load, func(cmd *cobra.Command, args []string, cfg *config.Config) error {
 			return yewsapp.PrintPlan(cmd.OutOrStdout(), cfg, yewsapp.PlanRequest{
-				Targets: args,
+				Targets:     args,
+				Diagnostics: cmd.ErrOrStderr(),
 			}, presentation.PlanPrintOptions{
 				JSON:    opts.JSON,
 				Verbose: opts.Verbose,

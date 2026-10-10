@@ -38,7 +38,7 @@ explicit key file, or a failed key command) exit 2.
 
 Output: stdout carries only the diff body (empty when nothing differs);
 warnings, per-file skip and failure reasons, and the summary go to
-stderr (--verbose adds selection info and per-file completion notes).
+stderr (--verbose adds selection info, scan counts, and per-file completion notes).
 --json replaces the streamed diff body with the comparison report
 (per-file status with embedded diff bodies).
 
@@ -47,6 +47,7 @@ to inspect ciphertext content.
 
 Documentation: https://yewfence.github.io/YewSeal/guide/decryption-results
 Target selection: https://yewfence.github.io/YewSeal/guide/target-selection
+Scan exclusions: https://yewfence.github.io/YewSeal/guide/configuration#scan-exclusions
 
 ```
 yews diff [path-or-pattern]... [flags]
@@ -75,7 +76,7 @@ yews diff [path-or-pattern]... [flags]
       --color string   Colorize diff output (auto/always/never) (env YEWSEAL_DIFF_COLOR) (default "auto")
   -h, --help           help for diff
       --json           Print the comparison report as JSON on stdout (per-file status with embedded diff bodies) (env YEWSEAL_DIFF_JSON)
-  -v, --verbose        Enable verbose output (selection info and per-file completion notes on stderr) (env YEWSEAL_DIFF_VERBOSE)
+  -v, --verbose        Enable verbose output (scan counts, selection info and per-file completion notes on stderr) (env YEWSEAL_DIFF_VERBOSE)
 ```
 
 ## Options inherited from parent commands

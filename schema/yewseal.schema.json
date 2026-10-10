@@ -9,6 +9,13 @@
                 "encryption": {
                     "$ref": "#/$defs/EncryptionConfig"
                 },
+                "exclude": {
+                    "type": "array",
+                    "description": "Exclusions shared by this config's groups, relative to their discovery root.\nOrdinary gitignore rules exclude; ! rules undo exclusions only.\nExplicit file mappings remain unaffected.",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "recipients": {
                     "$ref": "#/$defs/RecipientConfig"
                 }

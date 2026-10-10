@@ -52,6 +52,7 @@ type ResolvedFilePair struct {
 }
 
 type ResolvedSelection struct {
+	ScanStats       task.ScanStats
 	Command         string
 	FilePairs       []ResolvedFilePair
 	AllConfigPairs  []ResolvedFilePair
@@ -70,7 +71,8 @@ func ResolveSelection(cfg *Config, opts SelectionOptions) (ResolvedSelection, er
 }
 
 func resolveSelection(cfg *Config, opts SelectionOptions) (ResolvedSelection, error) {
-	filePairs, err := configuredFilePairs(cfg, opts.Command)
+	var stats task.ScanStats
+	filePairs, err := configuredFilePairs(cfg, opts.Command, &stats)
 	if err != nil {
 		return ResolvedSelection{}, err
 	}
@@ -103,6 +105,7 @@ func resolveSelection(cfg *Config, opts SelectionOptions) (ResolvedSelection, er
 	}
 
 	return ResolvedSelection{
+		ScanStats:       stats,
 		Command:         opts.Command,
 		FilePairs:       selected,
 		AllConfigPairs:  allConfigPairs,

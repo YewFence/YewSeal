@@ -5,11 +5,13 @@ import (
 
 	"github.com/YewFence/YewSeal/internal/config"
 	"github.com/YewFence/YewSeal/internal/errx"
+	"github.com/YewFence/YewSeal/internal/presentation"
 	"github.com/YewFence/YewSeal/internal/task"
 	"github.com/YewFence/YewSeal/internal/verify"
 )
 
 type VerifyRequest struct {
+	Presentation   *presentation.Output
 	Targets        []string
 	KeyFile        string
 	Decrypt        bool
@@ -28,6 +30,7 @@ func Verify(cfg *config.Config, req VerifyRequest) (*verify.Report, error) {
 	if err != nil {
 		return nil, err
 	}
+	presentation.OrDiscard(req.Presentation).ScanSummary(selection.ScanStats)
 	mode := verify.DecryptAuto
 	switch {
 	case req.Decrypt:

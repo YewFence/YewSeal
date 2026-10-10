@@ -57,6 +57,18 @@ func printPlanText(w io.Writer, cfg *config.Config, selection config.ResolvedSel
 		}
 	}
 
+	rules := cfg.GetExcludeRules()
+	if len(rules) > 0 {
+		if _, err := fmt.Fprintln(w, "\nExclude rules (loaded configuration)"); err != nil {
+			return err
+		}
+		for _, rule := range rules {
+			if _, err := fmt.Fprintf(w, "  %s exclude[%d] = %q\n", config.DisplayPath(cwd, rule.ConfigPath), rule.Index, rule.Pattern); err != nil {
+				return err
+			}
+		}
+	}
+
 	if _, err := fmt.Fprintln(w); err != nil {
 		return err
 	}
@@ -166,6 +178,7 @@ func printPlanJSON(w io.Writer, cfg *config.Config, selection config.ResolvedSel
 	payload := planJSON{
 		Command: selection.Command,
 		Scope:   config.DisplayPath(cwd, selection.CurrentDirScope),
+		Exclude: make([]planExcludeJSON, 0),
 	}
 	for _, file := range selection.ConfigFiles {
 		payload.ConfigFiles = append(payload.ConfigFiles, file.Path)
@@ -173,16 +186,28 @@ func printPlanJSON(w io.Writer, cfg *config.Config, selection config.ResolvedSel
 	for _, filePair := range selection.FilePairs {
 		payload.FilePairs = append(payload.FilePairs, resolvedFilePairJSON(cwd, filePair))
 	}
+	for _, rule := range cfg.GetExcludeRules() {
+		payload.Exclude = append(payload.Exclude, planExcludeJSON{
+			Pattern: rule.Pattern, Config: rule.ConfigPath, Index: rule.Index,
+		})
+	}
 	encoder := json.NewEncoder(w)
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(payload)
 }
 
 type planJSON struct {
-	Command     string         `json:"command"`
-	Scope       string         `json:"scope,omitempty"`
-	ConfigFiles []string       `json:"config_files"`
-	FilePairs   []planPairJSON `json:"file_pairs"`
+	Command     string            `json:"command"`
+	Scope       string            `json:"scope,omitempty"`
+	ConfigFiles []string          `json:"config_files"`
+	FilePairs   []planPairJSON    `json:"file_pairs"`
+	Exclude     []planExcludeJSON `json:"exclude"`
+}
+
+type planExcludeJSON struct {
+	Pattern string `json:"pattern"`
+	Config  string `json:"config"`
+	Index   int    `json:"index"`
 }
 
 type planPairJSON struct {

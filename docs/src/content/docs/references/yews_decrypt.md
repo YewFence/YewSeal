@@ -74,7 +74,7 @@ preserved comments, and equivalent content with possibly different layout.
 
 Output: plaintext goes to files and stdout stays empty; warnings,
 per-file skip and failure reasons, and the summary go to stderr
-(--verbose adds selection info and per-file success). --json replaces
+(--verbose adds selection info, scan counts, and per-file success). --json replaces
 stdout with the batch report (summary and per-file outcomes); stderr
 diagnostics stay unchanged, and when the run never starts (a calling
 error, exit 2) stdout stays empty.
@@ -89,6 +89,7 @@ Managed-file rules: https://yewfence.github.io/YewSeal/guide/configuration#manag
 SOPS interoperability: https://yewfence.github.io/YewSeal/guide/sops
 Result classification and exit codes: https://yewfence.github.io/YewSeal/guide/decryption-results
 Plaintext delivery and caller-owned lifecycle: https://yewfence.github.io/YewSeal/guide/plaintext-delivery
+Scan exclusions: https://yewfence.github.io/YewSeal/guide/configuration#scan-exclusions
 
 ```
 yews decrypt [command options] [path-or-pattern]... [flags]
@@ -134,7 +135,7 @@ yews decrypt [command options] [path-or-pattern]... [flags]
   -P, --parallel int       Number of parallel workers for batch mode (minimum 1) (env YEWSEAL_DECRYPT_PARALLEL) (default 1)
       --strict             Require every selected file to be decrypted (successful writes are not rolled back) (env YEWSEAL_DECRYPT_STRICT)
       --update-gitignore   Add plaintext and default key entries to .gitignore for configured-path writes; ignored with --output; false leaves it untouched (env YEWSEAL_UPDATE_GITIGNORE) (default true)
-  -v, --verbose            Enable verbose output (selection info and per-file results on stderr) (env YEWSEAL_DECRYPT_VERBOSE)
+  -v, --verbose            Enable verbose output (scan counts, selection info and per-file results on stderr) (env YEWSEAL_DECRYPT_VERBOSE)
 ```
 
 ## Options inherited from parent commands
