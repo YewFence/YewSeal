@@ -1,3 +1,19 @@
+## [0.23.0] - 2026-10-10
+
+### 🚀 Features
+
+- Add config-scoped scan exclusions and verbose scan counts (#111)
+
+### 📚 Documentation
+
+- *(readme)* Add release, CI, codecov, docs, and license badges
+
+### ⚙️ Miscellaneous Tasks
+
+- *(deps)* Update github actions (#112)
+- *(mise-deps)* Update node.js to 26 (#109)
+- *(gomod-deps)* Update go modules (#108)
+- Include cross-package execution in coverage reports
 ## [0.22.1] - 2026-10-09
 
 ### 🐛 Bug Fixes
