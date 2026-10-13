@@ -17,6 +17,13 @@ func TestResolveSelectionRejectsInvalidPlaintextMode(t *testing.T) {
 	require.ErrorContains(t, err, "plaintext_mode must be inplace or delivery")
 }
 
+func TestResolveSelectionRejectsInvalidGroupPlaintextMode(t *testing.T) {
+	cfg := selectionConfig(t)
+	cfg.Encryption.Groups = []GroupConfig{{ConfigDir: cfg.CurrentDir, Patterns: []string{"*.yaml"}, PlaintextMode: "unknown"}}
+	_, err := ResolveSelection(cfg, SelectionOptions{Command: task.ModeDecrypt})
+	require.ErrorContains(t, err, "plaintext_mode must be inplace or delivery")
+}
+
 func TestLoadPlaintextMode(t *testing.T) {
 	for _, tc := range []struct{ field, want string }{
 		{"", PlaintextInplace},
@@ -99,6 +106,27 @@ func TestExplicitFilePairOverridesGroupPlaintextMode(t *testing.T) {
 	require.Len(t, selection.FilePairs, 1)
 	require.Equal(t, PlaintextInplace, selection.FilePairs[0].PlaintextMode)
 	require.Equal(t, PairSourceExact, selection.FilePairs[0].Source)
+}
+
+func TestExplicitEncryptedPathOverridesConflictingGroupPlaintextModes(t *testing.T) {
+	cfg := selectionConfig(t)
+	encrypted := selectionFile(t, cfg.CurrentDir, "archive.enc.yaml")
+	plain := filepath.Join(cfg.CurrentDir, "runtime", "prod.yaml")
+	cfg.Encryption.Files = []FilePair{{PlaintextPath: plain, EncryptedPath: encrypted, PlaintextMode: PlaintextInplace}}
+	cfg.Encryption.Groups = []GroupConfig{
+		{ConfigDir: cfg.CurrentDir, Patterns: []string{"archive.yaml"}, PlaintextMode: PlaintextDelivery},
+		{ConfigDir: cfg.CurrentDir, Patterns: []string{"archive.yaml"}, PlaintextMode: PlaintextInplace},
+	}
+	for _, command := range []string{task.ModeDecrypt, task.ModeView} {
+		t.Run(command, func(t *testing.T) {
+			selection, err := ResolveSelection(cfg, SelectionOptions{Command: command})
+			require.NoError(t, err)
+			require.Len(t, selection.FilePairs, 1)
+			require.Equal(t, plain, selection.FilePairs[0].PlaintextPath)
+			require.Equal(t, encrypted, selection.FilePairs[0].EncryptedPath)
+			require.Equal(t, PairSourceExact, selection.FilePairs[0].Source)
+		})
+	}
 }
 
 func TestConflictingGroupPlaintextModes(t *testing.T) {

@@ -385,10 +385,8 @@ func scopedConfigGroupPairs(cfg *Config, mode string, stats *task.ScanStats) ([]
 			if _, explicit := findConfiguredPair(cfg.Encryption.Files, cleanAbsPath(taskPair.PlaintextPath)); explicit {
 				continue
 			}
-			if mode == task.ModeDiff || mode == task.ModePlan || mode == task.ModeClean {
-				if _, explicit := findConfiguredPair(cfg.Encryption.Files, cleanAbsPath(taskPair.EncryptedPath)); explicit {
-					continue
-				}
+			if _, explicit := findConfiguredPair(cfg.Encryption.Files, cleanAbsPath(taskPair.EncryptedPath)); explicit {
+				continue
 			}
 			key := cleanAbsPath(taskPair.PlaintextPath)
 			if previous, ok := seenRecipients[key]; ok && !equalStrings(previous, canonical) {
