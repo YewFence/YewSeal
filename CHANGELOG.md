@@ -1,3 +1,17 @@
+## [0.24.0] - 2026-10-13
+
+### 🚀 Features
+
+- *(config)* Add group-level plaintext_mode for delivery classification (#117)
+
+### 📚 Documentation
+
+- *(schema)* Translate example.toml and schema_sync_test comments to English
+
+### ⚙️ Miscellaneous Tasks
+
+- *(gomod-deps)* Update go modules (#115)
+- *(npm-deps)* Update npm dependencies (#114)
 ## [0.23.0] - 2026-10-10
 
 ### 🚀 Features
