@@ -91,12 +91,16 @@ format = "env"
 
 ### Plaintext classification
 
-`plaintext_mode` is optional on explicit file mappings and accepts `inplace` (the default) or `delivery`. Groups do not support this field; their discovered mappings use `inplace`.
+`plaintext_mode` is optional and accepts `inplace` (the default) or `delivery`. It is set on explicit file mappings and on groups: a group applies its value to every mapping it discovers, an explicit file pair for the same path takes precedence, and paths matched by multiple groups must agree on the value.
 
 ```toml
 [[encryption.files]]
 plaintext = "secrets/prod.env"
 encrypted = "secrets/prod.enc.env"
+plaintext_mode = "delivery"
+
+[[encryption.groups]]
+patterns = ["runtime/**/*.env"]
 plaintext_mode = "delivery"
 ```
 
@@ -131,7 +135,7 @@ unknown_as_binary = false
 
 `patterns` is required and uses the gitignore dialect: `*`, `?`, `**`, and `!` exclusions; a leading `/` anchors a rule to the group's discovery root, and a trailing `/` restricts a rule to directories. Path separators are `/` on every platform including Windows; `\` retains its glob escape meaning. Encryption groups exclude [protocol files](#file-naming-conventions) and the `encrypted` paths of explicit file pairs. Decryption discovers ciphertext by those suffixes and filters it through `patterns` applied to the logical plaintext paths.
 
-`format_rules` uses `<pattern>=<format>` entries; the first matching rule decides the format, and the values are the same as `format`. When `unknown_as_binary` is `true`, files whose format cannot be recognized during group encryption are treated as binary.
+`format_rules` uses `<pattern>=<format>` entries; the first matching rule decides the format, and the values are the same as `format`. When `unknown_as_binary` is `true`, files whose format cannot be recognized during group encryption are treated as binary. A group's `plaintext_mode` classifies every mapping it discovers; see [Plaintext classification](#plaintext-classification).
 
 To select part of a group for an operation, use the [target-selection rules](/guide/target-selection).
 

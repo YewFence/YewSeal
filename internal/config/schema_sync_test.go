@@ -46,6 +46,7 @@ func TestExampleConfigStrictUnmarshal(t *testing.T) {
 	require.Equal(t, []string{"config/**/*.toml", "secrets/*.yaml"}, cfg.Encryption.Groups[0].Patterns)
 	require.Equal(t, []string{"*.dev.vars=env", "**/*.conf=ini"}, cfg.Encryption.Groups[0].FormatRules)
 	require.True(t, cfg.Encryption.Groups[0].UnknownAsBinary)
+	require.Equal(t, "delivery", cfg.Encryption.Groups[0].PlaintextMode)
 
 	require.NotNil(t, cfg.Recipients.Defaults)
 	require.Len(t, *cfg.Recipients.Defaults, 1)

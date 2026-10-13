@@ -125,6 +125,13 @@
                     ],
                     "minItems": 1
                 },
+                "plaintext_mode": {
+                    "description": "Default plaintext classification for the group's discovered\nmappings: inplace (the default) permits normal decryption;\ndelivery is skipped without --output or --inplace. Explicit file\npairs for the same path take precedence.",
+                    "enum": [
+                        "inplace",
+                        "delivery"
+                    ]
+                },
                 "recipients": {
                     "type": "array",
                     "description": "Authorized alias set for scan results. When omitted, inherits from\nthe top-level defaults.",

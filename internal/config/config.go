@@ -71,6 +71,8 @@ type GroupConfig struct {
 	Patterns        []string `toml:"patterns"`
 	FormatRules     []string `toml:"format_rules"`
 	UnknownAsBinary bool     `toml:"unknown_as_binary"`
+	// PlaintextMode is the default classification for the group's discovered mappings.
+	PlaintextMode string `toml:"plaintext_mode,omitempty"`
 	// Recipients is the optional group authorization set.
 	Recipients *[]string `toml:"recipients,omitempty"`
 
@@ -175,6 +177,11 @@ func loadConfigFiles(cwd string, configFiles []LoadedFile) (*Config, error) {
 				return nil, fmt.Errorf("invalid encryption.groups[%d].format_rules[%d]: rule is empty", groupIndex, ruleIndex)
 			}
 		}
+		mode, err := normalizePlaintextMode(group.PlaintextMode)
+		if err != nil {
+			return nil, fmt.Errorf("invalid encryption.groups[%d]: %w", groupIndex, err)
+		}
+		config.Encryption.Groups[groupIndex].PlaintextMode = mode
 	}
 
 	return config, nil
@@ -339,6 +346,7 @@ func (c *Config) GetGroups() []GroupConfig {
 			Patterns:        append([]string(nil), group.Patterns...),
 			FormatRules:     append([]string(nil), group.FormatRules...),
 			UnknownAsBinary: group.UnknownAsBinary,
+			PlaintextMode:   group.PlaintextMode,
 			Recipients:      cloneOptionalStrings(group.Recipients),
 			ConfigPath:      group.ConfigPath,
 			ConfigDir:       group.ConfigDir,

@@ -348,10 +348,15 @@ func scopedConfigGroupPairs(cfg *Config, mode string, stats *task.ScanStats) ([]
 	pairs := make([]FilePair, 0)
 	excludedPaths := configuredEncryptedPaths(cfg)
 	seenRecipients := make(map[string][]string)
+	seenPlaintextModes := make(map[string]string)
 	for _, group := range groups {
 		root := group.ConfigDir
 		if strings.TrimSpace(root) == "" {
 			root = cwdFromConfig(cfg)
+		}
+		groupMode, err := normalizePlaintextMode(group.PlaintextMode)
+		if err != nil {
+			return nil, fmt.Errorf("group %s: %w", group.ConfigPath, err)
 		}
 		groupAliases, groupRecipientSource := effectiveGroupAuthorization(cfg, group)
 		canonical := []string(nil)
@@ -390,9 +395,14 @@ func scopedConfigGroupPairs(cfg *Config, mode string, stats *task.ScanStats) ([]
 				return nil, fmt.Errorf("conflicting recipient sets for %s", taskPair.PlaintextPath)
 			}
 			seenRecipients[key] = append([]string(nil), canonical...)
+			if previous, ok := seenPlaintextModes[key]; ok && previous != groupMode {
+				return nil, fmt.Errorf("conflicting plaintext_mode for %s", taskPair.PlaintextPath)
+			}
+			seenPlaintextModes[key] = groupMode
 			pairs = append(pairs, FilePair{
 				PlaintextPath:   taskPair.PlaintextPath,
 				EncryptedPath:   taskPair.EncryptedPath,
+				PlaintextMode:   groupMode,
 				Format:          taskPair.Format,
 				ConfigPath:      group.ConfigPath,
 				ConfigDir:       root,

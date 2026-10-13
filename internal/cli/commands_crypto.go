@@ -159,7 +159,9 @@ Mappings with plaintext_mode=delivery are skipped by default (outcome
 selected mappings continue. --inplace explicitly allows these mappings at
 their configured plaintext paths; --output DIR delivers them normally.
 --inplace and --output are mutually exclusive. The default plaintext_mode
-is inplace. --force is a separate overwrite control; it does not supply
+is inplace; groups apply their plaintext_mode to every mapping they
+discover, and an explicit file pair takes precedence. --force is a separate
+overwrite control; it does not supply
 inplace consent. A delivery skip follows the usual lenient/strict exit
 rules. Delivery classification is an accident-prevention default; use separate
 recipients and identities for access control. view and encrypt keep their

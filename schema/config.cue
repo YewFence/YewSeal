@@ -101,6 +101,12 @@ package schema
 	// Files whose format cannot be detected are treated as binary.
 	unknown_as_binary?: bool
 
+	// Default plaintext classification for the group's discovered
+	// mappings: inplace (the default) permits normal decryption;
+	// delivery is skipped without --output or --inplace. Explicit file
+	// pairs for the same path take precedence.
+	plaintext_mode?: "inplace" | "delivery"
+
 	// Authorized alias set for scan results. When omitted, inherits from
 	// the top-level defaults.
 	recipients?: [string, ...string]
