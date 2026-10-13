@@ -33,6 +33,8 @@ recipients = ["owner"]
 patterns = ["config/**/*.toml", "secrets/*.yaml"]
 format_rules = ["*.dev.vars=env", "**/*.conf=ini"]
 unknown_as_binary = true
+# The whole group stays off project paths by default; --output or --inplace opts in
+plaintext_mode = "delivery"
 recipients = ["owner"]
 
 [recipients]
