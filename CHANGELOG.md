@@ -1,3 +1,12 @@
+## [0.25.0] - 2026-10-15
+
+### 🚀 Features
+
+- *(cli)* Show successful encryption and decryption results by default
+
+### ⚙️ Miscellaneous Tasks
+
+- *(deps)* Update github actions to v5.1.2 (#120)
 ## [0.24.0] - 2026-10-13
 
 ### 🚀 Features
