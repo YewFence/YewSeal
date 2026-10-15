@@ -30,6 +30,7 @@ func TestBatchViewDiffJSONReportsOnContentStreamOnly(t *testing.T) {
 	require.Equal(t, "encrypt", encryptPayload.Command)
 	require.Len(t, encryptPayload.Files, 1)
 	require.Equal(t, "succeeded", encryptPayload.Files[0].Status)
+	require.Contains(t, stderr.String(), "ENCRYPTED config.yaml -> config.enc.yaml\n")
 	require.Contains(t, stderr.String(), "Summary (encrypted)")
 
 	require.NoError(t, os.Remove("config.yaml"))
@@ -50,6 +51,7 @@ func TestBatchViewDiffJSONReportsOnContentStreamOnly(t *testing.T) {
 	require.Equal(t, 1, decryptPayload.Summary.Succeeded)
 	require.Equal(t, "config.yaml", decryptPayload.Files[0].Plaintext)
 	require.Equal(t, "config.enc.yaml", decryptPayload.Files[0].Encrypted)
+	require.Contains(t, stderr.String(), "DECRYPTED config.enc.yaml -> config.yaml\n")
 
 	stdout.Reset()
 	require.NoError(t, ViewTarget(&stdout, &stderr, cfg, ViewRequest{Target: "config.enc.yaml", KeyFile: env.keyFile, JSON: true}))

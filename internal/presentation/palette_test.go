@@ -58,6 +58,8 @@ func TestDiagnosticStatusColorsMatchPlainOutput(t *testing.T) {
 		out.Error(errors.New("boom"))
 		out.FileCompleted(task.Result{Status: task.Failed, SourceFile: "config.toml", Error: errors.New("nope")})
 		out.FileCompleted(task.Result{Status: task.Skipped, SourceFile: "gone.toml", Outcome: task.OutcomeMissingPlaintext})
+		out.FileCompleted(task.Result{Status: task.Succeeded, SourceFile: "new.toml", TargetFile: "new.enc.toml", Outcome: task.OutcomeEncrypted})
+		out.FileCompleted(task.Result{Status: task.Succeeded, SourceFile: "new.enc.toml", TargetFile: "new.toml", Outcome: task.OutcomeProcessed})
 		out.Edited("config.toml", true)
 		out.Edited("other.toml", false)
 		return diag.String()
@@ -65,11 +67,13 @@ func TestDiagnosticStatusColorsMatchPlainOutput(t *testing.T) {
 	plain := render(colorPalette{})
 	withColorsEnabled(t)
 	colored := render(darkPalette)
-	require.Contains(t, colored, "\x1b[93mWARNING")     // warning bright yellow
-	require.Contains(t, colored, "\x1b[91mFAILED")      // error bright red
+	require.Contains(t, colored, "\x1b[93mWARNING") // warning bright yellow
+	require.Contains(t, colored, "\x1b[91mFAILED")  // error bright red
 	require.Contains(t, colored, "\x1b[91mError:")
 	require.Contains(t, colored, "\x1b[38;5;245mSKIPPED") // muted fixed gray
-	require.Contains(t, colored, "\x1b[92mUpdated")     // success bright green
+	require.Contains(t, colored, "\x1b[92mENCRYPTED")     // success bright green
+	require.Contains(t, colored, "\x1b[92mDECRYPTED")     // success bright green
+	require.Contains(t, colored, "\x1b[92mUpdated")       // success bright green
 	require.Equal(t, plain, ansiEscapes.ReplaceAllString(colored, ""))
 }
 
@@ -94,8 +98,8 @@ func TestVerifyReportColorizedMatchesPlain(t *testing.T) {
 
 func TestIdentitiesTableColorizedMatchesPlain(t *testing.T) {
 	report := IdentitiesReport{
-		Source:   ".age/keys.txt",
-		Shadowed: []string{"env:YEWSEAL_AGE_IDENTITIES"},
+		Source:     ".age/keys.txt",
+		Shadowed:   []string{"env:YEWSEAL_AGE_IDENTITIES"},
 		Identities: []IdentityEntry{{Alias: "owner", PublicKey: "age1abc"}, {PublicKey: "age1def", Secret: "AGE-SECRET-KEY-1"}},
 	}
 	var plain, colored bytes.Buffer
@@ -134,7 +138,7 @@ func TestDiffPaletteForcesOnlyDiffRoles(t *testing.T) {
 	color.NoColor = true
 	t.Cleanup(func() { color.NoColor = previous })
 	require.Contains(t, forced.diffHead.Sprint("x"), "\x1b[") // forced diff roles ignore NoColor
-	require.Equal(t, "x", lightPalette.muted.Sprint("x")) // plan roles stay respectful
+	require.Equal(t, "x", lightPalette.muted.Sprint("x"))     // plan roles stay respectful
 	require.Equal(t, "x", lightPalette.format.Sprint("x"))
 	require.Equal(t, "x", lightPalette.accent.Sprint("x"))
 }

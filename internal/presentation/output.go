@@ -206,18 +206,19 @@ func (o *Output) FileCompleted(result task.Result) {
 	case task.Failed:
 		o.statusf(pal.error, "FAILED", " %s: %v\n", o.path(result.SourceFile), result.Error)
 	case task.Succeeded:
-		if o.verbose {
-			verb := "SUCCEEDED"
-			role := pal.success
-			switch result.Outcome {
-			case task.OutcomeEncrypted:
-				verb = "ENCRYPTED"
-			case task.OutcomeUnchanged:
-				verb = "UNCHANGED"
-				role = pal.muted
+		verb := "DECRYPTED"
+		role := pal.success
+		switch result.Outcome {
+		case task.OutcomeEncrypted:
+			verb = "ENCRYPTED"
+		case task.OutcomeUnchanged:
+			if !o.verbose {
+				return
 			}
-			o.statusf(role, verb, " %s -> %s\n", o.path(result.SourceFile), o.path(result.TargetFile))
+			verb = "UNCHANGED"
+			role = pal.muted
 		}
+		o.statusf(role, verb, " %s -> %s\n", o.path(result.SourceFile), o.path(result.TargetFile))
 	}
 }
 

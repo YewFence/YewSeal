@@ -86,13 +86,9 @@ func TestConcurrentResultsAndSummaryAreNotDuplicated(t *testing.T) {
 		require.Equal(t, 2, strings.Count(diagnostics.String(), "SKIPPED"))
 		require.Contains(t, diagnostics.String(), "no age identity is available")
 		require.Equal(t, 1, strings.Count(diagnostics.String(), "FAILED"))
-		if verbose {
-			require.Equal(t, 36, strings.Count(diagnostics.String(), "\n"))
-			for i := range 32 {
-				require.Contains(t, diagnostics.String(), fmt.Sprintf("SUCCEEDED %d.enc.yaml -> %d.yaml\n", i, i))
-			}
-		} else {
-			require.Equal(t, 4, strings.Count(diagnostics.String(), "\n"))
+		require.Equal(t, 36, strings.Count(diagnostics.String(), "\n"))
+		for i := range 32 {
+			require.Equal(t, 1, strings.Count(diagnostics.String(), fmt.Sprintf("DECRYPTED %d.enc.yaml -> %d.yaml\n", i, i)))
 		}
 	}
 }
@@ -119,14 +115,24 @@ func TestComparisonKeepsDistinctSkipReasons(t *testing.T) {
 }
 
 func TestEncryptionResultsKeepDistinctOutcomes(t *testing.T) {
-	var diagnostics bytes.Buffer
-	out := New(nil, &diagnostics, true)
-	out.FileCompleted(task.Result{SourceFile: "new.yaml", TargetFile: "new.enc.yaml", Status: task.Succeeded, Outcome: task.OutcomeEncrypted})
-	out.FileCompleted(task.Result{SourceFile: "same.yaml", TargetFile: "same.enc.yaml", Status: task.Succeeded, Outcome: task.OutcomeUnchanged})
-	out.FileCompleted(task.Result{SourceFile: "missing.yaml", TargetFile: "missing.enc.yaml", Status: task.Skipped, Outcome: task.OutcomeMissingPlaintext})
-	out.BatchSummary(&task.Summary{TotalFiles: 3, SuccessCount: 2, SkippedCount: 1, EncryptedCount: 1, UnchangedCount: 1, MissingPlaintextCount: 1}, "encrypted")
-	require.Contains(t, diagnostics.String(), "ENCRYPTED new.yaml -> new.enc.yaml")
-	require.Contains(t, diagnostics.String(), "UNCHANGED same.yaml -> same.enc.yaml")
-	require.Contains(t, diagnostics.String(), "SKIPPED missing.yaml: plaintext file is missing; not encrypted")
-	require.Contains(t, diagnostics.String(), "1 encrypted, 1 unchanged, 1 missing plaintext, 0 failed (3 selected)")
+	for _, verbose := range []bool{false, true} {
+		t.Run(fmt.Sprintf("verbose=%v", verbose), func(t *testing.T) {
+			var body, diagnostics bytes.Buffer
+			out := New(&body, &diagnostics, verbose)
+			out.FileCompleted(task.Result{SourceFile: "new.yaml", TargetFile: "new.enc.yaml", Status: task.Succeeded, Outcome: task.OutcomeEncrypted})
+			out.FileCompleted(task.Result{SourceFile: "same.yaml", TargetFile: "same.enc.yaml", Status: task.Succeeded, Outcome: task.OutcomeUnchanged})
+			out.FileCompleted(task.Result{SourceFile: "missing.yaml", TargetFile: "missing.enc.yaml", Status: task.Skipped, Outcome: task.OutcomeMissingPlaintext})
+			out.BatchSummary(&task.Summary{TotalFiles: 3, SuccessCount: 2, SkippedCount: 1, EncryptedCount: 1, UnchangedCount: 1, MissingPlaintextCount: 1}, "encrypted")
+			require.NoError(t, out.Finish(nil))
+			require.Empty(t, body.String())
+			require.Contains(t, diagnostics.String(), "ENCRYPTED new.yaml -> new.enc.yaml\n")
+			if verbose {
+				require.Contains(t, diagnostics.String(), "UNCHANGED same.yaml -> same.enc.yaml\n")
+			} else {
+				require.NotContains(t, diagnostics.String(), "UNCHANGED")
+			}
+			require.Contains(t, diagnostics.String(), "SKIPPED missing.yaml: plaintext file is missing; not encrypted\n")
+			require.Contains(t, diagnostics.String(), "1 encrypted, 1 unchanged, 1 missing plaintext, 0 failed (3 selected)")
+		})
+	}
 }

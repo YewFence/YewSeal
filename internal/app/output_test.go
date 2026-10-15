@@ -39,7 +39,7 @@ func (w *failAtOutput) Write(p []byte) (int, error) {
 func TestBatchCompletesDespiteDiagnosticFailure(t *testing.T) {
 	for _, action := range []string{"encrypt", "decrypt"} {
 		for _, workers := range []int{1, 4} {
-			completed := "SUCCEEDED"
+			completed := "DECRYPTED"
 			if action == "encrypt" {
 				completed = "ENCRYPTED"
 			}

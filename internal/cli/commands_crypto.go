@@ -61,8 +61,9 @@ was written; 2 for calling errors: invalid arguments, a missing or invalid
 identity source (an unreadable explicit file or a failed key command).
 
 Output: ciphertext goes to files and stdout stays empty; warnings,
-per-file failure reasons, and the summary go to stderr (--verbose adds
-selection info, scan counts, and per-file success). --json replaces stdout with the
+per-file encryption results, skip and failure reasons, and the summary go to
+stderr. Unchanged files are counted in the summary; --verbose also lists them
+individually and adds selection info and scan counts. --json replaces stdout with the
 batch report (summary and per-file outcomes); stderr diagnostics stay
 unchanged, and when the run never starts (a calling error, exit 2)
 stdout stays empty.
@@ -198,8 +199,8 @@ TOML output uses normalized formatting: single-quoted literal strings,
 preserved comments, and equivalent content with possibly different layout.
 
 Output: plaintext goes to files and stdout stays empty; warnings,
-per-file skip and failure reasons, and the summary go to stderr
-(--verbose adds selection info, scan counts, and per-file success). --json replaces
+per-file success, skip and failure reasons, and the summary go to stderr.
+--verbose adds selection info and scan counts. --json replaces
 stdout with the batch report (summary and per-file outcomes); stderr
 diagnostics stay unchanged, and when the run never starts (a calling
 error, exit 2) stdout stays empty.

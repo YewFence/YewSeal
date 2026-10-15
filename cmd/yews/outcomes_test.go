@@ -49,8 +49,10 @@ func TestCLIProcessingOutcomes(t *testing.T) {
 		different                          bool
 	}{
 		{name: "decrypt-complete-strict", command: "decrypt", scenario: "complete", flags: []string{"--strict"},
+			wantIn:       []string{"DECRYPTED good.enc.yaml -> good.yaml\n"},
 			wantIgnoreIn: "good.yaml", wantFiles: map[string]string{"good.yaml": plain}, gone: []string{"private"}},
 		{name: "decrypt-partial", command: "decrypt",
+			wantIn:       []string{"DECRYPTED good.enc.yaml -> good.yaml\n", "SKIPPED other.enc.yaml:"},
 			wantIgnoreIn: "private/other.yaml", wantFiles: map[string]string{"good.yaml": plain}, gone: []string{"private"}},
 		{name: "decrypt-strict", command: "decrypt", flags: []string{"--strict"}, code: 1,
 			wantIgnoreIn: "private/other.yaml", wantFiles: map[string]string{"good.yaml": plain}, gone: []string{"private"}},
