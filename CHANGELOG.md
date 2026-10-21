@@ -1,3 +1,12 @@
+## [0.25.1] - 2026-10-21
+
+### ⚙️ Miscellaneous Tasks
+
+- *(deps)* Update github actions to v5.2.0 (#125)
+- *(npm-deps)* Update npm dependencies (#123)
+- *(mise-deps)* Update mise tools (#122)
+- *(gomod-deps)* Update go modules (#121)
+- *(mise-deps)* Lock file maintenance (#124)
 ## [0.25.0] - 2026-10-15
 
 ### 🚀 Features
