@@ -17,20 +17,32 @@ import (
 )
 
 func main() {
-	dir := flag.String("dir", ".", "Project directory; a repository is scanned from its root")
-	flag.Parse()
-	if flag.NArg() != 0 {
-		fmt.Fprintln(os.Stderr, "unexpected arguments; use -dir PATH")
-		os.Exit(2)
+	os.Exit(execute(os.Args[1:], os.Stdout, os.Stderr))
+}
+
+func execute(args []string, stdout, stderr io.Writer) int {
+	flags := flag.NewFlagSet("migrate-gitignore", flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	dir := flags.String("dir", ".", "Project directory; a repository is scanned from its root")
+	if err := flags.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return 0
+		}
+		return 2
+	}
+	if flags.NArg() != 0 {
+		_, _ = fmt.Fprintln(stderr, "unexpected arguments; use -dir PATH")
+		return 2
 	}
 	if err := os.Chdir(*dir); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		_, _ = fmt.Fprintln(stderr, err)
+		return 1
 	}
-	if err := run(os.Stdout); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+	if err := run(stdout); err != nil {
+		_, _ = fmt.Fprintln(stderr, err)
+		return 1
 	}
+	return 0
 }
 
 func run(out io.Writer) (resultErr error) {
@@ -54,16 +66,50 @@ func run(out io.Writer) (resultErr error) {
 	directories := make(map[string]bool)
 	for _, scope := range scopes {
 		owners[scope.Dir] = config.ResolvedFilePairsToFilePairs(scope.FilePairs)
-		directories[scope.Dir] = true
+	}
+	loadedConfigs := make(map[string]bool, len(cfg.LoadedFiles))
+	for _, file := range cfg.LoadedFiles {
+		loadedConfigs[file.Path] = true
 	}
 	var failures []error
+	skipped := 0
 	err = filepath.WalkDir(cfg.ProjectRoot, func(path string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			failures = append(failures, fmt.Errorf("scan %s: %w", path, walkErr))
 			return nil
 		}
-		if entry.IsDir() && (entry.Name() == ".git" || entry.Name() == ".jj") {
-			return filepath.SkipDir
+		if entry.IsDir() {
+			if entry.Name() == ".git" || entry.Name() == ".jj" {
+				return filepath.SkipDir
+			}
+			_, owner := owners[path]
+			if path != cfg.ProjectRoot {
+				markers := []string{".git", ".jj"}
+				if !owner {
+					markers = append(markers, ".yewseal.toml", ".config/.yewseal.toml", ".yewseal/.yewseal.toml")
+				}
+				for _, marker := range markers {
+					markerPath := filepath.Join(path, marker)
+					if loadedConfigs[markerPath] {
+						continue
+					}
+					_, err := os.Lstat(markerPath)
+					if os.IsNotExist(err) {
+						continue
+					}
+					if err != nil {
+						failures = append(failures, fmt.Errorf("scan %s: %w", path, err))
+					} else {
+						_, printErr := fmt.Fprintf(out, "Skipped independent project %s; run migration from that directory.\n", path)
+						failures = append(failures, printErr, fmt.Errorf("independent project requires separate migration: %s", path))
+					}
+					skipped++
+					return filepath.SkipDir
+				}
+			}
+			if owner {
+				directories[path] = true
+			}
 		}
 		if entry.Name() == ".gitignore" && !entry.IsDir() {
 			directories[filepath.Dir(path)] = true
@@ -78,7 +124,7 @@ func run(out io.Writer) (resultErr error) {
 		ordered = append(ordered, dir)
 	}
 	sort.Strings(ordered)
-	changed, skipped := 0, 0
+	changed := 0
 	for _, dir := range ordered {
 		path := filepath.Join(dir, ".gitignore")
 		info, err := os.Lstat(path)

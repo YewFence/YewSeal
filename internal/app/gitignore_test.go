@@ -46,6 +46,64 @@ func TestTargetedDecryptRebuildsCompleteGitignoreWithoutRequiringCurrentAuthoriz
 	require.NoFileExists(t, "group-history.yaml")
 }
 
+func TestGitignoreFailureStopsConfiguredPathWrites(t *testing.T) {
+	for _, command := range []string{"encrypt", "decrypt"} {
+		t.Run(command, func(t *testing.T) {
+			env := newAppCryptoTestEnv(t)
+			plain := []byte("token: fixture\n")
+			cfg := configWithOwnerRecipient(&config.Config{Encryption: config.EncryptionConfig{Files: []config.FilePair{{PlaintextPath: "secret.yaml", EncryptedPath: "secret.enc.yaml"}}}}, env.publicKey)
+			if command == "encrypt" {
+				require.NoError(t, os.WriteFile("secret.yaml", plain, 0600))
+			} else {
+				ciphertext, err := sopsx.Encrypt(plain, "yaml", []string{env.publicKey})
+				require.NoError(t, err)
+				require.NoError(t, os.WriteFile("secret.enc.yaml", ciphertext, 0600))
+			}
+			malformed := []byte("# BEGIN YewSeal managed entries\n/custom.yaml\n")
+			require.NoError(t, os.WriteFile(".gitignore", malformed, 0600))
+			var err error
+			if command == "encrypt" {
+				err = EncryptFiles(cfg, EncryptRequest{UpdateGitignore: true, SyncSOPSConfig: true})
+				require.NoFileExists(t, "secret.enc.yaml")
+				require.NoFileExists(t, ".sops.yaml")
+				data, readErr := os.ReadFile("secret.yaml")
+				require.NoError(t, readErr)
+				require.Equal(t, plain, data)
+			} else {
+				err = DecryptFiles(cfg, DecryptRequest{UpdateGitignore: true, KeyFile: env.keyFile})
+				require.NoFileExists(t, "secret.yaml")
+			}
+			require.ErrorContains(t, err, "missing END line")
+			data, readErr := os.ReadFile(".gitignore")
+			require.NoError(t, readErr)
+			require.Equal(t, malformed, data)
+		})
+	}
+}
+
+func TestDecryptMetadataFailureStopsBeforePlaintextWrites(t *testing.T) {
+	env := newAppCryptoTestEnv(t)
+	root, err := os.Getwd()
+	require.NoError(t, err)
+	ciphertext, err := sopsx.Encrypt([]byte("token: fixture\n"), "yaml", []string{env.publicKey})
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile("selected.enc.yaml", ciphertext, 0600))
+	require.NoError(t, os.WriteFile("group-plain.unknown", []byte("fixture"), 0600))
+	cfg := configWithOwnerRecipient(&config.Config{
+		CurrentDir: root,
+		Encryption: config.EncryptionConfig{
+			Files:  []config.FilePair{{PlaintextPath: "selected.yaml", EncryptedPath: "selected.enc.yaml"}},
+			Groups: []config.GroupConfig{{ConfigDir: root, Patterns: []string{"group-*"}}},
+		},
+	}, env.publicKey)
+	err = DecryptFiles(cfg, DecryptRequest{Targets: []string{"selected.enc.yaml"}, KeyFile: env.keyFile, UpdateGitignore: true})
+	require.ErrorContains(t, err, "could not detect format")
+	require.NoFileExists(t, "selected.yaml")
+	require.NoFileExists(t, ".gitignore")
+	require.NoError(t, DecryptFiles(cfg, DecryptRequest{Targets: []string{"selected.enc.yaml"}, KeyFile: env.keyFile}))
+	require.FileExists(t, "selected.yaml")
+}
+
 func TestEncryptClearsStaleGitignoreWhenConfigurationHasNoMappings(t *testing.T) {
 	env := newAppCryptoTestEnv(t)
 	root, err := os.Getwd()

@@ -47,6 +47,38 @@ func TestMigrateGitignoreRemovesLegacyFromOldWorkingDirectory(t *testing.T) {
 	require.Equal(t, prefix, string(data))
 }
 
+func TestMigrateGitignoreReportsFilesystemErrors(t *testing.T) {
+	t.Run("read", func(t *testing.T) {
+		dir := t.TempDir()
+		path := filepath.Join(dir, ".gitignore")
+		require.NoError(t, os.Mkdir(path, 0700))
+		changed, err := MigrateGitignore(dir, nil, true)
+		require.Error(t, err)
+		require.False(t, changed)
+		require.DirExists(t, path)
+	})
+	t.Run("write", func(t *testing.T) {
+		dir := filepath.Join(t.TempDir(), "missing")
+		changed, err := MigrateGitignore(dir, nil, true)
+		require.ErrorIs(t, err, os.ErrNotExist)
+		require.False(t, changed)
+		require.NoDirExists(t, dir)
+	})
+}
+
+func TestMigrateGitignoreRejectsInvalidMappingBeforeWriting(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, ".gitignore")
+	before := []byte(legacyPlaintextHeader + "\nold.yaml\n\n" + legacyPrivateHeader + "\n" + privateKeyPath + "\n")
+	require.NoError(t, os.WriteFile(path, before, 0600))
+	changed, err := MigrateGitignore(dir, []config.FilePair{{PlaintextPath: "invalid\npath.yaml"}}, true)
+	require.ErrorContains(t, err, "line break")
+	require.False(t, changed)
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+	require.Equal(t, before, data)
+}
+
 func TestMigrateGitignorePreservesAmbiguousFiles(t *testing.T) {
 	for _, content := range []string{
 		legacyPlaintextHeader + "\nold.yaml\n",

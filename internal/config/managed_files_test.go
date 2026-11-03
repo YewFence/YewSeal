@@ -7,6 +7,18 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestGroupManagedFilePairsFallsBackToMappingSource(t *testing.T) {
+	root := t.TempDir()
+	child := filepath.Join(root, "service")
+	unattributed := ResolvedFilePair{PlaintextPath: filepath.Join(root, "root.yaml")}
+	relativeSource := ResolvedFilePair{ConfigPath: filepath.Join("service", ".yewseal.toml"), PlaintextPath: filepath.Join(child, "relative.yaml")}
+	absoluteSource := ResolvedFilePair{ConfigPath: filepath.Join(child, ".yewseal.toml"), PlaintextPath: filepath.Join(child, "absolute.yaml")}
+	require.Equal(t, []ManagedFileScope{
+		{Dir: root, FilePairs: []ResolvedFilePair{unattributed}},
+		{Dir: child, FilePairs: []ResolvedFilePair{relativeSource, absoluteSource}},
+	}, GroupManagedFilePairs([]ResolvedFilePair{unattributed, relativeSource, absoluteSource}, nil, root))
+}
+
 func TestGroupManagedFilePairsUsesConfigurationOwnership(t *testing.T) {
 	root := t.TempDir()
 	child := filepath.Join(root, "service")

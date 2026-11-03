@@ -109,6 +109,34 @@ func TestUpdateGitignoreEscapesLiteralPaths(t *testing.T) {
 	}
 }
 
+func TestUpdateGitignoreReportsFilesystemErrors(t *testing.T) {
+	t.Run("read", func(t *testing.T) {
+		dir := t.TempDir()
+		path := filepath.Join(dir, ".gitignore")
+		require.NoError(t, os.Mkdir(path, 0700))
+		err := UpdateGitignore(dir, []config.FilePair{{PlaintextPath: "config.yaml"}})
+		require.ErrorContains(t, err, "failed to read")
+		require.DirExists(t, path)
+	})
+	t.Run("write", func(t *testing.T) {
+		dir := filepath.Join(t.TempDir(), "missing")
+		err := UpdateGitignore(dir, []config.FilePair{{PlaintextPath: "config.yaml"}})
+		require.ErrorContains(t, err, "failed to write")
+		require.ErrorIs(t, err, os.ErrNotExist)
+		require.NoDirExists(t, dir)
+	})
+}
+
+func TestUpdateGitignorePreservesCustomContentWithoutFinalNewline(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, ".gitignore")
+	require.NoError(t, os.WriteFile(path, []byte("# Custom rules\ncache/"), 0600))
+	require.NoError(t, UpdateGitignore(dir, []config.FilePair{{PlaintextPath: "config.yaml"}}))
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+	require.Equal(t, "# Custom rules\ncache/\n\n# BEGIN YewSeal managed entries\n/config.yaml\n/.age/keys.txt\n# END YewSeal managed entries\n", string(data))
+}
+
 func TestUpdateGitignoreRejectsLineBreaksInPaths(t *testing.T) {
 	for _, path := range []string{"secret\n!other.yaml", "secret\r.yaml"} {
 		dir := t.TempDir()
