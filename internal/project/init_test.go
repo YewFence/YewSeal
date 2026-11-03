@@ -82,7 +82,7 @@ func TestUpdateGitignore_Create(t *testing.T) {
 	tempDir := t.TempDir()
 	withProjectWorkingDir(t, tempDir)
 
-	err := UpdateGitignore([]config.FilePair{
+	err := UpdateGitignore(".", []config.FilePair{
 		{PlaintextPath: "wrangler.toml", EncryptedPath: "wrangler.enc.toml"},
 	})
 	require.NoError(t, err)
@@ -91,7 +91,7 @@ func TestUpdateGitignore_Create(t *testing.T) {
 	content, err := os.ReadFile(".gitignore")
 	require.NoError(t, err)
 
-	assert.Contains(t, string(content), "# YewSeal")
+	assert.Contains(t, string(content), "# BEGIN YewSeal managed entries")
 	assert.Contains(t, string(content), "wrangler.toml")
 	assert.Contains(t, string(content), ".age/keys.txt")
 }
@@ -108,7 +108,7 @@ node_modules/
 	err := os.WriteFile(".gitignore", []byte(existingContent), 0644)
 	require.NoError(t, err)
 
-	err = UpdateGitignore([]config.FilePair{
+	err = UpdateGitignore(".", []config.FilePair{
 		{PlaintextPath: "config.toml", EncryptedPath: "config.enc.toml"},
 		{PlaintextPath: ".dev.vars", EncryptedPath: ".dev.vars.enc.yaml"},
 	})
@@ -120,7 +120,7 @@ node_modules/
 
 	assert.Contains(t, string(content), "node_modules/")
 	assert.Contains(t, string(content), ".env")
-	assert.Contains(t, string(content), "# YewSeal")
+	assert.Contains(t, string(content), "# BEGIN YewSeal managed entries")
 	assert.Contains(t, string(content), "config.toml")
 	assert.Contains(t, string(content), ".dev.vars")
 	assert.Contains(t, string(content), ".age/keys.txt")
@@ -143,7 +143,7 @@ wrangler.toml
 	err := os.WriteFile(".gitignore", []byte(existingContent), 0644)
 	require.NoError(t, err)
 
-	err = UpdateGitignore([]config.FilePair{
+	err = UpdateGitignore(".", []config.FilePair{
 		{PlaintextPath: "wrangler.toml", EncryptedPath: "wrangler.enc.toml"},
 		{PlaintextPath: "different.toml", EncryptedPath: "different.enc.toml"},
 	})

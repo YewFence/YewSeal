@@ -52,8 +52,9 @@ Checks:
                   this check is skipped; a failed VCS query is an error.
                   With jj, verification inspects an uncommitted snapshot
                   without updating the working-copy commit.
-  .sops.yaml      checked against the managed-file rules, independently of
-                  selected targets. A difference is an error; an absent file
+  .sops.yaml      checked in each loaded configuration's directory against its
+                  own mappings, independently of selected targets and the
+                  calling directory. A difference is an error; an absent file
                   is skipped. --sync-sops-config=false skips the comparison.
 
 Finding codes are stable: ciphertext_missing, ciphertext_not_regular,

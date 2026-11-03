@@ -12,7 +12,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-func TestEncryptMetadataStaysWithinCurrentDirectory(t *testing.T) {
+func TestEncryptMetadataFollowsSourceConfiguration(t *testing.T) {
 	for _, targets := range [][]string{nil, {"secret.yaml"}, {"../root.yaml"}} {
 		name := "default"
 		if len(targets) > 0 {
@@ -63,7 +63,7 @@ func TestEncryptMetadataStaysWithinCurrentDirectory(t *testing.T) {
 	}
 }
 
-func TestDecryptGitignoreStaysWithinCurrentDirectory(t *testing.T) {
+func TestDecryptGitignoreFollowsSourceConfiguration(t *testing.T) {
 	cfg, env, root := directoryMetadataTestConfig(t)
 	for _, name := range []string{"secret", "second", "nested/child"} {
 		ciphertext, err := sopsx.Encrypt([]byte("token: fixture\n"), "yaml", []string{env.publicKey})
@@ -148,7 +148,12 @@ func requireDirectoryGitignore(t *testing.T, root string) {
 	require.NotContains(t, string(data), root)
 	require.NotContains(t, string(data), "root.yaml")
 	require.NotContains(t, string(data), "outside.yaml")
+	parentData, err := os.ReadFile(filepath.Join(root, ".gitignore"))
+	require.NoError(t, err)
+	require.Contains(t, string(parentData), "\n/root.yaml\n")
+	require.Contains(t, string(parentData), "\n/other/outside.yaml\n")
+	require.NotContains(t, string(parentData), "service/")
 	for _, path := range []string{"secret.yaml", "second.yaml", "nested/child.yaml", "history.yaml"} {
-		require.Contains(t, string(data), "\n"+path+"\n")
+		require.Contains(t, string(data), "\n/"+path+"\n")
 	}
 }

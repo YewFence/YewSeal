@@ -10,7 +10,7 @@ import (
 	"github.com/YewFence/YewSeal/internal/sopsconfig"
 )
 
-// checkSOPSDrift compares .sops.yaml in cwd with the complete directory policy.
+// checkSOPSDrift compares .sops.yaml with the policy owned by its configuration directory.
 func checkSOPSDrift(report *Report, allPairs []config.ResolvedFilePair, cwd string) {
 	onDisk, err := os.ReadFile(filepath.Join(cwd, ".sops.yaml"))
 	if os.IsNotExist(err) {
@@ -41,7 +41,7 @@ func checkSOPSDrift(report *Report, allPairs []config.ResolvedFilePair, cwd stri
 	report.Add(Finding{
 		Code:     "sops_config_drift",
 		Severity: SeverityError,
-		Message:  ".sops.yaml differs from the resolved current-directory policy",
+		Message:  fmt.Sprintf("%s differs from its source configuration policy", filepath.Join(cwd, ".sops.yaml")),
 		Hint:     "run 'yews encrypt' to restore the managed SOPS rules; for manually maintained rules, follow the opt-out instructions in the configuration guide" + hintAgentHandoff,
 	})
 }

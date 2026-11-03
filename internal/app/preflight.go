@@ -25,13 +25,13 @@ func PreflightEncrypt(cfg *config.Config, req EncryptRequest) (PreflightResult, 
 	if err != nil {
 		return PreflightResult{}, err
 	}
-	result := PreflightResult{Selection: selection, MetadataPairs: metadataPairsForSelection(selection)}
+	result := PreflightResult{Selection: selection, MetadataPairs: selection.AllConfigPairs}
 	if req.UpdateGitignore || req.SyncSOPSConfig {
 		metadataSelection, err := config.ResolveSelection(cfg, config.SelectionOptions{Command: task.ModePlan})
 		if err != nil {
 			return PreflightResult{}, err
 		}
-		result.MetadataPairs = metadataPairsForSelection(metadataSelection)
+		result.MetadataPairs = metadataSelection.AllConfigPairs
 		result.Selection.ScanStats.Entries += metadataSelection.ScanStats.Entries
 		result.Selection.ScanStats.Directories += metadataSelection.ScanStats.Directories
 	}
@@ -87,7 +87,16 @@ func PreflightDecrypt(cfg *config.Config, req DecryptRequest) (PreflightResult, 
 	if err != nil {
 		return PreflightResult{}, err
 	}
-	metadataPairs := metadataPairsForSelection(selection)
+	metadataPairs := selection.AllConfigPairs
+	if req.UpdateGitignore && req.OutputDir == "" {
+		metadataSelection, err := config.ResolveSelection(cfg, config.SelectionOptions{Command: task.ModeClean})
+		if err != nil {
+			return PreflightResult{}, err
+		}
+		metadataPairs = metadataSelection.AllConfigPairs
+		selection.ScanStats.Entries += metadataSelection.ScanStats.Entries
+		selection.ScanStats.Directories += metadataSelection.ScanStats.Directories
+	}
 	if err := prepareDecryptDelivery(cfg, &selection, req); err != nil {
 		return PreflightResult{}, err
 	}
@@ -96,11 +105,4 @@ func PreflightDecrypt(cfg *config.Config, req DecryptRequest) (PreflightResult, 
 		return PreflightResult{}, err
 	}
 	return PreflightResult{Selection: selection, IdentityBundle: identityBundle, MetadataPairs: metadataPairs}, nil
-}
-
-func metadataPairsForSelection(selection config.ResolvedSelection) []config.ResolvedFilePair {
-	if selection.ConfigMode && len(selection.AllConfigPairs) > 0 {
-		return selection.AllConfigPairs
-	}
-	return selection.FilePairs
 }

@@ -25,27 +25,22 @@ func TestUpdateGitignore_NoPlaintextFiles(t *testing.T) {
 	tempDir := t.TempDir()
 	withProjectWorkingDir(t, tempDir)
 
-	err := UpdateGitignore([]config.FilePair{
+	err := UpdateGitignore(".", []config.FilePair{
 		{PlaintextPath: "   "},
 		{},
 	})
 	require.NoError(t, err)
 
-	_, statErr := os.Stat(".gitignore")
-	assert.True(t, os.IsNotExist(statErr))
+	data, err := os.ReadFile(".gitignore")
+	require.NoError(t, err)
+	assert.Equal(t, renderGitignoreSection(nil), string(data))
 }
 
-func TestMergeGitignoreEntries_AddsPrivateKeySectionWhenMissing(t *testing.T) {
-	content := decryptedFilesHeader + "\nconfig.toml\n"
-
-	updated, changed := mergeGitignoreEntries(content, []string{"other.toml"})
-
-	assert.True(t, changed)
-	assert.Equal(
-		t,
-		decryptedFilesHeader+"\nconfig.toml\nother.toml\n\n"+privateKeysHeader+"\n"+privateKeyPath+"\n",
-		updated,
-	)
+func TestMergeGitignoreEntriesPreservesLegacySection(t *testing.T) {
+	content := "# YewSeal - Decrypted configuration files\nconfig.toml\n\n# YewSeal - Age private keys\n.age/keys.txt\n"
+	updated, err := mergeGitignoreEntries(content, []string{"other.toml"})
+	require.NoError(t, err)
+	assert.Equal(t, content+"\n"+renderGitignoreSection([]string{"other.toml"}), updated)
 }
 
 func TestRenderGitignoreSection(t *testing.T) {
@@ -53,20 +48,21 @@ func TestRenderGitignoreSection(t *testing.T) {
 
 	assert.Equal(
 		t,
-		decryptedFilesHeader+"\nconfig.toml\n.env\n\n"+privateKeysHeader+"\n"+privateKeyPath+"\n",
+		"# BEGIN YewSeal managed entries\n/config.toml\n/.env\n/.age/keys.txt\n# END YewSeal managed entries\n",
 		rendered,
 	)
 }
 
 func TestUniquePlaintextFiles(t *testing.T) {
-	files := uniquePlaintextFiles([]config.FilePair{
-		{PlaintextPath: " config.toml "},
+	files, err := uniquePlaintextFiles([]config.FilePair{
+		{PlaintextPath: "config.toml"},
 		{PlaintextPath: "config.toml"},
 		{PlaintextPath: ".env"},
 		{PlaintextPath: "   "},
 	}, t.TempDir())
 
-	assert.Equal(t, []string{"config.toml", ".env"}, files)
+	require.NoError(t, err)
+	assert.Equal(t, []string{".env", "config.toml"}, files)
 }
 
 func TestUpdateGitignoreFiltersPlaintextPathsByDirectory(t *testing.T) {
@@ -83,19 +79,12 @@ func TestUpdateGitignoreFiltersPlaintextPathsByDirectory(t *testing.T) {
 		{PlaintextPath: "../outside.yaml"},
 		{PlaintextPath: filepath.Join(root, "service-other", "outside.yaml")},
 	}
-	require.NoError(t, UpdateGitignore(pairs))
+	require.NoError(t, UpdateGitignore(".", pairs))
 	data, err := os.ReadFile(".gitignore")
 	require.NoError(t, err)
-	require.Equal(t, "# Custom rules\nbuild/\n\n"+renderGitignoreSection([]string{"secret.yaml", "nested/child.yaml"}), string(data))
-	require.NoError(t, UpdateGitignore(pairs))
+	require.Equal(t, "# Custom rules\nbuild/\n\n"+renderGitignoreSection([]string{"nested/child.yaml", "secret.yaml"}), string(data))
+	require.NoError(t, UpdateGitignore(".", pairs))
 	repeated, err := os.ReadFile(".gitignore")
 	require.NoError(t, err)
 	require.Equal(t, data, repeated)
-}
-
-func TestContainsExactLine(t *testing.T) {
-	content := "  config.toml  \nconfig.json\n"
-
-	assert.True(t, containsExactLine(content, "config.toml"))
-	assert.False(t, containsExactLine(content, "config"))
 }

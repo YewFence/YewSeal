@@ -28,7 +28,8 @@ func (ErrIdentityRequired) Error() string {
 }
 
 // Check runs every verification layer over the resolved selection. cwd is the
-// directory relative identity paths and .sops.yaml resolve against. The
+// directory relative identity paths resolve against. Managed SOPS rules belong
+// to each mapping's source configuration directory. The
 // returned error means verify could not run; problems found in the project
 // are findings in the report.
 func Check(selection config.ResolvedSelection, cwd string, opts Options) (*Report, error) {
@@ -65,7 +66,9 @@ func Check(selection config.ResolvedSelection, cwd string, opts Options) (*Repor
 	checkVersionControl(report, selection.FilePairs, cwd, opts.KeyFile, opts.RepositoryDiscoveryDegraded, opts.RepositoryDiscoveryWarning)
 
 	if opts.CheckSOPSConfig {
-		checkSOPSDrift(report, selection.AllConfigPairs, cwd)
+		for _, scope := range config.GroupManagedFilePairs(selection.AllConfigPairs, selection.ConfigFiles, cwd) {
+			checkSOPSDrift(report, scope.FilePairs, scope.Dir)
+		}
 	} else {
 		report.AddSkip(".sops.yaml is not managed (--sync-sops-config=false); drift not checked")
 	}

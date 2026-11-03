@@ -51,9 +51,12 @@ exists, decrypt warns on stderr and continues with the identity bundle.
 
 Overwrite protection: an existing plaintext file whose content differs
 from the decryption result is not overwritten unless --force is set.
-For configured-path writes, --update-gitignore (enabled by default) adds plaintext
-entries for selected mappings, or all configured mappings when no target is
-given, using the managed-file rules.
+For configured-path writes, --update-gitignore (enabled by default) rebuilds
+each loaded configuration's .gitignore managed block from its complete mapping
+set, including plaintext-only and ciphertext-only group mappings, independently
+of selected targets. Obsolete entries are removed; content outside the block is
+preserved. Malformed or duplicate markers fail without changing that file.
+The managed-file rules define marker syntax and path escaping.
 
 Exit codes: by default, files are skipped when no Age identity is
 available (outcome "no-identity") or when the available identities do
@@ -136,7 +139,7 @@ yews decrypt [command options] [path-or-pattern]... [flags]
       --output string      Deliver the project-relative plaintext tree into an existing, real, empty directory; conflicts with --force=true and --inplace (env YEWSEAL_DECRYPT_OUTPUT)
   -P, --parallel int       Number of parallel workers for batch mode (minimum 1) (env YEWSEAL_DECRYPT_PARALLEL) (default 1)
       --strict             Require every selected file to be decrypted (successful writes are not rolled back) (env YEWSEAL_DECRYPT_STRICT)
-      --update-gitignore   Add plaintext and default key entries to .gitignore for configured-path writes; ignored with --output; false leaves it untouched (env YEWSEAL_UPDATE_GITIGNORE) (default true)
+      --update-gitignore   Rebuild complete .gitignore managed blocks for configured-path writes; ignored with --output; false leaves files untouched (env YEWSEAL_UPDATE_GITIGNORE) (default true)
   -v, --verbose            Enable verbose output (scan counts and selection info on stderr) (env YEWSEAL_DECRYPT_VERBOSE)
 ```
 

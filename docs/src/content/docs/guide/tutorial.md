@@ -91,14 +91,13 @@ YewSeal embeds the SOPS engine, so this file is not needed for `yews` itself —
 ### The `.gitignore`
 
 ```gitignore
-# YewSeal - Decrypted configuration files
-config.toml
-
-# YewSeal - Age private keys
-.age/keys.txt
+# BEGIN YewSeal managed entries
+/config.toml
+/.age/keys.txt
+# END YewSeal managed entries
 ```
 
-The plaintext and the private key are excluded; the encrypted counterpart will be committed instead.
+The plaintext and the private key are excluded; the encrypted counterpart will be committed instead. YewSeal rebuilds the marked block from the configuration and preserves custom rules outside it; see [managed-file rules](/guide/configuration#managed-files).
 
 ## Preview the selection
 

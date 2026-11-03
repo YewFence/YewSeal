@@ -47,9 +47,14 @@ skipped.
 configured format. Declare non-standard extensions with "format" or
 "format_rules" in .yewseal.toml.
 
-Before encryption, --update-gitignore (enabled by default) adds all configured
-plaintext entries using the managed-file rules. After encryption,
---sync-sops-config (enabled by default) rewrites .sops.yaml using those rules.
+Before encryption, --update-gitignore (enabled by default) rebuilds each
+loaded configuration's .gitignore managed block from its complete plaintext
+mapping set, removing obsolete entries and preserving content outside the block.
+Malformed or duplicate block markers fail the command without changing that file.
+See the managed-file rules for marker syntax and path escaping. After encryption,
+--sync-sops-config (enabled by default) rewrites .sops.yaml in each loaded
+configuration's directory. Entries belong to the mapping's source configuration,
+regardless of the calling directory or selected targets.
 A synchronization failure leaves completed ciphertext work in place and
 makes the command fail.
 
@@ -175,9 +180,12 @@ exists, decrypt warns on stderr and continues with the identity bundle.
 
 Overwrite protection: an existing plaintext file whose content differs
 from the decryption result is not overwritten unless --force is set.
-For configured-path writes, --update-gitignore (enabled by default) adds plaintext
-entries for selected mappings, or all configured mappings when no target is
-given, using the managed-file rules.
+For configured-path writes, --update-gitignore (enabled by default) rebuilds
+each loaded configuration's .gitignore managed block from its complete mapping
+set, including plaintext-only and ciphertext-only group mappings, independently
+of selected targets. Obsolete entries are removed; content outside the block is
+preserved. Malformed or duplicate markers fail without changing that file.
+The managed-file rules define marker syntax and path escaping.
 
 Exit codes: by default, files are skipped when no Age identity is
 available (outcome "no-identity") or when the available identities do

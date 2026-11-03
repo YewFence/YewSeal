@@ -86,7 +86,7 @@ func TestOutputOverridePreservesInferredFormatProvenance(t *testing.T) {
 	require.Equal(t, config.ValueSourceFilename, selection.FilePairs[0].FormatSource.Kind)
 }
 
-func TestPreflightPreservesProjectAndTargetMetadataScopes(t *testing.T) {
+func TestPreflightKeepsCompleteMetadataForEveryTarget(t *testing.T) {
 	env := newAppCryptoTestEnv(t)
 	for _, dir := range []string{"inside", "outside"} {
 		require.NoError(t, os.Mkdir(dir, 0755))
@@ -104,11 +104,7 @@ func TestPreflightPreservesProjectAndTargetMetadataScopes(t *testing.T) {
 		require.NoError(t, err)
 		for _, result := range []PreflightResult{encrypted, decrypted} {
 			require.Len(t, result.Selection.FilePairs, 1)
-			if target == "" {
-				require.Len(t, result.MetadataPairs, 2)
-			} else {
-				require.Len(t, result.MetadataPairs, 1)
-			}
+			require.Len(t, result.MetadataPairs, 2)
 		}
 	}
 }

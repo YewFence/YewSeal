@@ -87,7 +87,7 @@ func InitProject(opts InitOptions, out *presentation.Output, prompts *tools.Sess
 		resolved = append(resolved, config.ResolvedFilePair{PlaintextPath: filePair.PlaintextPath, EncryptedPath: filePair.EncryptedPath, Format: filePair.Format, Recipients: []string{publicKey}})
 	}
 	if shouldCreateSopsConfig {
-		if err := SyncResolvedSopsYaml(resolved); err != nil {
+		if err := SyncResolvedSopsYaml(".", resolved); err != nil {
 			return fmt.Errorf("failed to update .sops.yaml: %w\nFix the synchronization error, or use --sync-sops-config=false when direct SOPS interoperability is not required", err)
 		}
 	}
@@ -101,7 +101,7 @@ func InitProject(opts InitOptions, out *presentation.Output, prompts *tools.Sess
 	}
 
 	if opts.UpdateGitignore {
-		if err := UpdateGitignore(filePairs); err != nil {
+		if err := UpdateGitignore(".", filePairs); err != nil {
 			return err
 		}
 	}

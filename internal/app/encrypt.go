@@ -36,10 +36,12 @@ func EncryptFiles(cfg *config.Config, req EncryptRequest) (err error) {
 	}
 	out.IdentityBundle(preflight.IdentityBundle)
 
+	scopes := config.GroupManagedFilePairs(preflight.MetadataPairs, cfg.LoadedFiles, config.CurrentDir(cfg))
 	if req.UpdateGitignore {
-		metadataPairs := config.ResolvedFilePairsToFilePairs(preflight.MetadataPairs)
-		if err := project.UpdateGitignore(metadataPairs); err != nil {
-			return err
+		for _, scope := range scopes {
+			if err := project.UpdateGitignore(scope.Dir, config.ResolvedFilePairsToFilePairs(scope.FilePairs)); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -55,8 +57,10 @@ func EncryptFiles(cfg *config.Config, req EncryptRequest) (err error) {
 	out.BatchSummary(summary, "encrypted")
 	var syncErr error
 	if req.SyncSOPSConfig {
-		if err := project.SyncResolvedSopsYaml(preflight.MetadataPairs); err != nil {
-			syncErr = fmt.Errorf("failed to update .sops.yaml after encryption: %w\nCiphertext processing completed. Fix the synchronization error, or use --sync-sops-config=false when direct SOPS interoperability is not required", err)
+		for _, scope := range scopes {
+			if err := project.SyncResolvedSopsYaml(scope.Dir, scope.FilePairs); err != nil {
+				syncErr = errors.Join(syncErr, fmt.Errorf("failed to update .sops.yaml after encryption in %s: %w\nCiphertext processing completed. Fix the synchronization error, or use --sync-sops-config=false when direct SOPS interoperability is not required", scope.Dir, err))
+			}
 		}
 	}
 	var reportErr error
