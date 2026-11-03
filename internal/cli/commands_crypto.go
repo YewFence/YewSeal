@@ -49,7 +49,9 @@ configured format. Declare non-standard extensions with "format" or
 
 Before encryption, --update-gitignore (enabled by default) adds all configured
 plaintext entries using the managed-file rules. After encryption,
---sync-sops-config (enabled by default) rewrites .sops.yaml using those rules.
+--sync-sops-config (enabled by default) rewrites .sops.yaml in each loaded
+configuration's directory. Entries belong to the mapping's source configuration,
+regardless of the calling directory or selected targets.
 A synchronization failure leaves completed ciphertext work in place and
 makes the command fail.
 
@@ -177,7 +179,8 @@ Overwrite protection: an existing plaintext file whose content differs
 from the decryption result is not overwritten unless --force is set.
 For configured-path writes, --update-gitignore (enabled by default) adds plaintext
 entries for selected mappings, or all configured mappings when no target is
-given, using the managed-file rules.
+given, in each mapping's source configuration directory using the
+managed-file rules.
 
 Exit codes: by default, files are skipped when no Age identity is
 available (outcome "no-identity") or when the available identities do

@@ -32,7 +32,9 @@ configured format. Declare non-standard extensions with "format" or
 
 Before encryption, --update-gitignore (enabled by default) adds all configured
 plaintext entries using the managed-file rules. After encryption,
---sync-sops-config (enabled by default) rewrites .sops.yaml using those rules.
+--sync-sops-config (enabled by default) rewrites .sops.yaml in each loaded
+configuration's directory. Entries belong to the mapping's source configuration,
+regardless of the calling directory or selected targets.
 A synchronization failure leaves completed ciphertext work in place and
 makes the command fail.
 

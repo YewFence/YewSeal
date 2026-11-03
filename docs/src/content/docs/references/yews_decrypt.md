@@ -53,7 +53,8 @@ Overwrite protection: an existing plaintext file whose content differs
 from the decryption result is not overwritten unless --force is set.
 For configured-path writes, --update-gitignore (enabled by default) adds plaintext
 entries for selected mappings, or all configured mappings when no target is
-given, using the managed-file rules.
+given, in each mapping's source configuration directory using the
+managed-file rules.
 
 Exit codes: by default, files are skipped when no Age identity is
 available (outcome "no-identity") or when the available identities do

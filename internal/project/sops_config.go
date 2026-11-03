@@ -3,6 +3,7 @@ package project
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/YewFence/YewSeal/internal/config"
 	"github.com/YewFence/YewSeal/internal/sopsconfig"
@@ -11,20 +12,16 @@ import (
 const sopsYamlPath = ".sops.yaml"
 
 // SyncResolvedSopsYaml rewrites .sops.yaml from resolved per-file policy.
-func SyncResolvedSopsYaml(filePairs []config.ResolvedFilePair) error {
-	dir, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("failed to get working directory: %w", err)
-	}
+func SyncResolvedSopsYaml(dir string, filePairs []config.ResolvedFilePair) error {
 	data, err := sopsconfig.Render(filePairs, dir)
 	if err != nil {
 		return err
 	}
-	return writeSopsConfig(data)
+	return writeSopsConfig(dir, data)
 }
 
-func writeSopsConfig(data []byte) error {
-	tempFile, err := os.CreateTemp(".", ".sops.yaml.*")
+func writeSopsConfig(dir string, data []byte) error {
+	tempFile, err := os.CreateTemp(dir, ".sops.yaml.*")
 	if err != nil {
 		return fmt.Errorf("failed to create temporary .sops.yaml: %w", err)
 	}
@@ -45,7 +42,7 @@ func writeSopsConfig(data []byte) error {
 	if err := tempFile.Close(); err != nil {
 		return fmt.Errorf("failed to close temporary .sops.yaml: %w", err)
 	}
-	if err := os.Rename(tempPath, sopsYamlPath); err != nil {
+	if err := os.Rename(tempPath, filepath.Join(dir, sopsYamlPath)); err != nil {
 		return fmt.Errorf("failed to replace .sops.yaml: %w", err)
 	}
 

@@ -172,11 +172,11 @@ When the counts run large, look for build or dependency caches under your group 
 
 ## Managed files
 
-YewSeal maintains `.gitignore` and, when enabled, `.sops.yaml` in the current working directory. Entries use relative paths and cover only that directory and its subdirectories, including when an operation explicitly selects an external file. `.gitignore` uses plaintext paths; `.sops.yaml` uses encrypted paths.
+YewSeal maintains `.gitignore` and, when enabled, `.sops.yaml` in each mapping's source configuration directory, using the same base as paths declared by that configuration. For example, mappings from `services/api/.yewseal.toml`, `services/api/.config/.yewseal.toml`, or `services/api/.yewseal/.yewseal.toml` belong to `services/api/`. Running from another directory does not change that ownership. A mapping declared by a parent configuration stays with that configuration even when its files are beneath a child configuration. Entries use paths relative to the owning directory and cover only its subtree; paths outside it are excluded. `.gitignore` uses plaintext paths; `.sops.yaml` uses encrypted paths.
 
 ### .sops.yaml
 
-Use `.sops.yaml` for [direct SOPS commands](/guide/sops). It contains exact-match rules for all configured ciphertext paths allowed by the managed-file rules, including ciphertext-only group results. Target selectors and temporary `--output` paths do not change these rules.
+Use `.sops.yaml` for [direct SOPS commands](/guide/sops). Each file contains exact-match rules for ciphertext paths owned by its source configuration, including ciphertext-only group results. `encrypt` synchronizes all loaded configuration directories, and `verify` checks each of them. Target selectors and temporary `--output` paths do not change these rules. A configuration with no remaining mappings receives an empty rule list.
 
 ```yaml
 creation_rules:

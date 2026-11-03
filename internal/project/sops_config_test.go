@@ -13,7 +13,7 @@ func TestSyncResolvedSopsYamlUsesPerFileRecipients(t *testing.T) {
 	tmpDir := t.TempDir()
 	withProjectWorkingDir(t, tmpDir)
 
-	err := SyncResolvedSopsYaml([]config.ResolvedFilePair{
+	err := SyncResolvedSopsYaml(".", []config.ResolvedFilePair{
 		{EncryptedPath: "prod.enc.yaml", Recipients: []string{"age1ops", "age1backup"}},
 		{EncryptedPath: "dev.enc.yaml", Recipients: []string{"age1owner"}},
 	})
@@ -28,7 +28,7 @@ func TestSyncResolvedSopsYamlUsesPerFileRecipients(t *testing.T) {
 
 func TestSyncResolvedSopsYamlRejectsConflictingDuplicatePath(t *testing.T) {
 	withProjectWorkingDir(t, t.TempDir())
-	err := SyncResolvedSopsYaml([]config.ResolvedFilePair{
+	err := SyncResolvedSopsYaml(".", []config.ResolvedFilePair{
 		{EncryptedPath: "secret.enc.yaml", Recipients: []string{"age1owner"}},
 		{EncryptedPath: "secret.enc.yaml", Recipients: []string{"age1ops"}},
 	})

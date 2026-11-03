@@ -3,6 +3,7 @@ package project
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/YewFence/YewSeal/internal/config"
@@ -15,18 +16,15 @@ const (
 )
 
 // UpdateGitignore creates or updates .gitignore with directory-relative plaintext
-// entries, excluding paths outside the current directory subtree.
-func UpdateGitignore(filePairs []config.FilePair) error {
-	dir, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("failed to get working directory: %w", err)
-	}
+// entries, excluding paths outside the source configuration's directory subtree.
+func UpdateGitignore(dir string, filePairs []config.FilePair) error {
+	path := filepath.Join(dir, ".gitignore")
 	plaintextFiles := uniquePlaintextFiles(filePairs, dir)
 	if len(plaintextFiles) == 0 {
 		return nil
 	}
 
-	existingData, err := os.ReadFile(".gitignore")
+	existingData, err := os.ReadFile(path)
 	if err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("failed to read .gitignore: %w", err)
 	}
@@ -36,14 +34,14 @@ func UpdateGitignore(filePairs []config.FilePair) error {
 			return nil
 		}
 
-		if err := os.WriteFile(".gitignore", []byte(updatedContent), 0644); err != nil {
+		if err := os.WriteFile(path, []byte(updatedContent), 0644); err != nil {
 			return fmt.Errorf("failed to update .gitignore: %w", err)
 		}
 		return nil
 	}
 
 	content := renderGitignoreSection(plaintextFiles)
-	if err := os.WriteFile(".gitignore", []byte(content), 0644); err != nil {
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
 		return fmt.Errorf("failed to create .gitignore: %w", err)
 	}
 	return nil

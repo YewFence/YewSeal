@@ -25,7 +25,7 @@ func TestUpdateGitignore_NoPlaintextFiles(t *testing.T) {
 	tempDir := t.TempDir()
 	withProjectWorkingDir(t, tempDir)
 
-	err := UpdateGitignore([]config.FilePair{
+	err := UpdateGitignore(".", []config.FilePair{
 		{PlaintextPath: "   "},
 		{},
 	})
@@ -83,11 +83,11 @@ func TestUpdateGitignoreFiltersPlaintextPathsByDirectory(t *testing.T) {
 		{PlaintextPath: "../outside.yaml"},
 		{PlaintextPath: filepath.Join(root, "service-other", "outside.yaml")},
 	}
-	require.NoError(t, UpdateGitignore(pairs))
+	require.NoError(t, UpdateGitignore(".", pairs))
 	data, err := os.ReadFile(".gitignore")
 	require.NoError(t, err)
 	require.Equal(t, "# Custom rules\nbuild/\n\n"+renderGitignoreSection([]string{"secret.yaml", "nested/child.yaml"}), string(data))
-	require.NoError(t, UpdateGitignore(pairs))
+	require.NoError(t, UpdateGitignore(".", pairs))
 	repeated, err := os.ReadFile(".gitignore")
 	require.NoError(t, err)
 	require.Equal(t, data, repeated)

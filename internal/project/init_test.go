@@ -82,7 +82,7 @@ func TestUpdateGitignore_Create(t *testing.T) {
 	tempDir := t.TempDir()
 	withProjectWorkingDir(t, tempDir)
 
-	err := UpdateGitignore([]config.FilePair{
+	err := UpdateGitignore(".", []config.FilePair{
 		{PlaintextPath: "wrangler.toml", EncryptedPath: "wrangler.enc.toml"},
 	})
 	require.NoError(t, err)
@@ -108,7 +108,7 @@ node_modules/
 	err := os.WriteFile(".gitignore", []byte(existingContent), 0644)
 	require.NoError(t, err)
 
-	err = UpdateGitignore([]config.FilePair{
+	err = UpdateGitignore(".", []config.FilePair{
 		{PlaintextPath: "config.toml", EncryptedPath: "config.enc.toml"},
 		{PlaintextPath: ".dev.vars", EncryptedPath: ".dev.vars.enc.yaml"},
 	})
@@ -143,7 +143,7 @@ wrangler.toml
 	err := os.WriteFile(".gitignore", []byte(existingContent), 0644)
 	require.NoError(t, err)
 
-	err = UpdateGitignore([]config.FilePair{
+	err = UpdateGitignore(".", []config.FilePair{
 		{PlaintextPath: "wrangler.toml", EncryptedPath: "wrangler.enc.toml"},
 		{PlaintextPath: "different.toml", EncryptedPath: "different.enc.toml"},
 	})

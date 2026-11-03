@@ -16,6 +16,10 @@ one or more plaintext/encrypted mappings. Passing --input or --output
 switches to non-interactive mode for scripts. An explicit
 --sync-sops-config value skips its interactive question.
 
+The new configuration and its managed files belong to the current directory.
+Later commands maintain managed files by each mapping's source configuration,
+regardless of where the command runs.
+
 Generated files:
   .yewseal.toml  main YewSeal config (recipient registry, defaults,
                  file entries)
