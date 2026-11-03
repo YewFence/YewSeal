@@ -52,7 +52,7 @@ owner = %q
 			require.NoError(t, cmd.Execute())
 			if tc.verbose {
 				visited := []string{".", ".yewseal.toml", "app.toml", "target"}
-				require.Equal(t, fmt.Sprintf("Scan: %d entries, %d directories expanded\n", len(visited)*2, 2), diagnostics.String())
+				require.Equal(t, fmt.Sprintf("Scan: %d entries, %d directories expanded\n", len(visited), 1), diagnostics.String())
 			} else {
 				require.Empty(t, diagnostics.String())
 			}

@@ -166,7 +166,7 @@ YewSeal scans every file under a group root, including files that `.gitignore` w
 
 Run `yews plan -v` to inspect the configuration and print a scan summary on stderr without changing files. Every group-scanning command supports `-v` for the same summary, also under `--json`.
 
-`entries` counts successful `WalkDir` visits — each scan root and each pruned directory included. `directories` counts the directories actually expanded — scan roots included, pruned directories excluded. Separate groups, plaintext/ciphertext scans, and managed-file synchronization scans each count independently, so the totals reflect traversal volume rather than unique files or syscalls.
+`entries` counts successful directory traversal visits — each scan root and each pruned directory included. `directories` counts the directories actually expanded — scan roots included, pruned directories excluded. Each group traverses its root once per command, sharing that discovery for plaintext, ciphertext, and managed-file rules. Separate groups count independently, even when their roots overlap, so the totals reflect traversal volume rather than unique files or syscalls.
 
 When the counts run large, look for build or dependency caches under your group roots. Add directory rules to `exclude` (or `!` patterns on a group), then rerun `plan -v` to compare counts and check the selected mappings. YewSeal applies no automatic cache exclusions and emits no slow-scan warnings.
 

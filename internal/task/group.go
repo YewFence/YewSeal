@@ -59,133 +59,39 @@ type FormatRule struct {
 }
 
 func BuildGroupFilePairs(opts GroupOptions) ([]FilePair, error) {
-	if opts.Mode == ModePlan {
-		return buildBidirectionalGroupFilePairs(opts, opts.AllowEmpty)
+	if opts.Mode == ModePlan || opts.Mode == ModeClean || opts.Mode == ModeDiff {
+		return BuildProjectGroupFilePairs(opts)
 	}
-	if opts.Mode == ModeClean {
-		return buildBidirectionalGroupFilePairs(opts, true)
-	}
-	if opts.Mode == ModeDiff {
-		opts.Mode = ModeEncrypt
-		return buildGroupFilePairs(opts, true)
-	}
-	return buildGroupFilePairs(opts, opts.AllowEmpty)
-}
-
-func buildGroupFilePairs(opts GroupOptions, allowEmpty bool) ([]FilePair, error) {
 	mode := strings.TrimSpace(opts.Mode)
 	if mode != ModeEncrypt && mode != ModeDecrypt {
 		return nil, fmt.Errorf("invalid group mode %q", opts.Mode)
 	}
-	if len(opts.Patterns) == 0 {
-		return nil, fmt.Errorf("group patterns must not be empty")
+	discovery := NewGroupDiscovery(opts)
+	if err := discovery.scan(); err != nil {
+		return nil, err
 	}
-
-	root := strings.TrimSpace(opts.Root)
-	if root == "" {
-		root = "."
-	}
-	info, err := os.Stat(root)
-	if err != nil {
-		return nil, fmt.Errorf("failed to stat group path %s: %w", root, err)
-	}
-	if !info.IsDir() {
-		return singleFilePair(root, mode, opts)
-	}
-
-	patterns := opts.Patterns
-	matcher, err := NewPatternMatcher(patterns)
+	pairs, err := discovery.pathPairs(mode)
 	if err != nil {
 		return nil, err
 	}
-	formatRules, err := parseFormatRules(opts.FormatRules)
-	if err != nil {
-		return nil, err
-	}
-	excludeMatcher, err := NewPatternMatcher(opts.Exclude)
-	if err != nil {
-		return nil, fmt.Errorf("invalid exclude: %w", err)
-	}
-
-	files := make([]string, 0)
-	excludedPaths := make(map[string]struct{}, len(opts.ExcludedPaths))
-	for _, excludedPath := range opts.ExcludedPaths {
-		excludedPaths[filepath.Clean(excludedPath)] = struct{}{}
-	}
-	if err := filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		if opts.Stats != nil {
-			opts.Stats.Entries++
-		}
-		if path == root {
-			if opts.Stats != nil {
-				opts.Stats.Directories++
-			}
-			return nil
-		}
-		if entry.IsDir() && (entry.Name() == ".git" || entry.Name() == ".jj") {
-			return filepath.SkipDir
-		}
-		if mode == ModeEncrypt && !entry.IsDir() {
-			if _, _, ok := fileformat.EncryptedStemAndFormat(entry.Name()); ok {
-				return nil
-			}
-			if _, excluded := excludedPaths[filepath.Clean(path)]; excluded {
-				return nil
-			}
-		}
-
-		rel, err := filepath.Rel(root, path)
-		if err != nil {
-			return err
-		}
-		rel = filepath.ToSlash(rel)
-		decided, included := matcher.Decision(rel, entry.IsDir())
-		_, excluded := excludeMatcher.Decision(rel, entry.IsDir())
-		if entry.IsDir() {
-			if excluded || (decided && !included) {
-				return filepath.SkipDir
-			}
-			if opts.Stats != nil {
-				opts.Stats.Directories++
-			}
-			return nil
-		}
-		if excluded || !decided || !included {
-			return nil
-		}
-		files = append(files, path)
-		return nil
-	}); err != nil {
-		return nil, fmt.Errorf("failed to scan %s: %w", root, err)
-	}
-
-	sort.Strings(files)
-	if len(files) == 0 && !allowEmpty {
-		return nil, fmt.Errorf("no files found in %s matching group patterns", root)
-	}
-
-	pairs := make([]FilePair, 0, len(files))
-	for _, file := range files {
-		rel, err := filepath.Rel(root, file)
-		if err != nil {
-			return nil, err
-		}
-		pair, err := groupFilePair(file, filepath.ToSlash(rel), mode, opts, formatRules)
-		if err != nil {
-			return nil, err
-		}
-		pairs = append(pairs, pair)
+	if len(pairs) == 0 && !opts.AllowEmpty {
+		return nil, fmt.Errorf("no files found in %s matching group patterns", discovery.root)
 	}
 	return pairs, nil
 }
 
-// GroupDiscovery reuses each side's discovery within one selection preparation.
-// Its options and the returned file pairs must not be mutated during that preparation.
+// GroupDiscovery scans and prunes a Group once per selection preparation.
+// It interprets each side only when requested. Its options and returned pairs
+// must not be mutated during that preparation.
 type GroupDiscovery struct {
 	opts           GroupOptions
+	root           string
+	scanned        bool
+	singleFile     bool
+	files          []string
+	matcher        PatternMatcher
+	excludeMatcher PatternMatcher
+	formatRules    []FormatRule
 	plaintextPairs []FilePair
 	encryptedPairs []FilePair
 	plaintextRead  bool
@@ -197,9 +103,17 @@ func NewGroupDiscovery(opts GroupOptions) *GroupDiscovery {
 	return &GroupDiscovery{opts: opts}
 }
 
-// FilePairs discovers the requested sides, allowing empty results and reusing
-// sides already read. Bidirectional modes prefer real plaintext paths.
+// FilePairs interprets the requested sides from one directory traversal,
+// allowing empty results. Bidirectional modes prefer real plaintext paths.
 func (d *GroupDiscovery) FilePairs(mode string) ([]FilePair, error) {
+	switch mode {
+	case ModeEncrypt, ModeDecrypt, ModeDiff, ModePlan, ModeClean:
+	default:
+		return nil, fmt.Errorf("invalid group mode %q", mode)
+	}
+	if err := d.scan(); err != nil {
+		return nil, err
+	}
 	switch mode {
 	case ModePlan, ModeClean:
 		plainPairs, err := d.FilePairs(ModeEncrypt)
@@ -215,157 +129,182 @@ func (d *GroupDiscovery) FilePairs(mode string) ([]FilePair, error) {
 		return d.FilePairs(ModeEncrypt)
 	case ModeEncrypt:
 		if !d.plaintextRead {
-			opts := d.opts
-			opts.Mode = ModeEncrypt
-			pairs, err := buildGroupFilePairs(opts, true)
+			pairs, err := d.pathPairs(ModeEncrypt)
 			if err != nil {
 				return nil, err
 			}
 			d.plaintextPairs, d.plaintextRead = pairs, true
 		}
 		return d.plaintextPairs, nil
-	case ModeDecrypt:
+	default:
 		if !d.encryptedRead {
-			opts := d.opts
-			opts.Mode = ModeDecrypt
-			pairs, err := buildProjectDecryptFilePairs(opts, true)
+			pairs, err := d.ciphertextPairs()
 			if err != nil {
 				return nil, err
 			}
 			d.encryptedPairs, d.encryptedRead = pairs, true
 		}
 		return d.encryptedPairs, nil
-	default:
-		return nil, fmt.Errorf("invalid group mode %q", mode)
 	}
 }
 
-func BuildProjectGroupFilePairs(opts GroupOptions) ([]FilePair, error) {
-	if opts.Mode != ModeDecrypt {
-		return BuildGroupFilePairs(opts)
+func (d *GroupDiscovery) scan() error {
+	if d.scanned {
+		return nil
 	}
-	return buildProjectDecryptFilePairs(opts, opts.AllowEmpty)
-}
-
-func buildProjectDecryptFilePairs(opts GroupOptions, allowEmpty bool) ([]FilePair, error) {
-	if len(opts.Patterns) == 0 {
-		return nil, fmt.Errorf("group patterns must not be empty")
+	if len(d.opts.Patterns) == 0 {
+		return fmt.Errorf("group patterns must not be empty")
 	}
-
-	root := strings.TrimSpace(opts.Root)
-	if root == "" {
-		root = "."
+	d.root = strings.TrimSpace(d.opts.Root)
+	if d.root == "" {
+		d.root = "."
 	}
-	info, err := os.Stat(root)
+	info, err := os.Stat(d.root)
 	if err != nil {
-		return nil, fmt.Errorf("failed to stat group path %s: %w", root, err)
+		return fmt.Errorf("failed to stat group path %s: %w", d.root, err)
 	}
 	if !info.IsDir() {
-		return BuildGroupFilePairs(opts)
+		d.singleFile, d.scanned = true, true
+		return nil
 	}
-
-	patterns := opts.Patterns
-	logicalMatcher, err := NewPatternMatcher(patterns)
+	d.matcher, err = NewPatternMatcher(d.opts.Patterns)
 	if err != nil {
-		return nil, err
+		return err
+	}
+	d.formatRules, err = parseFormatRules(d.opts.FormatRules)
+	if err != nil {
+		return err
+	}
+	d.excludeMatcher, err = NewPatternMatcher(d.opts.Exclude)
+	if err != nil {
+		return fmt.Errorf("invalid exclude: %w", err)
+	}
+	if err := filepath.WalkDir(d.root, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if d.opts.Stats != nil {
+			d.opts.Stats.Entries++
+		}
+		if path == d.root {
+			if d.opts.Stats != nil {
+				d.opts.Stats.Directories++
+			}
+			return nil
+		}
+		if entry.IsDir() && (entry.Name() == ".git" || entry.Name() == ".jj") {
+			return filepath.SkipDir
+		}
+		rel, err := filepath.Rel(d.root, path)
+		if err != nil {
+			return err
+		}
+		rel = filepath.ToSlash(rel)
+		if entry.IsDir() {
+			decided, included := d.matcher.Decision(rel, true)
+			_, excluded := d.excludeMatcher.Decision(rel, true)
+			if excluded || (decided && !included) {
+				return filepath.SkipDir
+			}
+			if d.opts.Stats != nil {
+				d.opts.Stats.Directories++
+			}
+			return nil
+		}
+		d.files = append(d.files, rel)
+		return nil
+	}); err != nil {
+		return fmt.Errorf("failed to scan %s: %w", d.root, err)
+	}
+	d.scanned = true
+	return nil
+}
+
+func (d *GroupDiscovery) pathPairs(mode string) ([]FilePair, error) {
+	if d.singleFile {
+		return singleFilePair(d.root, mode, d.opts)
+	}
+	excludedPaths := make(map[string]struct{}, len(d.opts.ExcludedPaths))
+	for _, path := range d.opts.ExcludedPaths {
+		excludedPaths[filepath.Clean(path)] = struct{}{}
+	}
+	pairs := make([]FilePair, 0)
+	for _, rel := range d.files {
+		path := filepath.Join(d.root, filepath.FromSlash(rel))
+		if mode == ModeEncrypt {
+			if _, _, ok := fileformat.EncryptedStemAndFormat(filepath.Base(path)); ok {
+				continue
+			}
+			if _, excluded := excludedPaths[filepath.Clean(path)]; excluded {
+				continue
+			}
+		}
+		decided, included := d.matcher.Decision(rel, false)
+		_, excluded := d.excludeMatcher.Decision(rel, false)
+		if excluded || !decided || !included {
+			continue
+		}
+		pair, err := groupFilePair(path, rel, mode, d.opts, d.formatRules)
+		if err != nil {
+			return nil, err
+		}
+		pairs = append(pairs, pair)
+	}
+	sort.Slice(pairs, func(i, j int) bool {
+		if mode == ModeDecrypt {
+			return pairs[i].EncryptedPath < pairs[j].EncryptedPath
+		}
+		return pairs[i].PlaintextPath < pairs[j].PlaintextPath
+	})
+	return pairs, nil
+}
+
+func (d *GroupDiscovery) ciphertextPairs() ([]FilePair, error) {
+	if d.singleFile {
+		return singleFilePair(d.root, ModeDecrypt, d.opts)
 	}
 	encryptedMatcher, err := NewPatternMatcher(protocolFilePatterns)
 	if err != nil {
 		return nil, err
 	}
-	formatRules, err := parseFormatRules(opts.FormatRules)
-	if err != nil {
-		return nil, err
-	}
-	excludeMatcher, err := NewPatternMatcher(opts.Exclude)
-	if err != nil {
-		return nil, fmt.Errorf("invalid exclude: %w", err)
-	}
-
 	pairs := make([]FilePair, 0)
-	if err := filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		if opts.Stats != nil {
-			opts.Stats.Entries++
-		}
-		if path == root {
-			if opts.Stats != nil {
-				opts.Stats.Directories++
-			}
-			return nil
-		}
-		if entry.IsDir() {
-			if entry.Name() == ".git" || entry.Name() == ".jj" {
-				return filepath.SkipDir
-			}
-			rel, err := filepath.Rel(root, path)
-			if err != nil {
-				return err
-			}
-			rel = filepath.ToSlash(rel)
-			decided, included := logicalMatcher.Decision(rel, true)
-			_, excluded := excludeMatcher.Decision(rel, true)
-			if excluded || (decided && !included) {
-				return filepath.SkipDir
-			}
-			if opts.Stats != nil {
-				opts.Stats.Directories++
-			}
-			return nil
-		}
-		encryptedRel, err := filepath.Rel(root, path)
-		if err != nil {
-			return err
-		}
-		decided, included := encryptedMatcher.Decision(filepath.ToSlash(encryptedRel), false)
+	for _, rel := range d.files {
+		decided, included := encryptedMatcher.Decision(rel, false)
 		if !decided || !included {
-			return nil
+			continue
 		}
-
-		pair, ok, err := projectDecryptPairForEncrypted(root, path, logicalMatcher, formatRules)
+		path := filepath.Join(d.root, filepath.FromSlash(rel))
+		pair, ok, err := projectDecryptPairForEncrypted(d.root, path, d.matcher, d.formatRules)
 		if err != nil {
-			return err
+			return nil, fmt.Errorf("failed to scan %s: %w", d.root, err)
 		}
-		if ok {
-			logicalRel, err := filepath.Rel(root, pair.PlaintextPath)
-			if err != nil {
-				return err
-			}
-			_, excluded := excludeMatcher.Decision(filepath.ToSlash(logicalRel), false)
-			if !excluded {
-				pairs = append(pairs, pair)
-			}
+		if !ok {
+			continue
 		}
-		return nil
-	}); err != nil {
-		return nil, fmt.Errorf("failed to scan %s: %w", root, err)
+		logicalRel, err := filepath.Rel(d.root, pair.PlaintextPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan %s: %w", d.root, err)
+		}
+		_, excluded := d.excludeMatcher.Decision(filepath.ToSlash(logicalRel), false)
+		if !excluded {
+			pairs = append(pairs, pair)
+		}
 	}
-
-	sort.Slice(pairs, func(i, j int) bool {
-		return pairs[i].EncryptedPath < pairs[j].EncryptedPath
-	})
-	if len(pairs) == 0 && !allowEmpty {
-		return nil, fmt.Errorf("no encrypted files found in %s matching group patterns", root)
-	}
+	sort.Slice(pairs, func(i, j int) bool { return pairs[i].EncryptedPath < pairs[j].EncryptedPath })
 	return pairs, nil
 }
 
-func buildBidirectionalGroupFilePairs(opts GroupOptions, allowEmpty bool) ([]FilePair, error) {
-	opts.Mode = ModeEncrypt
-	plainPairs, err := buildGroupFilePairs(opts, true)
+func BuildProjectGroupFilePairs(opts GroupOptions) ([]FilePair, error) {
+	discovery := NewGroupDiscovery(opts)
+	pairs, err := discovery.FilePairs(opts.Mode)
 	if err != nil {
 		return nil, err
 	}
-	opts.Mode = ModeDecrypt
-	encryptedPairs, err := buildProjectDecryptFilePairs(opts, true)
-	if err != nil {
-		return nil, err
-	}
-	pairs := mergeGroupFilePairs(plainPairs, encryptedPairs)
-	if len(pairs) == 0 && !allowEmpty {
-		return nil, fmt.Errorf("no files found in %s matching group patterns", opts.Root)
+	if len(pairs) == 0 && !opts.AllowEmpty && opts.Mode != ModeClean && opts.Mode != ModeDiff {
+		if opts.Mode == ModeDecrypt {
+			return nil, fmt.Errorf("no encrypted files found in %s matching group patterns", discovery.root)
+		}
+		return nil, fmt.Errorf("no files found in %s matching group patterns", discovery.root)
 	}
 	return pairs, nil
 }

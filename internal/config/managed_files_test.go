@@ -64,7 +64,7 @@ func TestResolveSelectionManagedFilesReuseDiscoveryAndPreserveCommandPaths(t *te
 			cfg.Encryption.Groups = []GroupConfig{{ConfigDir: cfg.CurrentDir, Patterns: []string{"*.yaml", "*.yml"}}}
 			selection, err := ResolveSelection(cfg, SelectionOptions{Command: command, PrepareManagedFiles: true})
 			require.NoError(t, err)
-			require.Equal(t, task.ScanStats{Entries: 6, Directories: 2}, selection.ScanStats)
+			require.Equal(t, task.ScanStats{Entries: 3, Directories: 1}, selection.ScanStats)
 			require.Len(t, selection.FilePairs, 1)
 			wantPlaintext := plain
 			if command == task.ModeDecrypt {
@@ -126,7 +126,7 @@ func TestResolveSelectionManagedFilesDiscoverAgainOnNextCall(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, second.FilePairs, 2)
 	require.Len(t, second.ManagedScopes[0].FilePairs, 2)
-	require.Equal(t, task.ScanStats{Entries: 6, Directories: 2}, second.ScanStats)
+	require.Equal(t, task.ScanStats{Entries: 3, Directories: 1}, second.ScanStats)
 	require.Len(t, first.ManagedScopes[0].FilePairs, 1)
 }
 

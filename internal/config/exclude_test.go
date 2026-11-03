@@ -95,7 +95,7 @@ func TestScanStatsAccumulateAcrossGroupsAndDoNotMutateConfig(t *testing.T) {
 		selection, err := SelectFilePairs(cfg, SelectionOptions{Command: task.ModePlan})
 		require.NoError(t, err)
 		visited := []string{".", "app.toml"}
-		require.Equal(t, task.ScanStats{Entries: len(visited) * len(cfg.Encryption.Groups) * 2, Directories: len(cfg.Encryption.Groups) * 2}, selection.ScanStats)
+		require.Equal(t, task.ScanStats{Entries: len(visited) * len(cfg.Encryption.Groups), Directories: len(cfg.Encryption.Groups)}, selection.ScanStats)
 		require.Len(t, selection.FilePairs, 1)
 	}
 }

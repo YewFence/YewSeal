@@ -35,12 +35,8 @@ func TestGroupExcludePrunesBothDirectionsAndCountsActualVisits(t *testing.T) {
 			}
 			visited := []string{".", ".git", ".jj", "target", "open", "app.toml", "app.enc.toml", "open/keep.toml", "open/keep.enc.toml"}
 			expanded := []string{".", "open"}
-			scans := 1
-			if mode == ModePlan || mode == ModeClean {
-				scans = 2
-			}
-			require.Equal(t, len(visited)*scans, stats.Entries)
-			require.Equal(t, len(expanded)*scans, stats.Directories)
+			require.Equal(t, len(visited), stats.Entries)
+			require.Equal(t, len(expanded), stats.Directories)
 		})
 	}
 }

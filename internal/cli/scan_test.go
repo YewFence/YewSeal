@@ -19,14 +19,14 @@ func TestScanningCommandsReportOneVerboseSummaryOnStderr(t *testing.T) {
 		args  []string
 		scans int
 	}{
-		{name: "encrypt reuses metadata scans", args: []string{"encrypt", "-v", "--force"}, scans: 2},
-		{name: "decrypt reuses metadata scans", args: []string{"decrypt", "-v"}, scans: 2},
+		{name: "encrypt reuses metadata scans", args: []string{"encrypt", "-v", "--force"}, scans: 1},
+		{name: "decrypt reuses metadata scans", args: []string{"decrypt", "-v"}, scans: 1},
 		{name: "decrypt", args: []string{"decrypt", "-v", "--update-gitignore=false"}, scans: 1},
-		{name: "clean", args: []string{"clean", "-v", "--force"}, scans: 2},
+		{name: "clean", args: []string{"clean", "-v", "--force"}, scans: 1},
 		{name: "diff", args: []string{"diff", "-v"}, scans: 1},
 		{name: "view", args: []string{"view", "app.toml", "-v"}, scans: 1},
 		{name: "edit", args: []string{"edit", "-f", "app.toml", "-v"}, scans: 1},
-		{name: "verify", args: []string{"verify", "-v", "--no-decrypt", "--sync-sops-config=false"}, scans: 2},
+		{name: "verify", args: []string{"verify", "-v", "--no-decrypt", "--sync-sops-config=false"}, scans: 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			clearCLIEnvironment(t)
