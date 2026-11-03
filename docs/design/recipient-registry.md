@@ -347,7 +347,9 @@ recipients = ["ops"]
 
 ## 配置合并与来源
 
-当前配置加载机制会按 Git 根目录到当前目录加载配置，并合并多份 `.yewseal.toml`。
+在 Git 或 jj 仓库内，配置加载会发现并合并整个仓库中符合条件的 `.yewseal.toml`，即使命令从子目录执行；无位置参数时的操作范围仍由当前目录限定。配置按父目录优先、同深度路径字典序加载。完整发现范围、每个目录的配置位置优先级和加载顺序见[配置发现与加载顺序](../src/content/docs/guide/configuration.md#config-discovery-and-loading-order)。
+
+仓库枚举失败时，只使用从仓库根目录到当前目录直接找到的配置并报告降级警告；无法确定该搜索路径时退回当前目录。仓库外也只查找当前目录。降级状态及 verify 的处理遵循 [VCS 辅助配置发现的降级决策](vcs-config-discovery-degradation.md)。
 
 ### Registry 合并
 

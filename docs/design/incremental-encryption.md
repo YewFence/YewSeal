@@ -148,7 +148,7 @@ Summary (encrypted): 2 encrypted, 3 unchanged, 1 missing plaintext, 0 failed (6 
 
 `encrypted` 表示目标密文实际写入，包括首次创建、增量更新、recipient 更新和无 identity 降级重建；`unchanged` 表示内容与 recipients 都已验证一致；`missing plaintext` 表示未处理，不能解释为已同步。
 
-默认 stderr 打印 warning、missing、failed 和 summary；`encrypted` 与 `unchanged` 的逐文件明细只在 verbose 模式打印。stdout 保持为空。输出通道故障继续遵循[命令输出的所有权与失败语义](command-output.md)。
+默认 stderr 打印 warning、`encrypted` 逐文件结果、missing、failed 和 summary；`unchanged` 默认只计入 summary，verbose 模式额外打印其逐文件明细、选择信息和实际扫描统计。默认 stdout 为空；`--json` 将批处理报告写入 stdout，stderr 输出保持不变。命令输出契约以 [`encrypt --help`](../src/content/docs/references/yews_encrypt.md) 为准；输出通道故障继续遵循[命令输出的所有权与失败语义](command-output.md)。
 
 ## SOPS MAC 兼容性修正
 
