@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/YewFence/YewSeal/internal/fileformat"
-	"github.com/YewFence/YewSeal/internal/seal"
 )
 
 const (
@@ -20,19 +19,6 @@ const (
 	ModeClean   = "clean"
 	ModeVerify  = "verify"
 )
-
-// protocolFilePatterns is how decryption discovers ciphertext: YewSeal
-// protocol files are recognized by their .enc.* suffix. This is the discovery
-// mechanism, not a user-facing default — group patterns are always required
-// and filter the logical plaintext paths.
-var protocolFilePatterns = []string{
-	"*.enc.toml",
-	"*.enc.yaml",
-	"*.enc.json",
-	"*.enc.env",
-	"*.enc.ini",
-	"*.enc.bin",
-}
 
 // ScanStats counts successful WalkDir visits and directories expanded across scans.
 type ScanStats struct {
@@ -263,7 +249,7 @@ func (d *GroupDiscovery) ciphertextPairs() ([]FilePair, error) {
 	if d.singleFile {
 		return singleFilePair(d.root, ModeDecrypt, d.opts)
 	}
-	encryptedMatcher, err := NewPatternMatcher(protocolFilePatterns)
+	encryptedMatcher, err := NewPatternMatcher(fileformat.EncryptedPatterns())
 	if err != nil {
 		return nil, err
 	}
@@ -413,7 +399,7 @@ func parseFormatRules(values []string) ([]FormatRule, error) {
 		if len(parts) != 2 || strings.TrimSpace(parts[0]) == "" || strings.TrimSpace(parts[1]) == "" {
 			return nil, fmt.Errorf("invalid format rule %q: expected <pattern>=<format>", raw)
 		}
-		format, ok := seal.NormalizeFormatOverride(parts[1])
+		format, ok := fileformat.Normalize(parts[1])
 		if !ok {
 			return nil, fmt.Errorf("invalid format rule %q: unsupported format %q", raw, parts[1])
 		}
@@ -435,13 +421,13 @@ func resolveEncryptGroupFormat(path, matchPath string, rules []FormatRule, unkno
 	if format != "" {
 		return format, nil
 	}
-	if detected, ok := seal.NormalizeFormatForPath(path); ok {
+	if detected, ok := fileformat.Detect(path); ok {
 		return detected, nil
 	}
 	if unknownAsBinary {
 		return "binary", nil
 	}
-	return "", fmt.Errorf("could not detect format for %s; add --format-rule <pattern>=<format> or use --unknown-as-binary", path)
+	return "", fmt.Errorf("could not detect format for %s; declare format_rules or unknown_as_binary in the group's configuration", path)
 }
 
 func resolveFormatRule(matchPath string, rules []FormatRule) string {

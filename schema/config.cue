@@ -26,7 +26,7 @@ package schema
 // #Format lists the encrypted file formats supported by YewSeal.
 // Beyond the canonical names, runtime aliases are accepted
 // (yml→yaml, dotenv→env, bin→binary), kept consistent with
-// internal/seal.FormatSpellings (enforced by a Go test); the runtime
+// internal/fileformat.Spellings (enforced by a Go test); the runtime
 // normalizes aliases to canonical names.
 #Format: "toml" | "yaml" | "yml" | "json" | "env" | "dotenv" | "ini" | "binary" | "bin"
 

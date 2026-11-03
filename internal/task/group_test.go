@@ -36,6 +36,33 @@ func TestBuildGroupFilePairsUsesPatternsAndFormatRules(t *testing.T) {
 	assert.Equal(t, "toml", pairs[1].Format)
 }
 
+func TestGroupFormatRulesLastMatchWins(t *testing.T) {
+	root := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(root, "secret.conf"), []byte("TOKEN=value\n"), 0600))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "secret.conf.enc.env"), []byte("ciphertext"), 0600))
+	for _, mode := range []string{ModeEncrypt, ModeDecrypt, ModePlan} {
+		pairs, err := BuildProjectGroupFilePairs(GroupOptions{
+			Root: root, Patterns: []string{"*.conf"},
+			FormatRules: []string{"*.conf=ini", "secret.conf=dotenv"}, Mode: mode,
+		})
+		require.NoError(t, err)
+		require.Len(t, pairs, 1)
+		assert.Equal(t, "env", pairs[0].Format)
+		assert.Equal(t, filepath.Join(root, "secret.conf.enc.env"), pairs[0].EncryptedPath)
+	}
+}
+
+func TestGroupCustomFilenameUsesProtocolCandidateWhenPatternMatchesBoth(t *testing.T) {
+	root := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(root, ".dev.vars.enc.env"), []byte("ciphertext"), 0600))
+	pairs, err := BuildProjectGroupFilePairs(GroupOptions{
+		Root: root, Patterns: []string{".dev.vars*"}, FormatRules: []string{".dev.vars*=env"}, Mode: ModeDecrypt,
+	})
+	require.NoError(t, err)
+	require.Len(t, pairs, 1)
+	assert.Equal(t, filepath.Join(root, ".dev.vars.env"), pairs[0].PlaintextPath)
+}
+
 func TestBuildGroupFilePairsRejectsEmptyPatternsBeforeRootDispatch(t *testing.T) {
 	dir := t.TempDir()
 	file := filepath.Join(dir, "app.toml")

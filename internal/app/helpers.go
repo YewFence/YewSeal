@@ -2,6 +2,7 @@ package app
 
 import (
 	"github.com/YewFence/YewSeal/internal/config"
+	"github.com/YewFence/YewSeal/internal/fileformat"
 	"github.com/YewFence/YewSeal/internal/presentation"
 	"github.com/YewFence/YewSeal/internal/seal"
 	"github.com/YewFence/YewSeal/internal/task"
@@ -13,10 +14,10 @@ func ValidateCLIFormatOverride(format string) (string, error) {
 }
 
 type ViewRequest struct {
-	Target   string
-	KeyFile  string
-	Verbose  bool
-	JSON     bool
+	Target  string
+	KeyFile string
+	Verbose bool
+	JSON    bool
 }
 
 func ViewTarget(w, diagnostics io.Writer, cfg *config.Config, req ViewRequest) (err error) {
@@ -44,7 +45,7 @@ func ViewTarget(w, diagnostics io.Writer, cfg *config.Config, req ViewRequest) (
 
 	if req.JSON {
 		format := filePair.Format
-		if normalized, ok := seal.NormalizeFormatOverride(format); ok {
+		if normalized, ok := fileformat.Normalize(format); ok {
 			format = normalized
 		}
 		return out.ViewReportJSON(filePair.EncryptedPath, format, plainData)

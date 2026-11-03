@@ -12,8 +12,10 @@ with its first config entry, optionally sync .sops.yaml, and update
 
 Run without flags for interactive mode: YewSeal asks whether to rebuild
 an existing configuration, whether to create .sops.yaml, and records
-one or more plaintext/encrypted mappings. Passing --input or --output
-switches to non-interactive mode for scripts. An explicit
+one or more plaintext/encrypted mappings. For each mapping, it asks for
+the plaintext path, requires a format if the extension is unknown, then
+asks for the encrypted path. Empty or unsupported format answers are retried.
+Passing --input or --output switches to non-interactive mode for scripts. An explicit
 --sync-sops-config value skips its interactive question.
 
 The new configuration and its managed files belong to the current directory.
@@ -31,9 +33,11 @@ Generated files:
   .gitignore    managed block rebuilt from the new mappings and default
                  key path; skipped with --update-gitignore=false
 
-When only --input is given, the encrypted file name is inferred
-(config.toml becomes config.enc.toml; other formats use the matching
-.enc.* suffix).
+When only --input is given, the encrypted path keeps the input directory
+and uses the configured or inferred format's .enc.* suffix: config.toml
+becomes config.enc.toml, config.yml becomes config.enc.yaml, and
+.dev.vars with --format env becomes .dev.vars.enc.env. --output records
+the supplied path without renaming it.
 
 --force rebuilds keys, recipient registry, defaults, file entries, and,
 when synchronization is enabled, the managed .sops.yaml; old aliases and

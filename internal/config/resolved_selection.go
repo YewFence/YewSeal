@@ -6,7 +6,6 @@ import (
 
 	"github.com/YewFence/YewSeal/internal/errx"
 	"github.com/YewFence/YewSeal/internal/fileformat"
-	"github.com/YewFence/YewSeal/internal/seal"
 	"github.com/YewFence/YewSeal/internal/task"
 )
 
@@ -280,7 +279,7 @@ func resolveFinalFormat(filePair FilePair) (string, ValueSource, error) {
 		return normalized, ValueSource{Kind: ValueSourceScan}, nil
 	}
 
-	if format, ok := seal.NormalizeFormatForPath(filePair.PlaintextPath); ok {
+	if format, ok := fileformat.Detect(filePair.PlaintextPath); ok {
 		return format, ValueSource{Kind: ValueSourceFilename}, nil
 	}
 	if _, format, err := fileformat.PlaintextPathForEncrypted(filePair.EncryptedPath, ""); err == nil {

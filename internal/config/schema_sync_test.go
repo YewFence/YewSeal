@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/YewFence/YewSeal/internal/seal"
+	"github.com/YewFence/YewSeal/internal/fileformat"
 	toml "github.com/pelletier/go-toml/v2"
 	"github.com/stretchr/testify/require"
 )
@@ -178,7 +178,7 @@ func isStringSchema(defs map[string]jsonSchema, schema jsonSchema) bool {
 }
 
 // TestSchemaFormatsMatchRuntime verifies the schema and runtime format contract
-// agree, with seal.FormatSpellings as the runtime single source of truth:
+// agree, with fileformat.Spellings as the runtime single source of truth:
 //   - FilePair.format's enum covers exactly the spellings the runtime accepts
 //     (bidirectional: a missing value lets a workable config be judged invalid,
 //     an extra value misleads users)
@@ -186,7 +186,7 @@ func isStringSchema(defs map[string]jsonSchema, schema jsonSchema) bool {
 //     unknown formats
 func TestSchemaFormatsMatchRuntime(t *testing.T) {
 	schema := loadJSONSchema(t)
-	spellings := seal.FormatSpellings()
+	spellings := fileformat.Spellings()
 
 	formatRef := schema.Defs["FilePair"].Properties["format"].Ref
 	formatDef, ok := schema.Defs[strings.TrimPrefix(formatRef, "#/$defs/")]

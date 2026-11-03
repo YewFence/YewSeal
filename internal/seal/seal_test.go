@@ -264,7 +264,7 @@ func TestEncryptUnknownFormatFailsWithBinaryHint(t *testing.T) {
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "could not detect format for secret.blob")
-	assert.Contains(t, err.Error(), "Hint: pass --format binary")
+	assert.Contains(t, err.Error(), "Declare a format in .yewseal.toml; use binary")
 }
 
 func TestDecryptToBytesUnknownFormatFailsWithBinaryHint(t *testing.T) {
@@ -290,7 +290,7 @@ func TestDecryptToBytesUnknownFormatFailsWithBinaryHint(t *testing.T) {
 	require.Error(t, decryptErr)
 	assert.Empty(t, stdout)
 	assert.Contains(t, decryptErr.Error(), "could not detect format for secret.vars")
-	assert.Contains(t, decryptErr.Error(), "Hint: pass --format binary")
+	assert.Contains(t, decryptErr.Error(), "Declare a format in .yewseal.toml; use binary")
 }
 
 func TestEncryptDecryptBinaryOverrideRoundTrip(t *testing.T) {

@@ -86,7 +86,7 @@
             ]
         },
         "Format": {
-            "description": "#Format lists the encrypted file formats supported by YewSeal.\nBeyond the canonical names, runtime aliases are accepted\n(yml→yaml, dotenv→env, bin→binary), kept consistent with\ninternal/seal.FormatSpellings (enforced by a Go test); the runtime\nnormalizes aliases to canonical names.",
+            "description": "#Format lists the encrypted file formats supported by YewSeal.\nBeyond the canonical names, runtime aliases are accepted\n(yml→yaml, dotenv→env, bin→binary), kept consistent with\ninternal/fileformat.Spellings (enforced by a Go test); the runtime\nnormalizes aliases to canonical names.",
             "enum": [
                 "toml",
                 "yaml",

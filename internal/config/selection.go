@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/YewFence/YewSeal/internal/fileformat"
-	"github.com/YewFence/YewSeal/internal/seal"
 	"github.com/YewFence/YewSeal/internal/task"
 )
 
@@ -111,7 +110,7 @@ func ValidateFormatOverride(format string) (string, error) {
 	if strings.TrimSpace(format) == "" {
 		return "", nil
 	}
-	parsed, ok := seal.NormalizeFormatOverride(format)
+	parsed, ok := fileformat.Normalize(format)
 	if !ok {
 		return "", fmt.Errorf("unsupported format %q (supported: toml, yaml, json, env, ini, binary)", format)
 	}
@@ -549,7 +548,7 @@ func effectiveFormat(path, formatOverride string) (string, error) {
 	if formatOverride != "" {
 		return formatOverride, nil
 	}
-	format, ok := seal.NormalizeFormatForPath(path)
+	format, ok := fileformat.Detect(path)
 	if !ok {
 		return "", fmt.Errorf("could not detect format for %s (supported: toml, yaml, json, env, ini, binary)", path)
 	}

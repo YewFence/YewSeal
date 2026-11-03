@@ -135,7 +135,7 @@ unknown_as_binary = false
 
 `patterns` is required and uses the gitignore dialect: `*`, `?`, `**`, and `!` exclusions; a leading `/` anchors a rule to the group's discovery root, and a trailing `/` restricts a rule to directories. Path separators are `/` on every platform including Windows; `\` retains its glob escape meaning. Encryption groups exclude [protocol files](#file-naming-conventions) and the `encrypted` paths of explicit file pairs. Decryption discovers ciphertext by those suffixes and filters it through `patterns` applied to the logical plaintext paths.
 
-`format_rules` uses `<pattern>=<format>` entries; the first matching rule decides the format, and the values are the same as `format`. When `unknown_as_binary` is `true`, files whose format cannot be recognized during group encryption are treated as binary. A group's `plaintext_mode` classifies every mapping it discovers; see [Plaintext classification](#plaintext-classification).
+`format_rules` uses `<pattern>=<format>` entries; the last matching rule decides the format, and the values are the same as `format`. When `unknown_as_binary` is `true`, files whose format cannot be recognized during group encryption are treated as binary. A group's `plaintext_mode` classifies every mapping it discovers; see [Plaintext classification](#plaintext-classification).
 
 To select part of a group for an operation, use the [target-selection rules](/guide/target-selection).
 
@@ -317,4 +317,8 @@ Never commit private key files. Different developers and environments may hold i
 
 ### File naming conventions
 
-Use a protocol-file suffix for encrypted group files: `.enc.toml`, `.enc.yaml`, `.enc.json`, `.enc.env`, `.enc.ini`, or `.enc.bin`, according to the configured format. For example, `config.toml` becomes `config.enc.toml` and `.env` becomes `.env.enc.env`. Group scanning recognizes these names as ciphertext.
+Use a protocol-file suffix for encrypted group files: `.enc.toml`, `.enc.yaml`, `.enc.json`, `.enc.env`, `.enc.ini`, or `.enc.bin`, according to the configured format. For example, `config.toml` becomes `config.enc.toml` and `.env` becomes `.env.enc.env`. Group scanning recognizes these names as ciphertext. `init` uses the same convention for its default encrypted path, keeping the input directory; an explicit output path is recorded as given.
+
+:::caution[Group filenames are not always reversible]
+The naming convention identifies the storage format but does not record the original plaintext filename. When only ciphertext remains, a group infers a logical plaintext path from the suffix and its `patterns`; `format_rules` and `unknown_as_binary` do not preserve the original name. Broad patterns can accept a different inferred path: with `patterns = [".dev.vars*"]` and `format_rules = [".dev.vars*=env"]`, `.dev.vars` encrypts to `.dev.vars.enc.env`, but decrypting that ciphertext alone writes `.dev.vars.env` successfully. Normalized extensions such as `.yml` can also lose their original spelling. Use an explicit `[[encryption.files]]` mapping when decryption must restore a fixed path.
+:::

@@ -185,42 +185,19 @@ func TestCollectInitFilePairs_NonInteractiveAmbiguousFormatRequiresOverride(t *t
 	assert.Contains(t, err.Error(), "Hint: pass --format binary")
 }
 
-func TestDefaultEncryptedOutputNameForFile(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    string
-		expected string
-	}{
-		{
-			name:     "toml_adds_yaml_suffix",
-			input:    "app.toml",
-			expected: "app.enc.toml",
-		},
-		{
-			name:     "yaml_keeps_native_extension",
-			input:    "config.yaml",
-			expected: "config.enc.yaml",
-		},
-		{
-			name:     "json_keeps_native_extension",
-			input:    "config.json",
-			expected: "config.enc.json",
-		},
-		{
-			name:     "unknown_extension_keeps_original_extension",
-			input:    ".dev.vars",
-			expected: ".dev.enc.vars",
-		},
-		{
-			name:     "no_extension_appends_enc",
-			input:    "secrets",
-			expected: "secrets.enc",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.expected, defaultEncryptedOutputNameForFile(tt.input))
+func TestInitDefaultEncryptedPathUsesFormatProtocol(t *testing.T) {
+	for _, tc := range []struct{ input, format, encrypted string }{
+		{"app.toml", "", "app.enc.toml"},
+		{"config.yml", "", "config.enc.yaml"},
+		{".dev.vars", "dotenv", ".dev.vars.enc.env"},
+		{"secrets", "binary", "secrets.enc.bin"},
+		{"secrets/config.yaml", "", "secrets/config.enc.yaml"},
+		{"config.yaml", "json", "config.yaml.enc.json"},
+	} {
+		t.Run(tc.input+"_"+tc.format, func(t *testing.T) {
+			pair, err := testInitializer().newInitFilePair(tc.input, "", tc.format, false)
+			require.NoError(t, err)
+			assert.Equal(t, tc.encrypted, filepath.ToSlash(pair.EncryptedPath))
 		})
 	}
 }
@@ -247,7 +224,7 @@ func TestCollectInitFilePairs_InteractiveMultiple(t *testing.T) {
 	}()
 	defer func() { os.Stdin = oldStdin }()
 
-	_, err = inputFile.WriteString("app.toml\n\nY\n.dev.vars\n.dev.vars.enc.yaml\nenv\nn\n")
+	_, err = inputFile.WriteString("app.toml\n\nY\n.dev.vars\nenv\n.dev.vars.enc.yaml\nn\n")
 	require.NoError(t, err)
 	_, err = inputFile.Seek(0, 0)
 	require.NoError(t, err)
@@ -273,7 +250,7 @@ func TestCollectInitSelections_InteractiveExamplePerFile(t *testing.T) {
 	}()
 	defer func() { os.Stdin = oldStdin }()
 
-	_, err = inputFile.WriteString("app.toml\n\ny\ny\n.dev.vars\n.dev.vars.enc.yaml\nenv\nn\nn\n")
+	_, err = inputFile.WriteString("app.toml\n\ny\ny\n.dev.vars\nenv\n.dev.vars.enc.yaml\nn\nn\n")
 	require.NoError(t, err)
 	_, err = inputFile.Seek(0, 0)
 	require.NoError(t, err)

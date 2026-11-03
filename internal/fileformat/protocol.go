@@ -4,152 +4,106 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
-
-	"github.com/YewFence/YewSeal/internal/seal"
 )
 
+// EncryptPathForPlaintext generates a ciphertext path using the naming protocol.
+// An empty format is inferred from the plaintext extension.
 func EncryptPathForPlaintext(path, formatOverride string) (string, error) {
 	format := formatOverride
-	detected := ""
+	detected, _ := Detect(path)
 	if format == "" {
-		pathFormat, ok := seal.NormalizeFormatForPath(path)
-		if !ok {
+		if detected == "" {
 			return "", fmt.Errorf("could not detect format for %s", path)
 		}
-		format = pathFormat
-		detected = pathFormat
-	} else {
-		detected, _ = seal.NormalizeFormatForPath(path)
+		format = detected
 	}
-
-	dir := filepath.Dir(path)
-	base := filepath.Base(path)
-	ext := filepath.Ext(base)
-	name := strings.TrimSuffix(base, ext)
-	if detected != format {
-		name = base
-	}
-
-	switch format {
-	case "toml":
-		return filepath.Join(dir, name+".enc.toml"), nil
-	case "yaml":
-		if strings.EqualFold(ext, ".yml") {
-			name = strings.TrimSuffix(base, ext)
-		}
-		return filepath.Join(dir, name+".enc.yaml"), nil
-	case "json":
-		return filepath.Join(dir, name+".enc.json"), nil
-	case "env":
-		return filepath.Join(dir, name+".enc.env"), nil
-	case "ini":
-		return filepath.Join(dir, name+".enc.ini"), nil
-	case "binary":
-		if ext == "" {
-			name = base
-		}
-		return filepath.Join(dir, name+".enc.bin"), nil
-	default:
+	canonical, ok := Normalize(format)
+	if !ok {
 		return "", fmt.Errorf("unsupported format %q", format)
 	}
+	base := filepath.Base(path)
+	name := base
+	if detected == canonical {
+		name = strings.TrimSuffix(base, filepath.Ext(base))
+	}
+	return filepath.Join(filepath.Dir(path), name+".enc."+formatSuffix(canonical)), nil
 }
 
+// PlaintextPathForEncrypted infers a plaintext path and canonical format.
+// The naming protocol cannot recover every original plaintext filename.
 func PlaintextPathForEncrypted(path, formatOverride string) (string, string, error) {
 	if formatOverride != "" {
-		plaintextPath, err := plaintextPathForEncryptedWithFormat(path, formatOverride)
-		return plaintextPath, formatOverride, err
-	}
-
-	dir := filepath.Dir(path)
-	base := filepath.Base(path)
-	suffixes := []struct {
-		encryptedSuffix string
-		plaintextSuffix string
-		format          string
-	}{
-		{".enc.toml", ".toml", "toml"},
-		{".enc.yaml", ".yaml", "yaml"},
-		{".enc.json", ".json", "json"},
-		{".enc.env", ".env", "env"},
-		{".enc.ini", ".ini", "ini"},
-		{".enc.bin", ".bin", "binary"},
-	}
-	for _, suffix := range suffixes {
-		if strings.HasSuffix(strings.ToLower(base), suffix.encryptedSuffix) {
-			name := base[:len(base)-len(suffix.encryptedSuffix)]
-			return filepath.Join(dir, name+suffix.plaintextSuffix), suffix.format, nil
+		format, ok := Normalize(formatOverride)
+		if !ok {
+			return "", "", fmt.Errorf("unsupported format %q", formatOverride)
 		}
+		return plaintextPathForEncryptedWithFormat(path, format), format, nil
 	}
-	return "", "", fmt.Errorf("encrypted filename %s does not follow the yewseal group protocol; add a format rule to make the plaintext format unambiguous", path)
+	stem, format, ok := EncryptedStemAndFormat(filepath.Base(path))
+	if !ok {
+		return "", "", fmt.Errorf("encrypted filename %s does not follow the yewseal group protocol; declare an explicit file mapping for a custom ciphertext name", path)
+	}
+	return filepath.Join(filepath.Dir(path), stem+"."+formatSuffix(format)), format, nil
 }
 
+// PlaintextStemPathForEncrypted removes a recognized ciphertext protocol suffix.
 func PlaintextStemPathForEncrypted(path string) (string, string, bool) {
-	dir := filepath.Dir(path)
-	base := filepath.Base(path)
-	stem, format, ok := EncryptedStemAndFormat(base)
+	stem, format, ok := EncryptedStemAndFormat(filepath.Base(path))
 	if !ok {
 		return "", "", false
 	}
-	return filepath.Join(dir, stem), format, true
+	return filepath.Join(filepath.Dir(path), stem), format, true
 }
 
-func EncryptedStemAndFormat(base string) (string, string, bool) {
-	suffixes := []struct {
-		encryptedSuffix string
-		format          string
-	}{
-		{".enc.toml", "toml"},
-		{".enc.yaml", "yaml"},
-		{".enc.json", "json"},
-		{".enc.env", "env"},
-		{".enc.ini", "ini"},
-		{".enc.bin", "binary"},
+// EncryptedPatterns returns the filename patterns used for Group discovery.
+func EncryptedPatterns() []string {
+	patterns := make([]string, 0, len(formats))
+	for _, format := range formats {
+		patterns = append(patterns, "*.enc."+format.suffix)
 	}
+	return patterns
+}
+
+// EncryptedStemAndFormat recognizes the protocol suffix of a ciphertext filename.
+func EncryptedStemAndFormat(base string) (string, string, bool) {
 	lowerBase := strings.ToLower(base)
-	for _, suffix := range suffixes {
-		if strings.HasSuffix(lowerBase, suffix.encryptedSuffix) {
-			return base[:len(base)-len(suffix.encryptedSuffix)], suffix.format, true
+	for _, format := range formats {
+		suffix := ".enc." + format.suffix
+		if strings.HasSuffix(lowerBase, suffix) {
+			return base[:len(base)-len(suffix)], format.name, true
 		}
 	}
 	return "", "", false
 }
 
-func plaintextPathForEncryptedWithFormat(path, format string) (string, error) {
-	dir := filepath.Dir(path)
-	base := filepath.Base(path)
-	lowerBase := strings.ToLower(base)
-	suffix := ".enc." + encryptedFormatSuffix(format)
-	if strings.HasSuffix(lowerBase, suffix) {
+func plaintextPathForEncryptedWithFormat(path, format string) string {
+	dir, base := filepath.Dir(path), filepath.Base(path)
+	suffix := ".enc." + formatSuffix(format)
+	if strings.HasSuffix(strings.ToLower(base), suffix) {
 		name := base[:len(base)-len(suffix)]
 		if filepath.Ext(name) != "" {
-			return filepath.Join(dir, name), nil
+			return filepath.Join(dir, name)
 		}
-		return filepath.Join(dir, name+"."+plaintextFormatSuffix(format)), nil
+		return filepath.Join(dir, name+"."+formatSuffix(format))
 	}
 	if stem, _, ok := EncryptedStemAndFormat(base); ok {
 		if filepath.Ext(stem) != "" {
-			return filepath.Join(dir, stem), nil
+			return filepath.Join(dir, stem)
 		}
-		return filepath.Join(dir, stem+"."+plaintextFormatSuffix(format)), nil
+		return filepath.Join(dir, stem+"."+formatSuffix(format))
 	}
-	ext := filepath.Ext(base)
-	name := strings.TrimSuffix(base, ext)
+	name := strings.TrimSuffix(base, filepath.Ext(base))
 	if strings.HasSuffix(strings.ToLower(name), ".enc") {
 		name = name[:len(name)-len(".enc")]
 	}
-	return filepath.Join(dir, name+"."+plaintextFormatSuffix(format)), nil
+	return filepath.Join(dir, name+"."+formatSuffix(format))
 }
 
-func encryptedFormatSuffix(format string) string {
-	if format == "binary" {
-		return "bin"
+func formatSuffix(name string) string {
+	for _, format := range formats {
+		if format.name == name {
+			return format.suffix
+		}
 	}
-	return format
-}
-
-func plaintextFormatSuffix(format string) string {
-	if format == "binary" {
-		return "bin"
-	}
-	return format
+	panic("non-canonical format: " + name)
 }

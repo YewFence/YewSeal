@@ -23,6 +23,10 @@ func TestGroupPathProtocol(t *testing.T) {
 		{input: "config.binary", expected: "config.enc.bin"},
 		{input: ".dev.vars", format: "env", expected: ".dev.vars.enc.env"},
 		{input: "secret", format: "env", expected: "secret.enc.env"},
+		{input: "secrets/config.yml", expected: "secrets/config.enc.yaml"},
+		{input: "secret.data", format: "bin", expected: "secret.data.enc.bin"},
+		{input: ".dev.vars", format: "dotenv", expected: ".dev.vars.enc.env"},
+		{input: "config.yaml", format: "json", expected: "config.yaml.enc.json"},
 	}
 
 	for _, tt := range encryptTests {
@@ -44,6 +48,8 @@ func TestGroupPathProtocol(t *testing.T) {
 		{input: "config.enc.env", expected: "config.env", format: "env"},
 		{input: "config.enc.ini", expected: "config.ini", format: "ini"},
 		{input: "config.enc.bin", expected: "config.bin", format: "binary"},
+		{input: ".enc.env", expected: ".env", format: "env"},
+		{input: "secrets/.enc.env", expected: "secrets/.env", format: "env"},
 	}
 
 	for _, tt := range decryptTests {
@@ -54,6 +60,48 @@ func TestGroupPathProtocol(t *testing.T) {
 			assert.Equal(t, tt.format, format)
 		})
 	}
+}
+
+func TestEncryptedPatternsReturnsIndependentCopy(t *testing.T) {
+	want := []string{"*.enc.toml", "*.enc.yaml", "*.enc.json", "*.enc.env", "*.enc.ini", "*.enc.bin"}
+	got := EncryptedPatterns()
+	require.Equal(t, want, got)
+	got[0] = "changed"
+	assert.Equal(t, want, EncryptedPatterns())
+}
+
+func TestEncryptedProtocolRecognizesAllFormats(t *testing.T) {
+	for _, format := range []string{"toml", "yaml", "json", "env", "ini", "binary"} {
+		path, err := EncryptPathForPlaintext("secret", format)
+		require.NoError(t, err)
+		stem, got, ok := EncryptedStemAndFormat(path)
+		require.True(t, ok)
+		assert.Equal(t, "secret", stem)
+		assert.Equal(t, format, got)
+	}
+	_, _, ok := EncryptedStemAndFormat("secret.enc.xml")
+	assert.False(t, ok)
+}
+
+func TestPlaintextPathForEncryptedUsesExplicitFormat(t *testing.T) {
+	for _, tc := range []struct{ path, format, plaintext, canonical string }{
+		{".dev.vars.enc.env", "dotenv", ".dev.vars", "env"},
+		{"secret.enc.bin", "bin", "secret.bin", "binary"},
+		{"secret.enc.yaml", "env", "secret.env", "env"},
+		{"secret.sops", "env", "secret.env", "env"},
+	} {
+		path, format, err := PlaintextPathForEncrypted(tc.path, tc.format)
+		require.NoError(t, err)
+		assert.Equal(t, tc.plaintext, path)
+		assert.Equal(t, tc.canonical, format)
+	}
+}
+
+func TestPathProtocolRejectsUnknownFormat(t *testing.T) {
+	_, err := EncryptPathForPlaintext("secret", "xml")
+	require.ErrorContains(t, err, "unsupported format")
+	_, _, err = PlaintextPathForEncrypted("secret.enc.xml", "xml")
+	require.ErrorContains(t, err, "unsupported format")
 }
 
 func TestPlaintextPathForEncryptedRequiresProtocolWithoutFormatRule(t *testing.T) {

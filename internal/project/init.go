@@ -10,6 +10,7 @@ import (
 	"filippo.io/age"
 	"github.com/YewFence/YewSeal/internal/agekey"
 	"github.com/YewFence/YewSeal/internal/config"
+	"github.com/YewFence/YewSeal/internal/fileformat"
 	"github.com/YewFence/YewSeal/internal/presentation"
 	tools "github.com/YewFence/YewSeal/internal/prompt"
 )
@@ -235,12 +236,19 @@ func (i *initializer) promptInitFilePair(first bool) (config.FilePair, error) {
 		}
 	}
 
-	encryptedFile := i.prompts.PromptWithDefault("Enter encrypted file name", defaultEncryptedOutputNameForFile(plaintextFile))
 	if err := i.prompts.Err(); err != nil {
 		return config.FilePair{}, err
 	}
 	formatOverride, err := i.resolveInitFormatOverride(plaintextFile, "", true)
 	if err != nil {
+		return config.FilePair{}, err
+	}
+	defaultEncrypted, err := fileformat.EncryptPathForPlaintext(plaintextFile, formatOverride)
+	if err != nil {
+		return config.FilePair{}, err
+	}
+	encryptedFile := i.prompts.PromptWithDefault("Enter encrypted file name", defaultEncrypted)
+	if err := i.prompts.Err(); err != nil {
 		return config.FilePair{}, err
 	}
 
@@ -267,44 +275,35 @@ func (i *initializer) promptInteractiveInitFilePair(first bool, createExampleFla
 	return filePair, shouldCreateExample, i.prompts.Err()
 }
 
-func defaultEncryptedOutputNameForFile(inputFile string) string {
-	inputExt := filepath.Ext(inputFile)
-	inputBase := strings.TrimSuffix(filepath.Base(inputFile), inputExt)
-	return defaultEncryptedOutputName(inputBase, inputExt)
-}
-
-func defaultEncryptedOutputName(inputBase, inputExt string) string {
-	return inputBase + ".enc" + inputExt
-}
-
 func (i *initializer) newInitFilePair(inputFile, outputFile, formatOverride string, interactive bool) (config.FilePair, error) {
 	filePair := config.FilePair{PlaintextPath: defaultInitPlaintextFile}
 	if inputFile != "" {
 		filePair.PlaintextPath = inputFile
 	}
-	if outputFile != "" {
-		filePair.EncryptedPath = outputFile
-	} else {
-		filePair.EncryptedPath = defaultEncryptedOutputNameForFile(filePair.PlaintextPath)
-	}
-
 	resolvedFormat, err := i.resolveInitFormatOverride(filePair.PlaintextPath, formatOverride, interactive)
 	if err != nil {
 		return config.FilePair{}, err
 	}
 	filePair.Format = resolvedFormat
+	filePair.EncryptedPath = outputFile
+	if outputFile == "" {
+		filePair.EncryptedPath, err = fileformat.EncryptPathForPlaintext(filePair.PlaintextPath, resolvedFormat)
+		if err != nil {
+			return config.FilePair{}, err
+		}
+	}
 	return filePair, nil
 }
 
 func (i *initializer) resolveInitFormatOverride(plaintextFile, providedFormat string, interactive bool) (string, error) {
-	if normalizedFormat, ok := normalizeInitFormat(providedFormat); ok {
+	if normalizedFormat, ok := fileformat.Normalize(providedFormat); ok {
 		return normalizedFormat, nil
 	}
 	if strings.TrimSpace(providedFormat) != "" {
 		return "", fmt.Errorf("unsupported format override %q (supported: toml, yaml, json, env, ini, binary)", providedFormat)
 	}
 
-	if detectInitFormat(plaintextFile) != "" {
+	if _, ok := fileformat.Detect(plaintextFile); ok {
 		return "", nil
 	}
 
@@ -318,54 +317,14 @@ func (i *initializer) resolveInitFormatOverride(plaintextFile, providedFormat st
 
 func (i *initializer) promptInitFormatOverride(plaintextFile string) string {
 	for {
-		input := i.prompts.PromptOptional("Format for " + plaintextFile + " (toml/yaml/json/env/ini/binary, optional)")
-		if input == "" {
+		input, err := i.prompts.PromptRequired("Format for " + plaintextFile + " (" + fileformat.Supported() + ")")
+		if err != nil {
 			return ""
 		}
-
-		if normalizedFormat, ok := normalizeInitFormat(input); ok {
+		if normalizedFormat, ok := fileformat.Normalize(input); ok {
 			return normalizedFormat
 		}
-
-		i.output.Warning("Unsupported format. Use one of: toml, yaml, json, env, ini, binary")
-	}
-}
-
-func detectInitFormat(filename string) string {
-	switch strings.ToLower(filepath.Ext(filename)) {
-	case ".toml":
-		return "toml"
-	case ".yaml", ".yml":
-		return "yaml"
-	case ".json":
-		return "json"
-	case ".env":
-		return "env"
-	case ".ini":
-		return "ini"
-	case ".bin", ".binary":
-		return "binary"
-	default:
-		return ""
-	}
-}
-
-func normalizeInitFormat(format string) (string, bool) {
-	switch strings.ToLower(strings.TrimSpace(format)) {
-	case "toml":
-		return "toml", true
-	case "yaml", "yml":
-		return "yaml", true
-	case "json":
-		return "json", true
-	case "env", "dotenv":
-		return "env", true
-	case "ini":
-		return "ini", true
-	case "binary", "bin":
-		return "binary", true
-	default:
-		return "", false
+		i.output.Warning("Unsupported format. Use one of: " + fileformat.Supported())
 	}
 }
 

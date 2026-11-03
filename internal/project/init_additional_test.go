@@ -47,54 +47,6 @@ func TestConfirmInitOverwrite_NoExistingConfig(t *testing.T) {
 	assert.True(t, allowed)
 }
 
-func TestDetectInitFormat(t *testing.T) {
-	tests := []struct {
-		name     string
-		filename string
-		want     string
-	}{
-		{name: "toml", filename: "app.toml", want: "toml"},
-		{name: "yaml", filename: "config.yaml", want: "yaml"},
-		{name: "yml", filename: "config.yml", want: "yaml"},
-		{name: "json", filename: "config.json", want: "json"},
-		{name: "env", filename: "config.env", want: "env"},
-		{name: "ini", filename: "config.ini", want: "ini"},
-		{name: "binary", filename: "secret.bin", want: "binary"},
-		{name: "unknown", filename: ".dev.vars", want: ""},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, detectInitFormat(tt.filename))
-		})
-	}
-}
-
-func TestNormalizeInitFormat(t *testing.T) {
-	tests := []struct {
-		name  string
-		input string
-		want  string
-		valid bool
-	}{
-		{name: "toml", input: "toml", want: "toml", valid: true},
-		{name: "yaml alias", input: "YML", want: "yaml", valid: true},
-		{name: "dotenv alias", input: " dotenv ", want: "env", valid: true},
-		{name: "json", input: "json", want: "json", valid: true},
-		{name: "ini", input: "ini", want: "ini", valid: true},
-		{name: "binary alias", input: "bin", want: "binary", valid: true},
-		{name: "invalid", input: "xml", want: "", valid: false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, ok := normalizeInitFormat(tt.input)
-			assert.Equal(t, tt.want, got)
-			assert.Equal(t, tt.valid, ok)
-		})
-	}
-}
-
 func TestResolveInitFormatOverride(t *testing.T) {
 	t.Run("normalizes provided override", func(t *testing.T) {
 		format, err := testInitializer().resolveInitFormatOverride(".dev.vars", "dotenv", false)
@@ -129,6 +81,21 @@ func TestResolveInitFormatOverride(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "env", format)
 	})
+}
+
+func TestInitInteractiveFormatBeforeEncryptedPath(t *testing.T) {
+	mockProjectInput(t, ".dev.vars\n\nxml\ndotenv\n\n")
+	pair, err := testInitializer().promptInitFilePair(true)
+	require.NoError(t, err)
+	assert.Equal(t, ".dev.vars", pair.PlaintextPath)
+	assert.Equal(t, ".dev.vars.enc.env", pair.EncryptedPath)
+	assert.Equal(t, "env", pair.Format)
+}
+
+func TestInitInteractiveMissingFormatFails(t *testing.T) {
+	mockProjectInput(t, ".dev.vars\n\n")
+	_, err := testInitializer().promptInitFilePair(true)
+	require.ErrorContains(t, err, "failed to read input")
 }
 
 func TestNewInitFilePair(t *testing.T) {
