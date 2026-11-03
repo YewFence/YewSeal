@@ -91,7 +91,7 @@ func TestUpdateGitignore_Create(t *testing.T) {
 	content, err := os.ReadFile(".gitignore")
 	require.NoError(t, err)
 
-	assert.Contains(t, string(content), "# YewSeal")
+	assert.Contains(t, string(content), "# BEGIN YewSeal managed entries")
 	assert.Contains(t, string(content), "wrangler.toml")
 	assert.Contains(t, string(content), ".age/keys.txt")
 }
@@ -120,7 +120,7 @@ node_modules/
 
 	assert.Contains(t, string(content), "node_modules/")
 	assert.Contains(t, string(content), ".env")
-	assert.Contains(t, string(content), "# YewSeal")
+	assert.Contains(t, string(content), "# BEGIN YewSeal managed entries")
 	assert.Contains(t, string(content), "config.toml")
 	assert.Contains(t, string(content), ".dev.vars")
 	assert.Contains(t, string(content), ".age/keys.txt")

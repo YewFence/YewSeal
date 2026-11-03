@@ -190,24 +190,46 @@ For synchronization failures and exit codes, see [`yews encrypt --help`](/refere
 
 ### .gitignore
 
-By default, `init`, `encrypt`, and `decrypt` add plaintext ignore entries and the default `.age/keys.txt` entry. Existing rules are preserved. To maintain ignore rules yourself, set the shared environment variable `YEWSEAL_UPDATE_GITIGNORE=false` or pass `--update-gitignore=false`. This leaves an existing `.gitignore` untouched and does not create one when absent, including during `init --force`. The setting is independent of `.sops.yaml` synchronization; `verify` still checks version-control exposure. An explicit flag overrides the environment variable. For which mappings each command adds, see [`encrypt`](/references/yews_encrypt) and [`decrypt`](/references/yews_decrypt).
+By default, `init`, `encrypt`, and configured-path `decrypt` rebuild a clearly delimited block in each source configuration's `.gitignore`. `init` uses its new mappings; `encrypt` and `decrypt` use each loaded configuration's complete mapping set, including plaintext-only and ciphertext-only group results, independently of target selection. Obsolete entries inside the block are removed. The default `.age/keys.txt` entry remains even when no plaintext mappings remain. Content outside the block is preserved byte for byte.
+
+The markers must each occupy a complete line, with exactly one `# BEGIN YewSeal managed entries` followed by one `# END YewSeal managed entries`. Missing, reversed, or duplicate markers cause an error and leave that `.gitignore` unchanged. With no markers, YewSeal appends a new block. Older sections headed `# YewSeal - Decrypted configuration files` or `# YewSeal - Age private keys` have no reliable end boundary and are preserved as ordinary content during normal commands. Use the one-time migration below to remove recognizable legacy sections.
+
+Generated paths start with `/` to anchor them to the owning directory. Glob metacharacters, backslashes, and spaces are escaped so entries match literal paths; filenames containing line breaks are rejected. Keep custom rules outside the block. Later negation rules can still override generated entries according to Git's normal precedence; `verify` checks actual version-control exposure.
+
+To maintain ignore rules yourself, set the shared environment variable `YEWSEAL_UPDATE_GITIGNORE=false` or pass `--update-gitignore=false`. This leaves an existing `.gitignore` untouched and does not create one when absent, including during `init --force`. The setting is independent of `.sops.yaml` synchronization; `verify` still checks version-control exposure. An explicit flag overrides the environment variable.
+
+#### Migrate legacy sections
+
+Run the one-time migration from the affected project:
+
+```bash
+go run github.com/YewFence/YewSeal/scripts/migrate-gitignore@main
+
+# Or specify a different project directory
+go run github.com/YewFence/YewSeal/scripts/migrate-gitignore@main -dir /absolute/path/to/project
+```
+
+The tool loads the complete project configuration, writes changes immediately, and lists updated and skipped files. Inside a repository, it scans from the repository root, including `.gitignore` files created in previous working directories; outside a repository, it scans the supplied directory and its descendants. The scan processes regular files and skips symlinks and `.git`/`.jj` directories.
+
+The tool recognizes legacy sections by one plaintext header followed by one private key header, plain path entries between them, and `.age/keys.txt` immediately after the private key header. It replaces these sections with managed blocks built from each configuration's complete mappings. In other directories, it removes the legacy sections. It reports ambiguous sections and invalid block markers for manual review and continues migrating the remaining files. Exit status 0 indicates completion; exit status 1 indicates skipped files or errors, with completed changes available for review.
+
+**Audit the version-control diff before committing.** Plain path lines inside an old section may have been handwritten, and migration removes them along with generated entries. Restore any rules that should remain outside the new managed block, resolve reported ambiguities manually, then run [`yews verify`](/guide/verifying) for the affected project. The tool repeats this reminder in its output.
 
 When automatic updates are disabled, maintain ignore rules for plaintext files and private keys yourself. A pre-push hook that runs [`yews verify`](/guide/verifying) and blocks the push if verification fails is strongly recommended. Make sure the check covers every project configuration you intend to push; see [target selection](/guide/target-selection) for its scope.
 
 For the [Tutorial](/guide/tutorial) project, the generated entries are:
 
 ```ini
-# YewSeal - Decrypted configuration files
-config.toml
-
-# YewSeal - Age private keys
-.age/keys.txt
+# BEGIN YewSeal managed entries
+/config.toml
+/.age/keys.txt
+# END YewSeal managed entries
 ```
 
-With [group scanning](#group-scanning), you can add format-wide rules and re-include [protocol files](#file-naming-conventions):
+If you maintain ignore rules yourself, format-wide rules can ignore plaintext while re-including [protocol files](#file-naming-conventions). Keep these custom rules outside any managed block:
 
 ```ini
-# YewSeal - Decrypted configuration files
+# Custom plaintext rules
 *.toml
 *.yaml
 *.json
@@ -220,7 +242,7 @@ With [group scanning](#group-scanning), you can add format-wide rules and re-inc
 !*.enc.ini
 !*.enc.bin
 
-# YewSeal - Age private keys
+# Custom private key rules
 .age/
 ```
 

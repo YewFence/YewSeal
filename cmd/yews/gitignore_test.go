@@ -103,8 +103,8 @@ func TestCLIUpdateGitignore(t *testing.T) {
 					if tc.update {
 						data, err := os.ReadFile(ignorePath)
 						require.NoError(t, err)
-						require.Contains(t, string(data), "\nconfig.yaml\n")
-						require.Contains(t, string(data), "\n.age/keys.txt\n")
+						require.Contains(t, string(data), "\n/config.yaml\n")
+						require.Contains(t, string(data), "\n/.age/keys.txt\n")
 						if existing {
 							require.True(t, bytes.HasPrefix(data, custom))
 						}

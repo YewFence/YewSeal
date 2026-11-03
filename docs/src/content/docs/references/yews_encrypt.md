@@ -30,8 +30,11 @@ skipped.
 configured format. Declare non-standard extensions with "format" or
 "format_rules" in .yewseal.toml.
 
-Before encryption, --update-gitignore (enabled by default) adds all configured
-plaintext entries using the managed-file rules. After encryption,
+Before encryption, --update-gitignore (enabled by default) rebuilds each
+loaded configuration's .gitignore managed block from its complete plaintext
+mapping set, removing obsolete entries and preserving content outside the block.
+Malformed or duplicate block markers fail the command without changing that file.
+See the managed-file rules for marker syntax and path escaping. After encryption,
 --sync-sops-config (enabled by default) rewrites .sops.yaml in each loaded
 configuration's directory. Entries belong to the mapping's source configuration,
 regardless of the calling directory or selected targets.
@@ -99,7 +102,7 @@ yews encrypt [command options] [path-or-pattern]... [flags]
   -o, --output string      Output encrypted file for a single file target (env YEWSEAL_ENCRYPT_OUTPUT)
   -P, --parallel int       Number of parallel workers for batch mode (minimum 1) (env YEWSEAL_ENCRYPT_PARALLEL) (default 1)
       --sync-sops-config   Rewrite .sops.yaml after encryption using the managed-file rules (env YEWSEAL_SYNC_SOPS_CONFIG) (default true)
-      --update-gitignore   Add plaintext and default key entries to .gitignore; false leaves it untouched (env YEWSEAL_UPDATE_GITIGNORE) (default true)
+      --update-gitignore   Rebuild .gitignore managed blocks from all configured plaintext paths and the default key path; false leaves files untouched (env YEWSEAL_UPDATE_GITIGNORE) (default true)
   -v, --verbose            Enable verbose output (scan counts, selection info and per-file unchanged results on stderr) (env YEWSEAL_ENCRYPT_VERBOSE)
 ```
 

@@ -150,10 +150,10 @@ func requireDirectoryGitignore(t *testing.T, root string) {
 	require.NotContains(t, string(data), "outside.yaml")
 	parentData, err := os.ReadFile(filepath.Join(root, ".gitignore"))
 	require.NoError(t, err)
-	require.Contains(t, string(parentData), "\nroot.yaml\n")
-	require.Contains(t, string(parentData), "\nother/outside.yaml\n")
+	require.Contains(t, string(parentData), "\n/root.yaml\n")
+	require.Contains(t, string(parentData), "\n/other/outside.yaml\n")
 	require.NotContains(t, string(parentData), "service/")
 	for _, path := range []string{"secret.yaml", "second.yaml", "nested/child.yaml", "history.yaml"} {
-		require.Contains(t, string(data), "\n"+path+"\n")
+		require.Contains(t, string(data), "\n/"+path+"\n")
 	}
 }

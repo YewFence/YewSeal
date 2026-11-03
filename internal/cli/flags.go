@@ -83,7 +83,7 @@ func addEncryptFlags(flags *pflag.FlagSet, opts *encryptOptions) {
 	flags.BoolVar(&opts.JSON, "json", false, "Print the batch report as JSON on stdout (diagnostics stay on stderr)")
 	flags.BoolVar(&opts.SyncSOPSConfig, "sync-sops-config", opts.SyncSOPSConfig, "Rewrite .sops.yaml after encryption using the managed-file rules")
 	markSharedEnv(flags.Lookup("sync-sops-config"), syncSOPSConfigEnv)
-	flags.BoolVar(&opts.UpdateGitignore, "update-gitignore", opts.UpdateGitignore, "Add plaintext and default key entries to .gitignore; false leaves it untouched")
+	flags.BoolVar(&opts.UpdateGitignore, "update-gitignore", opts.UpdateGitignore, "Rebuild .gitignore managed blocks from all configured plaintext paths and the default key path; false leaves files untouched")
 	markSharedEnv(flags.Lookup("update-gitignore"), updateGitignoreEnv)
 }
 
@@ -95,7 +95,7 @@ func addDecryptFlags(flags *pflag.FlagSet, opts *decryptOptions) {
 	flags.BoolVar(&opts.Strict, "strict", false, "Require every selected file to be decrypted (successful writes are not rolled back)")
 	flags.BoolVarP(&opts.Verbose, "verbose", "v", false, "Enable verbose output (scan counts and selection info on stderr)")
 	flags.BoolVar(&opts.JSON, "json", false, "Print the batch report as JSON on stdout (diagnostics stay on stderr)")
-	flags.BoolVar(&opts.UpdateGitignore, "update-gitignore", opts.UpdateGitignore, "Add plaintext and default key entries to .gitignore for configured-path writes; ignored with --output; false leaves it untouched")
+	flags.BoolVar(&opts.UpdateGitignore, "update-gitignore", opts.UpdateGitignore, "Rebuild complete .gitignore managed blocks for configured-path writes; ignored with --output; false leaves files untouched")
 	markSharedEnv(flags.Lookup("update-gitignore"), updateGitignoreEnv)
 }
 

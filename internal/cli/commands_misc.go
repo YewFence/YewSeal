@@ -33,7 +33,8 @@ switches to non-interactive mode for scripts. An explicit
 
 The new configuration and its managed files belong to the current directory.
 Later commands maintain managed files by each mapping's source configuration,
-regardless of where the command runs.
+regardless of where the command runs. .gitignore content outside the managed
+block is preserved; malformed or duplicate block markers cause an error.
 
 Generated files:
   .yewseal.toml  main YewSeal config (recipient registry, defaults,
@@ -42,8 +43,8 @@ Generated files:
                  control
   .sops.yaml     SOPS config for direct sops usage; skipped with
                  --sync-sops-config=false
-  .gitignore    plaintext and default key ignore entries; skipped with
-                 --update-gitignore=false
+  .gitignore    managed block rebuilt from the new mappings and default
+                 key path; skipped with --update-gitignore=false
 
 When only --input is given, the encrypted file name is inferred
 (config.toml becomes config.enc.toml; other formats use the matching
@@ -118,7 +119,7 @@ Private key handling: ` + docsPrivateKeys,
 	cmd.Flags().BoolVar(&opts.CreateExample, "create-example", false, "Create an example plaintext file (interactive: for recorded entries; non-interactive: for the first entry)")
 	cmd.Flags().BoolVar(&opts.SyncSOPSConfig, "sync-sops-config", opts.SyncSOPSConfig, "Create or update .sops.yaml; explicit true or false skips the interactive prompt")
 	markSharedEnv(cmd.Flags().Lookup("sync-sops-config"), syncSOPSConfigEnv)
-	cmd.Flags().BoolVar(&opts.UpdateGitignore, "update-gitignore", opts.UpdateGitignore, "Add plaintext and default key entries to .gitignore; false leaves it untouched")
+	cmd.Flags().BoolVar(&opts.UpdateGitignore, "update-gitignore", opts.UpdateGitignore, "Rebuild the .gitignore managed block from the new mappings and default key path; false leaves it untouched")
 	markSharedEnv(cmd.Flags().Lookup("update-gitignore"), updateGitignoreEnv)
 	cmd.Flags().BoolVar(&opts.JSON, "json", false, "Print the initialization report as JSON on stdout (prompts and diagnostics stay on stderr)")
 	resolver = newOptionResolver(cmd, &opts)

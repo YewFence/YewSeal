@@ -18,7 +18,8 @@ switches to non-interactive mode for scripts. An explicit
 
 The new configuration and its managed files belong to the current directory.
 Later commands maintain managed files by each mapping's source configuration,
-regardless of where the command runs.
+regardless of where the command runs. .gitignore content outside the managed
+block is preserved; malformed or duplicate block markers cause an error.
 
 Generated files:
   .yewseal.toml  main YewSeal config (recipient registry, defaults,
@@ -27,8 +28,8 @@ Generated files:
                  control
   .sops.yaml     SOPS config for direct sops usage; skipped with
                  --sync-sops-config=false
-  .gitignore    plaintext and default key ignore entries; skipped with
-                 --update-gitignore=false
+  .gitignore    managed block rebuilt from the new mappings and default
+                 key path; skipped with --update-gitignore=false
 
 When only --input is given, the encrypted file name is inferred
 (config.toml becomes config.enc.toml; other formats use the matching
@@ -94,7 +95,7 @@ yews init [flags]
       --json               Print the initialization report as JSON on stdout (prompts and diagnostics stay on stderr) (env YEWSEAL_INIT_JSON)
   -o, --output string      Encrypted file for the first config entry (non-interactive mode) (env YEWSEAL_INIT_OUTPUT)
       --sync-sops-config   Create or update .sops.yaml; explicit true or false skips the interactive prompt (env YEWSEAL_SYNC_SOPS_CONFIG) (default true)
-      --update-gitignore   Add plaintext and default key entries to .gitignore; false leaves it untouched (env YEWSEAL_UPDATE_GITIGNORE) (default true)
+      --update-gitignore   Rebuild the .gitignore managed block from the new mappings and default key path; false leaves it untouched (env YEWSEAL_UPDATE_GITIGNORE) (default true)
 ```
 
 ## Options inherited from parent commands
