@@ -1,3 +1,22 @@
+## [0.25.1] - 2026-11-03
+
+### 🐛 Bug Fixes
+
+- *(project)* Manage ignore and SOPS files by source configuration (#135)
+
+### ⚙️ Miscellaneous Tasks
+
+- *(deps)* Update github actions to v5.2.0 (#125)
+- *(npm-deps)* Update npm dependencies (#123)
+- *(mise-deps)* Update mise tools (#122)
+- *(gomod-deps)* Update go modules (#121)
+- *(mise-deps)* Lock file maintenance (#124)
+- *(gomod-deps)* Update go modules (#130)
+- *(go-deps)* Update go module directive to v1.27.3 (#127)
+- *(mise-deps)* Lock file maintenance (#132)
+- *(deps)* Update github actions to v5.2.4 (#128)
+- *(npm-deps)* Update npm dependencies (#129)
+- *(mise-deps)* Update mise tools (#131)
 ## [0.25.0] - 2026-10-15
 
 ### 🚀 Features
