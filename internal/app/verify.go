@@ -24,8 +24,9 @@ type VerifyRequest struct {
 // project problems are findings in the report.
 func Verify(cfg *config.Config, req VerifyRequest) (*verify.Report, error) {
 	selection, err := config.ResolveSelection(cfg, config.SelectionOptions{
-		Command: task.ModeVerify,
-		Targets: req.Targets,
+		Command:             task.ModeVerify,
+		Targets:             req.Targets,
+		PrepareManagedFiles: req.SyncSOPSConfig,
 	})
 	if err != nil {
 		return nil, err

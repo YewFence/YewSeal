@@ -36,7 +36,7 @@ func EncryptFiles(cfg *config.Config, req EncryptRequest) (err error) {
 	}
 	out.IdentityBundle(preflight.IdentityBundle)
 
-	scopes := config.GroupManagedFilePairs(preflight.MetadataPairs, cfg.LoadedFiles, config.CurrentDir(cfg))
+	scopes := preflight.Selection.ManagedScopes
 	if req.UpdateGitignore {
 		for _, scope := range scopes {
 			if err := project.UpdateGitignore(scope.Dir, config.ResolvedFilePairsToFilePairs(scope.FilePairs)); err != nil {

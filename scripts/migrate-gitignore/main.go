@@ -57,11 +57,11 @@ func run(out io.Writer) (resultErr error) {
 	if cfg.DiscoveryDegraded {
 		return fmt.Errorf("migration requires complete configuration discovery: %v", cfg.DiscoveryWarnings)
 	}
-	selection, err := config.ResolveSelection(cfg, config.SelectionOptions{Command: task.ModeClean})
+	selection, err := config.ResolveSelection(cfg, config.SelectionOptions{Command: task.ModeClean, PrepareManagedFiles: true})
 	if err != nil {
 		return err
 	}
-	scopes := config.GroupManagedFilePairs(selection.AllConfigPairs, cfg.LoadedFiles, cfg.CurrentDir)
+	scopes := selection.ManagedScopes
 	owners := make(map[string][]config.FilePair, len(scopes))
 	directories := make(map[string]bool)
 	for _, scope := range scopes {

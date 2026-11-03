@@ -19,7 +19,8 @@ func TestScanningCommandsReportOneVerboseSummaryOnStderr(t *testing.T) {
 		args  []string
 		scans int
 	}{
-		{name: "encrypt includes metadata scans", args: []string{"encrypt", "-v", "--force"}, scans: 3},
+		{name: "encrypt reuses metadata scans", args: []string{"encrypt", "-v", "--force"}, scans: 2},
+		{name: "decrypt reuses metadata scans", args: []string{"decrypt", "-v"}, scans: 2},
 		{name: "decrypt", args: []string{"decrypt", "-v", "--update-gitignore=false"}, scans: 1},
 		{name: "clean", args: []string{"clean", "-v", "--force"}, scans: 2},
 		{name: "diff", args: []string{"diff", "-v"}, scans: 1},

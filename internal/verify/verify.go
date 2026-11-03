@@ -66,7 +66,7 @@ func Check(selection config.ResolvedSelection, cwd string, opts Options) (*Repor
 	checkVersionControl(report, selection.FilePairs, cwd, opts.KeyFile, opts.RepositoryDiscoveryDegraded, opts.RepositoryDiscoveryWarning)
 
 	if opts.CheckSOPSConfig {
-		for _, scope := range config.GroupManagedFilePairs(selection.AllConfigPairs, selection.ConfigFiles, cwd) {
+		for _, scope := range selection.ManagedScopes {
 			checkSOPSDrift(report, scope.FilePairs, scope.Dir)
 		}
 	} else {

@@ -352,16 +352,18 @@ func TestDecryptDeliveryGroupMappingsAndMetadataSnapshot(t *testing.T) {
 	ciphertext, err := sopsx.Encrypt([]byte("token: secret\n"), "yaml", []string{env.publicKey})
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile("config/secret.enc.yaml", ciphertext, 0644))
-	cfg := &config.Config{CurrentDir: cwd, ProjectRoot: cwd, Encryption: config.EncryptionConfig{Groups: []config.GroupConfig{{ConfigDir: cwd, Patterns: []string{"config/*.yaml"}}}}}
+	require.NoError(t, os.WriteFile("config/unrelated.unknown", []byte("fixture"), 0600))
+	cfg := &config.Config{CurrentDir: cwd, ProjectRoot: cwd, Encryption: config.EncryptionConfig{Groups: []config.GroupConfig{{ConfigDir: cwd, Patterns: []string{"config/*"}}}}}
 	root := t.TempDir()
-	req := DecryptRequest{Targets: []string{"config"}, OutputDir: root, KeyFile: env.keyFile}
+	req := DecryptRequest{Targets: []string{"config"}, OutputDir: root, KeyFile: env.keyFile, UpdateGitignore: true}
 	preflight, err := PreflightDecrypt(cfg, req)
 	require.NoError(t, err)
 	require.Len(t, preflight.Selection.FilePairs, 1)
 	require.Equal(t, filepath.Join(root, "config/secret.yaml"), preflight.Selection.FilePairs[0].PlaintextPath)
-	require.Equal(t, filepath.Join(cwd, "config/secret.yaml"), preflight.MetadataPairs[0].PlaintextPath)
+	require.Equal(t, filepath.Join(cwd, "config/secret.yaml"), preflight.Selection.AllConfigPairs[0].PlaintextPath)
 	require.Equal(t, "yaml", preflight.Selection.FilePairs[0].Format)
 	require.Equal(t, config.PlaintextInplace, preflight.Selection.FilePairs[0].PlaintextMode)
+	require.Empty(t, preflight.Selection.ManagedScopes)
 	require.NoError(t, DecryptFiles(cfg, req))
 	require.FileExists(t, filepath.Join(root, "config/secret.yaml"))
 }

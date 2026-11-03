@@ -56,6 +56,7 @@ type ResolvedSelection struct {
 	Command         string
 	FilePairs       []ResolvedFilePair
 	AllConfigPairs  []ResolvedFilePair
+	ManagedScopes   []ManagedFileScope
 	ConfigFiles     []LoadedFile
 	ConfigMode      bool
 	CurrentDirScope string
@@ -72,7 +73,8 @@ func ResolveSelection(cfg *Config, opts SelectionOptions) (ResolvedSelection, er
 
 func resolveSelection(cfg *Config, opts SelectionOptions) (ResolvedSelection, error) {
 	var stats task.ScanStats
-	filePairs, err := configuredFilePairs(cfg, opts.Command, &stats)
+	discovery := newSelectionDiscovery(cfg, &stats)
+	filePairs, err := discovery.filePairs(opts.Command)
 	if err != nil {
 		return ResolvedSelection{}, err
 	}
@@ -104,11 +106,20 @@ func resolveSelection(cfg *Config, opts SelectionOptions) (ResolvedSelection, er
 		return ResolvedSelection{}, err
 	}
 
+	var managedScopes []ManagedFileScope
+	if opts.PrepareManagedFiles {
+		managedScopes, err = discovery.managedScopes(opts, allConfigPairs)
+		if err != nil {
+			return ResolvedSelection{}, err
+		}
+	}
+
 	return ResolvedSelection{
 		ScanStats:       stats,
 		Command:         opts.Command,
 		FilePairs:       selected,
 		AllConfigPairs:  allConfigPairs,
+		ManagedScopes:   managedScopes,
 		ConfigFiles:     append([]LoadedFile(nil), cfg.LoadedFiles...),
 		ConfigMode:      result.ConfigMode,
 		CurrentDirScope: result.CurrentDirScope,

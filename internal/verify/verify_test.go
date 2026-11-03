@@ -81,8 +81,19 @@ func resolvedPair(plain, enc, format string, recipients []string) config.Resolve
 }
 
 func minimalSelection(pairs ...config.ResolvedFilePair) config.ResolvedSelection {
-	all := append([]config.ResolvedFilePair(nil), pairs...)
-	return config.ResolvedSelection{FilePairs: pairs, AllConfigPairs: all}
+	scopes := make([]config.ManagedFileScope, 0)
+	byDir := make(map[string]int)
+	for _, pair := range pairs {
+		dir := filepath.Dir(pair.PlaintextPath)
+		index, found := byDir[dir]
+		if !found {
+			index = len(scopes)
+			byDir[dir] = index
+			scopes = append(scopes, config.ManagedFileScope{Dir: dir})
+		}
+		scopes[index].FilePairs = append(scopes[index].FilePairs, pair)
+	}
+	return config.ResolvedSelection{FilePairs: pairs, ManagedScopes: scopes}
 }
 
 func requireFinding(t *testing.T, report *verify.Report, code string, sev verify.Severity) {
@@ -555,14 +566,7 @@ func TestSOPSDriftDetectedAfterManualEdit(t *testing.T) {
 	// Write a .sops.yaml with a wrong recipient
 	require.NoError(t, os.WriteFile(filepath.Join(dir, ".sops.yaml"),
 		[]byte("creation_rules:\n  - path_regex: '.*'\n    age: age1wrongkey\n"), 0644))
-	sel := config.ResolvedSelection{
-		FilePairs: []config.ResolvedFilePair{
-			resolvedPair(filepath.Join(dir, "config.yaml"), encPath, "yaml", []string{key.recipient}),
-		},
-		AllConfigPairs: []config.ResolvedFilePair{
-			resolvedPair(filepath.Join(dir, "config.yaml"), encPath, "yaml", []string{key.recipient}),
-		},
-	}
+	sel := minimalSelection(resolvedPair(filepath.Join(dir, "config.yaml"), encPath, "yaml", []string{key.recipient}))
 	report, err := verify.Check(sel, dir, verify.Options{CheckSOPSConfig: true})
 	require.NoError(t, err)
 	requireFinding(t, report, "sops_config_drift", verify.SeverityError)
@@ -570,7 +574,7 @@ func TestSOPSDriftDetectedAfterManualEdit(t *testing.T) {
 
 func TestSOPSDriftSkippedWhenFileAbsent(t *testing.T) {
 	dir := t.TempDir()
-	sel := config.ResolvedSelection{AllConfigPairs: nil}
+	sel := config.ResolvedSelection{ManagedScopes: []config.ManagedFileScope{{Dir: dir}}}
 	report, err := verify.Check(sel, dir, verify.Options{CheckSOPSConfig: true})
 	require.NoError(t, err)
 	requireNoFinding(t, report, "sops_config_drift")
@@ -581,7 +585,7 @@ func TestSOPSDriftSkippedWhenCheckDisabled(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, ".sops.yaml"),
 		[]byte("creation_rules:\n  - path_regex: '.*'\n    age: age1wrongkey\n"), 0644))
-	sel := config.ResolvedSelection{AllConfigPairs: nil}
+	sel := config.ResolvedSelection{ManagedScopes: []config.ManagedFileScope{{Dir: dir}}}
 	report, err := verify.Check(sel, dir, verify.Options{CheckSOPSConfig: false})
 	require.NoError(t, err)
 	requireNoFinding(t, report, "sops_config_drift")

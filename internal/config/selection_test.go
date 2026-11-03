@@ -30,7 +30,7 @@ func TestSelectFilePairsEncryptOutputPreservesConfiguredFormatAndPaths(t *testin
 	require.Equal(t, encrypted, cfg.Encryption.Files[0].EncryptedPath)
 }
 
-func TestScopedConfigGroupPairsSkipsConfiguredCustomEncryptedPaths(t *testing.T) {
+func TestSelectFilePairsSkipsConfiguredCustomEncryptedPaths(t *testing.T) {
 	root := t.TempDir()
 	secretsDir := filepath.Join(root, "secrets")
 	require.NoError(t, os.MkdirAll(secretsDir, 0755))
@@ -49,10 +49,12 @@ func TestScopedConfigGroupPairsSkipsConfiguredCustomEncryptedPaths(t *testing.T)
 		},
 	}
 
-	pairs, err := scopedConfigGroupPairs(cfg, task.ModeEncrypt, nil)
+	selection, err := SelectFilePairs(cfg, SelectionOptions{Command: task.ModeEncrypt})
 	require.NoError(t, err)
-	require.Len(t, pairs, 1)
-	assert.Equal(t, otherPlaintext, pairs[0].PlaintextPath)
+	require.Len(t, selection.FilePairs, 2)
+	assert.Equal(t, otherPlaintext, selection.FilePairs[0].PlaintextPath)
+	assert.Equal(t, plaintext, selection.FilePairs[1].PlaintextPath)
+	assert.Equal(t, customEncrypted, selection.FilePairs[1].EncryptedPath)
 }
 
 func TestSelectFilePairsDirectorySkipsConfiguredCustomEncryptedPaths(t *testing.T) {

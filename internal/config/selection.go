@@ -19,6 +19,8 @@ type SelectionOptions struct {
 	RequireSingleTarget bool
 	AllowEmptyTarget    bool
 	StrictRecipients    bool
+	// PrepareManagedFiles includes complete, bidirectional policy grouped by source configuration.
+	PrepareManagedFiles bool
 }
 
 type SelectionResult struct {
@@ -309,9 +311,24 @@ func pairMatchesPattern(matcher task.PatternMatcher, filePair FilePair, command,
 	}
 }
 
+type selectionDiscovery struct {
+	cfg    *Config
+	stats  *task.ScanStats
+	groups []*task.GroupDiscovery
+}
+
+func newSelectionDiscovery(cfg *Config, stats *task.ScanStats) *selectionDiscovery {
+	return &selectionDiscovery{cfg: cfg, stats: stats, groups: make([]*task.GroupDiscovery, len(cfg.Encryption.Groups))}
+}
+
 func configuredFilePairs(cfg *Config, mode string, stats *task.ScanStats) ([]FilePair, error) {
+	return newSelectionDiscovery(cfg, stats).filePairs(mode)
+}
+
+func (d *selectionDiscovery) filePairs(mode string) ([]FilePair, error) {
+	cfg := d.cfg
 	mode = policyForCommand(mode).discoveryMode
-	groupPairs, err := scopedConfigGroupPairs(cfg, mode, stats)
+	groupPairs, err := d.groupPairs(mode)
 	if err != nil {
 		return nil, err
 	}
@@ -338,7 +355,8 @@ func configuredEncryptedPaths(cfg *Config) []string {
 	return paths
 }
 
-func scopedConfigGroupPairs(cfg *Config, mode string, stats *task.ScanStats) ([]FilePair, error) {
+func (d *selectionDiscovery) groupPairs(mode string) ([]FilePair, error) {
+	cfg := d.cfg
 	policy := policyForCommand(mode)
 	groups := cfg.GetGroups()
 	if len(groups) == 0 {
@@ -349,7 +367,7 @@ func scopedConfigGroupPairs(cfg *Config, mode string, stats *task.ScanStats) ([]
 	excludedPaths := configuredEncryptedPaths(cfg)
 	seenRecipients := make(map[string][]string)
 	seenPlaintextModes := make(map[string]string)
-	for _, group := range groups {
+	for index, group := range groups {
 		root := group.ConfigDir
 		if strings.TrimSpace(root) == "" {
 			root = cwdFromConfig(cfg)
@@ -367,17 +385,18 @@ func scopedConfigGroupPairs(cfg *Config, mode string, stats *task.ScanStats) ([]
 				return nil, fmt.Errorf("group %s: %w", group.ConfigPath, resolveErr)
 			}
 		}
-		taskPairs, err := task.BuildProjectGroupFilePairs(task.GroupOptions{
-			Root:            root,
-			Patterns:        group.Patterns,
-			Exclude:         cfg.groupExclude(group),
-			Stats:           stats,
-			FormatRules:     group.FormatRules,
-			ExcludedPaths:   excludedPaths,
-			UnknownAsBinary: group.UnknownAsBinary,
-			AllowEmpty:      true,
-			Mode:            policy.discoveryMode,
-		})
+		if d.groups[index] == nil {
+			d.groups[index] = task.NewGroupDiscovery(task.GroupOptions{
+				Root:            root,
+				Patterns:        group.Patterns,
+				Exclude:         cfg.groupExclude(group),
+				Stats:           d.stats,
+				FormatRules:     group.FormatRules,
+				ExcludedPaths:   excludedPaths,
+				UnknownAsBinary: group.UnknownAsBinary,
+			})
+		}
+		taskPairs, err := d.groups[index].FilePairs(policy.discoveryMode)
 		if err != nil {
 			return nil, err
 		}

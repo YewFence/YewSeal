@@ -21,8 +21,11 @@ func TestSOPSDriftChecksCompleteCurrentDirectoryPolicy(t *testing.T) {
 	unselected := resolvedPair(filepath.Join(dir, "second.yaml"), filepath.Join(dir, "second.enc.yaml"), "yaml", []string{key.recipient})
 	outside := resolvedPair(filepath.Join(root, "root.yaml"), filepath.Join(root, "root.enc.yaml"), "yaml", []string{key.recipient})
 	selection := config.ResolvedSelection{
-		FilePairs:      []config.ResolvedFilePair{selected},
-		AllConfigPairs: []config.ResolvedFilePair{outside, selected, unselected},
+		FilePairs: []config.ResolvedFilePair{selected},
+		ManagedScopes: []config.ManagedFileScope{
+			{Dir: root, FilePairs: []config.ResolvedFilePair{outside}},
+			{Dir: dir, FilePairs: []config.ResolvedFilePair{selected, unselected}},
+		},
 	}
 	localPairs := []config.ResolvedFilePair{selected, unselected}
 	rendered, err := sopsconfig.Render(localPairs, dir)

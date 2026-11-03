@@ -98,13 +98,14 @@ func TestPreflightKeepsCompleteMetadataForEveryTarget(t *testing.T) {
 		{PlaintextPath: filepath.Join(root, "outside", "config.yaml"), EncryptedPath: filepath.Join(root, "outside", "config.enc.yaml")},
 	}}}, env.publicKey)
 	for _, target := range []string{"", cfg.CurrentDir, filepath.Join(cfg.CurrentDir, "config.enc.yaml")} {
-		encrypted, err := PreflightEncrypt(cfg, EncryptRequest{Targets: []string{target}})
+		encrypted, err := PreflightEncrypt(cfg, EncryptRequest{Targets: []string{target}, UpdateGitignore: true})
 		require.NoError(t, err)
-		decrypted, err := PreflightDecrypt(cfg, DecryptRequest{Targets: []string{target}, KeyFile: env.keyFile})
+		decrypted, err := PreflightDecrypt(cfg, DecryptRequest{Targets: []string{target}, KeyFile: env.keyFile, UpdateGitignore: true})
 		require.NoError(t, err)
 		for _, result := range []PreflightResult{encrypted, decrypted} {
 			require.Len(t, result.Selection.FilePairs, 1)
-			require.Len(t, result.MetadataPairs, 2)
+			require.Len(t, result.Selection.ManagedScopes, 1)
+			require.Len(t, result.Selection.ManagedScopes[0].FilePairs, 2)
 		}
 	}
 }

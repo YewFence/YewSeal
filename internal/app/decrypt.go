@@ -34,7 +34,7 @@ func DecryptFiles(cfg *config.Config, req DecryptRequest) (err error) {
 	out.Selection(preflight.Selection)
 
 	if req.UpdateGitignore && req.OutputDir == "" {
-		for _, scope := range config.GroupManagedFilePairs(preflight.MetadataPairs, cfg.LoadedFiles, config.CurrentDir(cfg)) {
+		for _, scope := range preflight.Selection.ManagedScopes {
 			if err := project.UpdateGitignore(scope.Dir, config.ResolvedFilePairsToFilePairs(scope.FilePairs)); err != nil {
 				return err
 			}

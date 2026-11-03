@@ -12,29 +12,20 @@ type PreflightResult struct {
 	Selection       config.ResolvedSelection
 	IdentityBundle  agekey.IdentityBundle
 	MissingIdentity bool
-	MetadataPairs   []config.ResolvedFilePair
 }
 
 func PreflightEncrypt(cfg *config.Config, req EncryptRequest) (PreflightResult, error) {
 	selection, err := config.ResolveSelection(cfg, config.SelectionOptions{
-		Command:   task.ModeEncrypt,
-		Targets:   req.Targets,
-		Output:    req.Output,
-		OutputSet: req.OutputSet,
+		Command:             task.ModeEncrypt,
+		Targets:             req.Targets,
+		Output:              req.Output,
+		OutputSet:           req.OutputSet,
+		PrepareManagedFiles: req.UpdateGitignore || req.SyncSOPSConfig,
 	})
 	if err != nil {
 		return PreflightResult{}, err
 	}
-	result := PreflightResult{Selection: selection, MetadataPairs: selection.AllConfigPairs}
-	if req.UpdateGitignore || req.SyncSOPSConfig {
-		metadataSelection, err := config.ResolveSelection(cfg, config.SelectionOptions{Command: task.ModePlan})
-		if err != nil {
-			return PreflightResult{}, err
-		}
-		result.MetadataPairs = metadataSelection.AllConfigPairs
-		result.Selection.ScanStats.Entries += metadataSelection.ScanStats.Entries
-		result.Selection.ScanStats.Directories += metadataSelection.ScanStats.Directories
-	}
+	result := PreflightResult{Selection: selection}
 	needsIdentity, err := encryptSelectionNeedsIdentity(selection)
 	if err != nil {
 		return PreflightResult{}, err
@@ -81,21 +72,12 @@ func pathExists(path string) (bool, error) {
 
 func PreflightDecrypt(cfg *config.Config, req DecryptRequest) (PreflightResult, error) {
 	selection, err := config.ResolveSelection(cfg, config.SelectionOptions{
-		Command: task.ModeDecrypt,
-		Targets: req.Targets,
+		Command:             task.ModeDecrypt,
+		Targets:             req.Targets,
+		PrepareManagedFiles: req.UpdateGitignore && req.OutputDir == "",
 	})
 	if err != nil {
 		return PreflightResult{}, err
-	}
-	metadataPairs := selection.AllConfigPairs
-	if req.UpdateGitignore && req.OutputDir == "" {
-		metadataSelection, err := config.ResolveSelection(cfg, config.SelectionOptions{Command: task.ModeClean})
-		if err != nil {
-			return PreflightResult{}, err
-		}
-		metadataPairs = metadataSelection.AllConfigPairs
-		selection.ScanStats.Entries += metadataSelection.ScanStats.Entries
-		selection.ScanStats.Directories += metadataSelection.ScanStats.Directories
 	}
 	if err := prepareDecryptDelivery(cfg, &selection, req); err != nil {
 		return PreflightResult{}, err
@@ -104,5 +86,5 @@ func PreflightDecrypt(cfg *config.Config, req DecryptRequest) (PreflightResult, 
 	if err != nil {
 		return PreflightResult{}, err
 	}
-	return PreflightResult{Selection: selection, IdentityBundle: identityBundle, MetadataPairs: metadataPairs}, nil
+	return PreflightResult{Selection: selection, IdentityBundle: identityBundle}, nil
 }

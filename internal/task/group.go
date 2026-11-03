@@ -182,6 +182,64 @@ func buildGroupFilePairs(opts GroupOptions, allowEmpty bool) ([]FilePair, error)
 	return pairs, nil
 }
 
+// GroupDiscovery reuses each side's discovery within one selection preparation.
+// Its options and the returned file pairs must not be mutated during that preparation.
+type GroupDiscovery struct {
+	opts           GroupOptions
+	plaintextPairs []FilePair
+	encryptedPairs []FilePair
+	plaintextRead  bool
+	encryptedRead  bool
+}
+
+// NewGroupDiscovery creates discovery state scoped to one selection preparation.
+func NewGroupDiscovery(opts GroupOptions) *GroupDiscovery {
+	return &GroupDiscovery{opts: opts}
+}
+
+// FilePairs discovers the requested sides, allowing empty results and reusing
+// sides already read. Bidirectional modes prefer real plaintext paths.
+func (d *GroupDiscovery) FilePairs(mode string) ([]FilePair, error) {
+	switch mode {
+	case ModePlan, ModeClean:
+		plainPairs, err := d.FilePairs(ModeEncrypt)
+		if err != nil {
+			return nil, err
+		}
+		encryptedPairs, err := d.FilePairs(ModeDecrypt)
+		if err != nil {
+			return nil, err
+		}
+		return mergeGroupFilePairs(plainPairs, encryptedPairs), nil
+	case ModeDiff:
+		return d.FilePairs(ModeEncrypt)
+	case ModeEncrypt:
+		if !d.plaintextRead {
+			opts := d.opts
+			opts.Mode = ModeEncrypt
+			pairs, err := buildGroupFilePairs(opts, true)
+			if err != nil {
+				return nil, err
+			}
+			d.plaintextPairs, d.plaintextRead = pairs, true
+		}
+		return d.plaintextPairs, nil
+	case ModeDecrypt:
+		if !d.encryptedRead {
+			opts := d.opts
+			opts.Mode = ModeDecrypt
+			pairs, err := buildProjectDecryptFilePairs(opts, true)
+			if err != nil {
+				return nil, err
+			}
+			d.encryptedPairs, d.encryptedRead = pairs, true
+		}
+		return d.encryptedPairs, nil
+	default:
+		return nil, fmt.Errorf("invalid group mode %q", mode)
+	}
+}
+
 func BuildProjectGroupFilePairs(opts GroupOptions) ([]FilePair, error) {
 	if opts.Mode != ModeDecrypt {
 		return BuildGroupFilePairs(opts)
@@ -305,6 +363,14 @@ func buildBidirectionalGroupFilePairs(opts GroupOptions, allowEmpty bool) ([]Fil
 	if err != nil {
 		return nil, err
 	}
+	pairs := mergeGroupFilePairs(plainPairs, encryptedPairs)
+	if len(pairs) == 0 && !allowEmpty {
+		return nil, fmt.Errorf("no files found in %s matching group patterns", opts.Root)
+	}
+	return pairs, nil
+}
+
+func mergeGroupFilePairs(plainPairs, encryptedPairs []FilePair) []FilePair {
 	// A real plaintext path is more precise than reversing a normalized ciphertext suffix.
 	byEncrypted := make(map[string]FilePair)
 	pairs := make([]FilePair, 0, len(plainPairs)+len(encryptedPairs))
@@ -322,10 +388,7 @@ func buildBidirectionalGroupFilePairs(opts GroupOptions, allowEmpty bool) ([]Fil
 		pairs = append(pairs, pair)
 	}
 	sort.Slice(pairs, func(i, j int) bool { return pairs[i].PlaintextPath < pairs[j].PlaintextPath })
-	if len(pairs) == 0 && !allowEmpty {
-		return nil, fmt.Errorf("no files found in %s matching group patterns", opts.Root)
-	}
-	return pairs, nil
+	return pairs
 }
 
 func projectDecryptPairForEncrypted(root, encryptedPath string, logicalMatcher PatternMatcher, formatRules []FormatRule) (FilePair, bool, error) {
