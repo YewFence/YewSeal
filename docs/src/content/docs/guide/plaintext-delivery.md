@@ -56,6 +56,16 @@ Here `.env` and `compose/app.yaml` are registered plaintext paths, and the comma
 
 The traps cover normal exit and catchable termination signals. Cleanup errors still need attention from the caller. Never enable Shell tracing around secrets or echo decrypted content into CI logs.
 
+## Encrypting an edited tree back
+
+`encrypt --source DIR` closes the round trip. It reads each selected mapping's plaintext from `DIR / relative(project-root, configured-plaintext-path)` — the exact inverse of the projection above — and writes ciphertext to the registered paths as usual, so `--update-gitignore` and `--sync-sops-config` keep their default behavior. A file missing from the tree is reported and skipped (outcome `missing plaintext`) without falling back to the registered plaintext path, which keeps stale registered copies from silently re-entering ciphertext. `--force` combines normally for fresh re-encryption.
+
+```sh
+yews encrypt --source "$YEWS_TMP"
+```
+
+`YEWSEAL_ENCRYPT_SOURCE` supplies the directory, resolved relative to the calling working directory; an explicit flag wins. `DIR` must already exist as a real directory; selection (targets, patterns, current-directory scope) works exactly as in plain `encrypt`.
+
 ## Delivery-classified files
 
 Declare runtime-sensitive mappings with [`plaintext_mode = "delivery"`](/guide/configuration#plaintext-classification) — on a file pair or a whole group — so default decrypt skips them instead of writing their configured plaintext path. Choose `--output` for runtime delivery or explicitly opt into `--inplace` for project-path writes. The configured `secrets/prod.env`, for example, can be delivered to the tmpfs tree above without appearing at its ordinary plaintext location. `plan` and `verify` expose `plaintext_mode` for audits.

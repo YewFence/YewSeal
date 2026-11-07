@@ -130,16 +130,16 @@ func TestResolveSelectionManagedFilesDiscoverAgainOnNextCall(t *testing.T) {
 	require.Len(t, first.ManagedScopes[0].FilePairs, 1)
 }
 
-func TestResolveSelectionManagedFilesKeepRegisteredOutput(t *testing.T) {
+func TestResolveSelectionManagedFilesKeepRegisteredPaths(t *testing.T) {
 	cfg := selectionConfig(t)
 	plain := selectionFile(t, cfg.CurrentDir, "app.yaml")
 	enc := filepath.Join(cfg.CurrentDir, "app.enc.yaml")
 	cfg.Encryption.Files = []FilePair{{PlaintextPath: plain, EncryptedPath: enc}}
 	selection, err := ResolveSelection(cfg, SelectionOptions{
-		Command: task.ModeEncrypt, Targets: []string{plain}, Output: "export.json", OutputSet: true, PrepareManagedFiles: true,
+		Command: task.ModeEncrypt, Targets: []string{plain}, PrepareManagedFiles: true,
 	})
 	require.NoError(t, err)
-	require.Equal(t, filepath.Join(cfg.CurrentDir, "export.json"), selection.FilePairs[0].EncryptedPath)
+	require.Equal(t, enc, selection.FilePairs[0].EncryptedPath)
 	require.Equal(t, enc, selection.AllConfigPairs[0].EncryptedPath)
 	require.Equal(t, enc, selection.ManagedScopes[0].FilePairs[0].EncryptedPath)
 }

@@ -4,7 +4,7 @@ import "github.com/spf13/pflag"
 
 type encryptOptions struct {
 	KeyFile         string `mapstructure:"key-file"`
-	Output          string `mapstructure:"output"`
+	Source          string `mapstructure:"source"`
 	Parallel        int    `mapstructure:"parallel"`
 	Force           bool   `mapstructure:"force"`
 	Verbose         bool   `mapstructure:"verbose"`
@@ -76,7 +76,7 @@ type diffOptions struct {
 }
 
 func addEncryptFlags(flags *pflag.FlagSet, opts *encryptOptions) {
-	flags.StringVarP(&opts.Output, "output", "o", opts.Output, "Output encrypted file for a single file target")
+	flags.StringVar(&opts.Source, "source", opts.Source, "Read plaintext from the project-relative mirrored tree under this existing, real directory instead of registered plaintext paths; ciphertext still goes to registered paths")
 	flags.IntVarP(&opts.Parallel, "parallel", "P", opts.Parallel, "Number of parallel workers for batch mode (minimum 1)")
 	flags.BoolVarP(&opts.Force, "force", "f", false, "Freshly encrypt every existing plaintext and rotate its data key")
 	flags.BoolVarP(&opts.Verbose, "verbose", "v", false, "Enable verbose output (scan counts, selection info and per-file unchanged results on stderr)")

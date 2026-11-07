@@ -18,11 +18,12 @@ func PreflightEncrypt(cfg *config.Config, req EncryptRequest) (PreflightResult, 
 	selection, err := config.ResolveSelection(cfg, config.SelectionOptions{
 		Command:             task.ModeEncrypt,
 		Targets:             req.Targets,
-		Output:              req.Output,
-		OutputSet:           req.OutputSet,
 		PrepareManagedFiles: req.UpdateGitignore || req.SyncSOPSConfig,
 	})
 	if err != nil {
+		return PreflightResult{}, err
+	}
+	if err := prepareEncryptSource(cfg, &selection, req); err != nil {
 		return PreflightResult{}, err
 	}
 	result := PreflightResult{Selection: selection}
