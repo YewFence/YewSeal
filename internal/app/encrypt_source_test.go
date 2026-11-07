@@ -122,6 +122,44 @@ func TestEncryptSourceRejectsOutsideProjectRootAndDuplicates(t *testing.T) {
 	require.ErrorContains(t, err, "conflicting file pairs")
 }
 
+func TestEncryptSourceCoversCiphertextOnlyGroupMappings(t *testing.T) {
+	env := newAppCryptoTestEnv(t)
+	cwd, err := os.Getwd()
+	require.NoError(t, err)
+	ciphertext, err := sopsx.Encrypt([]byte("token: secret\n"), "yaml", []string{env.publicKey})
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile("remote.enc.yaml", ciphertext, 0600))
+	cfg := configWithOwnerRecipient(&config.Config{
+		CurrentDir: cwd,
+		Encryption: config.EncryptionConfig{Groups: []config.GroupConfig{{ConfigDir: cwd, Patterns: []string{"*.yaml"}}}},
+	}, env.publicKey)
+
+	// A checkout with only remote.enc.yaml: decrypt delivers the tree, the
+	// registered plaintext never exists in the project.
+	delivery := t.TempDir()
+	require.NoError(t, DecryptFiles(cfg, DecryptRequest{OutputDir: delivery, KeyFile: env.keyFile}))
+	writeSourceTree(t, delivery, "remote.yaml", "token: edited\n")
+
+	require.NoError(t, EncryptFiles(cfg, EncryptRequest{SourceDir: delivery, KeyFile: env.keyFile}))
+	decrypted, err := seal.DecryptToBytes(seal.DecryptBytesOptions{InputFile: "remote.enc.yaml", OutputFile: "remote.yaml", FormatOverride: "yaml", IdentityBundle: mustTestBundle(t, env.keyFile)})
+	require.NoError(t, err)
+	require.Equal(t, "token: edited\n", string(decrypted))
+}
+
+func TestEncryptSourceRejectsEmptySourceBeforeConfigWork(t *testing.T) {
+	env := newAppCryptoTestEnv(t)
+	cfg := configWithOwnerRecipient(&config.Config{CurrentDir: ".", Encryption: config.EncryptionConfig{Files: []config.FilePair{
+		{PlaintextPath: "secret.yaml", EncryptedPath: "secret.enc.yaml", Format: "yaml"},
+	}}}, env.publicKey)
+	require.NoError(t, os.WriteFile("secret.yaml", []byte("token: registered\n"), 0600))
+
+	err := EncryptFiles(cfg, EncryptRequest{SourceDir: "  ", SourceSet: true, KeyFile: env.keyFile})
+	require.ErrorContains(t, err, "--source requires a directory")
+	var usage *errx.UsageError
+	require.ErrorAs(t, err, &usage)
+	require.NoFileExists(t, "secret.enc.yaml")
+}
+
 func TestEncryptSourceDuplicateTreePathsAcrossPairs(t *testing.T) {
 	env := newAppCryptoTestEnv(t)
 	cfg := configWithOwnerRecipient(&config.Config{CurrentDir: ".", Encryption: config.EncryptionConfig{Files: []config.FilePair{
@@ -133,7 +171,6 @@ func TestEncryptSourceDuplicateTreePathsAcrossPairs(t *testing.T) {
 	}}
 	err := prepareEncryptSource(cfg, &selection, EncryptRequest{SourceDir: t.TempDir()})
 	require.ErrorContains(t, err, "multiple file pairs read from")
-	_ = cfg
 }
 
 func TestEncryptSourceWorksWithPatternsAndDirectoryTargets(t *testing.T) {

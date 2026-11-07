@@ -54,10 +54,6 @@ plaintext. --force always performs this fresh encryption and rotates the data
 key without reading the old ciphertext. Missing plaintext is reported and
 skipped.
 
---output changes the destination of a single file target, preserving its
-configured format. Declare non-standard extensions with "format" or
-"format_rules" in .yewseal.toml.
-
 Before encryption, --update-gitignore (enabled by default) rebuilds each
 loaded configuration's .gitignore managed block from its complete plaintext
 mapping set, removing obsolete entries and preserving content outside the block.
@@ -116,13 +112,20 @@ Scan exclusions: ` + docsScanExclusions,
   # Print the batch report for scripts (diagnostics stay on stderr)
   yews encrypt --json > report.json`,
 		Args: func(cmd *cobra.Command, args []string) error {
-			return validateBatchArgs(args, opts.Parallel)
+			if err := validateBatchArgs(args, opts.Parallel); err != nil {
+				return err
+			}
+			if resolver.IsSet("source") && strings.TrimSpace(opts.Source) == "" {
+				return fmt.Errorf("--source requires a directory")
+			}
+			return nil
 		},
 		RunE: withConfig(load, func(cmd *cobra.Command, args []string, cfg *config.Config) error {
 			return yewsapp.EncryptFiles(cfg, yewsapp.EncryptRequest{
 				Presentation:    presentation.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), opts.Verbose),
 				KeyFile:         opts.KeyFile,
 				SourceDir:       opts.Source,
+				SourceSet:       resolver.IsSet("source"),
 				Targets:         args,
 				Parallel:        opts.Parallel,
 				Force:           opts.Force,

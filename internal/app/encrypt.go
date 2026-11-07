@@ -14,6 +14,7 @@ type EncryptRequest struct {
 	Presentation    *presentation.Output
 	KeyFile         string
 	SourceDir       string
+	SourceSet       bool
 	Targets         []string
 	Parallel        int
 	Force           bool

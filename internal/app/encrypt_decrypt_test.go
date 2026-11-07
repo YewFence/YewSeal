@@ -18,7 +18,7 @@ import (
 
 func TestDecryptFilesFormatsJSONWithIndentation(t *testing.T) {
 	env := newAppCryptoTestEnv(t)
-	plain := []byte(`{"database":{"host":"localhost","credentials":{"username":"admin","password":"secret"}}}`)
+	plain := []byte(`{"database":{"host":"localhost","credentials":{"username":"admin","password":"secret"}}}`) // betterleaks:allow
 	require.NoError(t, os.WriteFile("config.json", plain, 0600))
 	cfg := configWithOwnerRecipient(&config.Config{Encryption: config.EncryptionConfig{Files: []config.FilePair{{PlaintextPath: "config.json", EncryptedPath: "config.enc.json", Format: "json"}}}}, env.publicKey)
 

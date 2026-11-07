@@ -57,7 +57,8 @@ func TestConfiguredGroupsRejectCanonicalRecipientConflict(t *testing.T) {
 		}},
 	}
 
-	_, err = configuredFilePairs(cfg, task.ModeEncrypt, nil)
+	var stats task.ScanStats
+	_, err = newSelectionDiscovery(cfg, &stats).filePairs(task.ModeEncrypt, SelectionOptions{Command: task.ModeEncrypt})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "conflicting recipient sets")
 }

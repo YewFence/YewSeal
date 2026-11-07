@@ -73,7 +73,7 @@ func ResolveSelection(cfg *Config, opts SelectionOptions) (ResolvedSelection, er
 func resolveSelection(cfg *Config, opts SelectionOptions) (ResolvedSelection, error) {
 	var stats task.ScanStats
 	discovery := newSelectionDiscovery(cfg, &stats)
-	filePairs, err := discovery.filePairs(opts.Command)
+	filePairs, err := discovery.filePairs(opts.Command, opts)
 	if err != nil {
 		return ResolvedSelection{}, err
 	}

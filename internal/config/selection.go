@@ -13,6 +13,7 @@ import (
 type SelectionOptions struct {
 	Command             string
 	Targets             []string
+	SourceDir           string
 	RequireSingleTarget bool
 	AllowEmptyTarget    bool
 	StrictRecipients    bool
@@ -33,7 +34,8 @@ type SelectionResult struct {
 
 func SelectFilePairs(cfg *Config, opts SelectionOptions) (SelectionResult, error) {
 	var stats task.ScanStats
-	allConfigPairs, err := configuredFilePairs(cfg, opts.Command, &stats)
+	discovery := newSelectionDiscovery(cfg, &stats)
+	allConfigPairs, err := discovery.filePairs(opts.Command, opts)
 	if err != nil {
 		return SelectionResult{}, err
 	}
@@ -300,14 +302,10 @@ func newSelectionDiscovery(cfg *Config, stats *task.ScanStats) *selectionDiscove
 	return &selectionDiscovery{cfg: cfg, stats: stats, groups: make([]*task.GroupDiscovery, len(cfg.Encryption.Groups))}
 }
 
-func configuredFilePairs(cfg *Config, mode string, stats *task.ScanStats) ([]FilePair, error) {
-	return newSelectionDiscovery(cfg, stats).filePairs(mode)
-}
-
-func (d *selectionDiscovery) filePairs(mode string) ([]FilePair, error) {
+func (d *selectionDiscovery) filePairs(mode string, opts SelectionOptions) ([]FilePair, error) {
 	cfg := d.cfg
 	mode = policyForCommand(mode).discoveryMode
-	groupPairs, err := d.groupPairs(mode)
+	groupPairs, err := d.groupPairs(mode, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -334,7 +332,7 @@ func configuredEncryptedPaths(cfg *Config) []string {
 	return paths
 }
 
-func (d *selectionDiscovery) groupPairs(mode string) ([]FilePair, error) {
+func (d *selectionDiscovery) groupPairs(mode string, opts SelectionOptions) ([]FilePair, error) {
 	cfg := d.cfg
 	policy := policyForCommand(mode)
 	groups := cfg.GetGroups()
@@ -378,6 +376,13 @@ func (d *selectionDiscovery) groupPairs(mode string) ([]FilePair, error) {
 		taskPairs, err := d.groups[index].FilePairs(policy.discoveryMode)
 		if err != nil {
 			return nil, err
+		}
+		if mode == task.ModeEncrypt && opts.SourceDir != "" {
+			encryptedPairs, err := d.groups[index].FilePairs(task.ModeDecrypt)
+			if err != nil {
+				return nil, fmt.Errorf("group %s: %w", group.ConfigPath, err)
+			}
+			taskPairs = task.MergeGroupFilePairs(taskPairs, encryptedPairs)
 		}
 		for _, taskPair := range taskPairs {
 			if _, explicit := findConfiguredPair(cfg.Encryption.Files, cleanAbsPath(taskPair.PlaintextPath)); explicit {

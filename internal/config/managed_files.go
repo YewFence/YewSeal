@@ -20,7 +20,7 @@ func (d *selectionDiscovery) managedScopes(opts SelectionOptions, allPairs []Res
 	}
 	metadataPairs := allPairs
 	if policyForCommand(opts.Command).discoveryMode != policyForCommand(metadataCommand).discoveryMode {
-		pairs, err := d.filePairs(metadataCommand)
+		pairs, err := d.filePairs(metadataCommand, opts)
 		if err != nil {
 			return nil, err
 		}

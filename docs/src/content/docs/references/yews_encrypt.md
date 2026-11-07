@@ -37,10 +37,6 @@ plaintext. --force always performs this fresh encryption and rotates the data
 key without reading the old ciphertext. Missing plaintext is reported and
 skipped.
 
---output changes the destination of a single file target, preserving its
-configured format. Declare non-standard extensions with "format" or
-"format_rules" in .yewseal.toml.
-
 Before encryption, --update-gitignore (enabled by default) rebuilds each
 loaded configuration's .gitignore managed block from its complete plaintext
 mapping set, removing obsolete entries and preserving content outside the block.
