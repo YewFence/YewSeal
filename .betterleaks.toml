@@ -7,15 +7,21 @@
 # 误报来源：
 # - docs/ 下的示例凭据（如 password = "old_password"、ENC[AES256_GCM,...] 加密示例）
 # - *_test.go 与 testdata/ 中的测试夹具（如公开的 age 测试密钥、"secret123"）
+# - leaks:check 扫 jj diff 的原始 patch 文本，diff 的删除行/上下文行带不上
+#   betterleaks:allow 注释，因此测试夹具 password":"secret" 按值豁免。
 # 仅作用于低特异性的 generic-* 规则；github-pat 等高特异性规则在这些路径下仍然生效。
 filter = '''
 finding["rule_id"] in ["generic-password", "generic-api-key", "generic-credential-uri"]
 &&
-filter.matchesAny(attributes["path"], [
-  `(?i)(?:^|/)docs/`,
-  `_test\.go$`,
-  `(?:^|/)testdata(?:/|$)`,
-])
+(
+  filter.matchesAny(attributes["path"], [
+    `(?i)(?:^|/)docs/`,
+    `_test\.go$`,
+    `(?:^|/)testdata(?:/|$)`,
+  ])
+  ||
+  finding["secret"] == "secret"
+)
 '''
 
 [extend]

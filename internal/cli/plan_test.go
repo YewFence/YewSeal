@@ -14,7 +14,7 @@ import (
 
 func TestPlanChecksMappingsWithoutExecutionEnvironment(t *testing.T) {
 	clearCLIEnvironment(t)
-	t.Setenv("YEWSEAL_ENCRYPT_OUTPUT", "ignored-output.json")
+	t.Setenv("YEWSEAL_ENCRYPT_SOURCE", "ignored-delivery-tree")
 	t.Setenv("SOPS_AGE_KEY_CMD", "exit 29")
 	t.Setenv("YEWSEAL_DECRYPT_STRICT", "invalid")
 	root := t.TempDir()
@@ -44,7 +44,7 @@ func TestPlanChecksMappingsWithoutExecutionEnvironment(t *testing.T) {
 		require.Equal(t, "plan", result.Command)
 		require.Nil(t, result.Metadata, "plan does not describe metadata writes")
 		require.Len(t, result.FilePairs, 1)
-		require.NotContains(t, output.String(), "ignored-output")
+		require.NotContains(t, output.String(), "ignored-delivery-tree")
 	}
 	entries, err := os.ReadDir(root)
 	require.NoError(t, err)

@@ -14,7 +14,7 @@ import (
 type optionResolverFixture struct {
 	Force    bool   `mapstructure:"force"`
 	Parallel int    `mapstructure:"parallel"`
-	Output   string `mapstructure:"output"`
+	Source   string `mapstructure:"source"`
 }
 
 func newOptionResolverFixture(t *testing.T, run func(optionResolverFixture, *optionResolver, *cobra.Command) error) *cobra.Command {
@@ -23,7 +23,7 @@ func newOptionResolverFixture(t *testing.T, run func(optionResolverFixture, *opt
 	cmd := &cobra.Command{Use: "encrypt"}
 	cmd.Flags().BoolVar(&opts.Force, "force", false, "Force")
 	cmd.Flags().IntVar(&opts.Parallel, "parallel", opts.Parallel, "Parallel workers")
-	cmd.Flags().StringVar(&opts.Output, "output", "", "Output")
+	cmd.Flags().StringVar(&opts.Source, "source", "", "Source")
 	resolver := newOptionResolver(cmd, &opts)
 	cmd.Args = resolver.before(cobra.NoArgs)
 	cmd.RunE = func(cmd *cobra.Command, _ []string) error { return run(opts, resolver, cmd) }
@@ -33,13 +33,13 @@ func newOptionResolverFixture(t *testing.T, run func(optionResolverFixture, *opt
 func TestOptionResolverUsesEnvironmentAndTracksPresence(t *testing.T) {
 	t.Setenv("YEWSEAL_ENCRYPT_FORCE", "true")
 	t.Setenv("YEWSEAL_ENCRYPT_PARALLEL", "4")
-	t.Setenv("YEWSEAL_ENCRYPT_OUTPUT", "review.yaml")
+	t.Setenv("YEWSEAL_ENCRYPT_SOURCE", "review-tree")
 	cmd := newOptionResolverFixture(t, func(opts optionResolverFixture, resolver *optionResolver, cmd *cobra.Command) error {
 		require.True(t, opts.Force)
 		require.Equal(t, 4, opts.Parallel)
-		require.Equal(t, "review.yaml", opts.Output)
-		require.True(t, resolver.IsSet("output"))
-		require.False(t, cmdFlagChanged(cmd, "output"))
+		require.Equal(t, "review-tree", opts.Source)
+		require.True(t, resolver.IsSet("source"))
+		require.False(t, cmdFlagChanged(cmd, "source"))
 		return nil
 	})
 	require.NoError(t, cmd.Execute())
@@ -130,14 +130,19 @@ func TestInvalidCommandEnvironmentPrecedesConfigLoading(t *testing.T) {
 	require.ErrorContains(t, cmd.Execute(), "invalid YEWSEAL_DECRYPT_PARALLEL")
 }
 
-func TestCommandEnvironmentOutputParticipatesInArgumentValidation(t *testing.T) {
-	t.Setenv("YEWSEAL_ENCRYPT_OUTPUT", "review.yaml")
+func TestCommandEnvironmentSourceIsNotACallingError(t *testing.T) {
+	clearCLIEnvironment(t)
+	cwd := t.TempDir()
+	t.Setenv("YEWSEAL_ENCRYPT_SOURCE", "delivery-tree")
 	cmd := newRootCommand("test", func() (*config.Config, error) {
-		t.Fatal("invalid option combination must fail before loading configuration")
-		return nil, nil
+		return &config.Config{CurrentDir: cwd, ProjectRoot: cwd}, nil
 	})
+	t.Chdir(cwd)
 	quietCommand(cmd, []string{"encrypt"})
-	require.ErrorContains(t, cmd.Execute(), "--output is only supported with exactly one file target")
+	err := cmd.Execute()
+	require.Error(t, err)
+	require.NotContains(t, err.Error(), "unknown flag")
+	require.Equal(t, 2, ExitCode(cmd, err))
 }
 
 func TestGlobalOptionEnvironmentIsInherited(t *testing.T) {

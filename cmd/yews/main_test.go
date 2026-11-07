@@ -165,8 +165,6 @@ func TestCLIConfigurationLoading(t *testing.T) {
 			return output
 		}
 		run("init", "--input", "secret", "--output", "secret.enc.env", "--format", "env", "--sync-sops-config=false")
-		run("encrypt", "secret", "-o", "export.json")
-		require.NoFileExists(t, filepath.Join(dir, "secret.enc.env"))
 		run("encrypt")
 		run("plan", "secret", "--json")
 		delivery := t.TempDir()
@@ -174,6 +172,9 @@ func TestCLIConfigurationLoading(t *testing.T) {
 		exported, err := os.ReadFile(filepath.Join(delivery, "secret"))
 		require.NoError(t, err)
 		require.Equal(t, plain, exported)
+		require.NoError(t, os.Remove(filepath.Join(dir, "secret.enc.env")))
+		run("encrypt", "--source", delivery, "--key-file", ".age/keys.txt")
+		require.FileExists(t, filepath.Join(dir, "secret.enc.env"))
 		require.Equal(t, plain, run("view", "secret.enc.env", "--key-file", ".age/keys.txt"))
 		run("diff", "--key-file", ".age/keys.txt", "--color", "never")
 	})

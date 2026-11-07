@@ -6,7 +6,7 @@ import (
 	"github.com/YewFence/YewSeal/internal/task"
 )
 
-func validateBatchArgs(args []string, parallel int, outputSet bool) error {
+func validateBatchArgs(args []string, parallel int) error {
 	if parallel < 1 {
 		return fmt.Errorf("--parallel must be at least 1")
 	}
@@ -14,9 +14,6 @@ func validateBatchArgs(args []string, parallel int, outputSet bool) error {
 		if err := validateTargetArg(arg); err != nil {
 			return err
 		}
-	}
-	if outputSet && len(args) != 1 {
-		return fmt.Errorf("--output is only supported with exactly one file target")
 	}
 	return nil
 }

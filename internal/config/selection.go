@@ -13,8 +13,6 @@ import (
 type SelectionOptions struct {
 	Command             string
 	Targets             []string
-	Output              string
-	OutputSet           bool
 	RequireSingleTarget bool
 	AllowEmptyTarget    bool
 	StrictRecipients    bool
@@ -44,22 +42,10 @@ func SelectFilePairs(cfg *Config, opts SelectionOptions) (SelectionResult, error
 		return SelectionResult{}, err
 	}
 	result.ScanStats = stats
-	if opts.OutputSet {
-		pair := &result.FilePairs[0]
-		format, _, err := resolveFinalFormat(*pair)
-		if err != nil {
-			return SelectionResult{}, err
-		}
-		pair.Format = format
-		pair.EncryptedPath = resolveCommandPath(cwdFromConfig(cfg), opts.Output)
-	}
 	return result, nil
 }
 
 func selectConfiguredFilePairs(cfg *Config, allConfigPairs []FilePair, opts SelectionOptions) (SelectionResult, error) {
-	if opts.Command != task.ModeEncrypt && opts.OutputSet {
-		return SelectionResult{}, fmt.Errorf("%s does not support output overrides", opts.Command)
-	}
 	if hasTargets(opts.Targets) {
 		result, err := selectTargetFilePairs(cfg, allConfigPairs, opts)
 		if err != nil {
@@ -73,9 +59,6 @@ func selectConfiguredFilePairs(cfg *Config, allConfigPairs []FilePair, opts Sele
 
 	if opts.RequireSingleTarget && !opts.AllowEmptyTarget {
 		return SelectionResult{}, fmt.Errorf("%s requires exactly one target", opts.Command)
-	}
-	if opts.OutputSet {
-		return SelectionResult{}, fmt.Errorf("--output is only supported when the path target is a file")
 	}
 
 	selected, err := filterCurrentDirectoryScope(allConfigPairs, opts.Command, cwdFromConfig(cfg))
@@ -245,9 +228,6 @@ func selectTargetFilePairs(cfg *Config, allConfigPairs []FilePair, opts Selectio
 		info, statErr := os.Stat(targetAbs)
 		switch {
 		case statErr == nil && info.IsDir():
-			if opts.OutputSet {
-				return SelectionResult{}, fmt.Errorf("--output is only supported when the path target is a file")
-			}
 			pairs, err := filterCurrentDirectoryScope(allConfigPairs, opts.Command, targetAbs)
 			if err != nil {
 				return SelectionResult{}, err

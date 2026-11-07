@@ -10,7 +10,6 @@ import (
 	"filippo.io/age"
 	"github.com/YewFence/YewSeal/internal/config"
 	"github.com/YewFence/YewSeal/internal/presentation"
-	"github.com/YewFence/YewSeal/internal/task"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -72,18 +71,6 @@ func TestPrintPlanJSONDoesNotRequireKeys(t *testing.T) {
 	assert.Equal(t, []string{identity.Recipient().String()}, payload.FilePairs[0].Recipients)
 	assert.Equal(t, "defaults", payload.FilePairs[0].Authorization.Kind)
 	assert.Equal(t, "defaults", payload.FilePairs[0].Authorization.EffectiveSource.Kind)
-}
-
-func TestOutputOverridePreservesInferredFormatProvenance(t *testing.T) {
-	env := newAppCryptoTestEnv(t)
-	require.NoError(t, os.WriteFile("config.yaml", []byte("token: value\n"), 0600))
-	require.NoError(t, os.WriteFile("config.enc.yaml", []byte("unused in preflight"), 0600))
-	cfg := configWithOwnerRecipient(&config.Config{Encryption: config.EncryptionConfig{Files: []config.FilePair{{PlaintextPath: "config.yaml", EncryptedPath: "config.enc.yaml", ConfigPath: ".yewseal.toml"}}}}, env.publicKey)
-	selection, err := config.ResolveSelection(cfg, config.SelectionOptions{Command: task.ModeEncrypt, Targets: []string{"config.enc.yaml"}, Output: "export.json", OutputSet: true})
-	require.NoError(t, err)
-	require.Len(t, selection.FilePairs, 1)
-	require.Equal(t, "yaml", selection.FilePairs[0].Format)
-	require.Equal(t, config.ValueSourceFilename, selection.FilePairs[0].FormatSource.Kind)
 }
 
 func TestPreflightKeepsCompleteMetadataForEveryTarget(t *testing.T) {

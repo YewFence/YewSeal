@@ -34,6 +34,17 @@ Recipients come from .yewseal.toml. An empty recipient set, an unknown
 alias, or conflicting group authorization fails the batch before any
 ciphertext is written.
 
+--source DIR reads plaintext from a caller-supplied mirrored tree instead
+of registered plaintext paths: every selected mapping's plaintext comes
+from DIR / relative(project-root, registered-plaintext-path), the exact
+inverse of decrypt --output's projection, which makes
+"decrypt --output DIR, edit, encrypt --source DIR" a closed round trip.
+Ciphertext still goes to registered paths, and a file missing from the
+tree is reported and skipped (outcome "missing plaintext") without
+falling back to the registered path. DIR resolves relative to the
+calling directory and must already exist as a real directory. The caller
+owns the tree's lifetime and cleanup.
+
 When ciphertext already exists, encrypt uses an available private identity
 to verify and update it in place: unchanged files remain byte-identical,
 unchanged values retain their ciphertext, and recipient-only changes only
@@ -60,10 +71,11 @@ makes the command fail.
 
 Exit codes: 0 on success (skips without real errors allowed, including
 a fully skipped batch); 1 when any file fails, .sops.yaml synchronization
-fails, or output delivery fails. Exit 1 does not imply that no ciphertext
+incremental encryption, or output delivery fails. Exit 1 does not imply that no ciphertext
 was written; 2 for calling errors: invalid arguments, a missing or invalid
-.yewseal.toml, selection or authorization failure, or an unusable
-identity source (an unreadable explicit file or a failed key command).
+.yewseal.toml, selection or authorization failure, an unusable
+--source directory, or an unusable identity source (an unreadable
+explicit file or a failed key command).
 
 Output: ciphertext goes to files and stdout stays empty; warnings,
 per-file encryption results, skip and failure reasons, and the summary go to
@@ -89,8 +101,11 @@ Scan exclusions: ` + docsScanExclusions,
   yews encrypt config.toml
   yews encrypt config.enc.toml
 
-  # Temporarily override the output path of a single target
-  yews encrypt config.toml -o review/config.enc.toml
+  # Close the delivery round trip: edit a mirrored tree and encrypt it back
+  delivery=$(mktemp -d)
+  yews decrypt --strict --output "$delivery"
+  # ... edit "$delivery/config.toml" ...
+  yews encrypt --source "$delivery"
 
   # Select registered .toml plaintext under ./configs with a pattern
   yews encrypt './configs/*.toml'
@@ -101,14 +116,13 @@ Scan exclusions: ` + docsScanExclusions,
   # Print the batch report for scripts (diagnostics stay on stderr)
   yews encrypt --json > report.json`,
 		Args: func(cmd *cobra.Command, args []string) error {
-			return validateBatchArgs(args, opts.Parallel, resolver.IsSet("output"))
+			return validateBatchArgs(args, opts.Parallel)
 		},
 		RunE: withConfig(load, func(cmd *cobra.Command, args []string, cfg *config.Config) error {
 			return yewsapp.EncryptFiles(cfg, yewsapp.EncryptRequest{
 				Presentation:    presentation.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), opts.Verbose),
 				KeyFile:         opts.KeyFile,
-				Output:          opts.Output,
-				OutputSet:       resolver.IsSet("output"),
+				SourceDir:       opts.Source,
 				Targets:         args,
 				Parallel:        opts.Parallel,
 				Force:           opts.Force,
@@ -249,7 +263,7 @@ Scan exclusions: ` + docsScanExclusions,
   # Print the batch report for scripts (diagnostics stay on stderr)
   yews decrypt --json > report.json`,
 		Args: func(cmd *cobra.Command, args []string) error {
-			if err := validateBatchArgs(args, opts.Parallel, false); err != nil {
+			if err := validateBatchArgs(args, opts.Parallel); err != nil {
 				return err
 			}
 			if resolver.IsSet("output") {

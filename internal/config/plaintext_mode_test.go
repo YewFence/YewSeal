@@ -140,10 +140,11 @@ func TestConflictingGroupPlaintextModes(t *testing.T) {
 	require.ErrorContains(t, err, "conflicting plaintext_mode for ")
 }
 
-func TestDecryptSelectionRejectsFilenameOutputOverride(t *testing.T) {
+func TestDecryptSelectionHasNoFilenameOutputOverride(t *testing.T) {
 	cfg := selectionConfig(t)
 	plain := selectionFile(t, cfg.CurrentDir, "secret.yaml")
 	cfg.Encryption.Files = []FilePair{{PlaintextPath: plain, EncryptedPath: plain + ".enc"}}
-	_, err := ResolveSelection(cfg, SelectionOptions{Command: task.ModeDecrypt, Targets: []string{plain}, OutputSet: true, Output: "renamed.yaml"})
-	require.ErrorContains(t, err, "decrypt does not support output overrides")
+	result, err := ResolveSelection(cfg, SelectionOptions{Command: task.ModeDecrypt, Targets: []string{plain}})
+	require.NoError(t, err)
+	require.Equal(t, plain, result.FilePairs[0].PlaintextPath)
 }
