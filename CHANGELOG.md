@@ -1,3 +1,17 @@
+## [0.26.0] - 2026-11-07
+
+### 📚 Documentation
+
+- *(design)* Align output and config discovery descriptions
+
+### ⚡ Performance
+
+- *(task)* Share one pruned traversal across group discovery
+
+### 🚜 Refactor
+
+- *(config)* Centralize managed-file preparation
+- *(fileformat)* [**breaking**] Centralize format and path conventions
 ## [0.25.1] - 2026-11-03
 
 ### 🐛 Bug Fixes
