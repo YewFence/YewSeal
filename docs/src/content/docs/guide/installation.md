@@ -67,6 +67,8 @@ yews completion bash > ~/.bash_completion.d/yews.bash
 yews completion fish > ~/.config/fish/completions/yews.fish
 ```
 
+After installation, target completion suggests registered paths only: encrypt, clean, and diff complete plaintext paths, decrypt, view, and edit complete encrypted paths, and plan and verify complete either side of a mapping. Directories and patterns are still typed by hand.
+
 ## Next steps
 
 - [Tutorial](/guide/tutorial) — take a project from `yews init` to a decrypted clone on another machine

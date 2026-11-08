@@ -9,9 +9,10 @@ Edit encrypted configuration file using SOPS
 Edit an encrypted file in place: decrypt it to a temporary file,
 open an editor, then re-encrypt and write the result back on save.
 
-The target must be registered in .yewseal.toml; either the encrypted
-path or its configured plaintext path locates the mapping. There is no
-default target and no --editor flag.
+The target must be registered in .yewseal.toml and given as the single
+positional argument; either the encrypted path or its configured plaintext
+path locates the mapping. There is no default target and no --editor
+flag.
 
 The editor is taken from VISUAL, then EDITOR; when both are unset or
 empty, notepad is used on Windows and vi elsewhere. The variable may
@@ -36,8 +37,8 @@ finishes.
 
 Exit codes: 0 on success (changed or unchanged); 1 when editing or
 re-encryption fails, including when no usable identity is available; 2
-for calling errors (no target, an unregistered file, a missing or invalid
-.yewseal.toml, an unreadable explicit key file, or a failed key command).
+for calling errors (wrong argument count, an unregistered target, a missing
+or invalid .yewseal.toml, an unreadable explicit key file, or a failed key command).
 
 Output: stdout stays empty; the update result (or "unchanged"),
 warnings, and errors go to stderr. --verbose adds scan counts.
@@ -49,29 +50,28 @@ Documentation: https://yewfence.github.io/YewSeal/guide/tutorial
 Scan exclusions: https://yewfence.github.io/YewSeal/guide/configuration#scan-exclusions
 
 ```
-yews edit [flags]
+yews edit [command options] <target> [flags]
 ```
 
 ## Examples
 
 ```
   # Edit a registered encrypted file
-  yews edit -f config.enc.toml
+  yews edit config.enc.toml
 
   # The configured plaintext path locates the same mapping
-  yews edit -f config.toml
+  yews edit config.toml
 
   # Pick the editor per invocation
-  VISUAL="code --wait" yews edit -f config.enc.toml
-  VISUAL=vim yews edit -f config.enc.toml
+  VISUAL="code --wait" yews edit config.enc.toml
+  VISUAL=vim yews edit config.enc.toml
 ```
 
 ## Options
 
 ```
-  -f, --file string   Encrypted file to edit (must be registered in .yewseal.toml; its configured plaintext path also works) (env YEWSEAL_EDIT_FILE)
-  -h, --help          help for edit
-  -v, --verbose       Print scan counts on stderr (env YEWSEAL_EDIT_VERBOSE)
+  -h, --help      help for edit
+  -v, --verbose   Print scan counts on stderr (env YEWSEAL_EDIT_VERBOSE)
 ```
 
 ## Options inherited from parent commands

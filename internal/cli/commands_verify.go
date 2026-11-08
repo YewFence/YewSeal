@@ -15,8 +15,9 @@ func verifyCommand(load configLoader) *cobra.Command {
 	opts := verifyOptions{SyncSOPSConfig: true}
 
 	cmd := &cobra.Command{
-		Use:   "verify [command options] [path-or-pattern]...",
-		Short: "Check ciphertext, recipients, plaintext consistency, version-control exposure, and .sops.yaml drift",
+		Use:     "verify [command options] [path-or-pattern]...",
+		Aliases: []string{"v"},
+		Short:   "Check ciphertext, recipients, plaintext consistency, version-control exposure, and .sops.yaml drift",
 		Long: `Check the health of registered encrypted files without modifying any
 project file. verify never prints plaintext, private keys, or data keys.
 
@@ -146,6 +147,7 @@ Scan exclusions: ` + docsScanExclusions,
 	cmd.Flags().BoolVar(&opts.SyncSOPSConfig, "sync-sops-config", opts.SyncSOPSConfig, "Check .sops.yaml using the managed-file rules; false skips the comparison")
 	markSharedEnv(cmd.Flags().Lookup("sync-sops-config"), syncSOPSConfigEnv)
 	cmd.Flags().BoolVar(&opts.JSON, "json", false, "Print the verify report as JSON on stdout (errors stay on stderr)")
+	cmd.ValidArgsFunction = registeredTargetCompletion(load, "verify", 0)
 	resolver := newOptionResolver(cmd, &opts)
 	cmd.Args = resolver.before(cmd.Args)
 	return cmd

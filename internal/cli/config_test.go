@@ -63,8 +63,8 @@ func TestInvalidArgumentsNeverLoadConfig(t *testing.T) {
 		{[]string{"decrypt", "--help", "--parallel", "bad"}, "invalid argument"},
 		{[]string{"view"}, "accepts 1 arg"},
 		{[]string{"view", " "}, "requires exactly one target"},
-		{[]string{"edit"}, "edit requires exactly one configured target"},
-		{[]string{"edit", "extra", "--file", "secret.yaml"}, "unknown command"},
+		{[]string{"edit"}, "accepts 1 arg"},
+		{[]string{"edit", "secret.enc.yaml", "extra"}, "accepts 1 arg"},
 		{[]string{"encrypt", "--format", "yaml"}, "unknown flag: --format"},
 		{[]string{"decrypt", "--format", "yaml"}, "unknown flag: --format"},
 		{[]string{"plan", "--format", "yaml"}, "unknown flag: --format"},
@@ -112,7 +112,7 @@ func TestBusinessCommandsLoadConfigOncePerExecution(t *testing.T) {
 	clearCLIEnvironment(t)
 	for _, args := range [][]string{
 		{"encrypt"}, {"e"}, {"decrypt"}, {"d"}, {"plan"},
-		{"edit", "--file", "secret.enc.yaml"}, {"view", "secret.enc.yaml"}, {"diff"},
+		{"edit", "secret.enc.yaml"}, {"view", "secret.enc.yaml"}, {"diff"},
 	} {
 		t.Run(args[0], func(t *testing.T) {
 			calls := 0
@@ -137,7 +137,7 @@ func TestConfigLoadingDistinguishesMissingFromEmpty(t *testing.T) {
 	clearCLIEnvironment(t)
 	t.Chdir(t.TempDir())
 	for _, args := range [][]string{
-		{"encrypt"}, {"decrypt"}, {"plan"}, {"view", "secret.enc.yaml"}, {"edit", "--file", "secret.enc.yaml"}, {"diff"},
+		{"encrypt"}, {"decrypt"}, {"plan"}, {"view", "secret.enc.yaml"}, {"edit", "secret.enc.yaml"}, {"diff"},
 	} {
 		cmd := NewRootCommand("test")
 		quietCommand(cmd, args)

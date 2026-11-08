@@ -53,7 +53,6 @@ type initOptions struct {
 type editOptions struct {
 	Verbose bool   `mapstructure:"verbose"`
 	KeyFile string `mapstructure:"key-file"`
-	File    string `mapstructure:"file"`
 }
 
 type viewOptions struct {

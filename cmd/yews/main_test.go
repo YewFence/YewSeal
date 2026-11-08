@@ -98,7 +98,7 @@ func TestCLIConfigurationLoading(t *testing.T) {
 		{"help-invalid-number", []string{"decrypt", "--help", "--parallel", "nope"}, "invalid argument"},
 		{"missing-target", []string{"view"}, "accepts 1 arg"},
 		{"removed-format", []string{"decrypt", "--format", "yaml"}, "unknown flag: --format"},
-		{"missing-edit-file", []string{"edit"}, "edit requires exactly one configured target"},
+		{"missing-edit-file", []string{"edit"}, "accepts 1 arg"},
 		{"invalid-color", []string{"diff", "--color", "invalid"}, "unsupported color mode"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

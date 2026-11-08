@@ -215,7 +215,7 @@ Summary (encrypted): 1 succeeded, 0 skipped, 0 failed (1 selected)
 **Edit the ciphertext directly.** `edit` decrypts into a temporary file, opens your editor (`VISUAL`, then `EDITOR`), and re-encrypts on save. Your plaintext tree stays untouched:
 
 ```bash
-$ VISUAL="code --wait" yews edit -f config.enc.toml
+$ VISUAL="code --wait" yews edit config.enc.toml
 Updated config.enc.toml
 ```
 

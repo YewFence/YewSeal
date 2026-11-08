@@ -138,6 +138,7 @@ Scan exclusions: ` + docsScanExclusions,
 	addEncryptFlags(cmd.Flags(), &opts)
 	resolver = newOptionResolver(cmd, &opts)
 	cmd.Args = resolver.before(cmd.Args)
+	cmd.ValidArgsFunction = registeredTargetCompletion(load, "encrypt", 0)
 	return cmd
 }
 
@@ -297,6 +298,7 @@ Scan exclusions: ` + docsScanExclusions,
 	addDecryptFlags(cmd.Flags(), &opts)
 	resolver = newOptionResolver(cmd, &opts)
 	cmd.Args = resolver.before(cmd.Args)
+	cmd.ValidArgsFunction = registeredTargetCompletion(load, "decrypt", 0)
 	return cmd
 }
 
@@ -415,6 +417,7 @@ Scan exclusions: ` + docsScanExclusions,
 	addCleanFlags(cmd.Flags(), &opts)
 	resolver = newOptionResolver(cmd, &opts)
 	cmd.Args = resolver.before(cmd.Args)
+	cmd.ValidArgsFunction = registeredTargetCompletion(load, "clean", 0)
 	return cmd
 }
 
@@ -502,5 +505,6 @@ Scan exclusions: ` + docsScanExclusions,
 	addPlanFlags(cmd.Flags(), &opts)
 	resolver := newOptionResolver(cmd, &opts)
 	cmd.Args = resolver.before(cmd.Args)
+	cmd.ValidArgsFunction = registeredTargetCompletion(load, "plan", 0)
 	return cmd
 }
