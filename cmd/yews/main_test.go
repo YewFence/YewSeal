@@ -172,10 +172,14 @@ func TestCLIConfigurationLoading(t *testing.T) {
 		exported, err := os.ReadFile(filepath.Join(delivery, "secret"))
 		require.NoError(t, err)
 		require.Equal(t, plain, exported)
+		// Distinguish the registered plaintext from the delivery tree: if encrypt
+		// ignored --source, the ciphertext below would carry the stale bytes.
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "secret"), []byte("TOKEN=stale\n"), 0600))
 		require.NoError(t, os.Remove(filepath.Join(dir, "secret.enc.env")))
 		run("encrypt", "--source", delivery, "--key-file", ".age/keys.txt")
 		require.FileExists(t, filepath.Join(dir, "secret.enc.env"))
 		require.Equal(t, plain, run("view", "secret.enc.env", "--key-file", ".age/keys.txt"))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "secret"), plain, 0600))
 		run("diff", "--key-file", ".age/keys.txt", "--color", "never")
 	})
 }
