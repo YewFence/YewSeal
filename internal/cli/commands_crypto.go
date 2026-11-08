@@ -67,7 +67,7 @@ makes the command fail.
 
 Exit codes: 0 on success (skips without real errors allowed, including
 a fully skipped batch); 1 when any file fails, .sops.yaml synchronization
-incremental encryption, or output delivery fails. Exit 1 does not imply that no ciphertext
+fails, or output delivery fails. Exit 1 does not imply that no ciphertext
 was written; 2 for calling errors: invalid arguments, a missing or invalid
 .yewseal.toml, selection or authorization failure, an unusable
 --source directory, or an unusable identity source (an unreadable
