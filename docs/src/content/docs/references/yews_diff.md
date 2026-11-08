@@ -14,6 +14,19 @@ With no arguments, diff selects registered plaintext under the current
 directory and its subdirectories. Use file paths, directories, or patterns
 to select targets; directories and patterns match plaintext paths.
 
+--source DIR reads plaintext from a caller-supplied mirrored tree
+instead of registered plaintext paths, previewing exactly what
+"encrypt --source DIR" would change without writing ciphertext. The
+tree follows the same mirrored projection as "decrypt --output"
+(relative to the project root), so "decrypt --output DIR, edit,
+diff --source DIR, encrypt --source DIR" is a closed round trip. A
+mapping whose file is missing from the tree is skipped as
+missing-plaintext; there is no fallback to registered plaintext.
+Selection still needs either side of the mapping to exist somewhere
+(registered path or tree). The registered ciphertext stays the
+comparison target: a ciphertext file placed in the tree is never
+read.
+
 A mapping is skipped with the reason reported on stderr when either
 side is missing (no new/deleted patch is emitted and it does not count
 as equal), or when available identities do not match. When no usable
@@ -34,7 +47,8 @@ any comparison fails or output delivery fails. There is no strict mode
 and no "differs means failure" switch, so diff is not a CI gate;
 obtained diffs are never rolled back. Calling errors (invalid patterns,
 a missing or invalid .yewseal.toml, selection failure, an unreadable
-explicit key file, or a failed key command) exit 2.
+explicit key file, a failed key command, or a --source root that is
+not an existing, real directory) exit 2.
 
 Output: stdout carries only the diff body (empty when nothing differs);
 warnings, per-file skip and failure reasons, and the summary go to
@@ -46,6 +60,7 @@ See also: "yews encrypt" to re-encrypt changed plaintext, "yews view"
 to inspect ciphertext content.
 
 Documentation: https://yewfence.github.io/YewSeal/guide/decryption-results
+Mirrored trees: https://yewfence.github.io/YewSeal/guide/plaintext-delivery
 Target selection: https://yewfence.github.io/YewSeal/guide/target-selection
 Scan exclusions: https://yewfence.github.io/YewSeal/guide/configuration#scan-exclusions
 
@@ -63,6 +78,9 @@ yews diff [path-or-pattern]... [flags]
   yews diff config.toml
   yews diff config.enc.toml
 
+  # Preview a delivered tree before re-encrypting it
+  yews diff --source "$delivery"
+
   # Disable color in scripts; diagnostics stay on stderr
   yews diff --color never > changes.diff
 
@@ -73,10 +91,11 @@ yews diff [path-or-pattern]... [flags]
 ## Options
 
 ```
-      --color string   Colorize diff output (auto/always/never) (env YEWSEAL_DIFF_COLOR) (default "auto")
-  -h, --help           help for diff
-      --json           Print the comparison report as JSON on stdout (per-file status with embedded diff bodies) (env YEWSEAL_DIFF_JSON)
-  -v, --verbose        Enable verbose output (scan counts, selection info and per-file completion notes on stderr) (env YEWSEAL_DIFF_VERBOSE)
+      --color string    Colorize diff output (auto/always/never) (env YEWSEAL_DIFF_COLOR) (default "auto")
+  -h, --help            help for diff
+      --json            Print the comparison report as JSON on stdout (per-file status with embedded diff bodies) (env YEWSEAL_DIFF_JSON)
+      --source string   Compare plaintext from the project-relative mirrored tree under this existing, real directory instead of registered plaintext paths (env YEWSEAL_DIFF_SOURCE)
+  -v, --verbose         Enable verbose output (scan counts, selection info and per-file completion notes on stderr) (env YEWSEAL_DIFF_VERBOSE)
 ```
 
 ## Options inherited from parent commands

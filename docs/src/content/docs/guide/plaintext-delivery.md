@@ -66,6 +66,16 @@ yews encrypt --source "$YEWS_TMP"
 
 `YEWSEAL_ENCRYPT_SOURCE` supplies the directory, resolved relative to the calling working directory; an explicit flag wins. `DIR` must already exist as a real directory; selection (targets, patterns, current-directory scope) works exactly as in plain `encrypt`.
 
+## Previewing an edited tree before re-encrypting
+
+`diff --source DIR` shows exactly what `encrypt --source DIR` would change, without writing any ciphertext. It applies the same mirrored projection to the plaintext side of each selected mapping and compares against the registered ciphertext; mapping, format, and skip rules are unchanged from plain `diff`. A mapping whose file is missing from the tree is skipped as missing-plaintext, with no fallback to the registered plaintext path. The registered ciphertext stays the comparison target: a ciphertext file placed in the tree is never read. Finding differences is never itself a failure — exit `0` means "no real error", not "identical".
+
+```sh
+yews diff --source "$YEWS_TMP"
+```
+
+`YEWSEAL_DIFF_SOURCE` supplies the directory; an explicit flag wins.
+
 ## Delivery-classified files
 
 Declare runtime-sensitive mappings with [`plaintext_mode = "delivery"`](/guide/configuration#plaintext-classification) — on a file pair or a whole group — so default decrypt skips them instead of writing their configured plaintext path. Choose `--output` for runtime delivery or explicitly opt into `--inplace` for project-path writes. The configured `secrets/prod.env`, for example, can be delivered to the tmpfs tree above without appearing at its ordinary plaintext location. `plan` and `verify` expose `plaintext_mode` for audits.
