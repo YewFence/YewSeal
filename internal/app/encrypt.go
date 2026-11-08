@@ -13,8 +13,8 @@ import (
 type EncryptRequest struct {
 	Presentation    *presentation.Output
 	KeyFile         string
-	Output          string
-	OutputSet       bool
+	SourceDir       string
+	SourceSet       bool
 	Targets         []string
 	Parallel        int
 	Force           bool

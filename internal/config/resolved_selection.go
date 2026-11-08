@@ -73,7 +73,7 @@ func ResolveSelection(cfg *Config, opts SelectionOptions) (ResolvedSelection, er
 func resolveSelection(cfg *Config, opts SelectionOptions) (ResolvedSelection, error) {
 	var stats task.ScanStats
 	discovery := newSelectionDiscovery(cfg, &stats)
-	filePairs, err := discovery.filePairs(opts.Command)
+	filePairs, err := discovery.filePairs(opts.Command, opts)
 	if err != nil {
 		return ResolvedSelection{}, err
 	}
@@ -94,11 +94,6 @@ func resolveSelection(cfg *Config, opts SelectionOptions) (ResolvedSelection, er
 	for _, pair := range result.FilePairs {
 		resolved := byPlaintext[cleanAbsPath(pair.PlaintextPath)]
 		resolved.SelectedBy = selectedBy(result, pair)
-		if opts.OutputSet {
-			output := resolveCommandPath(cwdFromConfig(cfg), opts.Output)
-			source := ValueSource{Kind: ValueSourceArgument, Detail: "--output"}
-			resolved.EncryptedPath, resolved.EncryptedSource = output, source
-		}
 		selected = append(selected, resolved)
 	}
 	if err := checkWriteConflicts(opts.Command, selected); err != nil {

@@ -1,10 +1,13 @@
 package app
 
 import (
+	"fmt"
 	"os"
+	"strings"
 
 	"github.com/YewFence/YewSeal/internal/agekey"
 	"github.com/YewFence/YewSeal/internal/config"
+	"github.com/YewFence/YewSeal/internal/errx"
 	"github.com/YewFence/YewSeal/internal/task"
 )
 
@@ -15,14 +18,19 @@ type PreflightResult struct {
 }
 
 func PreflightEncrypt(cfg *config.Config, req EncryptRequest) (PreflightResult, error) {
+	if req.SourceSet && strings.TrimSpace(req.SourceDir) == "" {
+		return PreflightResult{}, errx.Usage(fmt.Errorf("--source requires a directory"))
+	}
 	selection, err := config.ResolveSelection(cfg, config.SelectionOptions{
 		Command:             task.ModeEncrypt,
 		Targets:             req.Targets,
-		Output:              req.Output,
-		OutputSet:           req.OutputSet,
+		SourceDir:           req.SourceDir,
 		PrepareManagedFiles: req.UpdateGitignore || req.SyncSOPSConfig,
 	})
 	if err != nil {
+		return PreflightResult{}, err
+	}
+	if err := prepareEncryptSource(cfg, &selection, req); err != nil {
 		return PreflightResult{}, err
 	}
 	result := PreflightResult{Selection: selection}

@@ -17,6 +17,17 @@ Recipients come from .yewseal.toml. An empty recipient set, an unknown
 alias, or conflicting group authorization fails the batch before any
 ciphertext is written.
 
+--source DIR reads plaintext from a caller-supplied mirrored tree instead
+of registered plaintext paths: every selected mapping's plaintext comes
+from DIR / relative(project-root, registered-plaintext-path), the exact
+inverse of decrypt --output's projection, which makes
+"decrypt --output DIR, edit, encrypt --source DIR" a closed round trip.
+Ciphertext still goes to registered paths, and a file missing from the
+tree is reported and skipped (outcome "missing plaintext") without
+falling back to the registered path. DIR resolves relative to the
+calling directory and must already exist as a real directory. The caller
+owns the tree's lifetime and cleanup.
+
 When ciphertext already exists, encrypt uses an available private identity
 to verify and update it in place: unchanged files remain byte-identical,
 unchanged values retain their ciphertext, and recipient-only changes only
@@ -25,10 +36,6 @@ specific file, encrypt warns and replaces that ciphertext from the current
 plaintext. --force always performs this fresh encryption and rotates the data
 key without reading the old ciphertext. Missing plaintext is reported and
 skipped.
-
---output changes the destination of a single file target, preserving its
-configured format. Declare non-standard extensions with "format" or
-"format_rules" in .yewseal.toml.
 
 Before encryption, --update-gitignore (enabled by default) rebuilds each
 loaded configuration's .gitignore managed block from its complete plaintext
@@ -45,8 +52,9 @@ Exit codes: 0 on success (skips without real errors allowed, including
 a fully skipped batch); 1 when any file fails, .sops.yaml synchronization
 fails, or output delivery fails. Exit 1 does not imply that no ciphertext
 was written; 2 for calling errors: invalid arguments, a missing or invalid
-.yewseal.toml, selection or authorization failure, or an unusable
-identity source (an unreadable explicit file or a failed key command).
+.yewseal.toml, selection or authorization failure, an unusable
+--source directory, or an unusable identity source (an unreadable
+explicit file or a failed key command).
 
 Output: ciphertext goes to files and stdout stays empty; warnings,
 per-file encryption results, skip and failure reasons, and the summary go to
@@ -80,8 +88,11 @@ yews encrypt [command options] [path-or-pattern]... [flags]
   yews encrypt config.toml
   yews encrypt config.enc.toml
 
-  # Temporarily override the output path of a single target
-  yews encrypt config.toml -o review/config.enc.toml
+  # Close the delivery round trip: edit a mirrored tree and encrypt it back
+  delivery=$(mktemp -d)
+  yews decrypt --strict --output "$delivery"
+  # ... edit "$delivery/config.toml" ...
+  yews encrypt --source "$delivery"
 
   # Select registered .toml plaintext under ./configs with a pattern
   yews encrypt './configs/*.toml'
@@ -99,8 +110,8 @@ yews encrypt [command options] [path-or-pattern]... [flags]
   -f, --force              Freshly encrypt every existing plaintext and rotate its data key (env YEWSEAL_ENCRYPT_FORCE)
   -h, --help               help for encrypt
       --json               Print the batch report as JSON on stdout (diagnostics stay on stderr) (env YEWSEAL_ENCRYPT_JSON)
-  -o, --output string      Output encrypted file for a single file target (env YEWSEAL_ENCRYPT_OUTPUT)
   -P, --parallel int       Number of parallel workers for batch mode (minimum 1) (env YEWSEAL_ENCRYPT_PARALLEL) (default 1)
+      --source string      Read plaintext from the project-relative mirrored tree under this existing, real directory instead of registered plaintext paths; ciphertext still goes to registered paths (env YEWSEAL_ENCRYPT_SOURCE)
       --sync-sops-config   Rewrite .sops.yaml after encryption using the managed-file rules (env YEWSEAL_SYNC_SOPS_CONFIG) (default true)
       --update-gitignore   Rebuild .gitignore managed blocks from all configured plaintext paths and the default key path; false leaves files untouched (env YEWSEAL_UPDATE_GITIGNORE) (default true)
   -v, --verbose            Enable verbose output (scan counts, selection info and per-file unchanged results on stderr) (env YEWSEAL_ENCRYPT_VERBOSE)

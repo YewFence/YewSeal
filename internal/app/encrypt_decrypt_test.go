@@ -16,36 +16,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestEncryptDecryptSingleFileOutputUsesConfiguredFormat(t *testing.T) {
-	env := newAppCryptoTestEnv(t)
-
-	require.NoError(t, os.WriteFile("secrets.vars", []byte("TOKEN=secret\n"), 0644))
-	cfg := configWithOwnerRecipient(&config.Config{Encryption: config.EncryptionConfig{Files: []config.FilePair{{PlaintextPath: "secrets.vars", EncryptedPath: "secrets.vars.enc.yaml", Format: "env"}}}}, env.publicKey)
-
-	err := EncryptFiles(cfg, EncryptRequest{
-		Targets:   []string{"secrets.vars"},
-		Output:    "secrets.vars.enc.yaml",
-		OutputSet: true,
-		Parallel:  1,
-	})
-	require.NoError(t, err)
-
-	require.NoError(t, os.Remove("secrets.vars"))
-	err = DecryptFiles(cfg, DecryptRequest{
-		KeyFile:  env.keyFile,
-		Targets:  []string{"secrets.vars.enc.yaml"},
-		Parallel: 1,
-	})
-	require.NoError(t, err)
-
-	content, err := os.ReadFile("secrets.vars")
-	require.NoError(t, err)
-	assert.Equal(t, "TOKEN=secret\n", string(content))
-}
-
 func TestDecryptFilesFormatsJSONWithIndentation(t *testing.T) {
 	env := newAppCryptoTestEnv(t)
-	plain := []byte(`{"database":{"host":"localhost","credentials":{"username":"admin","password":"secret"}}}`)
+	plain := []byte(`{"database":{"host":"localhost","credentials":{"username":"admin","password":"secret"}}}`) // betterleaks:allow
 	require.NoError(t, os.WriteFile("config.json", plain, 0600))
 	cfg := configWithOwnerRecipient(&config.Config{Encryption: config.EncryptionConfig{Files: []config.FilePair{{PlaintextPath: "config.json", EncryptedPath: "config.enc.json", Format: "json"}}}}, env.publicKey)
 
@@ -88,20 +61,6 @@ func TestEncryptFilesUsesPerFileRecipientAliases(t *testing.T) {
 	recipients, err := seal.ExtractAgeRecipientsFromEncryptedFile("config.enc.yaml", "config.yaml", "")
 	require.NoError(t, err)
 	require.Equal(t, []string{second.Recipient().String()}, recipients)
-}
-
-func TestEncryptFiles_DirModeRejectsOutput(t *testing.T) {
-	cfg := config.DefaultConfig()
-	tempDir := t.TempDir()
-
-	err := EncryptFiles(cfg, EncryptRequest{
-		Targets:   []string{tempDir},
-		Output:    "out.enc.yaml",
-		OutputSet: true,
-	})
-
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "--output is only supported when the path target is a file")
 }
 
 func TestEncryptFiles_TargetFileUsesConfiguredPair(t *testing.T) {
@@ -168,23 +127,6 @@ func TestDecryptFilesSingleTargetDeliveryKeepsConfiguredFormat(t *testing.T) {
 	assert.Equal(t, "token: secret\n", string(content))
 	_, err = os.Stat("config.yaml")
 	assert.True(t, os.IsNotExist(err))
-}
-
-func TestEncryptFilesOutputOverrideKeepsInferredFormat(t *testing.T) {
-	env := newAppCryptoTestEnv(t)
-	plain := []byte("token: secret\n")
-	require.NoError(t, os.WriteFile("config.yaml", plain, 0600))
-	cfg := configWithOwnerRecipient(&config.Config{Encryption: config.EncryptionConfig{Files: []config.FilePair{{PlaintextPath: "config.yaml", EncryptedPath: "config.enc.yaml"}}}}, env.publicKey)
-	require.NoError(t, EncryptFiles(cfg, EncryptRequest{Targets: []string{"config.yaml"}, Output: "export.json", OutputSet: true}))
-	decrypted, err := seal.DecryptToBytes(seal.DecryptBytesOptions{
-		InputFile:      "export.json",
-		OutputFile:     "config.yaml",
-		IdentityBundle: mustTestBundle(t, env.keyFile),
-		FormatOverride: "yaml",
-	})
-	require.NoError(t, err)
-	require.Equal(t, plain, decrypted)
-	require.NoFileExists(t, "config.enc.yaml")
 }
 
 type appCryptoTestEnv struct {
@@ -291,8 +233,6 @@ func TestTargetedEncryptSyncsCompleteProjectSopsPolicy(t *testing.T) {
 
 	require.NoError(t, EncryptFiles(cfg, EncryptRequest{
 		Targets:         []string{"first.yaml"},
-		Output:          "review.enc.yaml",
-		OutputSet:       true,
 		Parallel:        1,
 		UpdateGitignore: true,
 		SyncSOPSConfig:  true,
@@ -302,8 +242,7 @@ func TestTargetedEncryptSyncsCompleteProjectSopsPolicy(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, string(content), `path_regex: ^first\.enc\.yaml$`)
 	assert.Contains(t, string(content), `path_regex: ^second\.enc\.yaml$`)
-	assert.NotContains(t, string(content), "review")
-	require.FileExists(t, "review.enc.yaml")
+	require.FileExists(t, "first.enc.yaml")
 	require.NoFileExists(t, "second.enc.yaml")
 }
 

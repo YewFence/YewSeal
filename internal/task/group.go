@@ -110,7 +110,7 @@ func (d *GroupDiscovery) FilePairs(mode string) ([]FilePair, error) {
 		if err != nil {
 			return nil, err
 		}
-		return mergeGroupFilePairs(plainPairs, encryptedPairs), nil
+		return MergeGroupFilePairs(plainPairs, encryptedPairs), nil
 	case ModeDiff:
 		return d.FilePairs(ModeEncrypt)
 	case ModeEncrypt:
@@ -295,8 +295,9 @@ func BuildProjectGroupFilePairs(opts GroupOptions) ([]FilePair, error) {
 	return pairs, nil
 }
 
-func mergeGroupFilePairs(plainPairs, encryptedPairs []FilePair) []FilePair {
-	// A real plaintext path is more precise than reversing a normalized ciphertext suffix.
+// MergeGroupFilePairs merges plaintext-discovered pairs with ciphertext-only pairs,
+// preferring a real plaintext path over reversing a normalized ciphertext suffix.
+func MergeGroupFilePairs(plainPairs, encryptedPairs []FilePair) []FilePair {	// A real plaintext path is more precise than reversing a normalized ciphertext suffix.
 	byEncrypted := make(map[string]FilePair)
 	pairs := make([]FilePair, 0, len(plainPairs)+len(encryptedPairs))
 	for _, pair := range plainPairs {

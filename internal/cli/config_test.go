@@ -80,8 +80,8 @@ func TestInvalidArgumentsNeverLoadConfig(t *testing.T) {
 		{[]string{"plan", "--pattern", "*.yaml"}, "unknown flag: --pattern"},
 		{[]string{"decrypt", "--pattern", "*.yaml"}, "unknown flag: --pattern"},
 		{[]string{"encrypt", "--pattern", "*.yaml"}, "unknown flag: --pattern"},
-		{[]string{"encrypt", "--output", "out.yaml"}, "--output is only supported"},
-		{[]string{"encrypt", "a.yaml", "b.yaml", "--output", "out.yaml"}, "--output is only supported"},
+		{[]string{"encrypt", "--output", "out.yaml"}, "unknown flag: --output"},
+		{[]string{"encrypt", "-o", "out.yaml"}, "unknown shorthand flag"},
 	} {
 		t.Run(strings.Join(tc.args, " "), func(t *testing.T) {
 			calls := 0
