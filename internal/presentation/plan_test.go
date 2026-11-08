@@ -90,6 +90,107 @@ func TestPlanDefaultTableHasOnlyCoreColumns(t *testing.T) {
 	require.NotContains(t, out.String(), ".Source")
 }
 
+func TestPlanTableColorsDiskMarkers(t *testing.T) {
+	withColorsEnabled(t)
+	cfg, selection := planFixture()
+	selection.FilePairs = selection.FilePairs[:1]
+	selection.FilePairs[0].PlaintextExists = boolPtr(true)
+	selection.FilePairs[0].EncryptedExists = boolPtr(false)
+	var plain, dark, light bytes.Buffer
+	require.NoError(t, New(&plain, nil, false).Plan(cfg, selection, PlanPrintOptions{}))
+	require.NoError(t, printPlanText(&dark, cfg, selection, PlanPrintOptions{}, darkPalette))
+	require.NoError(t, printPlanText(&light, cfg, selection, PlanPrintOptions{}, lightPalette))
+	require.Contains(t, dark.String(), "\x1b[93m(existing)\x1b[0m")    // warning bright yellow
+	require.Contains(t, dark.String(), "\x1b[91m(missing)\x1b[0m")     // error bright red
+	require.Contains(t, light.String(), "\x1b[33m(existing)\x1b[0m") // warning yellow
+	require.Contains(t, light.String(), "\x1b[31m(missing)\x1b[0m")  // error red
+	require.Equal(t, plain.String(), ansiEscapes.ReplaceAllString(dark.String(), ""))
+	require.Equal(t, plain.String(), ansiEscapes.ReplaceAllString(light.String(), ""))
+
+	var source bytes.Buffer
+	require.NoError(t, printPlanText(&source, cfg, selection, PlanPrintOptions{Source: true}, darkPalette))
+	require.Contains(t, source.String(), "\x1b[93m(existing)\x1b[0m")
+	require.Contains(t, source.String(), "\x1b[91m(missing)\x1b[0m")
+}
+
+func TestPlanTableMarksDiskPresenceAsymmetrically(t *testing.T) {
+	cfg, selection := planFixture()
+	selection.FilePairs = selection.FilePairs[:1]
+	setExists := func(pair *config.ResolvedFilePair, plaintext, encrypted bool) {
+		pair.PlaintextExists = &plaintext
+		pair.EncryptedExists = &encrypted
+	}
+
+	cleanCheckout := func() string {
+		cfg2, selection2 := planFixture()
+		selection2.FilePairs = selection2.FilePairs[:1]
+		setExists(&selection2.FilePairs[0], false, true)
+		var out bytes.Buffer
+		require.NoError(t, New(&out, nil, false).Plan(cfg2, selection2, PlanPrintOptions{}))
+		return out.String()
+	}()
+	require.NotContains(t, cleanCheckout, "existing")
+	require.NotContains(t, cleanCheckout, "missing")
+
+	for _, tc := range []struct {
+		name                        string
+		plaintext, encrypted        bool
+		wantPlain, wantEncrypted    string
+	}{
+		{"plaintext only", true, false, "config.toml (existing)", "config.enc.toml (missing)"},
+		{"both present", true, true, "config.toml (existing)", "config.enc.toml"},
+		{"neither present", false, false, "config.toml", "config.enc.toml (missing)"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			setExists(&selection.FilePairs[0], tc.plaintext, tc.encrypted)
+			var out bytes.Buffer
+			require.NoError(t, New(&out, nil, false).Plan(cfg, selection, PlanPrintOptions{}))
+			require.Contains(t, out.String(), tc.wantPlain)
+			require.Contains(t, out.String(), tc.wantEncrypted)
+		})
+	}
+
+	setExists(&selection.FilePairs[0], true, false)
+	var source bytes.Buffer
+	require.NoError(t, New(&source, nil, false).Plan(cfg, selection, PlanPrintOptions{Source: true}))
+	require.Contains(t, source.String(), "config.toml (existing) -> config.enc.toml (missing)")
+	require.Contains(t, source.String(), "  on disk     plaintext only (not yet encrypted)\n")
+
+	var payload bytes.Buffer
+	require.NoError(t, New(&payload, nil, false).Plan(cfg, selection, PlanPrintOptions{JSON: true}))
+	require.NotContains(t, payload.String(), "(existing)")
+	require.Contains(t, payload.String(), `"display": "config.toml"`)
+}
+
+func TestPlanJSONReportsDiskPresence(t *testing.T) {
+	cfg, selection := planFixture()
+	selection.FilePairs = selection.FilePairs[:1]
+	selection.FilePairs[0].PlaintextExists = boolPtr(false)
+	selection.FilePairs[0].EncryptedExists = boolPtr(true)
+	var out bytes.Buffer
+	require.NoError(t, New(&out, nil, false).Plan(cfg, selection, PlanPrintOptions{JSON: true}))
+	var payload struct {
+		FilePairs []struct {
+			Plaintext struct {
+				Exists *bool `json:"exists"`
+			} `json:"plaintext"`
+			Encrypted struct {
+				Exists *bool `json:"exists"`
+			} `json:"encrypted"`
+		} `json:"file_pairs"`
+	}
+	require.NoError(t, json.Unmarshal(out.Bytes(), &payload))
+	require.Len(t, payload.FilePairs, 1)
+	require.NotNil(t, payload.FilePairs[0].Plaintext.Exists)
+	require.False(t, *payload.FilePairs[0].Plaintext.Exists)
+	require.NotNil(t, payload.FilePairs[0].Encrypted.Exists)
+	require.True(t, *payload.FilePairs[0].Encrypted.Exists)
+}
+
+func boolPtr(value bool) *bool {
+	return &value
+}
+
 func TestPlanSourceDescribeShowsFieldOrigins(t *testing.T) {
 	cfg, selection := planFixture()
 	var out bytes.Buffer

@@ -85,11 +85,13 @@ func TestPlanSourceFlagAndEnvironment(t *testing.T) {
 			require.NoError(t, cmd.Execute())
 			require.Equal(t, 1, calls)
 			if tc.source {
-				require.Contains(t, output.String(), "config.toml -> config.enc.toml  format=toml  aliases=owner")
+				require.Contains(t, output.String(), "config.toml -> config.enc.toml (missing)  format=toml  aliases=owner")
+				require.Contains(t, output.String(), "  on disk     neither on disk")
 				require.Contains(t, output.String(), "  authz      .yewseal.toml recipients.defaults")
 				require.Contains(t, output.String(), "  registry   owner=.yewseal.toml")
 			} else {
 				require.Contains(t, output.String(), "Plaintext    Encrypted")
+				require.Contains(t, output.String(), "config.enc.toml (missing)")
 				require.NotContains(t, output.String(), "  authz ")
 			}
 		})

@@ -100,6 +100,8 @@ func TestCLIProcessingOutcomes(t *testing.T) {
 			gone:   []string{"good.yaml", ".gitignore", ".sops.yaml"}, kept: []string{"good.enc.yaml"}},
 		{name: "clean-alias-c", command: "c", scenario: "complete",
 			wantIn: []string{"REMOVED good.yaml"}, gone: []string{"good.yaml"}},
+		{name: "plan-alias-ls", command: "ls", scenario: "complete",
+			stdoutHas: "Selected 1 file pair", gone: noMetadata},
 		{name: "clean-prompt-no-retains", command: "clean", scenario: "complete", different: true, stdin: "n\n",
 			wantIn: []string{"Delete the local plaintext anyway? [y/N]:", "RETAINED good.yaml: plaintext differs from encrypted content"},
 			kept:   []string{"good.yaml"}},
