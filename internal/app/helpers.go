@@ -27,7 +27,7 @@ func ViewTarget(w, diagnostics io.Writer, cfg *config.Config, req ViewRequest) (
 		Command:             task.ModeView,
 		Targets:             []string{req.Target},
 		RequireSingleTarget: true,
-	}, req.KeyFile)
+	}, req.KeyFile, true)
 	if err != nil {
 		return err
 	}

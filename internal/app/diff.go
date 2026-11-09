@@ -36,13 +36,14 @@ func DiffTargets(w, diagnostics io.Writer, cfg *config.Config, req DiffRequest) 
 		Targets:          req.Targets,
 		SourceDir:        req.SourceDir,
 		AllowEmptyTarget: true,
-	}, req.KeyFile)
+	}, req.KeyFile, false)
 	if err != nil {
 		return DiffResult{}, err
 	}
 	if err := applyDiffSource(cfg, &selection, req); err != nil {
 		return DiffResult{}, err
 	}
+	out.Selection(selection)
 
 	colorEnabled, err := presentation.ResolveDiffColor(req.ColorMode, w)
 	if err != nil {

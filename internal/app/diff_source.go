@@ -19,8 +19,9 @@ func prepareDiffSource(req DiffRequest) error {
 
 // applyDiffSource rewrites the selected mappings' plaintext paths to the
 // mirrored tree, the read-only preview counterpart of prepareEncryptSource.
-// It runs after selection so the reported selection already shows projected
-// paths.
+// DiffTargets reports the selection afterwards, so the verbose selection
+// info shows the projected tree paths — the inputs actually read — matching
+// encrypt --source.
 func applyDiffSource(cfg *config.Config, selection *config.ResolvedSelection, req DiffRequest) error {
 	if req.SourceDir == "" {
 		return nil
