@@ -114,7 +114,7 @@ Plaintext    Encrypted        Format  Aliases  PlaintextMode
 config.toml  config.enc.toml  toml    owner    inplace
 ```
 
-The columns show the mapping, format, authorized aliases, and [plaintext classification](/guide/configuration#plaintext-classification) at a glance. Use `yews plan --source` to see where each path, format, authorization set, and registry alias came from (for example `.yewseal.toml recipients`); `--json` also exposes the canonical public keys and selection reasons for deeper audits. Nothing is written; run `plan` after any config edit to catch unknown aliases or empty authorization sets before they bite during encryption. It reads no private keys and is not a dry run.
+The columns show the mapping, format, authorized aliases, and [plaintext classification](/guide/configuration#plaintext-classification) at a glance. Each path also reports its presence on disk: a plaintext on disk is marked `(existing)`, a missing ciphertext `(missing)`, and a plaintext not on disk — the clean-checkout default — carries no marker. Use `yews plan --source` to see where each path, format, authorization set, and registry alias came from (for example `.yewseal.toml recipients`); `--json` also exposes the canonical public keys, selection reasons, and per-path disk presence for deeper audits. Nothing is written; run `plan` after any config edit to catch unknown aliases or empty authorization sets before they bite during encryption. It reads no private keys and is not a dry run.
 
 ## Encrypt
 
@@ -215,7 +215,7 @@ Summary (encrypted): 1 succeeded, 0 skipped, 0 failed (1 selected)
 **Edit the ciphertext directly.** `edit` decrypts into a temporary file, opens your editor (`VISUAL`, then `EDITOR`), and re-encrypts on save. Your plaintext tree stays untouched:
 
 ```bash
-$ VISUAL="code --wait" yews edit -f config.enc.toml
+$ VISUAL="code --wait" yews edit config.enc.toml
 Updated config.enc.toml
 ```
 

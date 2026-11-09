@@ -138,6 +138,7 @@ Scan exclusions: ` + docsScanExclusions,
 	addEncryptFlags(cmd.Flags(), &opts)
 	resolver = newOptionResolver(cmd, &opts)
 	cmd.Args = resolver.before(cmd.Args)
+	cmd.ValidArgsFunction = registeredTargetCompletion(load, "encrypt", 0)
 	return cmd
 }
 
@@ -297,6 +298,7 @@ Scan exclusions: ` + docsScanExclusions,
 	addDecryptFlags(cmd.Flags(), &opts)
 	resolver = newOptionResolver(cmd, &opts)
 	cmd.Args = resolver.before(cmd.Args)
+	cmd.ValidArgsFunction = registeredTargetCompletion(load, "decrypt", 0)
 	return cmd
 }
 
@@ -415,6 +417,7 @@ Scan exclusions: ` + docsScanExclusions,
 	addCleanFlags(cmd.Flags(), &opts)
 	resolver = newOptionResolver(cmd, &opts)
 	cmd.Args = resolver.before(cmd.Args)
+	cmd.ValidArgsFunction = registeredTargetCompletion(load, "clean", 0)
 	return cmd
 }
 
@@ -422,8 +425,9 @@ func planCommand(load configLoader) *cobra.Command {
 	opts := planOptions{}
 
 	cmd := &cobra.Command{
-		Use:   "plan [command options] [path-or-pattern]...",
-		Short: "Check configured file mappings, formats, and recipient authorization without writing files",
+		Use:     "plan [command options] [path-or-pattern]...",
+		Aliases: []string{"ls", "list"},
+		Short:   "Check configured file mappings, formats, and recipient authorization without writing files",
 		Long: `Inspect registered file mappings, formats, and current-config
 authorization without encrypting, decrypting, or writing any file. This
 is a directionless mapping check, not an encrypt/decrypt dry run:
@@ -439,13 +443,18 @@ every mapping resolved from the loaded config, including unselected
 ones: unknown aliases, empty recipient sets, and group conflicts fail
 the run. The report shows recipient aliases; --source additionally shows
 the origins of each path, format, authorization set, and registry alias.
-Use --json to audit canonical recipients, selection reasons, and all
-provenance fields. Historical ciphertext recipients and decryption access
-are not checked.
+Use --json to audit canonical recipients, selection reasons, all
+provenance fields, and per-path disk presence. Historical ciphertext
+recipients and decryption access are not checked.
 
 Output: stdout shows a config count and selection scope followed by a
-Plaintext/Encrypted/Format/Aliases/PlaintextMode table. --source replaces
-the table with one describe block per mapping and field-level origins.
+Plaintext/Encrypted/Format/Aliases/PlaintextMode table. Each path also
+reports its presence on disk with an asymmetric marker: a plaintext on
+disk is marked "(existing)" and a missing ciphertext "(missing)"; a
+plaintext not on disk is the clean-checkout default and carries no
+marker, as does a path whose presence cannot be determined. --source
+replaces the table with one describe block per mapping and field-level
+origins, including an "on disk" summary line.
 The report also lists loaded exclude rules, with their config paths and
 one-based declaration positions; it does not list actual pruned directories.
 --verbose lists loaded config files on stdout and prints scan counts on
@@ -502,5 +511,6 @@ Scan exclusions: ` + docsScanExclusions,
 	addPlanFlags(cmd.Flags(), &opts)
 	resolver := newOptionResolver(cmd, &opts)
 	cmd.Args = resolver.before(cmd.Args)
+	cmd.ValidArgsFunction = registeredTargetCompletion(load, "plan", 0)
 	return cmd
 }

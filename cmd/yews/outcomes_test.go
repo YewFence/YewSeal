@@ -93,13 +93,15 @@ func TestCLIProcessingOutcomes(t *testing.T) {
 			wantIn: []string{"no matching age identity"}, wantOut: []string{"invalid YEWSEAL_DECRYPT_STRICT"}},
 		{name: "view-verbose-clean-stdout", command: "view", flags: []string{"good.enc.yaml", "--verbose"},
 			stdout: plain, wantIn: []string{"Selected 1"}, gone: []string{"good.yaml", ".gitignore"}},
-		{name: "edit-does-not-skip", command: "edit", flags: []string{"--file", "other.enc.yaml"}, strictEnv: "bad", code: 1,
+		{name: "edit-does-not-skip", command: "edit", flags: []string{"other.enc.yaml"}, strictEnv: "bad", code: 1,
 			wantIn: []string{"no matching age identity"}, wantOut: []string{"invalid YEWSEAL_DECRYPT_STRICT"}},
 		{name: "clean-removes-matching", command: "clean", scenario: "complete",
 			wantIn: []string{"REMOVED good.yaml", "1 removed, 0 already absent, 0 retained, 0 failed (1 selected)"},
 			gone:   []string{"good.yaml", ".gitignore", ".sops.yaml"}, kept: []string{"good.enc.yaml"}},
 		{name: "clean-alias-c", command: "c", scenario: "complete",
 			wantIn: []string{"REMOVED good.yaml"}, gone: []string{"good.yaml"}},
+		{name: "plan-alias-ls", command: "ls", scenario: "complete",
+			stdoutHas: "Selected 1 file pair", gone: noMetadata},
 		{name: "clean-prompt-no-retains", command: "clean", scenario: "complete", different: true, stdin: "n\n",
 			wantIn: []string{"Delete the local plaintext anyway? [y/N]:", "RETAINED good.yaml: plaintext differs from encrypted content"},
 			kept:   []string{"good.yaml"}},
@@ -324,7 +326,7 @@ func TestCLINoIdentityOutcomes(t *testing.T) {
 		{name: "decrypt-strict", args: []string{"decrypt", "--strict"}, want: "no age identity is available"},
 		{name: "view", args: []string{"view", "secret.enc.yaml"}, want: "no age identity is available"},
 		{name: "diff", args: []string{"diff"}, want: "no age identity is available"},
-		{name: "edit", args: []string{"edit", "--file", "secret.enc.yaml"}, want: "no age identity is available"},
+		{name: "edit", args: []string{"edit", "secret.enc.yaml"}, want: "no age identity is available"},
 		{name: "clean", args: []string{"clean"}, want: "no age identity is available"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -347,7 +349,7 @@ func TestCLIBrokenExplicitIdentitySourceRemainsCallingError(t *testing.T) {
 		{name: "decrypt", args: []string{"decrypt"}},
 		{name: "view", args: []string{"view", "secret.enc.yaml"}},
 		{name: "diff", args: []string{"diff"}},
-		{name: "edit", args: []string{"edit", "--file", "secret.enc.yaml"}},
+		{name: "edit", args: []string{"edit", "secret.enc.yaml"}},
 		{name: "clean", args: []string{"clean"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

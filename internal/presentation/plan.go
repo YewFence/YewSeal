@@ -83,14 +83,14 @@ func printPlanText(w io.Writer, cfg *config.Config, selection config.ResolvedSel
 // ANSI escape sequences as cell width and would misalign colored columns.
 func printPlanTable(w io.Writer, cwd string, filePairs []config.ResolvedFilePair, pal colorPalette) error {
 	headers := []string{"Plaintext", "Encrypted", "Format", "Aliases", "PlaintextMode"}
-	rows := make([][]string, len(filePairs))
+	rows := make([][]tableCell, len(filePairs))
 	for i, filePair := range filePairs {
-		rows[i] = []string{
-			config.DisplayPath(cwd, filePair.PlaintextPath),
-			config.DisplayPath(cwd, filePair.EncryptedPath),
-			filePair.Format,
-			strings.Join(filePair.RecipientAliases, ","),
-			filePair.PlaintextMode,
+		rows[i] = []tableCell{
+			{text: config.DisplayPath(cwd, filePair.PlaintextPath), suffix: diskMarker(filePair.PlaintextExists, true), suffixColor: pal.warning},
+			{text: config.DisplayPath(cwd, filePair.EncryptedPath), suffix: diskMarker(filePair.EncryptedExists, false), suffixColor: pal.error},
+			{text: filePair.Format, color: pal.format},
+			{text: strings.Join(filePair.RecipientAliases, ","), color: pal.accent},
+			{text: filePair.PlaintextMode},
 		}
 	}
 	widths := make([]int, len(headers))
@@ -99,7 +99,7 @@ func printPlanTable(w io.Writer, cwd string, filePairs []config.ResolvedFilePair
 	}
 	for _, row := range rows {
 		for column, cell := range row {
-			widths[column] = max(widths[column], uniseg.StringWidth(cell))
+			widths[column] = max(widths[column], cell.width())
 		}
 	}
 	var table strings.Builder
@@ -107,15 +107,80 @@ func printPlanTable(w io.Writer, cwd string, filePairs []config.ResolvedFilePair
 		table.WriteString(paint(pal.muted, padCell(header, widths[column], column == len(headers)-1)))
 	}
 	table.WriteString("\n")
-	columnColors := []*color.Color{nil, nil, pal.format, pal.accent, nil}
 	for _, row := range rows {
 		for column, cell := range row {
-			table.WriteString(paint(columnColors[column], padCell(cell, widths[column], column == len(row)-1)))
+			table.WriteString(cell.render(widths[column], column == len(row)-1))
 		}
 		table.WriteString("\n")
 	}
 	_, err := io.WriteString(w, table.String())
 	return err
+}
+
+// tableCell 是表格的一个单元格：text 着 color 色，suffix 是磁盘状态后缀，
+// 单独着 suffixColor，宽度按纯文本计，与 padCell 的对齐规则一致。
+type tableCell struct {
+	text        string
+	suffix      string
+	color       *color.Color
+	suffixColor *color.Color
+}
+
+func (c tableCell) width() int {
+	width := uniseg.StringWidth(c.text)
+	if c.suffix != "" {
+		width += 1 + uniseg.StringWidth(c.suffix)
+	}
+	return width
+}
+
+func (c tableCell) render(width int, final bool) string {
+	cell := paint(c.color, c.text)
+	if c.suffix != "" {
+		cell += " " + paint(c.suffixColor, c.suffix)
+	}
+	if final {
+		return cell
+	}
+	return cell + strings.Repeat(" ", width-c.width()+2)
+}
+
+// diskMarker returns the asymmetric disk-state marker for a path: a
+// present plaintext is noteworthy (local work copy) and a missing ciphertext
+// is an anomaly, while an absent plaintext is the clean-checkout default and
+// carries no marker.
+func diskMarker(exists *bool, plaintextColumn bool) string {
+	if exists == nil {
+		return ""
+	}
+	if *exists {
+		if plaintextColumn {
+			return "(existing)"
+		}
+		return ""
+	}
+	if plaintextColumn {
+		return ""
+	}
+	return "(missing)"
+}
+
+// describePath renders a muted path with its colored disk-state marker for
+// the describe layout.
+func describePath(path string, exists *bool, plaintextColumn bool, pal colorPalette) string {
+	return paint(pal.muted, path) + diskMarkerSuffix(exists, plaintextColumn, pal)
+}
+
+func diskMarkerSuffix(exists *bool, plaintextColumn bool, pal colorPalette) string {
+	marker := diskMarker(exists, plaintextColumn)
+	if marker == "" {
+		return ""
+	}
+	colorRole := pal.error
+	if plaintextColumn {
+		colorRole = pal.warning
+	}
+	return " " + paint(colorRole, marker)
 }
 
 // padCell pads a table cell to its display width plus the two-space gap,
@@ -135,9 +200,9 @@ func printPlanSources(w io.Writer, cwd string, filePairs []config.ResolvedFilePa
 			}
 		}
 		if _, err := fmt.Fprintf(w, "%s %s %s  %s%s  %s%s\n",
-			paint(pal.muted, config.DisplayPath(cwd, filePair.PlaintextPath)),
+			describePath(config.DisplayPath(cwd, filePair.PlaintextPath), filePair.PlaintextExists, true, pal),
 			paint(pal.muted, "->"),
-			paint(pal.muted, config.DisplayPath(cwd, filePair.EncryptedPath)),
+			describePath(config.DisplayPath(cwd, filePair.EncryptedPath), filePair.EncryptedExists, false, pal),
 			paint(pal.muted, "format="),
 			paint(pal.format, filePair.Format),
 			paint(pal.muted, "aliases="),
@@ -146,6 +211,11 @@ func printPlanSources(w io.Writer, cwd string, filePairs []config.ResolvedFilePa
 		}
 		if _, err := fmt.Fprintf(w, "  plaintext_mode %s\n", filePair.PlaintextMode); err != nil {
 			return err
+		}
+		if marker := diskMarkerSummary(filePair); marker != "" {
+			if _, err := fmt.Fprintf(w, "  on disk     %s\n", marker); err != nil {
+				return err
+			}
 		}
 		for _, field := range []struct{ label, source string }{
 			{"plaintext", formatValueSource(filePair.PlaintextSource, cwd, pal)},
@@ -232,7 +302,26 @@ type planAuthorizationJSON struct {
 type planPathJSON struct {
 	Path    string              `json:"path"`
 	Display string              `json:"display"`
+	Exists  *bool               `json:"exists,omitempty"`
 	Source  planValueSourceJSON `json:"source"`
+}
+
+// diskMarkerSummary describes both sides' disk state in the describe layout:
+// the clean-checkout default (ciphertext only) reads as "encrypted only".
+func diskMarkerSummary(filePair config.ResolvedFilePair) string {
+	if filePair.PlaintextExists == nil || filePair.EncryptedExists == nil {
+		return ""
+	}
+	switch {
+	case *filePair.PlaintextExists && *filePair.EncryptedExists:
+		return "both plaintext and encrypted"
+	case *filePair.PlaintextExists:
+		return "plaintext only (not yet encrypted)"
+	case *filePair.EncryptedExists:
+		return "encrypted only"
+	default:
+		return "neither on disk"
+	}
 }
 
 type planFormatJSON struct {
@@ -272,11 +361,13 @@ func resolvedFilePairJSON(cwd string, filePair config.ResolvedFilePair) planPair
 		Plaintext: planPathJSON{
 			Path:    filePair.PlaintextPath,
 			Display: config.DisplayPath(cwd, filePair.PlaintextPath),
+			Exists:  filePair.PlaintextExists,
 			Source:  valueSourceJSON(filePair.PlaintextSource),
 		},
 		Encrypted: planPathJSON{
 			Path:    filePair.EncryptedPath,
 			Display: config.DisplayPath(cwd, filePair.EncryptedPath),
+			Exists:  filePair.EncryptedExists,
 			Source:  valueSourceJSON(filePair.EncryptedSource),
 		},
 		Format: planFormatJSON{

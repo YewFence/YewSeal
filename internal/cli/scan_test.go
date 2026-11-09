@@ -25,7 +25,7 @@ func TestScanningCommandsReportOneVerboseSummaryOnStderr(t *testing.T) {
 		{name: "clean", args: []string{"clean", "-v", "--force"}, scans: 1},
 		{name: "diff", args: []string{"diff", "-v"}, scans: 1},
 		{name: "view", args: []string{"view", "app.toml", "-v"}, scans: 1},
-		{name: "edit", args: []string{"edit", "-f", "app.toml", "-v"}, scans: 1},
+		{name: "edit", args: []string{"edit", "app.toml", "-v"}, scans: 1},
 		{name: "verify", args: []string{"verify", "-v", "--no-decrypt", "--sync-sops-config=false"}, scans: 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

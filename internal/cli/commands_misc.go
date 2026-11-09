@@ -230,14 +230,15 @@ func editCommand(load configLoader) *cobra.Command {
 	opts := editOptions{}
 
 	cmd := &cobra.Command{
-		Use:   "edit",
+		Use:   "edit [command options] <target>",
 		Short: "Edit encrypted configuration file using SOPS",
 		Long: `Edit an encrypted file in place: decrypt it to a temporary file,
 open an editor, then re-encrypt and write the result back on save.
 
-The target must be registered in .yewseal.toml; either the encrypted
-path or its configured plaintext path locates the mapping. There is no
-default target and no --editor flag.
+The target must be registered in .yewseal.toml and given as the single
+positional argument; either the encrypted path or its configured plaintext
+path locates the mapping. There is no default target and no --editor
+flag.
 
 The editor is taken from VISUAL, then EDITOR; when both are unset or
 empty, notepad is used on Windows and vi elsewhere. The variable may
@@ -262,8 +263,8 @@ finishes.
 
 Exit codes: 0 on success (changed or unchanged); 1 when editing or
 re-encryption fails, including when no usable identity is available; 2
-for calling errors (no target, an unregistered file, a missing or invalid
-.yewseal.toml, an unreadable explicit key file, or a failed key command).
+for calling errors (wrong argument count, an unregistered target, a missing
+or invalid .yewseal.toml, an unreadable explicit key file, or a failed key command).
 
 Output: stdout stays empty; the update result (or "unchanged"),
 warnings, and errors go to stderr. --verbose adds scan counts.
@@ -274,20 +275,20 @@ write the plaintext to disk.
 Documentation: ` + docsTutorial + `
 Scan exclusions: ` + docsScanExclusions,
 		Example: `  # Edit a registered encrypted file
-  yews edit -f config.enc.toml
+  yews edit config.enc.toml
 
   # The configured plaintext path locates the same mapping
-  yews edit -f config.toml
+  yews edit config.toml
 
   # Pick the editor per invocation
-  VISUAL="code --wait" yews edit -f config.enc.toml
-  VISUAL=vim yews edit -f config.enc.toml`,
+  VISUAL="code --wait" yews edit config.enc.toml
+  VISUAL=vim yews edit config.enc.toml`,
 		Args: func(cmd *cobra.Command, args []string) error {
-			if err := cobra.NoArgs(cmd, args); err != nil {
+			if err := cobra.ExactArgs(1)(cmd, args); err != nil {
 				return err
 			}
-			if strings.TrimSpace(opts.File) == "" {
-				return fmt.Errorf("edit requires exactly one configured target")
+			if strings.TrimSpace(args[0]) == "" {
+				return fmt.Errorf("edit requires exactly one target")
 			}
 			return nil
 		},
@@ -295,13 +296,13 @@ Scan exclusions: ` + docsScanExclusions,
 			return yewsapp.EditEncryptedFile(yewsapp.EditRequest{
 				Presentation: presentation.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), opts.Verbose),
 				Config:       cfg,
-				File:         opts.File,
+				File:         args[0],
 				KeyFile:      opts.KeyFile,
 			})
 		}),
 	}
 	cmd.Flags().BoolVarP(&opts.Verbose, "verbose", "v", false, "Print scan counts on stderr")
-	cmd.Flags().StringVarP(&opts.File, "file", "f", "", "Encrypted file to edit (must be registered in .yewseal.toml; its configured plaintext path also works)")
+	cmd.ValidArgsFunction = registeredTargetCompletion(load, "decrypt", 1)
 	resolver := newOptionResolver(cmd, &opts)
 	cmd.Args = resolver.before(cmd.Args)
 	return cmd
@@ -373,6 +374,7 @@ Scan exclusions: ` + docsScanExclusions,
 	}
 	cmd.Flags().BoolVarP(&opts.Verbose, "verbose", "v", false, "Enable verbose output (scan counts and detail on stderr; stdout stays plaintext only)")
 	cmd.Flags().BoolVar(&opts.JSON, "json", false, "Print the decrypted content as a JSON envelope on stdout (base64 for binary formats)")
+	cmd.ValidArgsFunction = registeredTargetCompletion(load, "view", 1)
 	resolver := newOptionResolver(cmd, &opts)
 	cmd.Args = resolver.before(cmd.Args)
 	return cmd
@@ -487,6 +489,7 @@ Scan exclusions: ` + docsScanExclusions,
 	cmd.Flags().StringVar(&opts.Color, "color", opts.Color, "Colorize diff output (auto/always/never)")
 	cmd.Flags().BoolVarP(&opts.Verbose, "verbose", "v", false, "Enable verbose output (scan counts, selection info and per-file completion notes on stderr)")
 	cmd.Flags().BoolVar(&opts.JSON, "json", false, "Print the comparison report as JSON on stdout (per-file status with embedded diff bodies)")
+	cmd.ValidArgsFunction = registeredTargetCompletion(load, "diff", 0)
 	resolver = newOptionResolver(cmd, &opts)
 	cmd.Args = resolver.before(cmd.Args)
 	return cmd
