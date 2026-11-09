@@ -39,7 +39,8 @@ type ResolvedFilePair struct {
 	ConfigPath    string
 
 	// PlaintextExists and EncryptedExists report whether the file is present
-	// on disk at report time; nil means presence was not probed.
+	// on disk at report time; nil means presence was not probed or could
+	// not be determined (for example, inside an unreadable directory).
 	PlaintextExists *bool
 	EncryptedExists *bool
 

@@ -79,8 +79,22 @@ func TestRegisteredTargetCompletionSuggestsCommandSide(t *testing.T) {
 	t.Run("prefix filters matches", func(t *testing.T) {
 		paths, _ := complete("decrypt", "config.e")
 		require.Equal(t, []string{"config.enc.toml"}, paths)
-		paths, _ = complete("decrypt", "missing")
+		paths, directive := complete("decrypt", "missing")
 		require.Empty(t, paths)
+		require.Equal(t, cobra.ShellCompDirectiveDefault, directive)
+	})
+	t.Run("dot-slash prefix keeps the user's style", func(t *testing.T) {
+		paths, directive := complete("decrypt", "./config.e")
+		require.Equal(t, []string{"./config.enc.toml"}, paths)
+		require.Equal(t, cobra.ShellCompDirectiveNoFileComp, directive)
+	})
+	t.Run("absolute prefix suggests absolute paths", func(t *testing.T) {
+		prefix := root + string(filepath.Separator)
+		paths, directive := complete("plan", prefix)
+		require.Equal(t, []string{prefix + "config.enc.toml", prefix + "config.toml"}, paths)
+		require.Equal(t, cobra.ShellCompDirectiveNoFileComp, directive)
+		paths, _ = complete("decrypt", filepath.Join(root, "config.e"))
+		require.Equal(t, []string{filepath.Join(root, "config.enc.toml")}, paths)
 	})
 }
 

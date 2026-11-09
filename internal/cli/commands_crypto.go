@@ -444,16 +444,17 @@ ones: unknown aliases, empty recipient sets, and group conflicts fail
 the run. The report shows recipient aliases; --source additionally shows
 the origins of each path, format, authorization set, and registry alias.
 Use --json to audit canonical recipients, selection reasons, all
-provenance fields, and per-path disk presence. Historical ciphertext recipients and decryption access
-are not checked.
+provenance fields, and per-path disk presence. Historical ciphertext
+recipients and decryption access are not checked.
 
 Output: stdout shows a config count and selection scope followed by a
 Plaintext/Encrypted/Format/Aliases/PlaintextMode table. Each path also
 reports its presence on disk with an asymmetric marker: a plaintext on
 disk is marked "(existing)" and a missing ciphertext "(missing)"; a
 plaintext not on disk is the clean-checkout default and carries no
-marker. --source replaces the table with one describe block per mapping
-and field-level origins, including an "on disk" summary line.
+marker, as does a path whose presence cannot be determined. --source
+replaces the table with one describe block per mapping and field-level
+origins, including an "on disk" summary line.
 The report also lists loaded exclude rules, with their config paths and
 one-based declaration positions; it does not list actual pruned directories.
 --verbose lists loaded config files on stdout and prints scan counts on

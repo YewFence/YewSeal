@@ -1,7 +1,9 @@
 package app
 
 import (
+	"errors"
 	"io"
+	"io/fs"
 	"os"
 
 	"github.com/YewFence/YewSeal/internal/config"
@@ -28,10 +30,19 @@ func PrintPlan(w io.Writer, cfg *config.Config, req PlanRequest, opts presentati
 	return out.Finish(out.Plan(cfg, selection, opts))
 }
 
+// probeFile reports whether path is a file on disk. false means the path
+// is definitively absent or a directory; nil means the check itself
+// failed, so presence is unknown — an unreadable directory must not read
+// as a clean checkout.
 func probeFile(path string) *bool {
-	exists := false
-	if info, err := os.Stat(path); err == nil && !info.IsDir() {
-		exists = true
+	info, err := os.Stat(path)
+	if err != nil {
+		if !errors.Is(err, fs.ErrNotExist) {
+			return nil
+		}
+		exists := false
+		return &exists
 	}
+	exists := !info.IsDir()
 	return &exists
 }

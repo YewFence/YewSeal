@@ -187,6 +187,23 @@ func TestPlanJSONReportsDiskPresence(t *testing.T) {
 	require.True(t, *payload.FilePairs[0].Encrypted.Exists)
 }
 
+func TestPlanUnknownDiskPresenceCarriesNoMarker(t *testing.T) {
+	cfg, selection := planFixture()
+	selection.FilePairs = selection.FilePairs[:1]
+	var out bytes.Buffer
+	require.NoError(t, New(&out, nil, false).Plan(cfg, selection, PlanPrintOptions{}))
+	require.NotContains(t, out.String(), "existing")
+	require.NotContains(t, out.String(), "missing")
+
+	var source bytes.Buffer
+	require.NoError(t, New(&source, nil, false).Plan(cfg, selection, PlanPrintOptions{Source: true}))
+	require.NotContains(t, source.String(), "on disk")
+
+	var payload bytes.Buffer
+	require.NoError(t, New(&payload, nil, false).Plan(cfg, selection, PlanPrintOptions{JSON: true}))
+	require.NotContains(t, payload.String(), "\"exists\"")
+}
+
 func boolPtr(value bool) *bool {
 	return &value
 }

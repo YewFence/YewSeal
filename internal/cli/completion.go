@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"path/filepath"
 	"strings"
 
 	"github.com/YewFence/YewSeal/internal/config"
@@ -28,10 +29,46 @@ func registeredTargetCompletion(load configLoader, command string, maxArgs int) 
 		}
 		matches := make([]string, 0, len(paths))
 		for _, path := range paths {
-			if strings.HasPrefix(path, toComplete) {
-				matches = append(matches, path)
+			if styled := inPrefixStyle(config.CurrentDir(cfg), path, toComplete); styled != "" {
+				matches = append(matches, styled)
 			}
 		}
+		if len(matches) == 0 {
+			return nil, cobra.ShellCompDirectiveDefault
+		}
 		return matches, cobra.ShellCompDirectiveNoFileComp
+	}
+}
+
+// inPrefixStyle reports whether the registered path matches the toComplete
+// prefix and returns the suggestion in the user's own prefix style — plain
+// relative, "./"-prefixed, or absolute — so "./config" and absolute prefixes
+// complete like plain ones. Empty means no match.
+func inPrefixStyle(cwd, path, toComplete string) string {
+	switch {
+	case toComplete == "":
+		return path
+	case filepath.IsAbs(toComplete):
+		abs := path
+		if !filepath.IsAbs(abs) {
+			abs = filepath.Join(cwd, abs)
+		}
+		if strings.HasPrefix(abs, toComplete) {
+			return abs
+		}
+		return ""
+	case strings.HasPrefix(toComplete, "./"):
+		if filepath.IsAbs(path) {
+			return ""
+		}
+		if styled := "./" + path; strings.HasPrefix(styled, toComplete) {
+			return styled
+		}
+		return ""
+	default:
+		if strings.HasPrefix(path, toComplete) {
+			return path
+		}
+		return ""
 	}
 }
