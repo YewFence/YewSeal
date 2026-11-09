@@ -64,6 +64,7 @@ func TestInvalidArgumentsNeverLoadConfig(t *testing.T) {
 		{[]string{"view"}, "accepts 1 arg"},
 		{[]string{"view", " "}, "requires exactly one target"},
 		{[]string{"edit"}, "accepts 1 arg"},
+		{[]string{"edit", " "}, "edit requires exactly one target"},
 		{[]string{"edit", "secret.enc.yaml", "extra"}, "accepts 1 arg"},
 		{[]string{"encrypt", "--format", "yaml"}, "unknown flag: --format"},
 		{[]string{"decrypt", "--format", "yaml"}, "unknown flag: --format"},

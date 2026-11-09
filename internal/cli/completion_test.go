@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"io"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -95,6 +96,47 @@ func TestRegisteredTargetCompletionSuggestsCommandSide(t *testing.T) {
 		require.Equal(t, cobra.ShellCompDirectiveNoFileComp, directive)
 		paths, _ = complete("decrypt", filepath.Join(root, "config.e"))
 		require.Equal(t, []string{filepath.Join(root, "config.enc.toml")}, paths)
+	})
+	t.Run("absolute prefix that matches nothing falls back", func(t *testing.T) {
+		paths, directive := complete("decrypt", filepath.Join(root, "no-such"))
+		require.Empty(t, paths)
+		require.Equal(t, cobra.ShellCompDirectiveDefault, directive)
+	})
+	t.Run("dot-slash prefix never suggests absolute registrations", func(t *testing.T) {
+		outside := t.TempDir()
+		cfg.Encryption.Files = append(cfg.Encryption.Files, config.FilePair{
+			PlaintextPath:  filepath.Join(outside, "config.toml"),
+			EncryptedPath:  filepath.Join(outside, "config.enc.toml"),
+			Format:         "toml",
+		})
+		paths, _ := complete("decrypt", "./")
+		require.Equal(t, []string{"./config.enc.toml"}, paths)
+		prefix := outside + string(filepath.Separator)
+		paths, directive := complete("decrypt", prefix)
+		require.Equal(t, []string{prefix + "config.enc.toml"}, paths)
+		require.Equal(t, cobra.ShellCompDirectiveNoFileComp, directive)
+	})
+	t.Run("dot-slash prefix without a match falls back", func(t *testing.T) {
+		paths, directive := complete("decrypt", "./no-such-prefix")
+		require.Empty(t, paths)
+		require.Equal(t, cobra.ShellCompDirectiveDefault, directive)
+	})
+	t.Run("completion path errors fall back to shell default", func(t *testing.T) {
+		first, err := age.GenerateX25519Identity()
+		require.NoError(t, err)
+		second, err := age.GenerateX25519Identity()
+		require.NoError(t, err)
+		firstAliases, secondAliases := []string{"first"}, []string{"second"}
+		require.NoError(t, os.WriteFile(filepath.Join(root, "config.yaml"), []byte("key: value\n"), 0600))
+		cfg.Encryption.Groups = []config.GroupConfig{
+			{Patterns: []string{"config.yaml"}, Recipients: &firstAliases, ConfigDir: root},
+			{Patterns: []string{"config.yaml"}, Recipients: &secondAliases, ConfigDir: root},
+		}
+		cfg.Recipients.Registry["first"] = first.Recipient().String()
+		cfg.Recipients.Registry["second"] = second.Recipient().String()
+		paths, directive := complete("encrypt", "")
+		require.Empty(t, paths)
+		require.Equal(t, cobra.ShellCompDirectiveDefault, directive)
 	})
 }
 

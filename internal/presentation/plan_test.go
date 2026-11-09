@@ -72,6 +72,30 @@ func (w *failPlanModeWriter) Write(data []byte) (int, error) {
 	return w.accepted.Write(data)
 }
 
+type failOnDiskWriter struct {
+	accepted *bytes.Buffer
+	err      error
+}
+
+func (w *failOnDiskWriter) Write(data []byte) (int, error) {
+	if bytes.Contains(data, []byte("on disk")) {
+		return 0, w.err
+	}
+	return w.accepted.Write(data)
+}
+
+func TestPlanSourceReportsOnDiskWriteFailure(t *testing.T) {
+	cfg, selection := planFixture()
+	selection.FilePairs = selection.FilePairs[:1]
+	selection.FilePairs[0].PlaintextExists = boolPtr(true)
+	selection.FilePairs[0].EncryptedExists = boolPtr(true)
+	accepted := &bytes.Buffer{}
+	writer := &failOnDiskWriter{accepted: accepted, err: errors.New("boom")}
+	require.ErrorIs(t, New(writer, nil, false).Plan(cfg, selection, PlanPrintOptions{Source: true}), writer.err)
+	require.NotContains(t, accepted.String(), "plaintext  ")
+	require.NotContains(t, accepted.String(), "authz")
+}
+
 func TestPlanDefaultTableHasOnlyCoreColumns(t *testing.T) {
 	cfg, selection := planFixture()
 	var out bytes.Buffer
@@ -202,6 +226,25 @@ func TestPlanUnknownDiskPresenceCarriesNoMarker(t *testing.T) {
 	var payload bytes.Buffer
 	require.NoError(t, New(&payload, nil, false).Plan(cfg, selection, PlanPrintOptions{JSON: true}))
 	require.NotContains(t, payload.String(), "\"exists\"")
+}
+
+func TestPlanDiskMarkerSummaryCoversAllStates(t *testing.T) {
+	setBoth := func(plaintext, encrypted bool) config.ResolvedFilePair {
+		return config.ResolvedFilePair{PlaintextExists: &plaintext, EncryptedExists: &encrypted}
+	}
+	require.Equal(t, "both plaintext and encrypted", diskMarkerSummary(setBoth(true, true)))
+	require.Equal(t, "encrypted only", diskMarkerSummary(setBoth(false, true)))
+	require.Equal(t, "plaintext only (not yet encrypted)", diskMarkerSummary(setBoth(true, false)))
+	require.Equal(t, "neither on disk", diskMarkerSummary(setBoth(false, false)))
+}
+
+func TestPlanSourceShowsAuthorizationKindWithoutProvenance(t *testing.T) {
+	cfg, selection := planFixture()
+	selection.FilePairs = selection.FilePairs[:1]
+	selection.FilePairs[0].RecipientInfo = config.RecipientProvenance{Kind: "inline"}
+	var out bytes.Buffer
+	require.NoError(t, New(&out, nil, false).Plan(cfg, selection, PlanPrintOptions{Source: true}))
+	require.Contains(t, out.String(), "  authz      inline")
 }
 
 func boolPtr(value bool) *bool {
