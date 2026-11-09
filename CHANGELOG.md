@@ -1,3 +1,34 @@
+## [0.26.0] - 2026-11-09
+
+### 🚀 Features
+
+- *(encrypt)* [**breaking**] Add --source tree input, remove single-file --output (#140)
+- *(diff)* Support --source to preview a mirrored plaintext tree (#143)
+- *(cli)* UX pass on edit/verify/completion and plan disk presence (#144)
+
+### 📚 Documentation
+
+- *(design)* Align output and config discovery descriptions
+
+### ⚡ Performance
+
+- *(task)* Share one pruned traversal across group discovery
+
+### 🚜 Refactor
+
+- *(config)* Centralize managed-file preparation
+- *(fileformat)* [**breaking**] Centralize format and path conventions
+
+### ⚙️ Miscellaneous Tasks
+
+- *(deps)* Update github actions to v5.2.6 (#136)
+- *(gomod-deps)* Update go modules (#134)
+- *(npm-deps)* Update npm dependencies (#138)
+- Drop custom mise-action cache keys
+- *(gomod-deps)* Update go modules (#142)
+- *(mise-deps)* Update dependency pnpm to 11 (#141)
+- *(npm-deps)* Lock file maintenance (#133)
+- *(npm-deps)* Update npm dependencies (#145)
 ## [0.25.1] - 2026-11-03
 
 ### 🐛 Bug Fixes
