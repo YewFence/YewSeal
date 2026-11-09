@@ -38,7 +38,6 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           install_args: git-cliff
           add_shims_to_path: true
-          cache_key: "mise-prepare-release-{{install_args_hash}}-{{file_hash}}"
 
       - name: Resolve release version
         id: release
