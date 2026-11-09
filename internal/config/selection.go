@@ -302,6 +302,15 @@ func newSelectionDiscovery(cfg *Config, stats *task.ScanStats) *selectionDiscove
 	return &selectionDiscovery{cfg: cfg, stats: stats, groups: make([]*task.GroupDiscovery, len(cfg.Encryption.Groups))}
 }
 
+// mirroredSourceTreeSelected reports whether the caller redirected plaintext
+// reads to a mirrored source tree: encrypt reads the tree to write ciphertext,
+// and diff reads it to preview the same change. Both need ciphertext-only
+// group mappings in the selection, because the registered plaintext never
+// exists in the project for those mappings.
+func mirroredSourceTreeSelected(mode, sourceDir string) bool {
+	return sourceDir != "" && (mode == task.ModeEncrypt || mode == task.ModeDiff)
+}
+
 func (d *selectionDiscovery) filePairs(mode string, opts SelectionOptions) ([]FilePair, error) {
 	cfg := d.cfg
 	mode = policyForCommand(mode).discoveryMode
@@ -377,7 +386,7 @@ func (d *selectionDiscovery) groupPairs(mode string, opts SelectionOptions) ([]F
 		if err != nil {
 			return nil, err
 		}
-		if mode == task.ModeEncrypt && opts.SourceDir != "" {
+		if mirroredSourceTreeSelected(mode, opts.SourceDir) {
 			encryptedPairs, err := d.groups[index].FilePairs(task.ModeDecrypt)
 			if err != nil {
 				return nil, fmt.Errorf("group %s: %w", group.ConfigPath, err)

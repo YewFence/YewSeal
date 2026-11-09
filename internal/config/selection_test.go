@@ -462,3 +462,24 @@ func TestDiffRejectsConflictingGroupMappings(t *testing.T) {
 		require.Equal(t, filepath.Join(root, "custom.yaml"), selection.FilePairs[0].PlaintextPath)
 	}
 }
+
+func TestDiffSourceSelectionCoversCiphertextOnlyGroupMappings(t *testing.T) {
+	root := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(root, "remote.enc.yaml"), []byte("ciphertext"), 0600))
+	identity, err := age.GenerateX25519Identity()
+	require.NoError(t, err)
+	aliases := []string{"owner"}
+	cfg := &Config{CurrentDir: root, UserConfig: true, Recipients: RecipientConfig{Registry: map[string]string{"owner": identity.Recipient().String()}}, Encryption: EncryptionConfig{Groups: []GroupConfig{{Patterns: []string{"*.yaml"}, ConfigDir: root, Recipients: &aliases}}}}
+
+	// Without --source, the ciphertext-only mapping stays invisible to diff
+	// because its registered plaintext never exists.
+	plain, err := SelectFilePairs(cfg, SelectionOptions{Command: task.ModeDiff})
+	require.NoError(t, err)
+	require.Empty(t, plain.FilePairs)
+
+	selection, err := SelectFilePairs(cfg, SelectionOptions{Command: task.ModeDiff, SourceDir: filepath.Join(t.TempDir(), "tree")})
+	require.NoError(t, err)
+	require.Len(t, selection.FilePairs, 1)
+	require.Equal(t, filepath.Join(root, "remote.yaml"), selection.FilePairs[0].PlaintextPath)
+	require.Equal(t, filepath.Join(root, "remote.enc.yaml"), selection.FilePairs[0].EncryptedPath)
+}

@@ -6,7 +6,7 @@ import (
 	"github.com/YewFence/YewSeal/internal/presentation"
 )
 
-func prepareRead(out *presentation.Output, cfg *config.Config, opts config.SelectionOptions, keyFile string) (config.ResolvedSelection, agekey.IdentityBundle, error) {
+func prepareRead(out *presentation.Output, cfg *config.Config, opts config.SelectionOptions, keyFile string, reportSelection bool) (config.ResolvedSelection, agekey.IdentityBundle, error) {
 	selection, err := config.ResolveSelection(cfg, opts)
 	if err != nil {
 		return selection, agekey.IdentityBundle{}, err
@@ -17,6 +17,8 @@ func prepareRead(out *presentation.Output, cfg *config.Config, opts config.Selec
 	}
 	out.IdentityBundle(bundle)
 	out.SetDirectory(config.CurrentDir(cfg))
-	out.Selection(selection)
+	if reportSelection {
+		out.Selection(selection)
+	}
 	return selection, bundle, nil
 }

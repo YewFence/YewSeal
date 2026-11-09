@@ -16,17 +16,9 @@ func prepareDecryptDelivery(cfg *config.Config, selection *config.ResolvedSelect
 	if req.Force || req.Inplace {
 		return errx.Usage(fmt.Errorf("--output conflicts with --force=true or --inplace=true"))
 	}
-	root := req.OutputDir
-	if !filepath.IsAbs(root) {
-		root = filepath.Join(config.CurrentDir(cfg), root)
-	}
-	root = filepath.Clean(root)
-	info, err := os.Lstat(root)
+	root, err := resolveMirroredTreeRoot(cfg, req.OutputDir, "--output")
 	if err != nil {
-		return errx.Usage(fmt.Errorf("--output must be an existing, real, empty directory: %w", err))
-	}
-	if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
-		return errx.Usage(fmt.Errorf("--output %s must be a real directory, not a file or symlink", root))
+		return err
 	}
 	entries, err := os.ReadDir(root)
 	if err != nil {
@@ -35,24 +27,12 @@ func prepareDecryptDelivery(cfg *config.Config, selection *config.ResolvedSelect
 	if len(entries) != 0 {
 		return errx.Usage(fmt.Errorf("--output directory %s must be completely empty (including hidden entries)", root))
 	}
-	projectRoot := cfg.ProjectRoot
-	if projectRoot == "" {
-		projectRoot = config.CurrentDir(cfg)
+	if err := projectMirroredTree(cfg, selection, root, "--output", "write to"); err != nil {
+		return err
 	}
-	selection.FilePairs = append([]config.ResolvedFilePair(nil), selection.FilePairs...)
 	destinations := make(map[string]struct{}, len(selection.FilePairs))
-	for i, pair := range selection.FilePairs {
-		rel, within := config.RelativePathWithin(projectRoot, pair.PlaintextPath)
-		if !within || rel == "." {
-			return errx.Usage(fmt.Errorf("plaintext path %s is not a file within project root %s", pair.PlaintextPath, projectRoot))
-		}
-		destination := filepath.Join(root, filepath.FromSlash(rel))
-		if _, exists := destinations[destination]; exists {
-			return errx.Usage(fmt.Errorf("multiple file pairs write to %s", destination))
-		}
-		destinations[destination] = struct{}{}
-		selection.FilePairs[i].PlaintextPath = destination
-		selection.FilePairs[i].PlaintextSource = config.ValueSource{Kind: config.ValueSourceArgument, Detail: "--output"}
+	for _, pair := range selection.FilePairs {
+		destinations[pair.PlaintextPath] = struct{}{}
 	}
 	for destination := range destinations {
 		for parent := filepath.Dir(destination); parent != root; parent = filepath.Dir(parent) {

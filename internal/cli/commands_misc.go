@@ -380,6 +380,7 @@ Scan exclusions: ` + docsScanExclusions,
 
 func diffCommand(load configLoader) *cobra.Command {
 	opts := diffOptions{Color: "auto"}
+	var resolver *optionResolver
 
 	cmd := &cobra.Command{
 		Use:   "diff [path-or-pattern]...",
@@ -391,6 +392,19 @@ Showing differences is never itself a failure.
 With no arguments, diff selects registered plaintext under the current
 directory and its subdirectories. Use file paths, directories, or patterns
 to select targets; directories and patterns match plaintext paths.
+
+--source DIR reads plaintext from a caller-supplied mirrored tree
+instead of registered plaintext paths, previewing exactly what
+"encrypt --source DIR" would change without writing ciphertext. The
+tree follows the same mirrored projection as "decrypt --output"
+(relative to the project root), so "decrypt --output DIR, edit,
+diff --source DIR, encrypt --source DIR" is a closed round trip. A
+mapping whose file is missing from the tree is skipped as
+missing-plaintext; there is no fallback to registered plaintext.
+Selection still needs either side of the mapping to exist somewhere
+(registered path or tree). The registered ciphertext stays the
+comparison target: a ciphertext file placed in the tree is never
+read.
 
 A mapping is skipped with the reason reported on stderr when either
 side is missing (no new/deleted patch is emitted and it does not count
@@ -412,7 +426,8 @@ any comparison fails or output delivery fails. There is no strict mode
 and no "differs means failure" switch, so diff is not a CI gate;
 obtained diffs are never rolled back. Calling errors (invalid patterns,
 a missing or invalid .yewseal.toml, selection failure, an unreadable
-explicit key file, or a failed key command) exit 2.
+explicit key file, a failed key command, or a --source root that is
+not an existing, real directory) exit 2.
 
 Output: stdout carries only the diff body (empty when nothing differs);
 warnings, per-file skip and failure reasons, and the summary go to
@@ -424,6 +439,7 @@ See also: "yews encrypt" to re-encrypt changed plaintext, "yews view"
 to inspect ciphertext content.
 
 Documentation: ` + docsDecryptResults + `
+Mirrored trees: ` + docsPlaintextDelivery + `
 Target selection: ` + docsTargetSelect + `
 Scan exclusions: ` + docsScanExclusions,
 		Example: `  # Compare registered plaintext under the current directory
@@ -432,6 +448,9 @@ Scan exclusions: ` + docsScanExclusions,
   # Compare one mapping via either side
   yews diff config.toml
   yews diff config.enc.toml
+
+  # Preview a delivered tree before re-encrypting it
+  yews diff --source "$delivery"
 
   # Disable color in scripts; diagnostics stay on stderr
   yews diff --color never > changes.diff
@@ -444,9 +463,11 @@ Scan exclusions: ` + docsScanExclusions,
 					return err
 				}
 			}
-			_, err := presentation.ResolveDiffColor(opts.Color, cmd.OutOrStdout())
-			if err != nil {
+			if _, err := presentation.ResolveDiffColor(opts.Color, cmd.OutOrStdout()); err != nil {
 				return err
+			}
+			if resolver.IsSet("source") && strings.TrimSpace(opts.Source) == "" {
+				return fmt.Errorf("--source requires a directory")
 			}
 			return nil
 		},
@@ -454,6 +475,7 @@ Scan exclusions: ` + docsScanExclusions,
 			_, err := yewsapp.DiffTargets(cmd.OutOrStdout(), cmd.ErrOrStderr(), cfg, yewsapp.DiffRequest{
 				Targets:   args,
 				KeyFile:   opts.KeyFile,
+				SourceDir: opts.Source,
 				Verbose:   opts.Verbose,
 				ColorMode: opts.Color,
 				JSON:      opts.JSON,
@@ -461,10 +483,11 @@ Scan exclusions: ` + docsScanExclusions,
 			return err
 		}),
 	}
+	cmd.Flags().StringVar(&opts.Source, "source", opts.Source, "Compare plaintext from the project-relative mirrored tree under this existing, real directory instead of registered plaintext paths")
 	cmd.Flags().StringVar(&opts.Color, "color", opts.Color, "Colorize diff output (auto/always/never)")
 	cmd.Flags().BoolVarP(&opts.Verbose, "verbose", "v", false, "Enable verbose output (scan counts, selection info and per-file completion notes on stderr)")
 	cmd.Flags().BoolVar(&opts.JSON, "json", false, "Print the comparison report as JSON on stdout (per-file status with embedded diff bodies)")
-	resolver := newOptionResolver(cmd, &opts)
+	resolver = newOptionResolver(cmd, &opts)
 	cmd.Args = resolver.before(cmd.Args)
 	return cmd
 }

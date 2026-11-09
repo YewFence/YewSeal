@@ -70,6 +70,7 @@ type identitiesOptions struct {
 
 type diffOptions struct {
 	KeyFile string `mapstructure:"key-file"`
+	Source  string `mapstructure:"source"`
 	Color   string `mapstructure:"color"`
 	Verbose bool   `mapstructure:"verbose"`
 	JSON    bool   `mapstructure:"json"`

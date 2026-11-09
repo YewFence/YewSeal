@@ -19,6 +19,7 @@ type DiffResult struct {
 type DiffRequest struct {
 	Targets   []string
 	KeyFile   string
+	SourceDir string
 	Verbose   bool
 	ColorMode string
 	JSON      bool
@@ -27,14 +28,22 @@ type DiffRequest struct {
 func DiffTargets(w, diagnostics io.Writer, cfg *config.Config, req DiffRequest) (comparison DiffResult, err error) {
 	out := presentation.New(w, diagnostics, req.Verbose)
 	defer func() { err = out.Finish(errors.Join(err, comparison.Summary.Check())) }()
+	if err := prepareDiffSource(req); err != nil {
+		return DiffResult{}, err
+	}
 	selection, identityBundle, err := prepareRead(out, cfg, config.SelectionOptions{
 		Command:          task.ModeDiff,
 		Targets:          req.Targets,
+		SourceDir:        req.SourceDir,
 		AllowEmptyTarget: true,
-	}, req.KeyFile)
+	}, req.KeyFile, false)
 	if err != nil {
 		return DiffResult{}, err
 	}
+	if err := applyDiffSource(cfg, &selection, req); err != nil {
+		return DiffResult{}, err
+	}
+	out.Selection(selection)
 
 	colorEnabled, err := presentation.ResolveDiffColor(req.ColorMode, w)
 	if err != nil {
