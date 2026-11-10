@@ -59,9 +59,9 @@ yews view [command options] <target> [flags]
 ## Options
 
 ```
-  -h, --help      help for view
-      --json      Print the decrypted content as a JSON envelope on stdout (base64 for binary formats) (env YEWSEAL_VIEW_JSON)
-  -v, --verbose   Enable verbose output (scan counts and detail on stderr; stdout stays plaintext only) (env YEWSEAL_VIEW_VERBOSE)
+  -h, --help[=true|false]      help for view
+      --json[=true|false]      Print the decrypted content as a JSON envelope on stdout (base64 for binary formats) (env YEWSEAL_VIEW_JSON)
+  -v, --verbose[=true|false]   Enable verbose output (scan counts and detail on stderr; stdout stays plaintext only) (env YEWSEAL_VIEW_VERBOSE)
 ```
 
 ## Options inherited from parent commands

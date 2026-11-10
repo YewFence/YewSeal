@@ -132,15 +132,15 @@ yews decrypt [command options] [path-or-pattern]... [flags]
 ## Options
 
 ```
-  -f, --force              Force overwrite existing plaintext file when it differs from decrypted content (env YEWSEAL_DECRYPT_FORCE)
-  -h, --help               help for decrypt
-      --inplace            Allow delivery plaintext at configured paths; conflicts with --output (env YEWSEAL_DECRYPT_INPLACE)
-      --json               Print the batch report as JSON on stdout (diagnostics stay on stderr) (env YEWSEAL_DECRYPT_JSON)
-      --output string      Deliver the project-relative plaintext tree into an existing, real, empty directory; conflicts with --force=true and --inplace (env YEWSEAL_DECRYPT_OUTPUT)
-  -P, --parallel int       Number of parallel workers for batch mode (minimum 1) (env YEWSEAL_DECRYPT_PARALLEL) (default 1)
-      --strict             Require every selected file to be decrypted (successful writes are not rolled back) (env YEWSEAL_DECRYPT_STRICT)
-      --update-gitignore   Rebuild complete .gitignore managed blocks for configured-path writes; ignored with --output; false leaves files untouched (env YEWSEAL_UPDATE_GITIGNORE) (default true)
-  -v, --verbose            Enable verbose output (scan counts and selection info on stderr) (env YEWSEAL_DECRYPT_VERBOSE)
+  -f, --force[=true|false]              Force overwrite existing plaintext file when it differs from decrypted content (env YEWSEAL_DECRYPT_FORCE)
+  -h, --help[=true|false]               help for decrypt
+      --inplace[=true|false]            Allow delivery plaintext at configured paths; conflicts with --output (env YEWSEAL_DECRYPT_INPLACE)
+      --json[=true|false]               Print the batch report as JSON on stdout (diagnostics stay on stderr) (env YEWSEAL_DECRYPT_JSON)
+      --output string                   Deliver the project-relative plaintext tree into an existing, real, empty directory; conflicts with --force=true and --inplace (env YEWSEAL_DECRYPT_OUTPUT)
+  -P, --parallel int                    Number of parallel workers for batch mode (minimum 1) (env YEWSEAL_DECRYPT_PARALLEL) (default 1)
+      --strict[=true|false]             Require every selected file to be decrypted (successful writes are not rolled back) (env YEWSEAL_DECRYPT_STRICT)
+      --update-gitignore[=true|false]   Rebuild complete .gitignore managed blocks for configured-path writes; ignored with --output; false leaves files untouched (env YEWSEAL_UPDATE_GITIGNORE) (default true)
+  -v, --verbose[=true|false]            Enable verbose output (scan counts and selection info on stderr) (env YEWSEAL_DECRYPT_VERBOSE)
 ```
 
 ## Options inherited from parent commands

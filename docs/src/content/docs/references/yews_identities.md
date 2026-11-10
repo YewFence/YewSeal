@@ -68,9 +68,9 @@ yews identities [flags]
 ## Options
 
 ```
-  -h, --help     help for identities
-      --json     Print the identity report as JSON on stdout (warnings stay on stderr) (env YEWSEAL_IDENTITIES_JSON)
-      --reveal   Include each identity's secret key (JSON adds a secret field; plain output adds a Secret column) (env YEWSEAL_IDENTITIES_REVEAL)
+  -h, --help[=true|false]     help for identities
+      --json[=true|false]     Print the identity report as JSON on stdout (warnings stay on stderr) (env YEWSEAL_IDENTITIES_JSON)
+      --reveal[=true|false]   Include each identity's secret key (JSON adds a secret field; plain output adds a Secret column) (env YEWSEAL_IDENTITIES_REVEAL)
 ```
 
 ## Options inherited from parent commands

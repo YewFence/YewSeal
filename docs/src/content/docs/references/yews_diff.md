@@ -91,11 +91,11 @@ yews diff [path-or-pattern]... [flags]
 ## Options
 
 ```
-      --color string    Colorize diff output (auto/always/never) (env YEWSEAL_DIFF_COLOR) (default "auto")
-  -h, --help            help for diff
-      --json            Print the comparison report as JSON on stdout (per-file status with embedded diff bodies) (env YEWSEAL_DIFF_JSON)
-      --source string   Compare plaintext from the project-relative mirrored tree under this existing, real directory instead of registered plaintext paths (env YEWSEAL_DIFF_SOURCE)
-  -v, --verbose         Enable verbose output (scan counts, selection info and per-file completion notes on stderr) (env YEWSEAL_DIFF_VERBOSE)
+      --color string           Colorize diff output (auto/always/never) (env YEWSEAL_DIFF_COLOR) (default "auto")
+  -h, --help[=true|false]      help for diff
+      --json[=true|false]      Print the comparison report as JSON on stdout (per-file status with embedded diff bodies) (env YEWSEAL_DIFF_JSON)
+      --source string          Compare plaintext from the project-relative mirrored tree under this existing, real directory instead of registered plaintext paths (env YEWSEAL_DIFF_SOURCE)
+  -v, --verbose[=true|false]   Enable verbose output (scan counts, selection info and per-file completion notes on stderr) (env YEWSEAL_DIFF_VERBOSE)
 ```
 
 ## Options inherited from parent commands

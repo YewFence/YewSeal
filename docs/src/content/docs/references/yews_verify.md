@@ -107,12 +107,12 @@ yews verify [command options] [path-or-pattern]... [flags]
 ## Options
 
 ```
-      --decrypt            Require an Age identity and treat undecryptable files as errors (env YEWSEAL_VERIFY_DECRYPT)
-  -h, --help               help for verify
-      --json               Print the verify report as JSON on stdout (errors stay on stderr) (env YEWSEAL_VERIFY_JSON)
-      --no-decrypt         Skip decryption checks without reading any identity source (env YEWSEAL_VERIFY_NO_DECRYPT)
-      --sync-sops-config   Check .sops.yaml using the managed-file rules; false skips the comparison (env YEWSEAL_SYNC_SOPS_CONFIG) (default true)
-  -v, --verbose            Print scan counts on stderr (env YEWSEAL_VERIFY_VERBOSE)
+      --decrypt[=true|false]            Require an Age identity and treat undecryptable files as errors (env YEWSEAL_VERIFY_DECRYPT)
+  -h, --help[=true|false]               help for verify
+      --json[=true|false]               Print the verify report as JSON on stdout (errors stay on stderr) (env YEWSEAL_VERIFY_JSON)
+      --no-decrypt[=true|false]         Skip decryption checks without reading any identity source (env YEWSEAL_VERIFY_NO_DECRYPT)
+      --sync-sops-config[=true|false]   Check .sops.yaml using the managed-file rules; false skips the comparison (env YEWSEAL_SYNC_SOPS_CONFIG) (default true)
+  -v, --verbose[=true|false]            Print scan counts on stderr (env YEWSEAL_VERIFY_VERBOSE)
 ```
 
 ## Options inherited from parent commands
