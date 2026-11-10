@@ -1,3 +1,9 @@
+## [0.26.1] - 2026-11-10
+
+### ⚙️ Miscellaneous Tasks
+
+- *(deps)* Update github actions to v5.2.7 (#149)
+- *(gomod-deps)* Update go modules (#147)
 ## [0.26.0] - 2026-11-09
 
 ### 🚀 Features
