@@ -70,8 +70,8 @@ yews edit [command options] <target> [flags]
 ## Options
 
 ```
-  -h, --help      help for edit
-  -v, --verbose   Print scan counts on stderr (env YEWSEAL_EDIT_VERBOSE)
+  -h, --help[=true|false]      help for edit
+  -v, --verbose[=true|false]   Print scan counts on stderr (env YEWSEAL_EDIT_VERBOSE)
 ```
 
 ## Options inherited from parent commands

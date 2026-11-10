@@ -94,11 +94,11 @@ yews clean [command options] [path-or-pattern]... [flags]
 ## Options
 
 ```
-      --force              DANGEROUS: remove all selected plaintext without recoverability checks (CLI only)
-  -h, --help               help for clean
-      --remove-different   Remove plaintext that differs from successfully decrypted ciphertext without prompting (env YEWSEAL_CLEAN_REMOVE_DIFFERENT)
-      --skip-different     Keep plaintext that differs from successfully decrypted ciphertext without prompting (env YEWSEAL_CLEAN_SKIP_DIFFERENT)
-  -v, --verbose            Enable verbose output (scan counts, selection info and already-absent results on stderr) (env YEWSEAL_CLEAN_VERBOSE)
+      --force[=true|false]              DANGEROUS: remove all selected plaintext without recoverability checks (CLI only)
+  -h, --help[=true|false]               help for clean
+      --remove-different[=true|false]   Remove plaintext that differs from successfully decrypted ciphertext without prompting (env YEWSEAL_CLEAN_REMOVE_DIFFERENT)
+      --skip-different[=true|false]     Keep plaintext that differs from successfully decrypted ciphertext without prompting (env YEWSEAL_CLEAN_SKIP_DIFFERENT)
+  -v, --verbose[=true|false]            Enable verbose output (scan counts, selection info and already-absent results on stderr) (env YEWSEAL_CLEAN_VERBOSE)
 ```
 
 ## Options inherited from parent commands

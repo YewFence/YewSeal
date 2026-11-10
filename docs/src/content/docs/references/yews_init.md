@@ -91,15 +91,15 @@ yews init [flags]
 ## Options
 
 ```
-      --create-example     Create an example plaintext file (interactive: for recorded entries; non-interactive: for the first entry) (env YEWSEAL_INIT_CREATE_EXAMPLE)
-  -f, --force              Rebuild keys and configuration; existing ciphertext may become undecryptable (env YEWSEAL_INIT_FORCE)
-      --format string      Format override for the first config entry (toml/yaml/json/env/ini/binary) (env YEWSEAL_INIT_FORMAT)
-  -h, --help               help for init
-  -i, --input string       Plaintext file for the first config entry (switches to non-interactive mode) (env YEWSEAL_INIT_INPUT)
-      --json               Print the initialization report as JSON on stdout (prompts and diagnostics stay on stderr) (env YEWSEAL_INIT_JSON)
-  -o, --output string      Encrypted file for the first config entry (non-interactive mode) (env YEWSEAL_INIT_OUTPUT)
-      --sync-sops-config   Create or update .sops.yaml; explicit true or false skips the interactive prompt (env YEWSEAL_SYNC_SOPS_CONFIG) (default true)
-      --update-gitignore   Rebuild the .gitignore managed block from the new mappings and default key path; false leaves it untouched (env YEWSEAL_UPDATE_GITIGNORE) (default true)
+      --create-example[=true|false]     Create an example plaintext file (interactive: for recorded entries; non-interactive: for the first entry) (env YEWSEAL_INIT_CREATE_EXAMPLE)
+  -f, --force[=true|false]              Rebuild keys and configuration; existing ciphertext may become undecryptable (env YEWSEAL_INIT_FORCE)
+      --format string                   Format override for the first config entry (toml/yaml/json/env/ini/binary) (env YEWSEAL_INIT_FORMAT)
+  -h, --help[=true|false]               help for init
+  -i, --input string                    Plaintext file for the first config entry (switches to non-interactive mode) (env YEWSEAL_INIT_INPUT)
+      --json[=true|false]               Print the initialization report as JSON on stdout (prompts and diagnostics stay on stderr) (env YEWSEAL_INIT_JSON)
+  -o, --output string                   Encrypted file for the first config entry (non-interactive mode) (env YEWSEAL_INIT_OUTPUT)
+      --sync-sops-config[=true|false]   Create or update .sops.yaml; explicit true or false skips the interactive prompt (env YEWSEAL_SYNC_SOPS_CONFIG) (default true)
+      --update-gitignore[=true|false]   Rebuild the .gitignore managed block from the new mappings and default key path; false leaves it untouched (env YEWSEAL_UPDATE_GITIGNORE) (default true)
 ```
 
 ## Options inherited from parent commands

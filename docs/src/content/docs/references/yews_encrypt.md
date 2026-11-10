@@ -107,14 +107,14 @@ yews encrypt [command options] [path-or-pattern]... [flags]
 ## Options
 
 ```
-  -f, --force              Freshly encrypt every existing plaintext and rotate its data key (env YEWSEAL_ENCRYPT_FORCE)
-  -h, --help               help for encrypt
-      --json               Print the batch report as JSON on stdout (diagnostics stay on stderr) (env YEWSEAL_ENCRYPT_JSON)
-  -P, --parallel int       Number of parallel workers for batch mode (minimum 1) (env YEWSEAL_ENCRYPT_PARALLEL) (default 1)
-      --source string      Read plaintext from the project-relative mirrored tree under this existing, real directory instead of registered plaintext paths; ciphertext still goes to registered paths (env YEWSEAL_ENCRYPT_SOURCE)
-      --sync-sops-config   Rewrite .sops.yaml after encryption using the managed-file rules (env YEWSEAL_SYNC_SOPS_CONFIG) (default true)
-      --update-gitignore   Rebuild .gitignore managed blocks from all configured plaintext paths and the default key path; false leaves files untouched (env YEWSEAL_UPDATE_GITIGNORE) (default true)
-  -v, --verbose            Enable verbose output (scan counts, selection info and per-file unchanged results on stderr) (env YEWSEAL_ENCRYPT_VERBOSE)
+  -f, --force[=true|false]              Freshly encrypt every existing plaintext and rotate its data key (env YEWSEAL_ENCRYPT_FORCE)
+  -h, --help[=true|false]               help for encrypt
+      --json[=true|false]               Print the batch report as JSON on stdout (diagnostics stay on stderr) (env YEWSEAL_ENCRYPT_JSON)
+  -P, --parallel int                    Number of parallel workers for batch mode (minimum 1) (env YEWSEAL_ENCRYPT_PARALLEL) (default 1)
+      --source string                   Read plaintext from the project-relative mirrored tree under this existing, real directory instead of registered plaintext paths; ciphertext still goes to registered paths (env YEWSEAL_ENCRYPT_SOURCE)
+      --sync-sops-config[=true|false]   Rewrite .sops.yaml after encryption using the managed-file rules (env YEWSEAL_SYNC_SOPS_CONFIG) (default true)
+      --update-gitignore[=true|false]   Rebuild .gitignore managed blocks from all configured plaintext paths and the default key path; false leaves files untouched (env YEWSEAL_UPDATE_GITIGNORE) (default true)
+  -v, --verbose[=true|false]            Enable verbose output (scan counts, selection info and per-file unchanged results on stderr) (env YEWSEAL_ENCRYPT_VERBOSE)
 ```
 
 ## Options inherited from parent commands

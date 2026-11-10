@@ -80,10 +80,10 @@ yews plan [command options] [path-or-pattern]... [flags]
 ## Options
 
 ```
-  -h, --help      help for plan
-      --json      Print configured file mappings as JSON (env YEWSEAL_PLAN_JSON)
-      --source    Show field-level origins in a describe layout (plain output only) (env YEWSEAL_PLAN_SOURCE)
-  -v, --verbose   List loaded config files on stdout and scan counts on stderr (env YEWSEAL_PLAN_VERBOSE)
+  -h, --help[=true|false]      help for plan
+      --json[=true|false]      Print configured file mappings as JSON (env YEWSEAL_PLAN_JSON)
+      --source[=true|false]    Show field-level origins in a describe layout (plain output only) (env YEWSEAL_PLAN_SOURCE)
+  -v, --verbose[=true|false]   List loaded config files on stdout and scan counts on stderr (env YEWSEAL_PLAN_VERBOSE)
 ```
 
 ## Options inherited from parent commands
