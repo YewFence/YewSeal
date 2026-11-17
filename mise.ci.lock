@@ -104,5 +104,5 @@ version = "1.9.0"
 backend = "go:golang.org/x/vuln/cmd/govulncheck"
 
 [[tools."pipx:codecov-cli"]]
-version = "11.3.1"
+version = "11.3.2"
 backend = "pipx:codecov-cli"
