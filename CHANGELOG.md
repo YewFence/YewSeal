@@ -1,3 +1,13 @@
+## [0.26.2] - 2026-11-17
+
+### ⚙️ Miscellaneous Tasks
+
+- *(deps)* Update github actions to v5.2.8 (#155)
+- *(gomod-deps)* Update go modules (#151)
+- *(go-deps)* Update go module directive to v1.27.4 (#152)
+- *(npm-deps)* Update npm dependencies (#148)
+- *(mise-deps)* Lock file maintenance (#146)
+- *(mise-deps)* Update mise tools (#153)
 ## [0.26.1] - 2026-11-10
 
 ### ⚙️ Miscellaneous Tasks
